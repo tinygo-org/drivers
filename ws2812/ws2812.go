@@ -1,13 +1,17 @@
+// Package ws2812 implements a driver for WS2812 and SK6812 RGB LED strips.
 package ws2812
 
 import (
 	"machine"
 )
 
+// WS2812 wraps a pin object for an easy driver interface.
 type WS2812 struct {
 	Pin machine.GPIO
 }
 
+// New returns a new WS2812 driver. It does not touch the pin object: you have
+// to configure it as an output pin before calling New.
 func New(pin machine.GPIO) WS2812 {
 	return WS2812{pin}
 }

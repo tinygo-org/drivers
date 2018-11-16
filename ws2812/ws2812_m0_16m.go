@@ -2,6 +2,9 @@
 
 package ws2812
 
+// This file implements the WS2812 protocol for 16MHz Cortex-M0
+// microcontrollers.
+
 import (
 	"device/arm"
 )
