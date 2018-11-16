@@ -5,7 +5,7 @@ package mma8653
 // The I2C address which this device listens to.
 const Address = 0x1D
 
-// Registers. Names, addresses and comment copied from the datasheet.
+// Registers. Names, addresses and comments copied from the datasheet.
 const (
 	STATUS       = 0x00 // Real time status
 	OUT_X_MSB    = 0x01 // top 8 bits of 10-bit sample

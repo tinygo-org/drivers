@@ -22,7 +22,7 @@ func NewI2C(bus machine.I2C) Device {
 	return Device{bus}
 }
 
-// Connected returns whether a MMC8653 has been found.
+// Connected returns whether a MMA8653 has been found.
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
