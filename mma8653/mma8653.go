@@ -36,8 +36,9 @@ func (d Device) Configure(speed DataRate) {
 	d.bus.WriteRegister(Address, CTRL_REG1, []uint8{data})
 }
 
-// ReadOrientation reads the current orientation from the device and returns it.
-func (d Device) ReadOrientation() (x int16, y int16, z int16) {
+// ReadAcceleration reads the current acceleration from the device and returns
+// it.
+func (d Device) ReadAcceleration() (x int16, y int16, z int16) {
 	data := make([]byte, 6)
 	d.bus.ReadRegister(Address, OUT_X_MSB, data)
 	x = int16((uint16(data[0]) << 8) | uint16(data[1]))
