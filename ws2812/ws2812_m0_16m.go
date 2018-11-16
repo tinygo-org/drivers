@@ -10,10 +10,10 @@ import (
 )
 
 // Send a single byte using the WS2812 protocol.
-func (p WS2812) WriteByte(c byte) {
+func (d Device) WriteByte(c byte) {
 	// For the Cortex-M0 at 16MHz
-	portSet, maskSet := p.Pin.PortMaskSet()
-	portClear, maskClear := p.Pin.PortMaskClear()
+	portSet, maskSet := d.Pin.PortMaskSet()
+	portClear, maskClear := d.Pin.PortMaskClear()
 
 	value := uint32(c) << 24
 	arm.AsmFull(`
