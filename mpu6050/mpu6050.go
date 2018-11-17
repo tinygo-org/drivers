@@ -46,3 +46,13 @@ func (d Device) ReadAcceleration() (x int16, y int16, z int16) {
 	z = int16((uint16(data[4]) << 8) | uint16(data[5]))
 	return
 }
+
+// ReadRotation reads the current rotation from the device and returns it.
+func (d Device) ReadRotation() (x int16, y int16, z int16) {
+	data := make([]byte, 6)
+	d.bus.ReadRegister(Address, GYRO_XOUT_H, data)
+	x = int16((uint16(data[0]) << 8) | uint16(data[1]))
+	y = int16((uint16(data[2]) << 8) | uint16(data[3]))
+	z = int16((uint16(data[4]) << 8) | uint16(data[5]))
+	return
+}
