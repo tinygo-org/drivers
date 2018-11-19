@@ -14,11 +14,11 @@ type Device struct {
 	bus machine.I2C
 }
 
-// NewI2C creates a new MMA8653 connection. The I2C bus must already be
+// New creates a new MMA8653 connection. The I2C bus must already be
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func NewI2C(bus machine.I2C) Device {
+func New(bus machine.I2C) Device {
 	return Device{bus}
 }
 
