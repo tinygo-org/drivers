@@ -5,7 +5,7 @@ package blinkm
 // The I2C address which this device listens to.
 const Address = 0x09
 
-// Registers.
+// Registers, which in the case of the BlinkM are actually commands.
 const (
 	TO_RGB            = 0x6e
 	FADE_TO_RGB       = 0x63

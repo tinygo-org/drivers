@@ -7,7 +7,7 @@ import (
 	"machine"
 )
 
-// Device wraps an I2C connection to a MAG3110 device.
+// Device wraps an I2C connection to a BlinkM device.
 type Device struct {
 	bus machine.I2C
 }
