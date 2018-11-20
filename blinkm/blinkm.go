@@ -21,10 +21,10 @@ func New(bus machine.I2C) Device {
 }
 
 // Version returns the version of firmware on the BlinkM.
-func (d Device) Version() ([]byte, error) {
+func (d Device) Version() (major, minor byte, err error) {
 	version := []byte{0, 0}
 	d.bus.ReadRegister(Address, GET_FIRMWARE, version)
-	return version, nil
+	return version[0], version[1], nil
 }
 
 // SetRGB sets the RGB color on the BlinkM.
