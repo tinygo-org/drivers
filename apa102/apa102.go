@@ -22,14 +22,12 @@ const (
 // Device wraps APA102 SPI LEDs.
 type Device struct {
 	bus   machine.SPI
-	count int
 	Order int
 }
 
-// New returns a new APA102 driver. Pass in a fully configured SPI bus, and the count of
-// APA102 LEDs that are connected together.
-func New(b machine.SPI, count int) Device {
-	return Device{bus: b, count: count, Order: BGR}
+// New returns a new APA102 driver. Pass in a fully configured SPI bus.
+func New(b machine.SPI) Device {
+	return Device{bus: b, Order: BGR}
 }
 
 // WriteColors writes the given RGBA color slice out using the APA102 protocol.
@@ -59,7 +57,7 @@ func (d Device) WriteColors(cs []color.RGBA) (n int, err error) {
 		}
 	}
 
-	d.endFrame()
+	d.endFrame(len(cs))
 
 	return len(cs), nil
 }
@@ -68,17 +66,21 @@ func (d Device) WriteColors(cs []color.RGBA) (n int, err error) {
 func (d Device) Write(buf []byte) (n int, err error) {
 	d.startFrame()
 	d.bus.Tx(buf, nil)
-	d.endFrame()
+	d.endFrame(len(buf) / 4)
 
 	return len(buf), nil
 }
 
+// startFrame sends the start bytes for a strand of LEDs.
 func (d Device) startFrame() {
 	d.bus.Tx([]byte{0x00, 0x00, 0x00, 0x00}, nil)
 }
 
-func (d Device) endFrame() {
-	for i := 0; i < (d.count+15)/16; i++ {
+// endFrame sends the end frame marker with one extra bit per LED so
+// long strands of LEDs receive the necessary termination for updates.
+// See https://cpldcpu.wordpress.com/2014/11/30/understanding-the-apa102-superled/
+func (d Device) endFrame(count int) {
+	for i := 0; i < count/16; i++ {
 		d.bus.Tx([]byte{0xff}, nil)
 	}
 }
