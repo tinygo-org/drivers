@@ -17,10 +17,11 @@ func New(pin machine.GPIO) Device {
 }
 
 // Write the raw bitstring out using the WS2812 protocol.
-func (d Device) Write(buf []byte) {
+func (d Device) Write(buf []byte) (n int, err error) {
 	for _, c := range buf {
 		d.WriteByte(c)
 	}
+	return len(buf), nil
 }
 
 // Write the given color slice out using the WS2812 protocol.

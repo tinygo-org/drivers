@@ -10,7 +10,7 @@ import (
 )
 
 // Send a single byte using the WS2812 protocol.
-func (d Device) WriteByte(c byte) {
+func (d Device) WriteByte(c byte) error {
 	// For the Cortex-M0 at 16MHz
 	portSet, maskSet := d.Pin.PortMaskSet()
 	portClear, maskClear := d.Pin.PortMaskClear()
@@ -40,4 +40,5 @@ func (d Device) WriteByte(c byte) {
 		"maskClear": maskClear,
 		"portClear": portClear,
 	})
+	return nil
 }
