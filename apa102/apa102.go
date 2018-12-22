@@ -22,7 +22,6 @@ const (
 // Device wraps APA102 SPI LEDs.
 type Device struct {
 	bus   machine.SPI
-	tx    []byte
 	count int
 	Order int
 }
@@ -30,46 +29,56 @@ type Device struct {
 // New returns a new APA102 driver. Pass in a fully configured SPI bus, and the count of
 // APA102 LEDs that are connected together.
 func New(b machine.SPI, count int) Device {
-	t := make([]byte, count*4)
-	return Device{bus: b, tx: t, count: count, Order: BGR}
+	return Device{bus: b, count: count, Order: BGR}
 }
 
 // WriteColors writes the given RGBA color slice out using the APA102 protocol.
 // The A value (Alpha channel) is used for brightness, set to 0xff (255) for maximum.
-func (d Device) WriteColors(cs []color.RGBA) error {
-	for i, c := range cs {
-		d.tx[i*4] = 0xe0 | (c.A >> 3) // brightness is scaled to 5 bit value
+func (d Device) WriteColors(cs []color.RGBA) (n int, err error) {
+	d.startFrame()
+
+	// write data
+	for _, c := range cs {
+		// brightness is scaled to 5 bit value
+		d.bus.Tx([]byte{0xe0 | (c.A >> 3)}, nil)
+
+		// set the colors
 		switch d.Order {
 		case BRG:
-			d.tx[i*4+1] = byte(c.B)
-			d.tx[i*4+2] = byte(c.R)
-			d.tx[i*4+3] = byte(c.G)
+			d.bus.Tx([]byte{c.B}, nil)
+			d.bus.Tx([]byte{c.R}, nil)
+			d.bus.Tx([]byte{c.G}, nil)
 		case GRB:
-			d.tx[i*4+1] = byte(c.G)
-			d.tx[i*4+2] = byte(c.R)
-			d.tx[i*4+3] = byte(c.B)
+			d.bus.Tx([]byte{c.G}, nil)
+			d.bus.Tx([]byte{c.R}, nil)
+			d.bus.Tx([]byte{c.B}, nil)
 		case BGR:
-			d.tx[i*4+1] = byte(c.B)
-			d.tx[i*4+2] = byte(c.G)
-			d.tx[i*4+3] = byte(c.R)
+			d.bus.Tx([]byte{c.B}, nil)
+			d.bus.Tx([]byte{c.G}, nil)
+			d.bus.Tx([]byte{c.R}, nil)
 		}
 	}
 
-	return d.Write(d.tx)
+	d.endFrame()
+
+	return len(cs), nil
 }
 
 // Write the raw bytes using the APA102 protocol.
-func (d Device) Write(buf []byte) error {
-	// start frame
-	d.bus.Tx([]byte{0x00, 0x00, 0x00, 0x00}, nil)
-
-	// data
+func (d Device) Write(buf []byte) (n int, err error) {
+	d.startFrame()
 	d.bus.Tx(buf, nil)
+	d.endFrame()
 
-	// end frame
+	return len(buf), nil
+}
+
+func (d Device) startFrame() {
+	d.bus.Tx([]byte{0x00, 0x00, 0x00, 0x00}, nil)
+}
+
+func (d Device) endFrame() {
 	for i := 0; i < (d.count+15)/16; i++ {
 		d.bus.Tx([]byte{0xff}, nil)
 	}
-
-	return nil
 }
