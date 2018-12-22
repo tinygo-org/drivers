@@ -2,6 +2,7 @@
 package ws2812
 
 import (
+	"image/color"
 	"machine"
 )
 
@@ -25,12 +26,12 @@ func (d Device) Write(buf []byte) (n int, err error) {
 }
 
 // Write the given color slice out using the WS2812 protocol.
-// Colors are specified in RGB format, and are send out in the common GRB
-// format.
-func (d Device) WriteColors(buf []uint32) {
+// Colors are sent out in the usual GRB format.
+func (d Device) WriteColors(buf []color.RGBA) error {
 	for _, color := range buf {
-		d.WriteByte(byte(color >> 8))  // green
-		d.WriteByte(byte(color >> 16)) // red
-		d.WriteByte(byte(color >> 0))  // blue
+		d.WriteByte(color.G) // green
+		d.WriteByte(color.R) // red
+		d.WriteByte(color.B) // blue
 	}
+	return nil
 }
