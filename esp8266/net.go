@@ -18,7 +18,7 @@ type UDPAddr struct {
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
-func (d Device) DialUDP(protocol, laddr, raddr UDPAddr) (*SerialConn, error) {
+func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, error) {
 	sendport := strconv.Itoa(raddr.Port)
 	listenport := strconv.Itoa(laddr.Port)
 
