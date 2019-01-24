@@ -82,7 +82,7 @@ func (d Device) GetSoftAPConfig() []byte {
 // SetSoftAPConfig sets the ESP8266 current configuration acting as an Access Point.
 func (d Device) SetSoftAPConfig(ssid, pwd string, ch, security int) error {
 	chval := strconv.Itoa(ch)
-	ecnval := val := strconv.Itoa(security)
+	ecnval := strconv.Itoa(security)
 	val := "\"" + ssid + "\",\"" + pwd + "\"," + chval + "," + ecnval
 	d.Set(ConnectAP, val)
 	time.Sleep(1000 * time.Millisecond)
