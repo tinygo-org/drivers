@@ -1,15 +1,29 @@
 package esp8266
 
 import (
+	"strconv"
 	"time"
 )
+
+// IP here to serve as compatible type. until TinyGo can compile the net package.
+type IP []byte
+
+// UDPAddr here to serve as compatible type. until TinyGo can compile the net package.
+type UDPAddr struct {
+	IP   IP
+	Port int
+	Zone string // IPv6 scoped addressing zone; added in Go 1.1
+}
 
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
-func (d Device) DialUDP(protocol, laddr, raddr string) (*SerialConn, error) {
-	// TODO: parse the IP address out of the raddr
-	d.ConnectUDPSocket("", raddr, laddr)
+func (d Device) DialUDP(protocol, laddr, raddr UDPAddr) (*SerialConn, error) {
+	sendport := strconv.Itoa(raddr.Port)
+	listenport := strconv.Itoa(laddr.Port)
+
+	// TODO: get IP out of the raddr.
+	d.ConnectUDPSocket("", sendport, listenport)
 
 	return &SerialConn{Adaptor: d}, nil
 }
@@ -24,8 +38,7 @@ type SerialConn struct {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *SerialConn) Read(b []byte) (n int, err error) {
-	// return c.Adaptor.Read(b)
-	return 0, nil
+	return c.Adaptor.Read(b)
 }
 
 // Write writes data to the connection.

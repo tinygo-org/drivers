@@ -49,8 +49,13 @@ func (d Device) Connected() bool {
 }
 
 // Write raw bytes to the UART.
-func (d Device) Write(buf []byte) (n int, err error) {
-	return d.bus.Write(buf)
+func (d Device) Write(b []byte) (n int, err error) {
+	return d.bus.Write(b)
+}
+
+// Read raw bytes from the UART.
+func (d Device) Read(b []byte) (n int, err error) {
+	return d.bus.Read(b)
 }
 
 // Response gets the next response bytes from the ESP8266.
