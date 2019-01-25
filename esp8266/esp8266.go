@@ -44,7 +44,7 @@ func (d Device) Configure() {
 }
 
 // Connected checks if there is communication with the ESP8266.
-func (d Device) Connected() bool {
+func (d *Device) Connected() bool {
 	d.Execute(Test)
 
 	// handle response here, should include "OK"
@@ -56,17 +56,20 @@ func (d Device) Connected() bool {
 }
 
 // Write raw bytes to the UART.
-func (d Device) Write(b []byte) (n int, err error) {
+func (d *Device) Write(b []byte) (n int, err error) {
 	return d.bus.Write(b)
 }
 
 // Read raw bytes from the UART.
-func (d Device) Read(b []byte) (n int, err error) {
+func (d *Device) Read(b []byte) (n int, err error) {
 	return d.bus.Read(b)
 }
 
-// ReadSocket returns the dat that has already been read in from the responses.
-func (d Device) ReadSocket(b []byte) (n int, err error) {
+// ReadSocket returns the data that has already been read in from the responses.
+func (d *Device) ReadSocket(b []byte) (n int, err error) {
+	// make sure no data in buffer
+	d.Response()
+
 	count := len(b)
 	if len(b) > d.socketdataLen {
 		count = d.socketdataLen
@@ -81,73 +84,34 @@ func (d Device) ReadSocket(b []byte) (n int, err error) {
 }
 
 // Response gets the next response bytes from the ESP8266.
-func (d Device) Response() []byte {
+func (d *Device) Response() []byte {
 	var i, retries int
 
-	// is there data?
+	header := make([]byte, 2)
 	for {
 		for d.bus.Buffered() > 0 {
-			// get the first byte
-			data, _ := d.bus.ReadByte()
+			// get the first 2 bytes
+			header[0], _ = d.bus.ReadByte()
+			header[1], _ = d.bus.ReadByte()
 
-			if data == 13 { // skip CR
-				data, _ = d.bus.ReadByte()
+			if d.isLeadingCRLF(header) {
+				// skip it
+				header[0], _ = d.bus.ReadByte()
+				header[1], _ = d.bus.ReadByte()
 			}
-			if data == 10 { // skip LF
-				data, _ = d.bus.ReadByte()
-			}
 
-			if data == '+' {
-				// it is data, aka "+IPD,"
-				data, _ = d.bus.ReadByte()
-				if data != 'I' {
-					// error
-				}
-				data, _ = d.bus.ReadByte()
-				if data != 'P' {
-					// error
-				}
-				data, _ = d.bus.ReadByte()
-				if data != 'D' {
-					// error
-				}
-				data, _ = d.bus.ReadByte()
-				if data != ',' {
-					// error
-				}
-
-				// get the expected data length
-				// skip remaining header up to the ":"
-				buf := []byte{}
-				data, _ = d.bus.ReadByte()
-				for data != ':' {
-					// put into the buffer with int value here
-					buf = append(buf, data)
-
-					// read next value
-					data, _ = d.bus.ReadByte()
-				}
-
-				val := string(buf)
-				count, err := strconv.Atoi(val)
-				if err != nil {
-					// not expected data here. what to do?
-
-				}
-
-				// load up the socket data
-				// only read the expected amount of data
-				for m := 0; m < count; m++ {
-					data, _ = d.bus.ReadByte()
-					d.socketdata[d.socketdataLen] = data
-					d.socketdataLen++
-					//j++
-				}
+			if d.isIPD(header) {
+				// is socket data packet
+				d.parseIPD()
+			} else {
+				// no, so put into response
+				d.response[i] = header[0]
+				i++
+				d.response[i] = header[1]
+				i++
 			}
 
 			// read the rest of normal command response
-			d.response[i] = data
-			i++
 			for d.bus.Buffered() > 0 {
 				data, _ := d.bus.ReadByte()
 				d.response[i] = data
@@ -163,4 +127,71 @@ func (d Device) Response() []byte {
 		time.Sleep(10 * time.Millisecond)
 	}
 	return d.response[:i]
+}
+
+func (d *Device) isLeadingCRLF(b []byte) bool {
+	if len(b) < 2 {
+		return false
+	}
+	if b[0] == 13 && b[1] == 10 {
+		return true
+	}
+	return false
+}
+
+func (d *Device) isIPD(b []byte) bool {
+	if len(b) < 2 {
+		return false
+	}
+	if b[0] == '+' && b[1] == 'I' {
+		return true
+	}
+	return false
+}
+
+func (d *Device) parseIPD() bool {
+	data, _ := d.bus.ReadByte()
+	if data != 'P' {
+		// error
+		return false
+	}
+	data, _ = d.bus.ReadByte()
+	if data != 'D' {
+		// error
+		return false
+	}
+	data, _ = d.bus.ReadByte()
+	if data != ',' {
+		// error
+		return false
+	}
+
+	// get the expected data length
+	// skip remaining header up to the ":"
+	buf := []byte{}
+	data, _ = d.bus.ReadByte()
+	for data != ':' {
+		// put into the buffer with int value here
+		buf = append(buf, data)
+
+		// read next value
+		data, _ = d.bus.ReadByte()
+	}
+
+	val := string(buf)
+	count, err := strconv.Atoi(val)
+	if err != nil {
+		// not expected data here. what to do?
+		return false
+	}
+
+	// load up the socket data
+	// only read the expected amount of data
+	for m := 0; m < count; m++ {
+		data, _ = d.bus.ReadByte()
+		d.socketdata[d.socketdataLen] = data
+		d.socketdataLen++
+	}
+
+	return true
 }

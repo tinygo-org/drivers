@@ -15,7 +15,7 @@ const (
 
 // ConnectTCPSocket creates a new TCP socket connection for the ESP8266.
 // Currently only supports single connection mode.
-func (d Device) ConnectTCPSocket(addr, port string) error {
+func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port
 	d.Set(TCPConnect, val)
@@ -25,7 +25,7 @@ func (d Device) ConnectTCPSocket(addr, port string) error {
 }
 
 // ConnectUDPSocket creates a new UDP connection for the ESP8266.
-func (d Device) ConnectUDPSocket(addr, sendport, listenport string) error {
+func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	protocol := "UDP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",0"
 	d.Set(TCPConnect, val)
@@ -35,7 +35,7 @@ func (d Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 }
 
 // DisconnectSocket disconnects the ESP8266 from the current TCP/UDP connection.
-func (d Device) DisconnectSocket() error {
+func (d *Device) DisconnectSocket() error {
 	d.Execute(TCPClose)
 	time.Sleep(pause * time.Millisecond)
 	d.Response()
@@ -44,7 +44,7 @@ func (d Device) DisconnectSocket() error {
 
 // SetMux sets the ESP8266's current client TCP/UDP configuration for concurrent connections
 // either single TCPMuxSingle or multiple TCPMuxMultiple (up to 4).
-func (d Device) SetMux(mode int) error {
+func (d *Device) SetMux(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TCPMultiple, val)
 	time.Sleep(pause * time.Millisecond)
@@ -53,14 +53,14 @@ func (d Device) SetMux(mode int) error {
 }
 
 // GetMux returns the ESP8266 current client TCP/UDP configuration for concurrent connections.
-func (d Device) GetMux() ([]byte, error) {
+func (d *Device) GetMux() ([]byte, error) {
 	d.Query(TCPMultiple)
 	return d.Response(), nil
 }
 
 // SetTCPTransferMode sets the ESP8266's current client TCP/UDP transfer mode.
 // Either TCPTransferModeNormal or TCPTransferModeUnvarnished.
-func (d Device) SetTCPTransferMode(mode int) error {
+func (d *Device) SetTCPTransferMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TransmissionMode, val)
 	time.Sleep(pause * time.Millisecond)
@@ -69,13 +69,13 @@ func (d Device) SetTCPTransferMode(mode int) error {
 }
 
 // GetTCPTransferMode returns the ESP8266 current client TCP/UDP transfer mode.
-func (d Device) GetTCPTransferMode() []byte {
+func (d *Device) GetTCPTransferMode() []byte {
 	d.Query(TransmissionMode)
 	return d.Response()
 }
 
 // StartSocketSend gets the ESP8266 ready to receive TCP/UDP socket data.
-func (d Device) StartSocketSend(size int) error {
+func (d *Device) StartSocketSend(size int) error {
 	val := strconv.Itoa(size)
 	d.Set(TCPSend, val)
 
@@ -87,10 +87,10 @@ func (d Device) StartSocketSend(size int) error {
 
 // EndSocketSend tell the ESP8266 the TCP/UDP socket data sending is complete,
 // and to return to command mode. This is only used in "unvarnished" raw mode.
-func (d Device) EndSocketSend() error {
+func (d *Device) EndSocketSend() error {
 	d.Write([]byte("+++"))
 
-	// TODO: wait until ">" is receeived, which indicates
+	// TODO: wait until ">" is received, which indicates
 	// ready to receive data
 	d.Response()
 	return nil

@@ -26,7 +26,7 @@ func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, err
 
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: d}, nil
+	return &SerialConn{Adaptor: &d}, nil
 }
 
 // ListenUDP listens for UDP connections on the port listed in laddr.
@@ -37,13 +37,13 @@ func (d Device) ListenUDP(network string, laddr *UDPAddr) (*SerialConn, error) {
 
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: d}, nil
+	return &SerialConn{Adaptor: &d}, nil
 }
 
 // SerialConn is a loosely net.Conn compatible intended to support
 // TCP/UDP over serial.
 type SerialConn struct {
-	Adaptor Device
+	Adaptor *Device
 }
 
 // Read reads data from the connection.
