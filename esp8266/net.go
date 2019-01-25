@@ -50,8 +50,8 @@ type SerialConn struct {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *SerialConn) Read(b []byte) (n int, err error) {
-	// this should read only the data that has been received via "+IPD"
-	return c.Adaptor.Read(b)
+	// read only the data that has been received via "+IPD" socket
+	return c.Adaptor.ReadSocket(b)
 }
 
 // Write writes data to the connection.
