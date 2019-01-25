@@ -26,7 +26,7 @@ func (d Device) GetWifiMode() []byte {
 func (d Device) SetWifiMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(WifiMode, val)
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(pause * time.Millisecond)
 	d.Response()
 	return nil
 }
@@ -40,10 +40,12 @@ func (d Device) GetConnectedAP() []byte {
 }
 
 // ConnectToAP connects the ESP8266 to an access point.
-func (d Device) ConnectToAP(ssid, pwd string) error {
+// ws is the number of seconds to wait for connection.
+func (d Device) ConnectToAP(ssid, pwd string, ws int) error {
 	val := "\"" + ssid + "\",\"" + pwd + "\""
 	d.Set(ConnectAP, val)
-	time.Sleep(1000 * time.Millisecond)
+	// TODO: a better way to wait for connect and check for up to ws seconds.
+	time.Sleep(time.Duration(ws) * time.Second)
 	d.Response()
 	return nil
 }

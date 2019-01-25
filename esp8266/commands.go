@@ -93,6 +93,9 @@ const (
 	SetServerTimeout = "+CIPSTO"
 )
 
+// how long in milliseconds to pause after sending AT commands
+const pause = 100
+
 // Execute sends an AT command to the ESP8266.
 func (d Device) Execute(cmd string) error {
 	_, err := d.Write([]byte("AT" + cmd + "\r\n"))

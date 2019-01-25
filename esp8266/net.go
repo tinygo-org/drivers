@@ -19,11 +19,23 @@ type UDPAddr struct {
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
 func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, error) {
+	// TODO: get addr out of the raddr.IP
+	addr := "0"
 	sendport := strconv.Itoa(raddr.Port)
 	listenport := strconv.Itoa(laddr.Port)
 
-	// TODO: get IP out of the raddr.
-	d.ConnectUDPSocket("", sendport, listenport)
+	d.ConnectUDPSocket(addr, sendport, listenport)
+
+	return &SerialConn{Adaptor: d}, nil
+}
+
+// ListenUDP listens for UDP connections on the port listed in laddr.
+func (d Device) ListenUDP(network string, laddr *UDPAddr) (*SerialConn, error) {
+	addr := "0"
+	sendport := "0"
+	listenport := strconv.Itoa(laddr.Port)
+
+	d.ConnectUDPSocket(addr, sendport, listenport)
 
 	return &SerialConn{Adaptor: d}, nil
 }
@@ -38,6 +50,7 @@ type SerialConn struct {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *SerialConn) Read(b []byte) (n int, err error) {
+	// this should read only the data that has been received via "+IPD"
 	return c.Adaptor.Read(b)
 }
 
@@ -45,6 +58,9 @@ func (c *SerialConn) Read(b []byte) (n int, err error) {
 // Write can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetWriteDeadline.
 func (c *SerialConn) Write(b []byte) (n int, err error) {
+	// specify that is a data transfer to the
+	// currently open socket, not commands to the ESP8266.
+	c.Adaptor.StartSocketSend(len(b))
 	return c.Adaptor.Write(b)
 }
 
