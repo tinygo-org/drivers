@@ -5,28 +5,21 @@ import (
 	"time"
 )
 
-// IP here to serve as compatible type. until TinyGo can compile the net package.
-type IP []byte
-
-// UDPAddr here to serve as compatible type. until TinyGo can compile the net package.
-type UDPAddr struct {
-	IP   IP
-	Port int
-	Zone string // IPv6 scoped addressing zone; added in Go 1.1
-}
-
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
 func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, error) {
-	// TODO: get addr out of the raddr.IP
-	addr := "0"
+	addr := raddr.IP.String()
 	sendport := strconv.Itoa(raddr.Port)
 	listenport := strconv.Itoa(laddr.Port)
 
+	// disconnect any old socket
+	d.DisconnectSocket()
+
+	// connect new socket
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: &d}, nil
+	return &SerialConn{Adaptor: &d, laddr: laddr, raddr: raddr}, nil
 }
 
 // ListenUDP listens for UDP connections on the port listed in laddr.
@@ -35,18 +28,25 @@ func (d Device) ListenUDP(network string, laddr *UDPAddr) (*SerialConn, error) {
 	sendport := "0"
 	listenport := strconv.Itoa(laddr.Port)
 
+	// disconnect any old socket
+	d.DisconnectSocket()
+
+	// connect new socket
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: &d}, nil
+	return &SerialConn{Adaptor: &d, laddr: laddr}, nil
 }
 
 // SerialConn is a loosely net.Conn compatible intended to support
 // TCP/UDP over serial.
 type SerialConn struct {
 	Adaptor *Device
+	laddr   *UDPAddr
+	raddr   *UDPAddr
 }
 
 // Read reads data from the connection.
+// TODO: implement the full method functionality:
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *SerialConn) Read(b []byte) (n int, err error) {
@@ -55,6 +55,7 @@ func (c *SerialConn) Read(b []byte) (n int, err error) {
 }
 
 // Write writes data to the connection.
+// TODO: implement the full method functionality for timeouts.
 // Write can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetWriteDeadline.
 func (c *SerialConn) Write(b []byte) (n int, err error) {
@@ -65,21 +66,21 @@ func (c *SerialConn) Write(b []byte) (n int, err error) {
 }
 
 // Close closes the connection.
-// Any blocked Read or Write operations will be unblocked and return errors.
+// Currently only supports a single Read or Write operations without blocking.
 func (c *SerialConn) Close() error {
 	c.Adaptor.DisconnectSocket()
 	return nil
 }
 
 // LocalAddr returns the local network address.
-// func (c SLIPConn) LocalAddr() net.Addr {
-// 	return nil
-// }
+func (c *SerialConn) LocalAddr() UDPAddr {
+	return *c.laddr
+}
 
 // RemoteAddr returns the remote network address.
-// func (c SLIPConn) RemoteAddr() net.Addr {
-// 	return nil
-// }
+func (c *SerialConn) RemoteAddr() UDPAddr {
+	return *c.laddr
+}
 
 // SetDeadline sets the read and write deadlines associated
 // with the connection. It is equivalent to calling both
@@ -114,4 +115,29 @@ func (c *SerialConn) SetReadDeadline(t time.Time) error {
 // A zero value for t means Write will not time out.
 func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 	return nil
+}
+
+// The following definitions are here to support a Golang standard package
+// net-compatible interface for IP until TinyGo can compile the net package.
+
+// IP is an IP address. Unlike the standard implementation, it is only
+// a buffer of bytes that contains the string form of the IP address, not the
+// full byte format used by the Go standard .
+type IP []byte
+
+// UDPAddr here to serve as compatible type. until TinyGo can compile the net package.
+type UDPAddr struct {
+	IP   IP
+	Port int
+	Zone string // IPv6 scoped addressing zone; added in Go 1.1
+}
+
+// ParseIP parses s as an IP address, returning the result.
+func ParseIP(s string) IP {
+	return IP([]byte(s))
+}
+
+// String returns the string form of the IP address ip.
+func (ip IP) String() string {
+	return string(ip)
 }
