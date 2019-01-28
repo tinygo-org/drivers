@@ -12,17 +12,6 @@ import (
 	"github.com/aykevl/tinygo/src/machine"
 )
 
-const (
-	// ULTRALOWPOWER is the lowest oversampling mode of the pressure measurement.
-	ULTRALOWPOWER OversamplingMode = iota
-	// BSTANDARD is the standard oversampling mode of the pressure measurement.
-	STANDARD
-	// HIGHRESOLUTION is a high oversampling mode of the pressure measurement.
-	HIGHRESOLUTION
-	// ULTRAHIGHRESOLUTION is the highest oversampling mode of the pressure measurement.
-	ULTRAHIGHRESOLUTION
-)
-
 // BMP180OversamplingMode is the oversampling ratio of the pressure measurement.
 type OversamplingMode uint
 
@@ -88,19 +77,19 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.md = readInt(data[20], data[21])
 }
 
-// Temperature returns the temperature in celsius degrees (ºC)
-func (d *Device) Temperature() (temperature float32, err error) {
+// Temperature returns the temperature in celsius milli degrees (ºC/1000)
+func (d *Device) Temperature() (temperature int32, err error) {
 	rawTemp, err := d.rawTemp()
 	if err != nil {
 		return
 	}
 	b5 := d.calculateB5(rawTemp)
 	t := (b5 + 8) >> 4
-	return float32(t) / 10, nil
+	return 100*t, nil
 }
 
-// Pressure returns the pressure in pascals (Pa)
-func (d *Device) Pressure() (pressure float32, err error) {
+// Pressure returns the pressure in milli pascals (mPa)
+func (d *Device) Pressure() (pressure int32, err error) {
 	rawTemp, err := d.rawTemp()
 	if err != nil {
 		return
@@ -129,7 +118,7 @@ func (d *Device) Pressure() (pressure float32, err error) {
 	x1 = (p >> 8) * (p >> 8)
 	x1 = (x1 * 3038) >> 16
 	x2 = (-7357 * p) >> 16
-	return float32(p + ((x1 + x2 + 3791) >> 4)), nil
+	return int32(1000*float32(p + ((x1 + x2 + 3791) >> 4))), nil
 }
 
 // rawTemp returns the sensor's raw values of the temperature
@@ -144,7 +133,7 @@ func (d *Device) rawTemp() (int16, error) {
 	return readInt(data[0], data[1]), nil
 }
 
-// calculateB5 calculates intermediate value B5
+// calculateB5 calculates intermediate value B5 as per page 15 of datasheet
 func (d *Device) calculateB5(rawTemp int16) int32 {
 	x1 := (int32(rawTemp) - int32(d.calibrationCoefficients.ac6)) * int32(d.calibrationCoefficients.ac5) >> 15
 	x2 := int32(d.calibrationCoefficients.mc) << 11 / (x1 + int32(d.calibrationCoefficients.md))

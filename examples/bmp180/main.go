@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/aykevl/tinygo-drivers/bmp180"
+	"github.com/tinygo-org/drivers/bmp180"
 	"github.com/aykevl/tinygo/src/machine"
 )
 
@@ -21,10 +21,10 @@ func main() {
 
 	for {
 		temp, _ := sensor.Temperature()
-		println("Temperature:", temp, "ºC")
+		println("Temperature:", temp, "ºmC")
 
 		pressure, _ := sensor.Pressure()
-		println("Pressure", pressure, "Pa")
+		println("Pressure", pressure, "mPa")
 
 		time.Sleep(2 * time.Second)
 	}

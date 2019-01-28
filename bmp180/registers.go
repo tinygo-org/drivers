@@ -17,3 +17,14 @@ const (
 	WHO_AM_I = 0xD0
 	CHIP_ID  = 0x55
 )
+
+const (
+	// ULTRALOWPOWER is the lowest oversampling mode of the pressure measurement.
+	ULTRALOWPOWER OversamplingMode = iota
+	// BSTANDARD is the standard oversampling mode of the pressure measurement.
+	STANDARD
+	// HIGHRESOLUTION is a high oversampling mode of the pressure measurement.
+	HIGHRESOLUTION
+	// ULTRAHIGHRESOLUTION is the highest oversampling mode of the pressure measurement.
+	ULTRAHIGHRESOLUTION
+)
