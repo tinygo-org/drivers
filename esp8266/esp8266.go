@@ -30,13 +30,12 @@ type Device struct {
 	response []byte
 
 	// data received from a TCP/UDP connection forwarded by the ESP8266
-	socketdata    []byte
-	socketdataLen int
+	socketdata []byte
 }
 
 // New returns a new esp8266-wifi driver. Pass in a fully configured UART bus.
 func New(b machine.UART) Device {
-	return Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 1024)}
+	return Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
 }
 
 // Configure sets up the device for communication.
@@ -119,15 +118,17 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 	d.Response()
 
 	count := len(b)
-	if len(b) > d.socketdataLen {
-		count = d.socketdataLen
+	if len(b) >= len(d.socketdata) {
+		// copy it all, then clear socket data
+		count = len(d.socketdata)
+		copy(b, d.socketdata[:count])
+		d.socketdata = d.socketdata[:0]
+	} else {
+		// copy all we can, then keep the remaining socket data around
+		copy(b, d.socketdata[:count])
+		d.socketdata = d.socketdata[count:]
 	}
 
-	for i := 0; i < count; i++ {
-		b[i] = d.socketdata[i]
-	}
-
-	d.socketdataLen = 0
 	return count, nil
 }
 
@@ -237,8 +238,7 @@ func (d *Device) parseIPD() bool {
 	// only read the expected amount of data
 	for m := 0; m < count; m++ {
 		data, _ = d.bus.ReadByte()
-		d.socketdata[d.socketdataLen] = data
-		d.socketdataLen++
+		d.socketdata = append(d.socketdata, data)
 	}
 
 	return true
