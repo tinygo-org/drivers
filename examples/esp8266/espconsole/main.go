@@ -38,8 +38,7 @@ func main() {
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
 	// Init esp8266
-	dev := esp8266.New(uart)
-	adaptor = &dev
+	adaptor = esp8266.New(uart)
 	adaptor.Configure()
 
 	// first check if connected

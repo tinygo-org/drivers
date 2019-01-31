@@ -35,17 +35,12 @@ func main() {
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
 	// Init esp8266
-	dev := esp8266.New(uart)
-	adaptor = &dev
+	adaptor = esp8266.New(uart)
 	adaptor.Configure()
 
 	readyled := machine.GPIO{machine.LED}
 	readyled.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
 	readyled.High()
-
-	msgled := machine.GPIO{machine.D7}
-	msgled.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	msgled.Low()
 
 	// first check if connected
 	if adaptor.Connected() {
@@ -71,15 +66,12 @@ func main() {
 	console.Write([]byte("Waiting for data...\r\n"))
 	data := make([]byte, 50)
 	blink := true
-	messaged := false
 	for {
 		n, _ := conn.Read(data)
 		if n > 0 {
 			console.Write(data[:n])
 			console.Write([]byte("\r\n"))
 			conn.Write([]byte("hello back\r\n"))
-			msgled.High()
-			messaged = true
 		}
 		blink = !blink
 		if blink {
@@ -88,9 +80,6 @@ func main() {
 			readyled.Low()
 		}
 		time.Sleep(500 * time.Millisecond)
-		if messaged {
-			msgled.Low()
-		}
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
