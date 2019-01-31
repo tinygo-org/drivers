@@ -34,8 +34,8 @@ type Device struct {
 }
 
 // New returns a new esp8266-wifi driver. Pass in a fully configured UART bus.
-func New(b machine.UART) Device {
-	return Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
+func New(b machine.UART) *Device {
+	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
 }
 
 // Configure sets up the device for communication.
@@ -126,7 +126,8 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 	} else {
 		// copy all we can, then keep the remaining socket data around
 		copy(b, d.socketdata[:count])
-		d.socketdata = d.socketdata[count:]
+		copy(d.socketdata, d.socketdata[count:])
+		d.socketdata = d.socketdata[:len(d.socketdata)-count]
 	}
 
 	return count, nil
@@ -162,7 +163,10 @@ func (d *Device) Response() []byte {
 
 			// read the rest of normal command response
 			for d.bus.Buffered() > 0 {
-				data, _ := d.bus.ReadByte()
+				data, err := d.bus.ReadByte()
+				if err != nil {
+					return nil
+				}
 				d.response[i] = data
 				i++
 			}
