@@ -16,6 +16,9 @@ import (
 	"github.com/tinygo-org/drivers/esp8266"
 )
 
+// change actAsAP to true to act as an access point instead of connecting to one.
+const actAsAP = false
+
 // access point info
 const ssid = "YOURSSID"
 const pass = "YOURPASS"
@@ -48,7 +51,12 @@ func main() {
 		console.Write(adaptor.Version())
 		console.Write([]byte("\r\n"))
 
-		connectToAP()
+		if actAsAP {
+			provideAP()
+		} else {
+			connectToAP()
+		}
+
 		console.Write([]byte("Type an AT command then press enter:\r\n"))
 		prompt()
 	} else {
@@ -95,6 +103,10 @@ func main() {
 	}
 }
 
+func prompt() {
+	console.Write([]byte("ESP8266>"))
+}
+
 // connect to access point
 func connectToAP() {
 	console.Write([]byte("Connecting to wifi network...\r\n"))
@@ -105,6 +117,14 @@ func connectToAP() {
 	console.Write([]byte("\r\n"))
 }
 
-func prompt() {
-	console.Write([]byte("ESP8266>"))
+// provide access point
+func provideAP() {
+	console.Write([]byte("Starting wifi network as access point '"))
+	console.Write([]byte(ssid))
+	console.Write([]byte("'...\r\n"))
+	adaptor.SetWifiMode(esp8266.WifiModeAP)
+	adaptor.SetAPConfig(ssid, pass, 7, esp8266.WifiAPSecurityWPA2_PSK)
+	console.Write([]byte("Ready.\r\n"))
+	console.Write(adaptor.GetAPIP())
+	console.Write([]byte("\r\n"))
 }

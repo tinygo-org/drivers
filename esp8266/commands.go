@@ -32,17 +32,22 @@ const (
 	// WiFi mode (sta/AP/sta+AP)
 	WifiMode = "+CWMODE"
 
-	// Connect to AP
+	// Connect to an access point.
 	ConnectAP = "+CWJAP"
 
 	// List available AP's
 	ListAP = "+CWLAP"
 
-	// Disconnect from AP
+	// Disconnect from the current AP
 	Disconnect = "+CWQAP"
 
-	// Set softAP configuration
-	SoftAPConfig = "+CWSAP"
+	// Set softAP configuration. This also activates the ESP8266 to act as an access point.
+	// The settings will not be saved in flash memory, so they will be forgotten on next reset.
+	SoftAPConfigCurrent = "+CWSAP_CUR"
+
+	// Set softAP configuration as saved in flash. This also activates the ESP8266 to act as an access point.
+	// The settings will be saved in flash memory, so they will be used on next reset.
+	SoftAPConfigFlash = "+CWSAP_DEF"
 
 	// List station IP's connected to softAP
 	ListConnectedIP = "+CWLIF"
@@ -59,8 +64,13 @@ const (
 	// Set IP address of ESP8266 station
 	SetStationIP = "+CIPSTA"
 
-	// Set IP address of ESP8266 softAP
-	SetSoftAPIP = "+CIPAP"
+	// Set IP address of ESP8266 when acting as access point.
+	// The IP address will not be saved in flash memory, so it will be forgotten on next reset.
+	SetSoftAPIPCurrent = "+CIPAP_CUR"
+
+	// Set IP address of ESP8266 when acting as access point.
+	// The IP address will be saved in flash memory, so they will be used on next reset.
+	SetSoftAPIPFlash = "+CIPAP_DEF"
 )
 
 // TCP/IP commands
