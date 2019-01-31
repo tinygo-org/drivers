@@ -39,6 +39,14 @@ func main() {
 	adaptor = &dev
 	adaptor.Configure()
 
+	readyled := machine.GPIO{machine.LED}
+	readyled.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	readyled.High()
+
+	msgled := machine.GPIO{machine.D7}
+	msgled.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	msgled.Low()
+
 	// first check if connected
 	if adaptor.Connected() {
 		console.Write([]byte("Connected to ESP8266.\r\n"))
@@ -62,16 +70,27 @@ func main() {
 
 	console.Write([]byte("Waiting for data...\r\n"))
 	data := make([]byte, 50)
+	blink := true
+	messaged := false
 	for {
 		n, _ := conn.Read(data)
 		if n > 0 {
-			println(string(data))
-			for i := 0; i < n; i++ {
-				data[i] = 0
-			}
+			console.Write(data[:n])
+			console.Write([]byte("\r\n"))
 			conn.Write([]byte("hello back\r\n"))
+			msgled.High()
+			messaged = true
+		}
+		blink = !blink
+		if blink {
+			readyled.High()
+		} else {
+			readyled.Low()
 		}
 		time.Sleep(500 * time.Millisecond)
+		if messaged {
+			msgled.Low()
+		}
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
@@ -86,7 +105,7 @@ func connectToAP() {
 	adaptor.SetWifiMode(esp8266.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
 	console.Write([]byte("Connected.\r\n"))
-	console.Write(adaptor.GetClientIP())
+	console.Write([]byte(adaptor.GetClientIP()))
 	console.Write([]byte("\r\n"))
 }
 
@@ -98,6 +117,6 @@ func provideAP() {
 	adaptor.SetWifiMode(esp8266.WifiModeAP)
 	adaptor.SetAPConfig(ssid, pass, 7, esp8266.WifiAPSecurityWPA2_PSK)
 	console.Write([]byte("Ready.\r\n"))
-	console.Write(adaptor.GetAPIP())
+	console.Write([]byte(adaptor.GetAPIP()))
 	console.Write([]byte("\r\n"))
 }

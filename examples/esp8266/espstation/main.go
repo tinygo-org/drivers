@@ -79,6 +79,6 @@ func connectToAP() {
 	adaptor.SetWifiMode(esp8266.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
 	console.Write([]byte("Connected.\r\n"))
-	console.Write(adaptor.GetClientIP())
+	console.Write([]byte(adaptor.GetClientIP()))
 	console.Write([]byte("\r\n"))
 }

@@ -113,7 +113,7 @@ func connectToAP() {
 	adaptor.SetWifiMode(esp8266.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
 	console.Write([]byte("Connected.\r\n"))
-	console.Write(adaptor.GetClientIP())
+	console.Write([]byte(adaptor.GetClientIP()))
 	console.Write([]byte("\r\n"))
 }
 
@@ -125,6 +125,6 @@ func provideAP() {
 	adaptor.SetWifiMode(esp8266.WifiModeAP)
 	adaptor.SetAPConfig(ssid, pass, 7, esp8266.WifiAPSecurityWPA2_PSK)
 	console.Write([]byte("Ready.\r\n"))
-	console.Write(adaptor.GetAPIP())
+	console.Write([]byte(adaptor.GetAPIP()))
 	console.Write([]byte("\r\n"))
 }
