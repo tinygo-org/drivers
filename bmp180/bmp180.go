@@ -9,7 +9,7 @@ package bmp180
 import (
 	"time"
 
-	"github.com/aykevl/tinygo/src/machine"
+	"machine"
 )
 
 // BMP180OversamplingMode is the oversampling ratio of the pressure measurement.
@@ -118,7 +118,7 @@ func (d *Device) Pressure() (pressure int32, err error) {
 	x1 = (p >> 8) * (p >> 8)
 	x1 = (x1 * 3038) >> 16
 	x2 = (-7357 * p) >> 16
-	return int32(1000*float32(p + ((x1 + x2 + 3791) >> 4))), nil
+	return 1000*(p + ((x1 + x2 + 3791) >> 4)), nil
 }
 
 // rawTemp returns the sensor's raw values of the temperature
