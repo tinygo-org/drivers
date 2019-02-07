@@ -11,10 +11,13 @@ import (
 	"machine"
 )
 
+// SamplingMode is the sampling's resolution of the measurement
+type SamplingMode uint
+
 // Device wraps an I2C connection to a bh1750 device.
 type Device struct {
 	bus  machine.I2C
-	mode byte
+	mode SamplingMode
 }
 
 // New creates a new bh1750 connection. The I2C bus must already be
@@ -54,20 +57,14 @@ func (d *Device) Illuminance() int32 {
 	} else {
 		coef = LOW_RES
 	}
-	// 1.2 = measurement accuracy as per the datasheet
-	return int32(float32(100*coef*lux) / 1.2)
+	// 100 * coef * lux * (5/6)
+	// 5/6 = measurement accuracy as per the datasheet
+	return int32(250 * coef * lux / 3)
 }
 
 // SetMode changes the reading mode for the sensor
-func (d *Device) SetMode(mode byte) {
-	if mode == CONTINUOUS_HIGH_RES_MODE ||
-		mode == CONTINUOUS_HIGH_RES_MODE_2 ||
-		mode == CONTINUOUS_LOW_RES_MODE ||
-		mode == ONE_TIME_HIGH_RES_MODE ||
-		mode == ONE_TIME_HIGH_RES_MODE_2 ||
-		mode == ONE_TIME_LOW_RES_MODE {
-			d.mode = mode
-			d.bus.Tx(Address, []byte{d.mode}, nil)
-			time.Sleep(10*time.Millisecond)
-	}
+func (d *Device) SetMode(mode SamplingMode) {
+	d.mode = mode
+	d.bus.Tx(Address, []byte{byte(d.mode)}, nil)
+	time.Sleep(10 * time.Millisecond)
 }
