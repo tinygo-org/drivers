@@ -12,7 +12,7 @@ import (
 )
 
 // SamplingMode is the sampling's resolution of the measurement
-type SamplingMode uint
+type SamplingMode byte
 
 // Device wraps an I2C connection to a bh1750 device.
 type Device struct {
