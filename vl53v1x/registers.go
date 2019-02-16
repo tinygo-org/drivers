@@ -59,7 +59,6 @@ const (
 
 	TIMING_GUARD = 4528
 	TARGETRATE   = 0x0A00
-	TIMEOUT      = 500
 )
 
 const (

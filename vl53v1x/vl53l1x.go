@@ -315,12 +315,12 @@ func (d *Device) Status() RangeStatus {
 
 // SignalRate returns the peak signal rate in count per second (cps)
 func (d *Device) SignalRate() int32 {
-	return int32(1000000*d.rangingData.signalRateMCPS)
+	return int32(1000000 * d.rangingData.signalRateMCPS)
 }
 
 // AmbientRate returns the ambient rate in count per second (cps)
 func (d *Device) AmbientRate() int32 {
-	return int32(1000000*d.rangingData.ambientRateMCPS)
+	return int32(1000000 * d.rangingData.ambientRateMCPS)
 }
 
 // getRangingData stores in the buffer the ranging data
