@@ -13,9 +13,9 @@ type Device struct {
 	stepNumber int32
 }
 
-// New returns a new easystepper driver given 4 pins numbers (not pin object)
-// and the delay between steps (in ms)
-func New(pin1 uint8, pin2 uint8, pin3 uint8, pin4 uint8, stepDelay int32) Device {
+// New returns a new easystepper driver given 4 pins numbers (not pin object),
+// number of steps and rpm
+func New(pin1 uint8, pin2 uint8, pin3 uint8, pin4 uint8, steps int32, rpm int32) Device {
 	m1 := machine.GPIO{pin1}
 	m1.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
 	m2 := machine.GPIO{pin2}
@@ -26,13 +26,13 @@ func New(pin1 uint8, pin2 uint8, pin3 uint8, pin4 uint8, stepDelay int32) Device
 	m4.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
 	return Device{
 		pins:      [4]machine.GPIO{m1, m2, m3, m4},
-		stepDelay: stepDelay,
+		stepDelay: 60000000 / (steps * rpm),
 	}
 }
 
-// Step rotates the motor the number of given steps
+// Move rotates the motor the number of given steps
 // (negative steps will rotate it the opposite direction)
-func (d *Device) Step(steps int32) {
+func (d *Device) Move(steps int32) {
 	direction := steps > 0
 	if steps < 0 {
 		steps = -steps - d.stepNumber
@@ -42,7 +42,7 @@ func (d *Device) Step(steps int32) {
 	var stepN int8
 	var s int32
 	for s = d.stepNumber; s < steps; s++ {
-		time.Sleep(time.Duration(d.stepDelay) * time.Millisecond)
+		time.Sleep(time.Duration(d.stepDelay) * time.Microsecond)
 		if direction {
 			stepN = int8(s % 4)
 		} else {
