@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-	//motor := easystepper.New(8, 9, 10, 11)
 	motor := easystepper.New(machine.P13, machine.P15, machine.P14, machine.P16, 200, 75)
 
 	for {
