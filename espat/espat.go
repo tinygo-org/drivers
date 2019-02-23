@@ -1,11 +1,14 @@
-// Package esp8266 implements TCP/UDP communication over serial
-// with a separate Wifi ESP8266 board using the Espressif AT command set
+// Package espat implements TCP/UDP wireless communication over serial
+// with a separate ESP8266 or ESP32 board using the Espressif AT command set
 // across a UART interface.
 //
-// In order to use this driver, the ESP8266 must be flashed with firmware
-// supporting the AT command set. Many ESP8266 chips already have this firmware
+// In order to use this driver, the ESP8266/ESP32 must be flashed with firmware
+// supporting the AT command set. Many ESP8266/ESP32 chips already have this firmware
 // installed by default. You will need to install this firmware if you have an
 // ESP8266 that has been flashed with NodeMCU (Lua) or Arduino firmware.
+//
+// AT Command Core repository:
+// https://github.com/espressif/esp32-at
 //
 // Datasheet:
 // https://www.espressif.com/sites/default/files/documentation/0a-esp8266ex_datasheet_en.pdf
@@ -22,18 +25,18 @@ import (
 	"time"
 )
 
-// Device wraps UART connection to the ESP8266.
+// Device wraps UART connection to the ESP8266/ESP32.
 type Device struct {
 	bus machine.UART
 
-	// command responses that come back from the ESP8266
+	// command responses that come back from the ESP8266/ESP32
 	response []byte
 
-	// data received from a TCP/UDP connection forwarded by the ESP8266
+	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
 	socketdata []byte
 }
 
-// New returns a new esp8266-wifi driver. Pass in a fully configured UART bus.
+// New returns a new espat driver. Pass in a fully configured UART bus.
 func New(b machine.UART) *Device {
 	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
 }
@@ -42,7 +45,7 @@ func New(b machine.UART) *Device {
 func (d Device) Configure() {
 }
 
-// Connected checks if there is communication with the ESP8266.
+// Connected checks if there is communication with the ESP8266/ESP32.
 func (d *Device) Connected() bool {
 	d.Execute(Test)
 
@@ -67,33 +70,33 @@ func (d *Device) Read(b []byte) (n int, err error) {
 // how long in milliseconds to pause after sending AT commands
 const pause = 100
 
-// Execute sends an AT command to the ESP8266.
+// Execute sends an AT command to the ESP8266/ESP32.
 func (d Device) Execute(cmd string) error {
 	_, err := d.Write([]byte("AT" + cmd + "\r\n"))
 	return err
 }
 
-// Query sends an AT command to the ESP8266 that returns the
+// Query sends an AT command to the ESP8266/ESP32 that returns the
 // current value for some configuration parameter.
 func (d Device) Query(cmd string) (string, error) {
 	_, err := d.Write([]byte("AT" + cmd + "?\r\n"))
 	return "", err
 }
 
-// Set sends an AT command with params to the ESP8266 for a
+// Set sends an AT command with params to the ESP8266/ESP32 for a
 // configuration value to be set.
 func (d Device) Set(cmd, params string) error {
 	_, err := d.Write([]byte("AT" + cmd + "=" + params + "\r\n"))
 	return err
 }
 
-// Version returns the ESP8266 firmware version info.
+// Version returns the ESP8266/ESP32 firmware version info.
 func (d Device) Version() []byte {
 	d.Execute(Version)
 	return d.Response()
 }
 
-// Echo sets the ESP8266 echo setting.
+// Echo sets the ESP8266/ESP32 echo setting.
 func (d Device) Echo(set bool) {
 	if set {
 		d.Execute(EchoConfigOn)
@@ -104,8 +107,8 @@ func (d Device) Echo(set bool) {
 	d.Response()
 }
 
-// Reset restarts the ESP8266 firmware. Due to how the baud rate changes,
-// this messes up communication with the ESP8266 module. So make sure you know
+// Reset restarts the ESP8266/ESP32 firmware. Due to how the baud rate changes,
+// this messes up communication with the ESP8266/ESP32 module. So make sure you know
 // what you are doing when you call this.
 func (d Device) Reset() {
 	d.Execute(Restart)
@@ -133,7 +136,7 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 	return count, nil
 }
 
-// Response gets the next response bytes from the ESP8266.
+// Response gets the next response bytes from the ESP8266/ESP32.
 func (d *Device) Response() []byte {
 	var i, retries int
 
