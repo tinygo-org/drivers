@@ -26,9 +26,10 @@ func main() {
 		for i := range leds {
 			rg = !rg
 			if rg {
-				leds[i] = color.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0x77}
+				// Alpha channel is not supported by WS2812 so we leave it out
+				leds[i] = color.RGBA{R: 0xff, G: 0x00, B: 0x00}
 			} else {
-				leds[i] = color.RGBA{R: 0x00, G: 0xff, B: 0x00, A: 0x77}
+				leds[i] = color.RGBA{R: 0x00, G: 0xff, B: 0x00}
 			}
 		}
 
