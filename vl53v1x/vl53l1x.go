@@ -16,14 +16,14 @@ import (
 type DistanceMode uint8
 type RangeStatus uint8
 
-type RangingData struct {
+type rangingData struct {
 	mm              uint16
 	status          RangeStatus
-	signalRateMCPS  float32 //MCPS : Mega Count Per Second
-	ambientRateMCPS float32
+	signalRateMCPS  int32 //MCPS : Mega Count Per Second
+	ambientRateMCPS int32
 }
 
-type ResultBuffer struct {
+type resultBuffer struct {
 	status                     uint8
 	streamCount                uint8
 	effectiveSPADCount         uint16
@@ -42,8 +42,8 @@ type Device struct {
 	calibrated         bool
 	VHVInit            uint8
 	VHVTimeout         uint8
-	rangingData        RangingData
-	results            ResultBuffer
+	rangingData        rangingData
+	results            resultBuffer
 }
 
 // New creates a new VL53L1X connection. The I2C bus must already be
@@ -128,7 +128,7 @@ func (d *Device) Configure(use2v8Mode bool) bool {
 	return true
 }
 
-// SetTimetou configures the timeout
+// SetTimeout configures the timeout
 func (d *Device) SetTimeout(timeout uint32) {
 	d.timeout = timeout
 }
@@ -138,6 +138,7 @@ func (d *Device) SetTimeout(timeout uint32) {
 // SHORT: 136cm (dark) - 135cm (strong ambient light)
 // MEDIUM: 290cm (dark) - 76cm (strong ambient light)
 // LONG: 360cm (dark) - 73cm (strong ambient light)
+// It returns false if an invalid mode is provided
 func (d *Device) SetDistanceMode(mode DistanceMode) bool {
 	budgetMicroseconds := d.GetMeasurementTimingBudget()
 	switch mode {
@@ -194,6 +195,7 @@ func (d *Device) GetMeasurementTimingBudget() uint32 {
 }
 
 // SetMeasurementTimingBudget configures the timing budget in microseconds
+// It returns false if an invalid timing budget is provided
 func (d *Device) SetMeasurementTimingBudget(budgetMicroseconds uint32) bool {
 	if budgetMicroseconds <= TIMING_GUARD {
 		return false
@@ -315,12 +317,12 @@ func (d *Device) Status() RangeStatus {
 
 // SignalRate returns the peak signal rate in count per second (cps)
 func (d *Device) SignalRate() int32 {
-	return int32(1000000 * d.rangingData.signalRateMCPS)
+	return d.rangingData.signalRateMCPS
 }
 
 // AmbientRate returns the ambient rate in count per second (cps)
 func (d *Device) AmbientRate() int32 {
-	return int32(1000000 * d.rangingData.ambientRateMCPS)
+	return d.rangingData.ambientRateMCPS
 }
 
 // getRangingData stores in the buffer the ranging data
@@ -378,8 +380,8 @@ func (d *Device) getRangingData() {
 		d.rangingData.status = None
 	}
 
-	d.rangingData.signalRateMCPS = float32(d.results.signalRateCrosstalkMCPSSD0) / (1 << 7)
-	d.rangingData.ambientRateMCPS = float32(d.results.ambientRateMCPSSD0) / (1 << 7)
+	d.rangingData.signalRateMCPS = 1000000 * int32(d.results.signalRateCrosstalkMCPSSD0) / (1 << 7)
+	d.rangingData.ambientRateMCPS = 1000000 * int32(d.results.ambientRateMCPSSD0) / (1 << 7)
 }
 
 // setupManualCalibration configures the manual calibration
