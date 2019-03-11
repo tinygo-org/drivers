@@ -51,3 +51,12 @@ const (
 	DataRate6Hz                   // 6.25Hz, 160ms  interval
 	DataRate2Hz                   // 1.56Hz, 640ms  interval
 )
+
+type Sensitivity uint8
+
+// Sensitivity constants.
+const (
+	Sensitivity2G Sensitivity = iota
+	Sensitivity4G
+	Sensitivity8G
+)
