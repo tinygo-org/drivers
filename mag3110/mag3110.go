@@ -10,7 +10,8 @@ import (
 
 // Device wraps an I2C connection to a MAG3110 device.
 type Device struct {
-	bus machine.I2C
+	bus     machine.I2C
+	Address uint16
 }
 
 // New creates a new MAG3110 connection. The I2C bus must already be
@@ -18,29 +19,29 @@ type Device struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus machine.I2C) Device {
-	return Device{bus}
+	return Device{bus, Address}
 }
 
 // Connected returns whether a MAG3110 has been found.
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(Address, WHO_AM_I, data)
+	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0xC4
 }
 
 // Configure sets up the device for communication.
 func (d Device) Configure() {
-	d.bus.WriteRegister(Address, CTRL_REG2, []uint8{0x80}) // Power down when not used
+	d.bus.WriteRegister(uint8(d.Address), CTRL_REG2, []uint8{0x80}) // Power down when not used
 }
 
 // ReadMagnetic reads the vectors of the magnetic field of the device and
 // returns it.
 func (d Device) ReadMagnetic() (x int16, y int16, z int16) {
-	d.bus.WriteRegister(Address, CTRL_REG1, []uint8{0x1a}) // Request a measurement
+	d.bus.WriteRegister(uint8(d.Address), CTRL_REG1, []uint8{0x1a}) // Request a measurement
 
 	data := make([]byte, 6)
-	d.bus.ReadRegister(Address, OUT_X_MSB, data)
+	d.bus.ReadRegister(uint8(d.Address), OUT_X_MSB, data)
 	x = int16((uint16(data[0]) << 8) | uint16(data[1]))
 	y = int16((uint16(data[2]) << 8) | uint16(data[3]))
 	z = int16((uint16(data[4]) << 8) | uint16(data[5]))
@@ -50,6 +51,6 @@ func (d Device) ReadMagnetic() (x int16, y int16, z int16) {
 // ReadTemperature reads the current die temperature in degrees Celsius.
 func (d Device) ReadTemperature() (temp int8) {
 	data := make([]byte, 1)
-	d.bus.ReadRegister(Address, DIE_TEMP, data)
+	d.bus.ReadRegister(uint8(d.Address), DIE_TEMP, data)
 	return int8(data[0])
 }

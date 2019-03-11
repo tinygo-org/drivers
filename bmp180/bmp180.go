@@ -33,6 +33,7 @@ type calibrationCoefficients struct {
 // Device wraps an I2C connection to a BMP180 device.
 type Device struct {
 	bus                     machine.I2C
+	Address                 uint16
 	mode                    OversamplingMode
 	calibrationCoefficients calibrationCoefficients
 }
@@ -43,8 +44,9 @@ type Device struct {
 // This function only creates the Device object, it does not touch the device.
 func New(bus machine.I2C) Device {
 	return Device{
-		bus:  bus,
-		mode: ULTRAHIGHRESOLUTION,
+		bus:     bus,
+		Address: Address,
+		mode:    ULTRAHIGHRESOLUTION,
 	}
 }
 
@@ -52,7 +54,7 @@ func New(bus machine.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(Address, WHO_AM_I, data)
+	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == CHIP_ID
 }
 
@@ -60,7 +62,7 @@ func (d *Device) Connected() bool {
 // read the calibration coefficientes.
 func (d *Device) Configure() {
 	data := make([]byte, 22)
-	err := d.bus.ReadRegister(Address, AC1_MSB, data)
+	err := d.bus.ReadRegister(uint8(d.Address), AC1_MSB, data)
 	if err != nil {
 		return
 	}
@@ -85,7 +87,7 @@ func (d *Device) Temperature() (temperature int32, err error) {
 	}
 	b5 := d.calculateB5(rawTemp)
 	t := (b5 + 8) >> 4
-	return 100*t, nil
+	return 100 * t, nil
 }
 
 // Pressure returns the pressure in milli pascals (mPa)
@@ -118,15 +120,15 @@ func (d *Device) Pressure() (pressure int32, err error) {
 	x1 = (p >> 8) * (p >> 8)
 	x1 = (x1 * 3038) >> 16
 	x2 = (-7357 * p) >> 16
-	return 1000*(p + ((x1 + x2 + 3791) >> 4)), nil
+	return 1000 * (p + ((x1 + x2 + 3791) >> 4)), nil
 }
 
 // rawTemp returns the sensor's raw values of the temperature
 func (d *Device) rawTemp() (int16, error) {
-	d.bus.WriteRegister(Address, REG_CTRL, []byte{CMD_TEMP})
+	d.bus.WriteRegister(uint8(d.Address), REG_CTRL, []byte{CMD_TEMP})
 	time.Sleep(5 * time.Millisecond)
 	data := make([]byte, 2)
-	err := d.bus.ReadRegister(Address, REG_TEMP_MSB, data)
+	err := d.bus.ReadRegister(uint8(d.Address), REG_TEMP_MSB, data)
 	if err != nil {
 		return 0, err
 	}
@@ -142,10 +144,10 @@ func (d *Device) calculateB5(rawTemp int16) int32 {
 
 // rawPressure returns the sensor's raw values of the pressure
 func (d *Device) rawPressure(mode OversamplingMode) (int32, error) {
-	d.bus.WriteRegister(Address, REG_CTRL, []byte{CMD_PRESSURE + byte(mode<<6)})
+	d.bus.WriteRegister(uint8(d.Address), REG_CTRL, []byte{CMD_PRESSURE + byte(mode<<6)})
 	time.Sleep(pauseForReading(mode))
 	data := make([]byte, 3)
-	err := d.bus.ReadRegister(Address, REG_PRESSURE_MSB, data)
+	err := d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE_MSB, data)
 	if err != nil {
 		return 0, err
 	}
