@@ -5,28 +5,28 @@ const AddressHigh = 0x1D
 
 const (
 	// Data rate
-	RATE_3200HZ = 0x0F // 3200 Hz
-	RATE_1600HZ = 0x0E // 1600 Hz
-	RATE_800HZ  = 0x0D // 800 Hz
-	RATE_400HZ  = 0x0C // 400 Hz
-	RATE_200HZ  = 0x0B // 200 Hz
-	RATE_100HZ  = 0x0A // 100 Hz
-	RATE_50HZ   = 0x09 // 50 Hz
-	RATE_25HZ   = 0x08 // 25 Hz
-	RATE_12_5HZ = 0x07 // 12.5 Hz
-	RATE_6_25HZ = 0x06 // 6.25 Hz
-	RATE_3_13HZ = 0x05 // 3.13 Hz
-	RATE_1_56HZ = 0x04 // 1.56 Hz
-	RATE_0_78HZ = 0x03 // 0.78 Hz
-	RATE_0_39HZ = 0x02 // 0.39 Hz
-	RATE_0_20HZ = 0x01 // 0.20 Hz
-	RATE_0_10HZ = 0x00 // 0.10 Hz
+	RATE_3200HZ Rate = 0x0F // 3200 Hz
+	RATE_1600HZ Rate = 0x0E // 1600 Hz
+	RATE_800HZ  Rate = 0x0D // 800 Hz
+	RATE_400HZ  Rate = 0x0C // 400 Hz
+	RATE_200HZ  Rate = 0x0B // 200 Hz
+	RATE_100HZ  Rate = 0x0A // 100 Hz
+	RATE_50HZ   Rate = 0x09 // 50 Hz
+	RATE_25HZ   Rate = 0x08 // 25 Hz
+	RATE_12_5HZ Rate = 0x07 // 12.5 Hz
+	RATE_6_25HZ Rate = 0x06 // 6.25 Hz
+	RATE_3_13HZ Rate = 0x05 // 3.13 Hz
+	RATE_1_56HZ Rate = 0x04 // 1.56 Hz
+	RATE_0_78HZ Rate = 0x03 // 0.78 Hz
+	RATE_0_39HZ Rate = 0x02 // 0.39 Hz
+	RATE_0_20HZ Rate = 0x01 // 0.20 Hz
+	RATE_0_10HZ Rate = 0x00 // 0.10 Hz
 
 	// Data range
-	RANGE_2G  = 0x00 // +-2 g
-	RANGE_4G  = 0x01 // +-4 g
-	RANGE_8G  = 0x02 // +-8 g
-	RANGE_16G = 0x03 // +-16 g)
+	RANGE_2G  Range = 0x00 // +-2 g
+	RANGE_4G  Range = 0x01 // +-4 g
+	RANGE_8G  Range = 0x02 // +-8 g
+	RANGE_16G Range = 0x03 // +-16 g)
 
 	REG_DEVID          = 0x00 // R,     11100101,   Device ID
 	REG_THRESH_TAP     = 0x1D // R/W,   00000000,   Tap threshold

@@ -8,6 +8,9 @@ import (
 	"machine"
 )
 
+type Range uint8
+type Rate uint8
+
 // Internal structure for the power configuration
 type powerCtl struct {
 	link      uint8
@@ -24,13 +27,13 @@ type dataFormat struct {
 	intInvert   uint8
 	fullRes     uint8
 	justify     uint8
-	sensorRange uint8
+	sensorRange Range
 }
 
 // Internal structure for the sampling rate configuration
 type bwRate struct {
 	lowPower uint8
-	rate     uint8
+	rate     Rate
 }
 
 // Device wraps an I2C connection to a BMP180 device.
@@ -41,7 +44,7 @@ type Device struct {
 	dataFormat       dataFormat
 	bwRate           bwRate
 	x, y, z          int32
-	rawX, rawY, rawZ int16
+	rawX, rawY, rawZ int32
 }
 
 // New creates a new BMP180 connection. The I2C bus must already be
@@ -84,13 +87,13 @@ func (d *Device) Restart() {
 	d.bus.WriteRegister(d.address, REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
-// Acceleration returns the adjusted x, y and z axis from the adxl345
+// Acceleration returns the adjusted x, y and z axis in µG
 func (d *Device) Acceleration() (x int32, y int32, z int32) {
 	return d.x, d.y, d.z
 }
 
 // XYZ returns the raw x, y and z axis from the adxl345
-func (d *Device) RawXYZ() (x int16, y int16, z int16) {
+func (d *Device) RawXYZ() (x int32, y int32, z int32) {
 	return d.rawX, d.rawY, d.rawZ
 }
 
@@ -119,39 +122,30 @@ func (d *Device) UseLowPower(power bool) {
 }
 
 // SetRate change the current rate of the sensor
-func (d *Device) SetRate(rate byte) bool {
-	if rate <= RATE_3200HZ {
-		return false
-	}
+func (d *Device) SetRate(rate Rate) bool {
 	d.bwRate.rate = rate & 0x0F
 	d.bus.WriteRegister(d.address, REG_BW_RATE, []byte{d.bwRate.toByte()})
 	return true
 }
 
 // SetRange change the current range of the sensor
-func (d *Device) SetRange(sensorRange byte) bool {
-	if sensorRange != RANGE_2G &&
-		sensorRange != RANGE_4G &&
-		sensorRange != RANGE_8G &&
-		sensorRange != RANGE_16G {
-		return false
-	}
+func (d *Device) SetRange(sensorRange Range) bool {
 	d.dataFormat.sensorRange = sensorRange & 0x03
 	d.bus.WriteRegister(d.address, REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
 	return true
 }
 
 // convertToIS adjusts the raw values from the adxl345 with the range configuration
-func (d *dataFormat) convertToIS(rawValue int16) int32 {
+func (d *dataFormat) convertToIS(rawValue int32) int32 {
 	switch d.sensorRange {
 	case RANGE_2G:
-		return int32(rawValue) * 4 // rawValue * 2 * 1000 / 512
+		return rawValue * 4 // rawValue * 2 * 1000 / 512
 	case RANGE_4G:
-		return int32(rawValue) * 8 // rawValue * 4 * 1000 / 512
+		return rawValue * 8 // rawValue * 4 * 1000 / 512
 	case RANGE_8G:
-		return int32(rawValue) * 16 // rawValue * 8 * 1000 / 512
+		return rawValue * 16 // rawValue * 8 * 1000 / 512
 	case RANGE_16G:
-		return int32(rawValue) * 32 // rawValue * 16 * 1000 / 512
+		return rawValue * 32 // rawValue * 16 * 1000 / 512
 	default:
 		return 0
 	}
@@ -177,7 +171,7 @@ func (d *dataFormat) toByte() (bits uint8) {
 	bits = bits | (d.intInvert << 5)
 	bits = bits | (d.fullRes << 3)
 	bits = bits | (d.justify << 2)
-	bits = bits | d.sensorRange
+	bits = bits | uint8(d.sensorRange)
 
 	return bits
 }
@@ -186,17 +180,12 @@ func (d *dataFormat) toByte() (bits uint8) {
 func (b *bwRate) toByte() (bits uint8) {
 	bits = 0x00
 	bits = bits | (b.lowPower << 4)
-	bits = bits | b.rate
+	bits = bits | uint8(b.rate)
 
 	return bits
 }
 
 // readInt converts two bytes to int16
-func readIntLE(msb byte, lsb byte) int16 {
-	return int16(uint16(msb) | uint16(lsb)<<8)
-}
-
-// readUint converts two bytes to uint16
-func readUintLE(msb byte, lsb byte) uint16 {
-	return uint16(msb) | (uint16(lsb) << 8)
+func readIntLE(msb byte, lsb byte) int32 {
+	return int32(uint16(msb) | uint16(lsb)<<8)
 }
