@@ -39,10 +39,10 @@ const (
 	AlarmFlag_Alarm2    = 0x02
 	AlarmFlag_AlarmBoth = 0x03
 
-	None Mode = 0
+	None          Mode = 0
 	BatteryBackup Mode = 1
-	Clock Mode = 2
-	AlarmOne Mode = 3
-	AlarmTwo Mode = 4
+	Clock         Mode = 2
+	AlarmOne      Mode = 3
+	AlarmTwo      Mode = 4
 	ModeAlarmBoth Mode = 5
 )

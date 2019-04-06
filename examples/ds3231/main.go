@@ -5,8 +5,9 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/ds3231"
 	"fmt"
+
+	"github.com/tinygo-org/drivers/ds3231"
 )
 
 func main() {
@@ -15,10 +16,10 @@ func main() {
 	rtc := ds3231.New(machine.I2C0)
 	rtc.Configure()
 
-	valid := rtc.IsDateTimeValid()
+	valid := rtc.IsTimeValid()
 	if !valid {
 		date := time.Date(2019, 12, 05, 20, 34, 12, 0, time.UTC)
-		rtc.SetDateTime(date)
+		rtc.SetTime(date)
 	}
 
 	running := rtc.IsRunning()
@@ -30,13 +31,13 @@ func main() {
 	}
 
 	for {
-		dt, err := rtc.GetDateTime()
+		dt, err := rtc.ReadTime()
 		if err != nil {
 			fmt.Println("Error reading date:", err)
 		} else {
 			fmt.Printf("Date: %d/%s/%02d %02d:%02d:%02d \r\n", dt.Year(), dt.Month(), dt.Day(), dt.Hour(), dt.Minute(), dt.Second())
 		}
-		temp := rtc.GetTemperature()
+		temp, _ := rtc.ReadTemperature()
 		fmt.Printf("Temperature: %.2f ºC \r\n", float32(temp)/1000)
 
 		time.Sleep(time.Second * 1)

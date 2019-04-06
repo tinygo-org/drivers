@@ -31,8 +31,8 @@ func (d *Device) Configure() bool {
 	return true
 }
 
-// IsDateTimeValid return true/false is the datetime in the device is valid
-func (d *Device) IsDateTimeValid() bool {
+// IsTimeValid return true/false is the time in the device is valid
+func (d *Device) IsTimeValid() bool {
 	data := []byte{0}
 	err := d.bus.ReadRegister(Address, REG_STATUS, data)
 	if err != nil {
@@ -70,8 +70,8 @@ func (d *Device) SetRunning(isRunning bool) error {
 	return nil
 }
 
-// SetDateTime sets the date and time in the DS3231
-func (d *Device) SetDateTime(dt time.Time) error {
+// SetTime sets the date and time in the DS3231
+func (d *Device) SetTime(dt time.Time) error {
 	data := []byte{0}
 	err := d.bus.ReadRegister(Address, REG_STATUS, data)
 	if err != nil {
@@ -108,8 +108,8 @@ func (d *Device) SetDateTime(dt time.Time) error {
 	return nil
 }
 
-// GetDateTime returns the date and time
-func (d *Device) GetDateTime() (dt time.Time, err error) {
+// ReadTime returns the date and time
+func (d *Device) ReadTime() (dt time.Time, err error) {
 	data := make([]uint8, 7)
 	err = d.bus.ReadRegister(Address, REG_TIMEDATE, data)
 	if err != nil {
@@ -130,14 +130,14 @@ func (d *Device) GetDateTime() (dt time.Time, err error) {
 	return
 }
 
-// GetTemperature returns the temperatur
-func (d *Device) GetTemperature() int32 {
+// ReadTemperature returns the temperature in millicelsius (mC)
+func (d *Device) ReadTemperature() (int32, error) {
 	data := make([]uint8, 2)
 	err := d.bus.ReadRegister(Address, REG_TEMP, data)
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	return int32(data[0])*1000 +int32((data[1] >> 6) *25)*10
+	return int32(data[0])*1000 + int32((data[1]>>6)*25)*10, nil
 }
 
 // uint8ToBCD converts a byte to BCD for the DS3231
