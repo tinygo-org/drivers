@@ -1,9 +1,8 @@
 package main
 
 import (
-	"time"
-
 	"machine"
+	"time"
 
 	"github.com/tinygo-org/drivers/adxl345"
 )

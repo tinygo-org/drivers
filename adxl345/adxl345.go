@@ -39,7 +39,7 @@ type bwRate struct {
 // Device wraps an I2C connection to a BMP180 device.
 type Device struct {
 	bus              machine.I2C
-	address          byte
+	Address          uint16
 	powerCtl         powerCtl
 	dataFormat       dataFormat
 	bwRate           bwRate
@@ -51,7 +51,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C, address byte) Device {
+func New(bus machine.I2C, address uint16) Device {
 	return Device{
 		bus: bus,
 		powerCtl: powerCtl{
@@ -64,27 +64,27 @@ func New(bus machine.I2C, address byte) Device {
 			lowPower: 1,
 			rate:     RATE_100HZ,
 		},
-		address: address,
+		Address: address,
 	}
 }
 
 // Configure sets up the device for communication
 func (d *Device) Configure() {
-	d.bus.WriteRegister(d.address, REG_BW_RATE, []byte{d.bwRate.toByte()})
-	d.bus.WriteRegister(d.address, REG_POWER_CTL, []byte{d.powerCtl.toByte()})
-	d.bus.WriteRegister(d.address, REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
 }
 
 // Halt stops the sensor, values will not updated
 func (d *Device) Halt() {
 	d.powerCtl.measure = 0
-	d.bus.WriteRegister(d.address, REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
 // Restart makes reading the sensor working again after a halt
 func (d *Device) Restart() {
 	d.powerCtl.measure = 1
-	d.bus.WriteRegister(d.address, REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
 // Acceleration returns the adjusted x, y and z axis in µG
@@ -100,7 +100,7 @@ func (d *Device) RawXYZ() (x int32, y int32, z int32) {
 // Update reads the sensor values and stores them in a buffer
 func (d *Device) Update() {
 	data := []byte{0, 0, 0, 0, 0, 0}
-	d.bus.ReadRegister(d.address, REG_DATAX0, data)
+	d.bus.ReadRegister(uint8(d.Address), REG_DATAX0, data)
 
 	d.rawX = readIntLE(data[0], data[1])
 	d.rawY = readIntLE(data[2], data[3])
@@ -118,20 +118,20 @@ func (d *Device) UseLowPower(power bool) {
 	} else {
 		d.bwRate.lowPower = 0
 	}
-	d.bus.WriteRegister(d.address, REG_BW_RATE, []byte{d.bwRate.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
 }
 
 // SetRate change the current rate of the sensor
 func (d *Device) SetRate(rate Rate) bool {
 	d.bwRate.rate = rate & 0x0F
-	d.bus.WriteRegister(d.address, REG_BW_RATE, []byte{d.bwRate.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
 	return true
 }
 
 // SetRange change the current range of the sensor
 func (d *Device) SetRange(sensorRange Range) bool {
 	d.dataFormat.sensorRange = sensorRange & 0x03
-	d.bus.WriteRegister(d.address, REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
+	d.bus.WriteRegister(uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
 	return true
 }
 
