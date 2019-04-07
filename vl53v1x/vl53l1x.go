@@ -35,6 +35,7 @@ type resultBuffer struct {
 // Device wraps an I2C connection to a VL53L1X device.
 type Device struct {
 	bus                machine.I2C
+	Address            uint16
 	mode               DistanceMode
 	timeout            uint32
 	fastOscillatorFreq uint16
@@ -53,6 +54,7 @@ type Device struct {
 func New(bus machine.I2C) Device {
 	return Device{
 		bus:     bus,
+		Address: Address,
 		mode:    LONG,
 		timeout: 500,
 	}
@@ -287,7 +289,7 @@ func (d *Device) readResults() {
 	data := make([]byte, 17)
 	msb := byte((RESULT_RANGE_STATUS >> 8) & 0xFF)
 	lsb := byte(RESULT_RANGE_STATUS & 0xFF)
-	d.bus.Tx(Address, []byte{msb, lsb}, data)
+	d.bus.Tx(d.Address, []byte{msb, lsb}, data)
 	d.results.status = data[0]
 	// data[1] report_status : not used
 	d.results.streamCount = data[2]
@@ -430,7 +432,7 @@ func (d *Device) StopContinuous() {
 func (d *Device) writeReg(reg uint16, value uint8) {
 	msb := byte((reg >> 8) & 0xFF)
 	lsb := byte(reg & 0xFF)
-	d.bus.Tx(Address, []byte{msb, lsb, value}, nil)
+	d.bus.Tx(d.Address, []byte{msb, lsb, value}, nil)
 }
 
 // writeReg16Bit sends two bytes to the specified register address
@@ -440,7 +442,7 @@ func (d *Device) writeReg16Bit(reg uint16, value uint16) {
 	data[1] = byte(reg & 0xFF)
 	data[2] = byte((value >> 8) & 0xFF)
 	data[3] = byte(value & 0xFF)
-	d.bus.Tx(Address, data, nil)
+	d.bus.Tx(d.Address, data, nil)
 }
 
 // writeReg32Bit sends four bytes to the specified register address
@@ -452,7 +454,7 @@ func (d *Device) writeReg32Bit(reg uint16, value uint32) {
 	data[3] = byte((value >> 16) & 0xFF)
 	data[4] = byte((value >> 8) & 0xFF)
 	data[5] = byte(value & 0xFF)
-	d.bus.Tx(Address, data, nil)
+	d.bus.Tx(d.Address, data, nil)
 }
 
 // readReg reads a single byte from the specified address
@@ -460,7 +462,7 @@ func (d *Device) readReg(reg uint16) uint8 {
 	data := []byte{0}
 	msb := byte((reg >> 8) & 0xFF)
 	lsb := byte(reg & 0xFF)
-	d.bus.Tx(Address, []byte{msb, lsb}, data)
+	d.bus.Tx(d.Address, []byte{msb, lsb}, data)
 	return data[0]
 }
 
@@ -470,7 +472,7 @@ func (d *Device) readReg16Bit(reg uint16) uint16 {
 	data := []byte{0, 0}
 	msb := byte((reg >> 8) & 0xFF)
 	lsb := byte(reg & 0xFF)
-	d.bus.Tx(Address, []byte{msb, lsb}, data)
+	d.bus.Tx(d.Address, []byte{msb, lsb}, data)
 	return readUint(data[0], data[1])
 }
 
@@ -480,7 +482,7 @@ func (d *Device) readReg32Bit(reg uint16) uint32 {
 	data := make([]byte, 4)
 	msb := byte((reg >> 8) & 0xFF)
 	lsb := byte(reg & 0xFF)
-	d.bus.Tx(Address, []byte{msb, lsb}, data)
+	d.bus.Tx(d.Address, []byte{msb, lsb}, data)
 	return readUint32(data)
 }
 

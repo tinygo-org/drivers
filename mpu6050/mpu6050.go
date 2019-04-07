@@ -12,7 +12,8 @@ import (
 
 // Device wraps an I2C connection to a MPU6050 device.
 type Device struct {
-	bus machine.I2C
+	bus     machine.I2C
+	Address uint16
 }
 
 // New creates a new MPU6050 connection. The I2C bus must already be
@@ -20,27 +21,27 @@ type Device struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus machine.I2C) Device {
-	return Device{bus}
+	return Device{bus, Address}
 }
 
 // Connected returns whether a MPU6050 has been found.
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(Address, WHO_AM_I, data)
+	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x68
 }
 
 // Configure sets up the device for communication.
 func (d Device) Configure() {
-	d.bus.WriteRegister(Address, PWR_MGMT_1, []uint8{0})
+	d.bus.WriteRegister(uint8(d.Address), PWR_MGMT_1, []uint8{0})
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
 // it.
 func (d Device) ReadAcceleration() (x int16, y int16, z int16) {
 	data := make([]byte, 6)
-	d.bus.ReadRegister(Address, ACCEL_XOUT_H, data)
+	d.bus.ReadRegister(uint8(d.Address), ACCEL_XOUT_H, data)
 	x = int16((uint16(data[0]) << 8) | uint16(data[1]))
 	y = int16((uint16(data[2]) << 8) | uint16(data[3]))
 	z = int16((uint16(data[4]) << 8) | uint16(data[5]))
@@ -50,7 +51,7 @@ func (d Device) ReadAcceleration() (x int16, y int16, z int16) {
 // ReadRotation reads the current rotation from the device and returns it.
 func (d Device) ReadRotation() (x int16, y int16, z int16) {
 	data := make([]byte, 6)
-	d.bus.ReadRegister(Address, GYRO_XOUT_H, data)
+	d.bus.ReadRegister(uint8(d.Address), GYRO_XOUT_H, data)
 	x = int16((uint16(data[0]) << 8) | uint16(data[1]))
 	y = int16((uint16(data[2]) << 8) | uint16(data[3]))
 	z = int16((uint16(data[4]) << 8) | uint16(data[5]))

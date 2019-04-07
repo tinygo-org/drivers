@@ -12,6 +12,7 @@ import (
 // Device wraps an I2C connection to a MMA8653 device.
 type Device struct {
 	bus         machine.I2C
+	Address     uint16
 	sensitivity Sensitivity
 }
 
@@ -20,34 +21,34 @@ type Device struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus machine.I2C) Device {
-	return Device{bus, Sensitivity2G}
+	return Device{bus, Address, Sensitivity2G}
 }
 
 // Connected returns whether a MMA8653 has been found.
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(Address, WHO_AM_I, data)
+	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x5A
 }
 
 // Configure sets up the device for communication.
 func (d *Device) Configure(speed DataRate, sensitivity Sensitivity) error {
 	// Set mode to STANDBY to be able to change the sensitivity.
-	err := d.bus.WriteRegister(Address, CTRL_REG1, []uint8{0})
+	err := d.bus.WriteRegister(uint8(d.Address), CTRL_REG1, []uint8{0})
 	if err != nil {
 		return err
 	}
 
 	// Set sensitivity (2G, 4G, 8G).
-	err = d.bus.WriteRegister(Address, XYZ_DATA_CFG, []uint8{uint8(sensitivity)})
+	err = d.bus.WriteRegister(uint8(d.Address), XYZ_DATA_CFG, []uint8{uint8(sensitivity)})
 	if err != nil {
 		return err
 	}
 	d.sensitivity = sensitivity
 
 	// Set mode to ACTIVE and set the data rate.
-	err = d.bus.WriteRegister(Address, CTRL_REG1, []uint8{(uint8(speed) << 3) | 1})
+	err = d.bus.WriteRegister(uint8(d.Address), CTRL_REG1, []uint8{(uint8(speed) << 3) | 1})
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,7 @@ func (d *Device) Configure(speed DataRate, sensitivity Sensitivity) error {
 // -1000000.
 func (d Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	data := make([]byte, 6)
-	err = d.bus.ReadRegister(Address, OUT_X_MSB, data)
+	err = d.bus.ReadRegister(uint8(d.Address), OUT_X_MSB, data)
 	shift := uint32(8)
 	switch d.sensitivity {
 	case Sensitivity4G:
