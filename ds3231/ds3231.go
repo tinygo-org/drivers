@@ -23,7 +23,7 @@ type Device struct {
 // This function only creates the Device object, it does not touch the device.
 func New(bus machine.I2C) Device {
 	return Device{
-		bus: bus,
+		bus:     bus,
 		Address: Address,
 	}
 }
