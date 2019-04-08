@@ -9,7 +9,7 @@ import (
 
 func main() {
 	machine.I2C0.Configure(machine.I2CConfig{})
-	sensor := adxl345.New(machine.I2C0, adxl345.AddressLow)
+	sensor := adxl345.New(machine.I2C0)
 	sensor.Configure()
 
 	println("ADXL345 starts")

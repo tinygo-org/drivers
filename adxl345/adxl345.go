@@ -51,7 +51,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C, address uint16) Device {
+func New(bus machine.I2C) Device {
 	return Device{
 		bus: bus,
 		powerCtl: powerCtl{
@@ -64,7 +64,7 @@ func New(bus machine.I2C, address uint16) Device {
 			lowPower: 1,
 			rate:     RATE_100HZ,
 		},
-		Address: address,
+		Address: AddressLow,
 	}
 }
 
