@@ -20,6 +20,7 @@ func main() {
 
 	display = hub75.New(machine.SPI0, 11, 12, 6, 10, 18, 20)
 	display.Configure(hub75.Config{
+		//Size:       image.Point{X: 64, Y: 32},
 		Width:      64,
 		Height:     32,
 		RowPattern: 16,
@@ -89,7 +90,7 @@ func main() {
 func showGopher() {
 	for i := int16(0); i < 64; i++ {
 		for j := int16(0); j < 32; j++ {
-			display.SetPixelColor565(i, j, gopherimg.ImageArray[32*i+j])
+			display.SetPixel(i, j, gopherimg.Int2Color(gopherimg.ImageArray[32*i+j]))
 		}
 	}
 }

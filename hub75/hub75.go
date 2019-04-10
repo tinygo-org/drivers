@@ -137,14 +137,6 @@ func (d *Device) Configure(cfg Config) {
 	}
 }
 
-// SetPixelColor565 modifies the internal buffer in a single pixel.
-func (d *Device) SetPixelColor565(x int16, y int16, color uint16) {
-	r := uint8(((((color >> 11) & 0x1F) * 527) + 23) >> 6)
-	g := uint8(((((color >> 5) & 0x3F) * 259) + 33) >> 6)
-	b := uint8((((color & 0x1F) * 527) + 23) >> 6)
-	d.fillMatrixBuffer(x, y, r, g, b)
-}
-
 // SetPixel modifies the internal buffer in a single pixel.
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	d.fillMatrixBuffer(x, y, c.R, c.G, c.B)
@@ -284,9 +276,4 @@ func (d *Device) ClearDisplay() {
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
 	return d.width, d.height
-}
-
-// Color565 converts RGB values to int16
-func Color565(r uint8, g uint8, b uint8) uint16 {
-	return uint16((uint16(r)&0xf8)<<8) | ((uint16(g) & 0xfc) << 3) | (uint16(b) >> 3)
 }
