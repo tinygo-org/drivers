@@ -21,6 +21,7 @@ jobs:
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/ds3231/main.go
       - run: tinygo build -size short -o test.elf -target=microbit ./examples/easystepper/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/espat/esphub/main.go
+      - run: tinygo build -size short -o test.elf -target=circuitplay-express ./examples/lis3dh/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mag3110/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mma8653/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mpu6050/main.go
