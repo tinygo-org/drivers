@@ -32,8 +32,8 @@
 //			println("Pressure", float32(pressure)/100000, "hPa")
 //
 //			time.Sleep(2 * time.Second)
-//			}
 //		}
+//	}
 //
 // Each individual driver is contained within its own sub-package within this package and
 // there are no interdependencies in order to minimize the final size of compiled code that
