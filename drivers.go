@@ -7,9 +7,9 @@
 //
 // 	import (
 //		"time"
-//     	"machine"
+//		"machine"
 //
-//     	"github.com/tinygo-org/drivers/bmp180"
+// 		"github.com/tinygo-org/drivers/bmp180"
 // 	)
 //
 // 	func main() {
