@@ -8,6 +8,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"github.com/tinygo-org/drivers"
 )
 
 type Config struct {
