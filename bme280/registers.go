@@ -15,7 +15,6 @@ const (
 	REG_HUMIDITY       = 0xFD
 	REG_CALIBRATIION   = 0x88
 
-	SENSOR_LENGTH = 8
-	WHO_AM_I      = 0xD0
-	CHIP_ID       = 0x60
+	WHO_AM_I = 0xD0
+	CHIP_ID  = 0x60
 )

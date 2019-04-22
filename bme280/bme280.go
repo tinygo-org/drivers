@@ -61,9 +61,10 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.p8 = readInt(data[20], data[21])
 	d.calibrationCoefficients.p9 = readInt(data[22], data[23])
 
-	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{0x25})
 	d.bus.WriteRegister(uint8(d.Address), CTRL_HUMIDITY_ADDR, []byte{0x01})
-	d.bus.WriteRegister(uint8(d.Address), CTRL_CONFIG, []byte{0xA8})
+	// d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{0x3F})
+	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{0x25})
+	d.bus.WriteRegister(uint8(d.Address), CTRL_CONFIG, []byte{0x00})
 
 }
 
@@ -77,23 +78,23 @@ func (d *Device) Connected() bool {
 }
 
 // Temperature returns the temperature in celsius milli degrees (ºC/1000)
-func (d *Device) Temperature() (temperature float32, err error) {
-	rawTemp, err := d.rawTemp()
-	if err != nil {
-		return
-	}
+func (d *Device) ReadTemperature() (int32, error) {
+	rawTemp := d.rawTemp()
+
+	println("rawTemp: ", rawTemp)
 	temp, _ := d.calculateTemp(rawTemp)
 	return temp, nil
 }
 
 // rawTemp returns the sensor's raw values of the temperature
-func (d *Device) rawTemp() (int32, error) {
-	data := make([]byte, 8)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE, data)
+func (d *Device) rawTemp() int32 {
+	data, err := d.readData()
 	if err != nil {
-		return 0, err
+		return 0
 	}
-	return readInt32(data[0], data[1], data[2]), nil
+
+	return (int32(data[3]) >> 4) | (int32(data[4]) << 4) | (int32(data[5]) << 12)
+	//return int32(readInt(data[3], data[4]))
 }
 
 // readInt converts two bytes to int16
@@ -106,16 +107,39 @@ func readUint(msb byte, lsb byte) uint16 {
 	return (uint16(msb) << 8) | uint16(lsb)
 }
 
-// readInt converts two bytes to int32
-func readInt32(tp0, tp1, tp2 byte) int32 {
-	return int32((int32(tp2) >> 4) | (int32(tp1) << 4) | (int32(tp0) << 12))
+// readData does a burst read from 0xF7 to 0xF0 according to the datasheet
+// resulting in an slice with 8 bytes 0-2 = pressure / 3-5 = temperature / 6-7 = humidity
+func (d *Device) readData() ([]byte, error) {
+	// time.Sleep(5 * time.Millisecond)
+	data := make([]byte, 8)
+	err := d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE, data)
+	if err != nil {
+		println(err)
+		return nil, err
+	}
+	for i, d := range data {
+		println("index: ", i, " value: ", d)
+	}
+	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{0x25})
+	return data, nil
 }
 
-func (d *Device) calculateTemp(rawTemp int32) (float32, int32) {
-	tcvar1 := ((float32(rawTemp) / 16384.0) - (float32(d.calibrationCoefficients.t1) / 1024.0)) * float32(d.calibrationCoefficients.t2)
-	tcvar2 := (((float32(rawTemp) / 131072.0) - (float32(d.calibrationCoefficients.t1) / 8192.0)) * ((float32(rawTemp) / 131072.0) - float32(d.calibrationCoefficients.t1)/8192.0)) * float32(d.calibrationCoefficients.t3)
-	temperatureComp := (tcvar1 + tcvar2) / 5120.0
+// func (d *Device) calculateTemp(rawTemp int32) (float32, int32) {
+// 	tcvar1 := ((float32(rawTemp) / 16384.0) - (float32(d.calibrationCoefficients.t1) / 1024.0)) * float32(d.calibrationCoefficients.t2)
+// 	tcvar2 := (((float32(rawTemp) / 131072.0) - (float32(d.calibrationCoefficients.t1) / 8192.0)) * ((float32(rawTemp) / 131072.0) - float32(d.calibrationCoefficients.t1)/8192.0)) * float32(d.calibrationCoefficients.t3)
+// 	temperatureComp := (tcvar1 + tcvar2) / 5120.0
 
-	tFine := int32(tcvar1 + tcvar2)
-	return temperatureComp, tFine
+// 	tFine := int32(tcvar1 + tcvar2)
+// 	return temperatureComp, tFine
+// }
+
+func (d *Device) calculateTemp(rawTemp int32) (int32, int32) {
+
+	var1 := (((int32(rawTemp) >> 3) - (int32(d.calibrationCoefficients.t1) << 1)) * int32(d.calibrationCoefficients.t2)) >> 11
+	var2 := (((((int32(rawTemp) >> 4) - int32(d.calibrationCoefficients.t1)) * ((int32(rawTemp) >> 4) - int32(d.calibrationCoefficients.t1))) >> 12) * int32(d.calibrationCoefficients.t3)) >> 14
+
+	tFine := var1 + var2
+	T := (tFine*5 + 128) >> 8
+
+	return T, tFine
 }
