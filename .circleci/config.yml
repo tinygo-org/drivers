@@ -5,21 +5,21 @@ version: 2
 jobs:
   build:
     docker:
-      # specify the version
       - image: tinygo/tinygo:0.5.0
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    #### TEMPLATE_NOTE: go expects specific checkout path representing url
-    #### expecting it in the form of
-    ####   /go/src/github.com/circleci/go-tool
-    ####   /go/src/bitbucket.org/circleci/go-tool
-    working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+    working_directory: /usr/local/go/src/github.com/tinygo-org/drivers
     steps:
       - checkout
-
-      # specify any bash command here prefixed with `run: `
       - run: tinygo version
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/adxl345/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/apa102/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/bh1750/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/blinkm/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/bmp180/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/ds3231/main.go
+      - run: tinygo build -size short -o test.elf -target=microbit ./examples/easystepper/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/espat/esphub/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mag3110/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mma8653/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mpu6050/main.go
+      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/vl53l1x/main.go
+      - run: tinygo build -size short -o test.elf -target=circuitplay-express ./examples/ws2812/main.go
