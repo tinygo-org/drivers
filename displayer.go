@@ -2,7 +2,7 @@ package drivers
 
 import "image/color"
 
-type Display interface {
+type Displayer interface {
 	// Size returns the current size of the display.
 	Size() (x, y int16)
 
