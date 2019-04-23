@@ -13,7 +13,8 @@ const (
 	REG_PRESSURE       = 0xF7
 	REG_TEMPERATURE    = 0xFA
 	REG_HUMIDITY       = 0xFD
-	REG_CALIBRATIION   = 0x88
+	REG_CALIBRATION    = 0x88
+	CMD_RESET          = 0xE0
 
 	WHO_AM_I = 0xD0
 	CHIP_ID  = 0x60
