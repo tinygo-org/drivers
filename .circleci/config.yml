@@ -10,6 +10,9 @@ jobs:
     steps:
       - checkout
       - run: tinygo version
+      - run:
+          name: "Enforce Go Formatted Code"
+          command: "! go fmt ./... 2>&1 | read"
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/adxl345/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/apa102/main.go
       - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/bh1750/main.go
