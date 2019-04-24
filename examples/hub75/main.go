@@ -20,7 +20,6 @@ func main() {
 
 	display = hub75.New(machine.SPI0, 11, 12, 6, 10, 18, 20)
 	display.Configure(hub75.Config{
-		//Size:       image.Point{X: 64, Y: 32},
 		Width:      64,
 		Height:     32,
 		RowPattern: 16,

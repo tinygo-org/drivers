@@ -133,7 +133,6 @@ var ImageArray = []uint32{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }
 
-
 func Int2Color(intColor uint32) (col color.RGBA) {
 	blue := uint8(intColor & 0xFF)
 	green := uint8((intColor >> 8) & 0xFF)
