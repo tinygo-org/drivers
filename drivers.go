@@ -25,10 +25,10 @@
 //		println("BMP180 detected")
 //
 //		for {
-//			temp, _ := sensor.Temperature()
+//			temp, _ := sensor.ReadTemperature()
 //			println("Temperature:", float32(temp)/1000, "ºC")
 //
-//			pressure, _ := sensor.Pressure()
+//			pressure, _ := sensor.ReadPressure()
 //			println("Pressure", float32(pressure)/100000, "hPa")
 //
 //			time.Sleep(2 * time.Second)
