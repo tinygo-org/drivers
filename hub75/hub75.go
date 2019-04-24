@@ -8,8 +8,6 @@ import (
 	"image/color"
 	"machine"
 	"time"
-
-	"github.com/tinygo-org/drivers"
 )
 
 type Config struct {
@@ -144,12 +142,6 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	d.fillMatrixBuffer(x, y, c.R, c.G, c.B)
 }
 
-// DisplayPixel sends a single pixel on the buffer and send it to the screen.
-func (d *Device) DisplayPixel(x int16, y int16, c color.RGBA) {
-	d.SetPixel(x, y, c)
-	d.Display()
-}
-
 // fillMatrixBuffer modifies a pixel in the internal buffer given position and RGB values
 func (d *Device) fillMatrixBuffer(x int16, y int16, r uint8, g uint8, b uint8) {
 	if x < 0 || x >= d.width || y < 0 || y >= d.height {
@@ -195,7 +187,7 @@ func (d *Device) fillMatrixBuffer(x int16, y int16, r uint8, g uint8, b uint8) {
 }
 
 // Display sends the buffer (if any) to the screen.
-func (d *Device) Display() {
+func (d *Device) Display() error {
 	rp := uint16(d.rowPattern)
 	for i := uint16(0); i < rp; i++ {
 		// FAST UPDATES (only if brightness = 255)
@@ -219,6 +211,7 @@ func (d *Device) Display() {
 	if d.displayColor >= d.colorDepth {
 		d.displayColor = 0
 	}
+	return nil
 }
 
 func (d *Device) latch(showTime uint16) {
