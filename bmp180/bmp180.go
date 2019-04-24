@@ -1,5 +1,5 @@
 // Package bmp180 provides a driver for the BMP180 digital pressure sensor
-// by Bosch
+// by Bosch.
 //
 // Datasheet:
 // https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
@@ -12,7 +12,7 @@ import (
 	"machine"
 )
 
-// BMP180OversamplingMode is the oversampling ratio of the pressure measurement.
+// OversamplingMode is the oversampling ratio of the pressure measurement.
 type OversamplingMode uint
 
 // calibrationCoefficients reads at startup and stores the calibration coefficients
@@ -41,7 +41,8 @@ type Device struct {
 // New creates a new BMP180 connection. The I2C bus must already be
 // configured.
 //
-// This function only creates the Device object, it does not touch the device.
+// This function only creates the Device object, it does not initialize the device.
+// You must call Configure() first in order to use the device itself.
 func New(bus machine.I2C) Device {
 	return Device{
 		bus:     bus,
@@ -59,7 +60,7 @@ func (d *Device) Connected() bool {
 }
 
 // Configure sets up the device for communication and
-// read the calibration coefficientes.
+// read the calibration coefficients.
 func (d *Device) Configure() {
 	data := make([]byte, 22)
 	err := d.bus.ReadRegister(uint8(d.Address), AC1_MSB, data)
@@ -79,8 +80,8 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.md = readInt(data[20], data[21])
 }
 
-// Temperature returns the temperature in celsius milli degrees (ºC/1000)
-func (d *Device) Temperature() (temperature int32, err error) {
+// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000).
+func (d *Device) ReadTemperature() (temperature int32, err error) {
 	rawTemp, err := d.rawTemp()
 	if err != nil {
 		return
@@ -90,8 +91,8 @@ func (d *Device) Temperature() (temperature int32, err error) {
 	return 100 * t, nil
 }
 
-// Pressure returns the pressure in milli pascals (mPa)
-func (d *Device) Pressure() (pressure int32, err error) {
+// ReadPressure returns the pressure in milli pascals (mPa).
+func (d *Device) ReadPressure() (pressure int32, err error) {
 	rawTemp, err := d.rawTemp()
 	if err != nil {
 		return
