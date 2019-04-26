@@ -14,11 +14,10 @@ func main() {
 
 	println("ADXL345 starts")
 	for {
-		sensor.Update()
-		x, y, z := sensor.Acceleration()
+		x, y, z, _ := sensor.ReadAcceleration()
 		println("X:", x, "Y:", y, "Z:", z)
 
-		rx, ry, rz := sensor.RawXYZ()
+		rx, ry, rz := sensor.ReadRawAcceleration()
 		println("X (raw):", rx, "Y (raw):", ry, "Z (raw):", rz)
 
 		time.Sleep(100 * time.Millisecond)
