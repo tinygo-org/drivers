@@ -1,0 +1,26 @@
+package hd44780
+
+const (
+	DISPLAY_CLEAR    = 0x1
+	CURSOR_HOME      = 0x2
+	ENTRY_MODE       = 0x4
+	CURSOR_DECREASE  = 0x4
+	CURSOR_INCREASE  = 0x6
+	DISPLAY_SHIFT    = 0x5
+	DISPLAY_NO_SHIFT = 0x4
+	DISPLAY_ON       = 0xC
+	DISPLAY_OFF      = 0x8
+	CURSOR_ON        = 0xA
+	CURSOR_OFF       = 0x8
+	CURSOR_BLINK_ON  = 0x9
+	CURSOR_BLINK_OFF = 0x8
+	DATA_LENGTH_8BIT = 0x30
+	DATA_LENGTH_4BIT = 0x20
+	TWO_LINE         = 0x28
+	ONE_LINE         = 0x20
+	FONT_5X10        = 0x24
+	FONT_5X8         = 0x20
+	BUSY             = 0x80
+	CGRAM_SET        = 0x40
+	DDRAM_SET        = 0x80
+)
