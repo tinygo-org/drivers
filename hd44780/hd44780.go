@@ -3,176 +3,45 @@ package hd44780
 import (
 	"errors"
 	"image/color"
+	"io"
 	"time"
-
-	"machine"
 )
 
 type Buser interface {
-	Write(data byte)
-	Read() byte
+	io.ReadWriter
 	SetCommandMode(set bool)
 }
 
-type GPIO struct {
-	dataPins []machine.GPIO
-	e        machine.GPIO
-	rw       machine.GPIO
-	rs       machine.GPIO
-
-	write func(data byte)
-	read  func() uint8
-}
-
-// NewGPIO4Bit returns 4bit data length HD44780 driver
-func NewGPIO4Bit(data []uint8, e, rs, rw uint8) (Device, error) {
+// NewGPIO4Bit returns 4bit data length HD44780 driver. Datapins are LCD DB pins starting from DB4 to DB7
+func NewGPIO4Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
 	const fourBitMode = 4
-	if len(data) != fourBitMode {
+	if len(dataPins) != fourBitMode {
 		return Device{}, errors.New("4 pins are required in data slice (D7-D4) when HD44780 is used in 4 bit mode")
 	}
-	return newGPIO(data, e, rs, rw, DATA_LENGTH_4BIT), nil
+	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_4BIT), nil
 }
 
-// NewGPIO8Bit returns 8bit data length HD44780 driver
-func NewGPIO8Bit(data []uint8, e, rs, rw uint8) (Device, error) {
+// NewGPIO8Bit returns 8bit data length HD44780 driver. Datapins are LCD DB pins starting from DB0 to DB7
+func NewGPIO8Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
 	const eightBitMode = 8
-	if len(data) != eightBitMode {
+	if len(dataPins) != eightBitMode {
 		return Device{}, errors.New("8 pins are required in data slice (D7-D0) when HD44780 is used in 8 bit mode")
 	}
-	return newGPIO(data, e, rs, rw, DATA_LENGTH_8BIT), nil
-}
-
-func newGPIO(data []uint8, e, rs, rw uint8, mode byte) Device {
-	pins := make([]machine.GPIO, len(data))
-	for i := 0; i < len(data); i++ {
-		m := machine.GPIO{Pin: data[i]}
-		m.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-		pins[i] = m
-	}
-	enable := machine.GPIO{e}
-	enable.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	registerSelect := machine.GPIO{rs}
-	registerSelect.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	readWrite := machine.GPIO{rw}
-	readWrite.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	readWrite.Low()
-
-	gpio := GPIO{
-		dataPins: pins,
-		e:        enable,
-		rs:       registerSelect,
-		rw:       readWrite,
-	}
-
-	if mode == DATA_LENGTH_4BIT {
-		gpio.write = gpio.write4BitMode
-		gpio.read = gpio.read4BitMode
-	} else {
-		gpio.write = gpio.write8BitMode
-		gpio.read = gpio.read8BitMode
-	}
-
-	return Device{
-		bus:        &gpio,
-		datalength: mode,
-	}
-}
-
-// SetCommandMode sets command/instruction mode
-func (g *GPIO) SetCommandMode(set bool) {
-	if set {
-		g.rs.Low()
-	} else {
-		g.rs.High()
-	}
-}
-
-func (g *GPIO) Write(data byte) {
-	g.rw.Low()
-	g.write(data)
-}
-
-func (g *GPIO) write8BitMode(data byte) {
-	g.e.High()
-	g.setPins(data)
-	g.e.Low()
-}
-
-func (g *GPIO) write4BitMode(data byte) {
-	g.e.High()
-	g.setPins(data >> 4)
-	g.e.Low()
-
-	g.e.High()
-	g.setPins(data)
-	g.e.Low()
-}
-
-func (g *GPIO) Read() byte {
-	g.rs.Low()
-	g.rw.High()
-	g.reconfigureGPIOMode(machine.GPIO_INPUT)
-	data := g.read()
-	g.reconfigureGPIOMode(machine.GPIO_OUTPUT)
-	return data
-}
-
-func (g *GPIO) read4BitMode() byte {
-	g.e.High()
-	data := (g.pins() << 4 & 0xF0)
-	g.e.Low()
-	g.e.High()
-	data |= (g.pins() & 0x0F)
-	g.e.Low()
-	return data
-}
-func (g *GPIO) read8BitMode() byte {
-	g.e.High()
-	data := g.pins()
-	g.e.Low()
-	return data
-}
-func (g *GPIO) reconfigureGPIOMode(mode machine.GPIOMode) {
-	for i := 0; i < len(g.dataPins); i++ {
-		g.dataPins[i].Configure(machine.GPIOConfig{Mode: mode})
-	}
-}
-
-// setPins sets high or low state on all data pins depending on data
-func (g *GPIO) setPins(data uint8) {
-	mask := uint8(1)
-	for i := 0; i < len(g.dataPins); i++ {
-		if (data & mask) != 0 {
-			g.dataPins[i].High()
-		} else {
-			g.dataPins[i].Low()
-		}
-		mask = mask << 1
-	}
-}
-
-// pins returns current state of data pins. MSB is D7
-func (g *GPIO) pins() uint8 {
-	bits := uint8(0)
-	for i := uint8(0); i < uint8(len(g.dataPins)); i++ {
-		if g.dataPins[i].Get() {
-			bits |= (1 << i)
-		}
-	}
-	return bits
+	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_8BIT), nil
 }
 
 type Device struct {
-	bus        Buser
-	width      uint8
-	height     uint8
-	buffer     []uint8
-	bufferSize uint8
+	bus          Buser
+	width        uint8
+	height       uint8
+	buffer       []uint8
+	bufferLength uint8
 
 	rowOffset  []uint8 // Row offsets in DDRAM
 	datalength uint8
 
-	cursor cursor
+	cursor     cursor
+	busyStatus []byte
 }
 
 type cursor struct {
@@ -189,6 +58,7 @@ type Config struct {
 
 // Configure initializes device
 func (d *Device) Configure(cfg Config) error {
+	d.busyStatus = make([]byte, 1)
 	d.width = uint8(cfg.Width)
 	d.height = uint8(cfg.Height)
 	if d.width == 0 || d.height == 0 {
@@ -217,16 +87,17 @@ func (d *Device) Configure(cfg Config) error {
 	time.Sleep(15 * time.Millisecond)
 
 	d.bus.SetCommandMode(true)
-	d.bus.Write(DATA_LENGTH_8BIT)
+	d.bus.Write([]byte{DATA_LENGTH_8BIT})
 	time.Sleep(5 * time.Millisecond)
 
 	for i := 0; i < 2; i++ {
-		d.bus.Write(DATA_LENGTH_8BIT)
+		d.bus.Write([]byte{DATA_LENGTH_8BIT})
 		time.Sleep(150 * time.Microsecond)
+
 	}
 
 	if d.datalength == DATA_LENGTH_4BIT {
-		d.bus.Write(DATA_LENGTH_4BIT >> 4)
+		d.bus.Write([]byte{DATA_LENGTH_4BIT >> 4})
 	}
 
 	// Busy flag is now accessible
@@ -244,8 +115,8 @@ func (d *Device) Write(data []byte) (n int, err error) {
 	if size > len(d.buffer) {
 		size = len(d.buffer)
 	}
-	d.bufferSize = uint8(size)
-	for i := uint8(0); i < d.bufferSize; i++ {
+	d.bufferLength = uint8(size)
+	for i := uint8(0); i < d.bufferLength; i++ {
 		d.buffer[i] = data[i]
 	}
 	return size, nil
@@ -253,31 +124,30 @@ func (d *Device) Write(data []byte) (n int, err error) {
 
 // Display sends the whole buffer to the screen at cursor position
 func (d *Device) Display() error {
-	var totalDisplayed uint8
-	var bufferX uint8
-	var bufferY uint8
-	var curPosX uint8
+
+	// Buffer may contain less characters than its capacity.
+	// We must be sure that we will not send unassigned characters
+	// That would result in sending zero values of buffer slice and
+	// potentialy displaying some character.
+	var totalDisplayedChars uint8
+
+	var bufferPos uint8
 
 	for ; d.cursor.y < d.height; d.cursor.y++ {
 		d.SetCursor(d.cursor.x, d.cursor.y)
 
-		for curPosX = d.cursor.x; curPosX < d.width && totalDisplayed < d.bufferSize; curPosX++ {
-			d.SendData(d.buffer[bufferY*(d.width)+bufferX])
-			bufferX++
-			totalDisplayed++
+		for ; d.cursor.x < d.width && totalDisplayedChars < d.bufferLength; d.cursor.x++ {
+			d.sendData(d.buffer[bufferPos])
+			bufferPos++
+			totalDisplayedChars++
 		}
-		if bufferX > d.width {
-			bufferX = 0
-			bufferY++
+		if d.cursor.x >= d.width {
+			d.cursor.x = 0
 		}
-		if totalDisplayed >= d.bufferSize {
-			d.cursor.x = curPosX
+		if totalDisplayedChars >= d.bufferLength {
 			break
 		}
-		if curPosX >= d.width {
-			curPosX = 0
-		}
-		d.cursor.x = curPosX
+
 	}
 	return nil
 }
@@ -308,18 +178,18 @@ func (d *Device) setRowOffsets() {
 }
 
 // SendCommand sends commands to driver
-func (d *Device) SendCommand(command uint8) {
+func (d *Device) SendCommand(command byte) {
 	d.bus.SetCommandMode(true)
-	d.bus.Write(command)
+	d.bus.Write([]byte{command})
 
 	for d.Busy() {
 	}
 }
 
-// SendData sends byte data directly to display.
-func (d *Device) SendData(data uint8) {
+// sendData sends byte data directly to display.
+func (d *Device) sendData(data byte) {
 	d.bus.SetCommandMode(false)
-	d.bus.Write(data)
+	d.bus.Write([]byte{data})
 
 	for d.Busy() {
 	}
@@ -329,14 +199,14 @@ func (d *Device) SendData(data uint8) {
 func (d *Device) CreateCharacter(cgramAddr uint8, data []byte) {
 	d.SendCommand(CGRAM_SET | cgramAddr)
 	for _, dd := range data {
-		d.SendData(dd)
+		d.sendData(dd)
 	}
 }
 
 // Busy returns true when hd447890 is busy
 func (d *Device) Busy() bool {
-	status := d.bus.Read()
-	return (status & BUSY) > 0
+	d.bus.Read(d.busyStatus)
+	return (d.busyStatus[0] & BUSY) > 0
 }
 
 // SetPixel is not supported on devices which uses HD44780 driver
