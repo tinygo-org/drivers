@@ -62,6 +62,7 @@ func (g *GPIO) SetCommandMode(set bool) {
 	}
 }
 
+// Write writes len(data) bytes from data to display driver
 func (g *GPIO) Write(data []byte) (n int, err error) {
 	g.rw.Low()
 	for _, d := range data {
@@ -87,11 +88,12 @@ func (g *GPIO) write4BitMode(data byte) {
 	g.e.Low()
 }
 
+// Read reads len(data) bytes from display RAM to data starting from RAM address counter position
+// Ram address can be changed by writing address in command mode
 func (g *GPIO) Read(data []byte) (n int, err error) {
 	if len(data) == 0 {
 		return 0, errors.New("Length greater than 0 is required")
 	}
-	g.rs.Low()
 	g.rw.High()
 	g.reconfigureGPIOMode(machine.GPIO_INPUT)
 	for i := 0; i < len(data); i++ {
@@ -111,12 +113,14 @@ func (g *GPIO) read4BitMode() byte {
 	g.e.Low()
 	return data
 }
+
 func (g *GPIO) read8BitMode() byte {
 	g.e.High()
 	data := g.pins()
 	g.e.Low()
 	return data
 }
+
 func (g *GPIO) reconfigureGPIOMode(mode machine.GPIOMode) {
 	for i := 0; i < len(g.dataPins); i++ {
 		g.dataPins[i].Configure(machine.GPIOConfig{Mode: mode})

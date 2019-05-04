@@ -2,7 +2,6 @@ package hd44780
 
 import (
 	"errors"
-	"image/color"
 	"io"
 	"time"
 )
@@ -10,24 +9,6 @@ import (
 type Buser interface {
 	io.ReadWriter
 	SetCommandMode(set bool)
-}
-
-// NewGPIO4Bit returns 4bit data length HD44780 driver. Datapins are LCD DB pins starting from DB4 to DB7
-func NewGPIO4Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
-	const fourBitMode = 4
-	if len(dataPins) != fourBitMode {
-		return Device{}, errors.New("4 pins are required in data slice (D7-D4) when HD44780 is used in 4 bit mode")
-	}
-	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_4BIT), nil
-}
-
-// NewGPIO8Bit returns 8bit data length HD44780 driver. Datapins are LCD DB pins starting from DB0 to DB7
-func NewGPIO8Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
-	const eightBitMode = 8
-	if len(dataPins) != eightBitMode {
-		return Device{}, errors.New("8 pins are required in data slice (D7-D0) when HD44780 is used in 8 bit mode")
-	}
-	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_8BIT), nil
 }
 
 type Device struct {
@@ -54,6 +35,24 @@ type Config struct {
 	CursorBlink bool
 	CursorOnOff bool
 	Font        uint8
+}
+
+// NewGPIO4Bit returns 4bit data length HD44780 driver. Datapins are LCD DB pins starting from DB4 to DB7
+func NewGPIO4Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
+	const fourBitMode = 4
+	if len(dataPins) != fourBitMode {
+		return Device{}, errors.New("4 pins are required in data slice (D4-D7) when HD44780 is used in 4 bit mode")
+	}
+	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_4BIT), nil
+}
+
+// NewGPIO8Bit returns 8bit data length HD44780 driver. Datapins are LCD DB pins starting from DB0 to DB7
+func NewGPIO8Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
+	const eightBitMode = 8
+	if len(dataPins) != eightBitMode {
+		return Device{}, errors.New("8 pins are required in data slice (D0-D7) when HD44780 is used in 8 bit mode")
+	}
+	return newGPIO(dataPins, e, rs, rw, DATA_LENGTH_8BIT), nil
 }
 
 // Configure initializes device
@@ -205,13 +204,9 @@ func (d *Device) CreateCharacter(cgramAddr uint8, data []byte) {
 
 // Busy returns true when hd447890 is busy
 func (d *Device) Busy() bool {
+	d.bus.SetCommandMode(true)
 	d.bus.Read(d.busyStatus)
 	return (d.busyStatus[0] & BUSY) > 0
-}
-
-// SetPixel is not supported on devices which uses HD44780 driver
-func (d *Device) SetPixel(x, y int16, c color.RGBA) {
-	panic("HD44780 does not support setting individual pixels")
 }
 
 // Size returns the current size of the display.
