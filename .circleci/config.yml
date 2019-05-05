@@ -5,7 +5,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: tinygo/tinygo:0.5.0
+      - image: tinygo/tinygo-dev
     working_directory: /usr/local/go/src/github.com/tinygo-org/drivers
     steps:
       - checkout
