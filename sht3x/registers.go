@@ -6,6 +6,7 @@ package sht3x
 const (
 	AddressA = 0x44
 	AddressB = 0x45
+)
 
 const (
 	// single shot, high repeatability
