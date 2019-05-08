@@ -25,43 +25,44 @@ type Device struct {
 func New(bus machine.I2C) Device {
 	return Device{
 		bus:     bus,
-		Address: Address,
+		Address: AddressA,
 	}
 }
 
-// Read returns the temperature in celsius and relative humidity.
+// Read returns the temperature in celsius.
+func (d *Device) ReadTemperature() (tempCelsius float32) {
+	tempCelsius, _ = d.Read()
+	return tempCelsius
+}
+
+// Read returns the relative humidity.
+func (d *Device) ReadHumidity() (relativeHumidity float32) {
+	_, relativeHumidity = d.Read()
+	return relativeHumidity
+}
+
+// Read returns both the temperature in celsius and relative humidity.
 func (d *Device) Read() (tempCelsius float32, relativeHumidity float32) {
-	rawTemp, rawHum := d.rawReadings()
-	tempCelsius = -45 + (175 * rawTemp / 65535)
-  relativeHumidity = 100 * rawHum / 65535
+	var rawTemp, rawHum = d.rawReadings()
+	tempCelsius = -45.0 + (175.0 * float32(rawTemp) / 65535.0)
+	relativeHumidity = 100.0 * float32(rawHum) / 65535.0
 	return tempCelsius, relativeHumidity
 }
 
 // rawReadings returns the sensor's raw values of the temperature and humidity
 func (d *Device) rawReadings() (uint16, uint16) {
-	d.bus.start(uint8(d.Address, false)
-	d.bus.writeByte(MEASUREMENT_COMMAND_MSB)
-	d.bus.writeByte(MEASUREMENT_COMMAND_LSB)
-	d.bus.stop()
+	d.bus.Tx(d.Address, []byte{MEASUREMENT_COMMAND_MSB, MEASUREMENT_COMMAND_LSB}, nil)
 
-	time.Sleep(16 * time.Millisecond)
+	time.Sleep(17 * time.Millisecond)
 
-	data := make([]byte, 4)
-	d.bus.start(uint8(d.Address, true)
-	temp_msb = d.bus.readByte()
-	temp_lsb = d.bus.readByte()
-	d.bus.readByte() // skip crc
-	hum_msb = d.bus.readByte()
-	hum_lsb = d.bus.readByte()
-	// ignore crc
-	d.bus.stop()
+	data := make([]byte, 5)
+	d.bus.Tx(d.Address, []byte{}, data)
+	// ignore crc for now
 
-	return readUint(temp_msb, temp_lsb), readUint(hum_msb, hum_lsb)
+	return readUint(data[0], data[1]), readUint(data[3], data[4])
 }
 
 // readUint converts two bytes to uint16
 func readUint(msb byte, lsb byte) uint16 {
-	println("msb: ", msb)
-	println("lsb: ", lsb)
 	return (uint16(msb) << 8) | uint16(lsb)
 }
