@@ -35,7 +35,7 @@ func (d *Device) ReadTemperature() (tempMilliCelsius int32, err error) {
 	return tempMilliCelsius, err
 }
 
-// Read returns the relative humidity in thousandth of a percent.
+// Read returns the relative humidity in hundredths of a percent.
 func (d *Device) ReadHumidity() (relativeHumidity int16, err error) {
 	_, relativeHumidity, err = d.ReadTemperatureHumidity()
 	return relativeHumidity, err
@@ -49,7 +49,7 @@ func (d *Device) ReadTemperatureHumidity() (tempMilliCelsius int32, relativeHumi
 		return
 	}
 	tempMilliCelsius = (35000 * int32(rawTemp) / 13107) - 45000
-	relativeHumidity = int16((100000 * int32(rawHum)) / 65535)
+	relativeHumidity = int16(2000 * int32(rawHum) / 13107)
 	return tempMilliCelsius, relativeHumidity, err
 }
 

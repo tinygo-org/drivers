@@ -11,8 +11,8 @@ func main() {
 	sensor := sht3x.New(machine.I2C0)
 
 	temp, humidity, _ := sensor.ReadTemperatureHumidity()
-	println(uint16(temp))
-	println(uint16(humidity))
+	println("Temperature:", temp, "milliºC")
+	println("Relative Humidity:", humidity, "%")
 	// println(uint16(sensor.ReadTemperature()))
 	// println(uint16(sensor.ReadHumidity()))
 
