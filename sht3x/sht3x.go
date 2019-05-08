@@ -29,28 +29,32 @@ func New(bus machine.I2C) Device {
 	}
 }
 
-// Read returns the temperature in celsius.
-func (d *Device) ReadTemperature() (tempCelsius float32) {
-	tempCelsius, _ = d.Read()
-	return tempCelsius
+// Read returns the temperature in celsius milli degrees (ºC/1000).
+func (d *Device) ReadTemperature() (tempMilliCelsius int32, err error) {
+	tempMilliCelsius, _, err = d.ReadTemperatureHumidity()
+	return tempMilliCelsius, err
 }
 
-// Read returns the relative humidity.
-func (d *Device) ReadHumidity() (relativeHumidity float32) {
-	_, relativeHumidity = d.Read()
-	return relativeHumidity
+// Read returns the relative humidity in thousandth of a percent.
+func (d *Device) ReadHumidity() (relativeHumidity int16, err error) {
+	_, relativeHumidity, err = d.ReadTemperatureHumidity()
+	return relativeHumidity, err
 }
 
-// Read returns both the temperature in celsius and relative humidity.
-func (d *Device) Read() (tempCelsius float32, relativeHumidity float32) {
-	var rawTemp, rawHum = d.rawReadings()
-	tempCelsius = -45.0 + (175.0 * float32(rawTemp) / 65535.0)
-	relativeHumidity = 100.0 * float32(rawHum) / 65535.0
-	return tempCelsius, relativeHumidity
+// Read returns both the temperature and relative humidity.
+func (d *Device) ReadTemperatureHumidity() (tempMilliCelsius int32, relativeHumidity int16, err error) {
+	var rawTemp, rawHum, errx = d.rawReadings()
+	if errx != nil {
+		err = errx
+		return
+	}
+	tempMilliCelsius = (-45 + (175 * int32(rawTemp) / 65535)) * 1000
+	relativeHumidity = int16((100000 * int32(rawHum)) / 65535)
+	return tempMilliCelsius, relativeHumidity, err
 }
 
 // rawReadings returns the sensor's raw values of the temperature and humidity
-func (d *Device) rawReadings() (uint16, uint16) {
+func (d *Device) rawReadings() (uint16, uint16, error) {
 	d.bus.Tx(d.Address, []byte{MEASUREMENT_COMMAND_MSB, MEASUREMENT_COMMAND_LSB}, nil)
 
 	time.Sleep(17 * time.Millisecond)
@@ -59,7 +63,7 @@ func (d *Device) rawReadings() (uint16, uint16) {
 	d.bus.Tx(d.Address, []byte{}, data)
 	// ignore crc for now
 
-	return readUint(data[0], data[1]), readUint(data[3], data[4])
+	return readUint(data[0], data[1]), readUint(data[3], data[4]), nil
 }
 
 // readUint converts two bytes to uint16

@@ -10,11 +10,11 @@ func main() {
 	machine.I2C0.Configure(machine.I2CConfig{})
 	sensor := sht3x.New(machine.I2C0)
 
-	temp, humidity := sensor.Read()
+	temp, humidity, _ := sensor.ReadTemperatureHumidity()
 	println(uint16(temp))
 	println(uint16(humidity))
-	println(uint16(sensor.ReadTemperature()))
-	println(uint16(sensor.ReadHumidity()))
+	// println(uint16(sensor.ReadTemperature()))
+	// println(uint16(sensor.ReadHumidity()))
 
 	// this doesn't work on Arduino
 	// for {
