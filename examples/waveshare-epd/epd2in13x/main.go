@@ -19,25 +19,18 @@ func main() {
 	display = epd2in13x.New(machine.SPI0, machine.P6, machine.P7, machine.P8, machine.P9)
 	display.Configure(epd2in13x.Config{})
 
-	colors := []color.RGBA{
-		{255, 0, 0, 255},
-		{255, 255, 0, 255},
-		{0, 255, 0, 255},
-		{0, 255, 255, 255},
-		{0, 0, 255, 255},
-		{255, 0, 255, 255},
-		{255, 255, 255, 255},
-		{0, 0, 0, 255},
-	}
+	white := color.RGBA{0, 0, 0, 255}
+	colored := color.RGBA{255, 0, 0, 255}
+	black := color.RGBA{1, 1, 1, 255}
 
 	display.ClearBuffer()
 	display.ClearDisplay()
 
 	// Show a checkered board
 	for i := int16(0); i < 27; i++ {
-		showRect((i%3)*35, i*8, 35, 8, colors[0])     // COLORED
-		showRect(((i+1)%3)*35, i*8, 35, 8, colors[1]) // BLACK
-		showRect(((i+2)%3)*35, i*8, 35, 8, colors[7]) // WHITE
+		showRect((i%3)*35, i*8, 35, 8, colored)
+		showRect(((i+1)%3)*35, i*8, 35, 8, black)
+		showRect(((i+2)%3)*35, i*8, 35, 8, white)
 	}
 	display.Display()
 	display.WaitUntilIdle()
