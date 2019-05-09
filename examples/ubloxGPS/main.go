@@ -10,8 +10,9 @@ func main() {
 	println("GPS Example")
 	machine.I2C0.Configure(machine.I2CConfig{})
 	gps := ubloxGPS.New(machine.I2C0)
+	var f ubloxGPS.Fix
 	for {
-		f := gps.ReadFix()
+		f = gps.ReadFix()
 		if f.Valid {
 			print(f.Time)
 			print(", lat=", f.Latitude)

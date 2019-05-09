@@ -7,7 +7,6 @@
 package ubloxGPS
 
 import (
-	"bytes"
 	"fmt"
 	"machine"
 	"strconv"
@@ -37,6 +36,7 @@ func New(bus machine.I2C) Device {
 
 // Available returns how many bytes of GPS data are currently available.
 func (d *Device) Available() (available int) {
+	// println("Available")
 	dataLen := []byte{0, 0}
 	d.bus.ReadRegister(uint8(d.Address), FD, dataLen)
 	available = int(dataLen[0])*256 + int(dataLen[1])
@@ -44,21 +44,19 @@ func (d *Device) Available() (available int) {
 }
 
 func (d *Device) Read() (result string, err error) {
+	// println("Read")
 	var available = d.Available()
 	if available < 1 {
 		return "", err
 	}
-	println(available)
-	// data := [1024]byte{}
-	data := make([]byte, available)
-	// data := d.buff[0:available]
+	data := d.buff[0:available]
 	d.bus.ReadRegister(uint8(d.Address), FF, data)
-	buff := bytes.NewBuffer(data)
-	result = buff.String()
+	result = string(data)
 	return result, err
 }
 
 func (d *Device) ReadSentences() (result []string, err error) {
+	// println("ReadSentences")
 	var s, _ = d.Read()
 	result = strings.Split(s, "\r\n")
 	return result, err
@@ -81,6 +79,7 @@ func (d *Device) ReadSentences() (result []string, err error) {
 // }
 
 func (d *Device) ReadSentence(stype string) (result string) {
+	// println("ReadSentence")
 	var sentences, _ = d.ReadSentences()
 	for _, s := range sentences {
 		if len(s) > 6 && s[0] == '$' {
@@ -96,7 +95,7 @@ func (d *Device) ReadSentence(stype string) (result string) {
 }
 
 // fix is a GPS location fix
-type fix struct {
+type Fix struct {
 	Valid     bool
 	Time      string
 	Latitude  string
@@ -105,8 +104,9 @@ type fix struct {
 	Satelites int16
 }
 
-func (d *Device) ReadFix() (result fix) {
-	result = fix{Valid: false}
+func (d *Device) ReadFix() (result Fix) {
+	// println("ReadFix")
+	result = Fix{Valid: false}
 	var ggaSentence = d.readGGA()
 	if len(ggaSentence) < 1 {
 		return result
@@ -114,15 +114,16 @@ func (d *Device) ReadFix() (result fix) {
 	println(ggaSentence)
 	var ggaFields = strings.Split(ggaSentence, ",")
 	result.Valid = true
-	result.Time = findTime(ggaFields)
-	result.Latitude = findLatitude(ggaFields)
-	result.Longitude = findLongitude(ggaFields)
-	result.Satelites = findSatelites(ggaFields)
 	result.Altitude = findAltitude(ggaFields)
+	result.Satelites = findSatelites(ggaFields)
+	result.Longitude = findLongitude(ggaFields)
+	result.Latitude = findLatitude(ggaFields)
+	result.Time = findTime(ggaFields)
 	return result
 }
 
 func (d *Device) readGGA() (gga string) {
+	// println("ReadGGA")
 	// $--GGA,,,,,,,,,,,,,,*hh
 	for i := 1; i <= 5; i++ {
 		var sentence = d.ReadSentence("GGA")
@@ -135,6 +136,7 @@ func (d *Device) readGGA() (gga string) {
 }
 
 func findTime(ggaFields []string) (t string) {
+	// println("findTime")
 	// $GNGGA,hhmmss.ss,,,,,,,,,,,,,*63
 	if len(ggaFields) < 1 && len(ggaFields[1]) < 6 {
 		return "hh:mm:ss"
@@ -146,6 +148,7 @@ func findTime(ggaFields []string) (t string) {
 }
 
 func findAltitude(ggaFields []string) (a int32) {
+	// println("findAltitude")
 	// $GNGGA,,,,,,,,,25.8,,,,,*63
 	if len(ggaFields) > 8 && len(ggaFields[9]) > 0 {
 		var v, _ = strconv.ParseFloat(ggaFields[9], 32)
@@ -155,6 +158,7 @@ func findAltitude(ggaFields []string) (a int32) {
 }
 
 func findLatitude(ggaFields []string) (l string) {
+	// println("findLatitude")
 	// $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
 	if len(ggaFields) > 2 && len(ggaFields[2]) > 8 {
 		var dd = ggaFields[2][0:2]
@@ -171,6 +175,7 @@ func findLatitude(ggaFields []string) (l string) {
 }
 
 func findLongitude(ggaFields []string) (l string) {
+	// println("findLongitude")
 	// $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
 	if len(ggaFields) > 4 && len(ggaFields[4]) > 8 {
 		var ddd = ggaFields[4][0:3]
@@ -181,17 +186,20 @@ func findLongitude(ggaFields []string) (l string) {
 		if ggaFields[5] == "W" {
 			v *= -1
 		}
-		return fmt.Sprintf("%f", v)
+		var s = fmt.Sprintf("%f", v)
+		return s
 	}
 	return "-0.0"
 }
 
 func findSatelites(ggaFields []string) (n int16) {
+	// println("findSatelites")
 	// $--GGA,,,,,,,nn,,,,,,,*hh
-	if len(ggaFields) > 6 && len(ggaFields[7]) > 1 {
-		var nn = ggaFields[7][0:2]
+	if len(ggaFields) > 6 && len(ggaFields[7]) > 0 {
+		var nn = ggaFields[7]
 		var v, _ = strconv.ParseInt(nn, 10, 32)
-		return int16(v)
+		n = int16(v)
+		return n
 	}
 	return 0
 }
