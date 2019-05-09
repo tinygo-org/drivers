@@ -162,7 +162,7 @@ func findLatitude(ggaFields []string) (l string) {
 		var d, _ = strconv.ParseFloat(dd, 32)
 		var m, _ = strconv.ParseFloat(mm, 32)
 		var v = (d + (m / 60))
-		if ggaFields[3] == "W" {
+		if ggaFields[3] == "S" {
 			v *= -1
 		}
 		return fmt.Sprintf("%f", v)
