@@ -8,18 +8,28 @@ import (
 	"testing"
 )
 
-const TINYGO = "/usr/local/bin/tinygo" // FIXME
-
 func TestExamples(t *testing.T) {
 	examples, err := filepath.Glob("examples/**/main.go")
 	if err != nil {
 		t.Fatal("Could not read exampels: ", err)
 	}
 
+	targets := []string{
+		"",
+	}
+
+	if !testing.Short() {
+		targets = append(targets,
+			"arduino",
+		)
+	}
+
 	for _, example := range examples {
-		t.Run(example, func(t *testing.T) {
-			buildExample(example, "arduino", t)
-		})
+		for _, target := range targets {
+			t.Run(filepath.Join(target, example), func(t *testing.T) {
+				buildExample(example, target, t)
+			})
+		}
 	}
 
 }
@@ -34,7 +44,7 @@ func buildExample(example string, target string, t *testing.T) {
 	//defer os.Remove(tmpFile.Name())
 
 	cmd := exec.Command(
-		TINYGO,
+		"tinygo",
 		"build",
 		"-size", "short",
 		"-o", "/dev/null", //tmpFile.Name(),
