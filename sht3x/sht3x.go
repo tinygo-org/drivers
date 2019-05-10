@@ -15,7 +15,6 @@ import (
 type Device struct {
 	bus     machine.I2C
 	Address uint16
-	data    []byte
 }
 
 // New creates a new SHT31 connection. The I2C bus must already be
@@ -27,7 +26,6 @@ func New(bus machine.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: AddressA,
-		data:    make([]byte, 5),
 	}
 }
 
@@ -61,10 +59,11 @@ func (d *Device) rawReadings() (uint16, uint16, error) {
 
 	time.Sleep(17 * time.Millisecond)
 
-	d.bus.Tx(d.Address, []byte{}, d.data)
+	var data [5]byte
+	d.bus.Tx(d.Address, []byte{}, data[:])
 	// ignore crc for now
 
-	return readUint(d.data[0], d.data[1]), readUint(d.data[3], d.data[4]), nil
+	return readUint(data[0], data[1]), readUint(data[3], data[4]), nil
 }
 
 // readUint converts two bytes to uint16
