@@ -11,8 +11,9 @@ import (
 )
 
 type Config struct {
-	Width  int16
-	Height int16
+	Width     int16
+	Height    int16
+	NumColors uint8
 }
 
 type Device struct {
@@ -60,8 +61,13 @@ func (d *Device) Configure(cfg Config) {
 	} else {
 		d.height = 212
 	}
+	if cfg.NumColors == 0 {
+		cfg.NumColors = 3
+	} else if cfg.NumColors == 1 {
+		cfg.NumColors = 2
+	}
 	d.bufferLength = (uint32(d.width) * uint32(d.height)) / 8
-	d.buffer = make([][]uint8, 2)
+	d.buffer = make([][]uint8, cfg.NumColors-1)
 	for i := range d.buffer {
 		d.buffer[i] = make([]uint8, d.bufferLength)
 	}
