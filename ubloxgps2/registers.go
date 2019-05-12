@@ -1,4 +1,4 @@
-package ubloxGPS
+package ubloxgps
 
 // Constants/addresses used for I2C.
 

@@ -4,7 +4,7 @@
 // https://www.u-blox.com/sites/default/files/products/documents/u-blox8-M8_ReceiverDescrProtSpec_%28UBX-13003221%29_Public.pdf
 // (Section 11.5)
 //
-package ubloxGPS
+package ubloxgps
 
 import (
 	"machine"

@@ -1,4 +1,4 @@
-package ubloxGPS
+package ubloxgps
 
 import (
 	"fmt"

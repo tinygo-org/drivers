@@ -3,15 +3,15 @@ package main
 import (
 	"machine"
 
-	"github.com/tinygo-org/drivers/ubloxGPS"
+	"github.com/tinygo-org/drivers/ubloxgps"
 )
 
 func main() {
-	println("GPS Example2")
+	println("GPS Example")
 	machine.I2C0.Configure(machine.I2CConfig{})
-	gps := ubloxGPS.New(machine.I2C0)
-	parser := ubloxGPS.Parser(gps)
-	var fix ubloxGPS.Fix
+	gps := ubloxgps.New(machine.I2C0)
+	parser := ubloxgps.Parser(gps)
+	var fix ubloxgps.Fix
 	for {
 		parser.NextFix(&fix)
 		if fix.Valid {
