@@ -9,5 +9,10 @@ const (
 
 const (
 	FD = 0xfd
+	FE = 0xfe
 	FF = 0xff
+)
+
+const (
+	buffer_size = 128 // size of the ringBuffer
 )
