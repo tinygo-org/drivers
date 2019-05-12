@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	println("GPS Example")
+	println("GPS Example2")
 	machine.I2C0.Configure(machine.I2CConfig{})
 	gps := ubloxGPS.New(machine.I2C0)
 	var f ubloxGPS.Fix
