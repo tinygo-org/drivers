@@ -8,16 +8,17 @@ package ubloxgps
 
 import (
 	"machine"
+	"strings"
 	"time"
 )
 
 // Device wraps an I2C connection to a ublox gps device.
 type GPSDevice struct {
-	bus        machine.I2C
-	Address    uint16
-	buffer     []byte
-	sentence   []byte
-	ringBuffer *machine.RingBuffer
+	bus      machine.I2C
+	Address  uint16
+	buffer   []byte
+	bufIdx   int
+	sentence strings.Builder
 }
 
 // New creates a new GPS connection. The I2C bus must already be
@@ -27,12 +28,11 @@ type GPSDevice struct {
 // You must call Configure() first in order to use the device itself.
 func New(bus machine.I2C) GPSDevice {
 	return GPSDevice{
-		bus:     bus,
-		Address: Address,
-		// TODO: bit rubbish having 3 of these buffer type things
-		buffer:     make([]byte, buffer_size),
-		sentence:   make([]byte, 128), //? enough for the longest single sentence
-		ringBuffer: machine.NewRingBuffer(),
+		bus:      bus,
+		Address:  Address,
+		buffer:   make([]byte, buffer_size),
+		bufIdx:   buffer_size,
+		sentence: strings.Builder{},
 	}
 }
 
@@ -50,51 +50,48 @@ func (gps *GPSDevice) read() {
 	var available int
 	for {
 		available = gps.available()
-		if available > 0 {
+		if available >= buffer_size {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	var bytesToRead = min(available, int(buffer_size-gps.ringBuffer.Used()))
-	gps.bus.Tx(gps.Address, []byte{FF}, gps.buffer[0:bytesToRead])
-	for i := 0; i < bytesToRead; i += 1 {
-		gps.ringBuffer.Put(gps.buffer[i])
-	}
+	gps.bus.Tx(gps.Address, []byte{FF}, gps.buffer[0:buffer_size])
+	gps.bufIdx = 0
+
 	// print("[[[")
 	// print(string(gps.buffer[0:bytesToRead]))
 	// println("]]]")
 }
 
 func (gps *GPSDevice) readNextByte() (b byte) {
-	for {
-		if gps.ringBuffer.Used() == 0 {
-			gps.read()
-		}
-		var b, _ = gps.ringBuffer.Get()
-		return b
+	gps.bufIdx += 1
+	if gps.bufIdx >= buffer_size {
+		gps.read()
 	}
-}
-
-func (gps *GPSDevice) readToNextDollar() (b byte) {
-	for {
-		var b = gps.readNextByte()
-		if b == '$' {
-			return b
-		}
-	}
+	return gps.buffer[gps.bufIdx]
 }
 
 func (gps *GPSDevice) ReadNextSentence() (sentence string) {
 	// println("ReadNextSentence")
-	var i = 0
-	gps.sentence[i] = gps.readToNextDollar()
-	for {
-		i += 1
-		var b = gps.readNextByte()
-		gps.sentence[i] = b
-		if b == '*' {
-			return string(gps.sentence[0 : i+1])
-		}
+	gps.sentence.Reset()
+	var b byte = ' '
+
+	for b != '$' {
+		b = gps.readNextByte()
 	}
+
+	for b != '*' {
+		gps.sentence.WriteByte(b)
+		b = gps.readNextByte()
+	}
+	gps.sentence.WriteByte(b)
+	gps.sentence.WriteByte(gps.readNextByte())
+	gps.sentence.WriteByte(gps.readNextByte())
+
+	sentence = gps.sentence.String()
+	// print(">>")
+	// print(sentence)
+	// println("<<")
+	return sentence
 }

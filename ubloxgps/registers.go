@@ -14,5 +14,5 @@ const (
 )
 
 const (
-	buffer_size = 128 // size of the ringBuffer
+	buffer_size = 32
 )
