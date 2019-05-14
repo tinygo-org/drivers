@@ -68,12 +68,7 @@ func (gps *GPSDevice) readNextByte() (b byte) {
 func (gps *GPSDevice) fillBuffer() {
 	// println("read")
 
-	var available int
-	for {
-		available = gps.available()
-		if available >= buffer_size {
-			break
-		}
+	for gps.available() < buffer_size {
 		time.Sleep(100 * time.Millisecond)
 	}
 
