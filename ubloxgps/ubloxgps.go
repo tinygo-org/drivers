@@ -21,11 +21,7 @@ type GPSDevice struct {
 	sentence strings.Builder
 }
 
-// New creates a new GPS connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the GPSDevice object, it does not initialize the device.
-// You must call Configure() first in order to use the device itself.
+// New creates a new GPS connection. The I2C bus must already be configured.
 func New(bus machine.I2C) GPSDevice {
 	return GPSDevice{
 		bus:      bus,
@@ -36,42 +32,7 @@ func New(bus machine.I2C) GPSDevice {
 	}
 }
 
-// Available returns how many bytes of GPS data are currently available.
-func (gps *GPSDevice) available() (available int) {
-	var lengthBytes [2]byte
-	gps.bus.Tx(gps.Address, []byte{FD}, lengthBytes[0:2])
-	available = int(lengthBytes[0])*256 + int(lengthBytes[1])
-	return available
-}
-
-func (gps *GPSDevice) read() {
-	// println("read")
-
-	var available int
-	for {
-		available = gps.available()
-		if available >= buffer_size {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	gps.bus.Tx(gps.Address, []byte{FF}, gps.buffer[0:buffer_size])
-	gps.bufIdx = 0
-
-	// print("[[[")
-	// print(string(gps.buffer[0:bytesToRead]))
-	// println("]]]")
-}
-
-func (gps *GPSDevice) readNextByte() (b byte) {
-	gps.bufIdx += 1
-	if gps.bufIdx >= buffer_size {
-		gps.read()
-	}
-	return gps.buffer[gps.bufIdx]
-}
-
+// ReadNextSentence returns the next NMEA sentence from the GPS device.
 func (gps *GPSDevice) ReadNextSentence() (sentence string) {
 	// println("ReadNextSentence")
 	gps.sentence.Reset()
@@ -94,4 +55,40 @@ func (gps *GPSDevice) ReadNextSentence() (sentence string) {
 	// print(sentence)
 	// println("<<")
 	return sentence
+}
+
+func (gps *GPSDevice) readNextByte() (b byte) {
+	gps.bufIdx += 1
+	if gps.bufIdx >= buffer_size {
+		gps.fillBuffer()
+	}
+	return gps.buffer[gps.bufIdx]
+}
+
+func (gps *GPSDevice) fillBuffer() {
+	// println("read")
+
+	var available int
+	for {
+		available = gps.available()
+		if available >= buffer_size {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	gps.bus.Tx(gps.Address, []byte{FF}, gps.buffer[0:buffer_size])
+	gps.bufIdx = 0
+
+	// print("[[[")
+	// print(string(gps.buffer[0:bytesToRead]))
+	// println("]]]")
+}
+
+// Available returns how many bytes of GPS data are currently available.
+func (gps *GPSDevice) available() (available int) {
+	var lengthBytes [2]byte
+	gps.bus.Tx(gps.Address, []byte{FD}, lengthBytes[0:2])
+	available = int(lengthBytes[0])*256 + int(lengthBytes[1])
+	return available
 }

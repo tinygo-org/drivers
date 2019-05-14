@@ -29,10 +29,7 @@ func Parser(gpsDevice GPSDevice) GPSParser {
 func (parser *GPSParser) NextFix(fix *Fix) {
 	// println("ReadNextFix")
 	var ggaSentence = nextGGA(parser.gpsDevice)
-	// println("ReadNextFix 2")
-	// println(ggaSentence)
 	var ggaFields = strings.Split(ggaSentence, ",")
-	// println("ggaFields: ", len(ggaFields))
 	fix.Valid = true
 	fix.Altitude = findAltitude(ggaFields)
 	fix.Satelites = findSatelites(ggaFields)
