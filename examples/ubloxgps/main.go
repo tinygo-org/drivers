@@ -19,7 +19,7 @@ func main() {
 			print(", lat=", fix.Latitude)
 			print(", long=", fix.Longitude)
 			print(", altitude:=", fix.Altitude)
-			print(", satelites=", fix.Satelites)
+			print(", satellites=", fix.Satellites)
 			println()
 		} else {
 			println("No fix")

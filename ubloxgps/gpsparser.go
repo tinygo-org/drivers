@@ -17,7 +17,7 @@ type Fix struct {
 	Latitude  string
 	Longitude string
 	Altitude  int32
-	Satelites int16
+	Satellites int16
 }
 
 func Parser(gpsDevice GPSDevice) GPSParser {
@@ -32,7 +32,7 @@ func (parser *GPSParser) NextFix(fix *Fix) {
 	var ggaFields = strings.Split(ggaSentence, ",")
 	fix.Valid = true
 	fix.Altitude = findAltitude(ggaFields)
-	fix.Satelites = findSatelites(ggaFields)
+	fix.Satellites = findSatellites(ggaFields)
 	fix.Longitude = findLongitude(ggaFields)
 	fix.Latitude = findLatitude(ggaFields)
 	fix.Time = findTime(ggaFields)
@@ -114,8 +114,8 @@ func findLongitude(ggaFields []string) (l string) {
 	return "-0.0"
 }
 
-func findSatelites(ggaFields []string) (n int16) {
-	// println("findSatelites")
+func findSatellites(ggaFields []string) (n int16) {
+	// println("findSatellites")
 	// $--GGA,,,,,,,nn,,,,,,,*hh
 	if len(ggaFields) > 6 && len(ggaFields[7]) > 0 {
 		var nn = ggaFields[7]
