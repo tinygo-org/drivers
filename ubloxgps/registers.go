@@ -8,11 +8,10 @@ const (
 )
 
 const (
-	FD = 0xfd
-	FE = 0xfe
-	FF = 0xff
+	BYTES_AVAIL_REG = 0xfd
+	DATA_STREAM_REG = 0xff
 )
 
 const (
-	buffer_size = 32
+	bufferSize = 32
 )

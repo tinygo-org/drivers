@@ -26,8 +26,8 @@ func New(bus machine.I2C) GPSDevice {
 	return GPSDevice{
 		bus:      bus,
 		Address:  Address,
-		buffer:   make([]byte, buffer_size),
-		bufIdx:   buffer_size,
+		buffer:   make([]byte, bufferSize),
+		bufIdx:   bufferSize,
 		sentence: strings.Builder{},
 	}
 }
@@ -59,7 +59,7 @@ func (gps *GPSDevice) ReadNextSentence() (sentence string) {
 
 func (gps *GPSDevice) readNextByte() (b byte) {
 	gps.bufIdx += 1
-	if gps.bufIdx >= buffer_size {
+	if gps.bufIdx >= bufferSize {
 		gps.fillBuffer()
 	}
 	return gps.buffer[gps.bufIdx]
@@ -68,11 +68,11 @@ func (gps *GPSDevice) readNextByte() (b byte) {
 func (gps *GPSDevice) fillBuffer() {
 	// println("read")
 
-	for gps.available() < buffer_size {
+	for gps.available() < bufferSize {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	gps.bus.Tx(gps.Address, []byte{FF}, gps.buffer[0:buffer_size])
+	gps.bus.Tx(gps.Address, []byte{DATA_STREAM_REG}, gps.buffer[0:bufferSize])
 	gps.bufIdx = 0
 
 	// print("[[[")
@@ -83,7 +83,7 @@ func (gps *GPSDevice) fillBuffer() {
 // Available returns how many bytes of GPS data are currently available.
 func (gps *GPSDevice) available() (available int) {
 	var lengthBytes [2]byte
-	gps.bus.Tx(gps.Address, []byte{FD}, lengthBytes[0:2])
+	gps.bus.Tx(gps.Address, []byte{BYTES_AVAIL_REG}, lengthBytes[0:2])
 	available = int(lengthBytes[0])*256 + int(lengthBytes[1])
 	return available
 }
