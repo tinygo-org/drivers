@@ -12,31 +12,7 @@ jobs:
       - run: tinygo version
       - run:
           name: "Enforce Go Formatted Code"
-          command: "! go fmt ./... 2>&1 | read"
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/adxl345/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/apa102/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/bh1750/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/blinkm/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/bmp180/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/ds3231/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/easystepper/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/espat/espconsole/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/espat/esphub/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/espat/espstation/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/hd44780/customchar/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/hd44780/text/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/hub75/main.go
-      - run: tinygo build -size short -o test.elf -target=circuitplay-express ./examples/lis3dh/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mag3110/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/microbitmatrix/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mma8653/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/mpu6050/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/pcd8544/setbuffer/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/pcd8544/setpixel/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/sht3x/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/ssd1306/i2c_128x32/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/ssd1306/spi_128x64/main.go
-      - run: tinygo build -size short -o test.elf -target=circuitplay-express ./examples/thermistor/main.go
-      - run: tinygo build -size short -o test.elf -target=itsybitsy-m0 ./examples/vl53l1x/main.go
-      - run: tinygo build -size short -o test.elf -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
-      - run: tinygo build -size short -o test.elf -target=circuitplay-express ./examples/ws2812/main.go
+          command: make fmt-check
+      - run:
+          name: "Run build and smoke tests"
+          command: make smoke-test
