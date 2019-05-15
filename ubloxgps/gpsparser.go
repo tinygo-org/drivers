@@ -12,11 +12,11 @@ type GPSParser struct {
 
 // fix is a GPS location fix
 type Fix struct {
-	Valid     bool
-	Time      string
-	Latitude  string
-	Longitude string
-	Altitude  int32
+	Valid      bool
+	Time       string
+	Latitude   string
+	Longitude  string
+	Altitude   int32
 	Satellites int16
 }
 
