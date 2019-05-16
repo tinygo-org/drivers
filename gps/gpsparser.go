@@ -27,7 +27,6 @@ func Parser(gpsDevice GPSDevice) GPSParser {
 }
 
 func (parser *GPSParser) NextFix() (fix Fix) {
-	// println("ReadNextFix")
 	var ggaSentence = nextGGA(parser.gpsDevice)
 	var ggaFields = strings.Split(ggaSentence, ",")
 	fix.Valid = true
@@ -40,24 +39,17 @@ func (parser *GPSParser) NextFix() (fix Fix) {
 }
 
 func nextGGA(gpsDevice GPSDevice) (sentence string) {
-	// println("ReadNextGGA")
 	// $--GGA,,,,,,,,,,,,,,*hh
 	for {
 		sentence = gpsDevice.ReadNextSentence()
-		// print("---")
-		// println(sentence)
-		// println("---")
 		if sentence[3:6] == "GGA" {
-			println(sentence)
 			return sentence
 		}
 	}
 }
 
 func findTime(ggaFields []string) (t string) {
-	// println("findTime")
 	// $GNGGA,hhmmss.ss,,,,,,,,,,,,,*63
-	// println("len(ggaFields[1]): ", len(ggaFields[1]))
 	if len(ggaFields) < 1 || len(ggaFields[1]) < 6 {
 		return "hh:mm:ss"
 	}
@@ -68,12 +60,8 @@ func findTime(ggaFields []string) (t string) {
 }
 
 func findAltitude(ggaFields []string) (a int32) {
-	// println("findAltitude")
 	// $GNGGA,,,,,,,,,25.8,,,,,*63
 	if len(ggaFields) > 8 && len(ggaFields[9]) > 0 {
-		// println("a-")
-		// println(ggaFields[9])
-		// println("-a")
 		var v, _ = strconv.ParseFloat(ggaFields[9], 32)
 		return int32(v)
 	}
@@ -81,7 +69,6 @@ func findAltitude(ggaFields []string) (a int32) {
 }
 
 func findLatitude(ggaFields []string) (l string) {
-	// println("findLatitude")
 	// $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
 	if len(ggaFields) > 2 && len(ggaFields[2]) > 8 {
 		var dd = ggaFields[2][0:2]
@@ -98,7 +85,6 @@ func findLatitude(ggaFields []string) (l string) {
 }
 
 func findLongitude(ggaFields []string) (l string) {
-	// println("findLongitude")
 	// $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
 	if len(ggaFields) > 4 && len(ggaFields[4]) > 8 {
 		var ddd = ggaFields[4][0:3]
@@ -116,13 +102,9 @@ func findLongitude(ggaFields []string) (l string) {
 }
 
 func findSatellites(ggaFields []string) (n int16) {
-	// println("findSatellites")
 	// $--GGA,,,,,,,nn,,,,,,,*hh
 	if len(ggaFields) > 6 && len(ggaFields[7]) > 0 {
 		var nn = ggaFields[7]
-		// println("n-")
-		// println(nn)
-		// println("-n")
 		var v, _ = strconv.ParseInt(nn, 10, 32)
 		n = int16(v)
 		return n
