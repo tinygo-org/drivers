@@ -1,4 +1,4 @@
-package ubloxgps
+package gps
 
 import (
 	"fmt"
@@ -44,10 +44,10 @@ func nextGGA(gpsDevice GPSDevice) (sentence string) {
 	for {
 		sentence = gpsDevice.ReadNextSentence()
 		// print("---")
-		// print(sentence)
+		// println(sentence)
 		// println("---")
 		if sentence[3:6] == "GGA" {
-			// println(sentence)
+			println(sentence)
 			return sentence
 		}
 	}
@@ -127,11 +127,4 @@ func findSatellites(ggaFields []string) (n int16) {
 		return n
 	}
 	return 0
-}
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
 }
