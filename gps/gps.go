@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Device wraps an connection to a GPS device.
+// Device wraps a connection to a GPS device.
 type GPSDevice struct {
 	buffer   []byte
 	bufIdx   int
@@ -27,7 +27,7 @@ func New(uart machine.UART) GPSDevice {
 	}
 }
 
-// New creates a new I2C GPS connection.
+// NewI2C creates a new I2C GPS connection.
 func NewI2C(bus machine.I2C) GPSDevice {
 	return GPSDevice{
 		bus:      bus,
