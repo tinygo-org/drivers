@@ -13,7 +13,7 @@ func main() {
 	parser := gps.Parser(ublox)
 	var fix gps.Fix
 	for {
-		parser.NextFix(&fix)
+		fix = parser.NextFix()
 		if fix.Valid {
 			print(fix.Time)
 			print(", lat=", fix.Latitude)

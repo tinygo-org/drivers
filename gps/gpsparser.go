@@ -26,7 +26,7 @@ func Parser(gpsDevice GPSDevice) GPSParser {
 	}
 }
 
-func (parser *GPSParser) NextFix(fix *Fix) {
+func (parser *GPSParser) NextFix() (fix Fix) {
 	// println("ReadNextFix")
 	var ggaSentence = nextGGA(parser.gpsDevice)
 	var ggaFields = strings.Split(ggaSentence, ",")
@@ -36,6 +36,7 @@ func (parser *GPSParser) NextFix(fix *Fix) {
 	fix.Longitude = findLongitude(ggaFields)
 	fix.Latitude = findLatitude(ggaFields)
 	fix.Time = findTime(ggaFields)
+	return fix
 }
 
 func nextGGA(gpsDevice GPSDevice) (sentence string) {
