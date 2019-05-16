@@ -12,13 +12,13 @@ type GPSDevice struct {
 	buffer   []byte
 	bufIdx   int
 	sentence strings.Builder
-	uart     machine.UART
-	bus      machine.I2C
+	uart     *machine.UART
+	bus      *machine.I2C
 	address  uint16
 }
 
-// New creates a new UART GPS connection. The UART must already be configured.
-func New(uart machine.UART) GPSDevice {
+// NewUART creates a new UART GPS connection. The UART must already be configured.
+func NewUART(uart *machine.UART) GPSDevice {
 	return GPSDevice{
 		uart:     uart,
 		buffer:   make([]byte, bufferSize),
@@ -28,7 +28,7 @@ func New(uart machine.UART) GPSDevice {
 }
 
 // NewI2C creates a new I2C GPS connection.
-func NewI2C(bus machine.I2C) GPSDevice {
+func NewI2C(bus *machine.I2C) GPSDevice {
 	return GPSDevice{
 		bus:      bus,
 		address:  I2C_ADDRESS,
@@ -68,7 +68,7 @@ func (gps *GPSDevice) readNextByte() (b byte) {
 }
 
 func (gps *GPSDevice) fillBuffer() {
-	if (machine.I2C{}) == gps.bus {
+	if gps.uart != nil {
 		gps.uartFillBuffer()
 	} else {
 		gps.i2cFillBuffer()
