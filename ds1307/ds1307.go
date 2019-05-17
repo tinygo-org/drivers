@@ -10,7 +10,7 @@ import (
 type Device struct {
 	bus         machine.I2C
 	Address     uint8
-	AddresSSRAM uint8
+	AddressSRAM uint8
 	data        []byte
 }
 
@@ -18,7 +18,7 @@ type Device struct {
 func New(bus machine.I2C) Device {
 	return Device{bus: bus,
 		Address:     uint8(I2CAddress),
-		AddresSSRAM: SRAMBeginAddres,
+		AddressSRAM: SRAMBeginAddres,
 		data:        make([]byte, 7),
 	}
 }
@@ -56,34 +56,34 @@ func (d *Device) Time() (time.Time, error) {
 
 // SetSRAMAddress sets SRAM register address. Range (SRAMBeginAddres, SRAMEndAddress)
 func (d *Device) SetSRAMAddress(address uint8) {
-	d.AddresSSRAM = address
-	if d.AddresSSRAM < SRAMBeginAddres || d.AddresSSRAM > SRAMEndAddress {
-		d.AddresSSRAM = SRAMBeginAddres
+	d.AddressSRAM = address
+	if d.AddressSRAM < SRAMBeginAddres || d.AddressSRAM > SRAMEndAddress {
+		d.AddressSRAM = SRAMBeginAddres
 	}
 }
 
 // SRAMAddress returns current SRAM address
 func (d *Device) SRAMAddress() uint8 {
-	return d.AddresSSRAM
+	return d.AddressSRAM
 }
 
 // Write writes len(data) bytes to SRAM starting from SRAMAddress
 func (d *Device) Write(data []byte) (n int, err error) {
-	err = d.bus.WriteRegister(d.Address, d.AddresSSRAM, data)
+	err = d.bus.WriteRegister(d.Address, d.AddressSRAM, data)
 	if err != nil {
 		return 0, err
 	}
-	d.SetSRAMAddress(d.AddresSSRAM + uint8(len(data)))
+	d.SetSRAMAddress(d.AddressSRAM + uint8(len(data)))
 	return len(data), nil
 }
 
 // Read reads len(data) from SRAM starting from SRAMAddress
 func (d *Device) Read(data []uint8) (n int, err error) {
-	err = d.bus.ReadRegister(d.Address, d.AddresSSRAM, data)
+	err = d.bus.ReadRegister(d.Address, d.AddressSRAM, data)
 	if err != nil {
 		return 0, err
 	}
-	d.SetSRAMAddress(d.AddresSSRAM + uint8(len(data)))
+	d.SetSRAMAddress(d.AddressSRAM + uint8(len(data)))
 	return len(data), nil
 }
 
