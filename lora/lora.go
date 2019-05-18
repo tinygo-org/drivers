@@ -65,8 +65,10 @@ func (d *Device) PrintRegisters() {
 func (d *Device) readRegister(reg uint8) uint8 {
 	var data [1]byte
 	d.csPin.High()
-	var err = d.bus.Tx([]byte{reg}, data[:])
+	time.Sleep(1 * time.Millisecond)
 	d.csPin.Low()
+	var err = d.bus.Tx([]byte{reg}, data[:])
+	d.csPin.High()
 	if err != nil {
 		print("readRegister err: ")
 		fmt.Println(err)
