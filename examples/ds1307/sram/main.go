@@ -11,13 +11,13 @@ func main() {
 	rtc := ds1307.New(machine.I2C0)
 	read := make([]byte, 5)
 	for {
-		rtc.SetSRAMAddress(ds1307.SRAMBeginAddres)
+		rtc.Seek(0, 0)
 		_, err := rtc.Write([]byte{1, 2, 3, 4, 5})
 		if err != nil {
 			println("Error while writing data:", err)
 			break
 		}
-		rtc.SetSRAMAddress(ds1307.SRAMBeginAddres)
+		rtc.Seek(0, 0)
 		_, err = rtc.Read(read)
 		if err != nil {
 			println("Error while reading data:", err)
