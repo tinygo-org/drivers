@@ -73,9 +73,6 @@ func (gps *GPSDevice) fillBuffer() {
 	} else {
 		gps.i2cFillBuffer()
 	}
-	// print("[[[")
-	// print(string(gps.buffer[0:bufferSize]))
-	// println("]]]")
 }
 
 func (gps *GPSDevice) uartFillBuffer() {
@@ -100,4 +97,12 @@ func (gps *GPSDevice) available() (available int) {
 	gps.bus.Tx(gps.address, []byte{BYTES_AVAIL_REG}, lengthBytes[0:2])
 	available = int(lengthBytes[0])*256 + int(lengthBytes[1])
 	return available
+}
+
+func (gps *GPSDevice) WriteBytes(bytes []byte) {
+	if gps.uart != nil {
+		gps.uart.Write(bytes)
+	} else {
+		gps.bus.Tx(gps.address, []byte{}, bytes)
+	}
 }

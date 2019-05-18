@@ -35,9 +35,7 @@ func SetCfgGNSS(gpsDevice GPSDevice) (err error) {
 }
 
 func sendCommand(gpsDevice GPSDevice, command []byte) (err error) {
-	for i := 0; i < len(command); i++ {
-		// gpsDevice.write(command[i])
-	}
+	gpsDevice.WriteBytes(command)
 	start := time.Now()
 	for time.Now().Sub(start) < 1000 {
 		if gpsDevice.readNextByte() == '\n' {
