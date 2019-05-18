@@ -6,10 +6,6 @@ import (
 	"github.com/tinygo-org/drivers/gps"
 )
 
-var (
-	uart = machine.UART1
-)
-
 func main() {
 	println("GPS UART Example")
 	machine.UART1.Configure(machine.UARTConfig{BaudRate: 9600})
