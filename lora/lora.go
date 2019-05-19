@@ -3,6 +3,8 @@
 // Datasheet:
 // https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V6.pdf
 //
+// Presently this is only synchronous and so does not use any DIOx pins
+//
 package lora
 
 import (
@@ -14,10 +16,9 @@ import (
 
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
-	bus     machine.SPI
-	csPin   machine.GPIO
-	rstPin  machine.GPIO
-	dio0Pin machine.GPIO
+	spi    machine.SPI
+	csPin  machine.GPIO
+	rstPin machine.GPIO
 }
 
 type Config struct {
@@ -29,11 +30,11 @@ type Config struct {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(b machine.SPI, csPin machine.GPIO, rstPin machine.GPIO, dio0Pin machine.GPIO) Device {
-	return Device{bus: b,
-		csPin:   csPin,
-		rstPin:  rstPin,
-		dio0Pin: dio0Pin,
+func New(spi machine.SPI, csPin machine.GPIO, rstPin machine.GPIO) Device {
+	return Device{
+		spi:    spi,
+		csPin:  csPin,
+		rstPin: rstPin,
 	}
 }
 
@@ -48,7 +49,6 @@ func (d *Device) Configure(cfg Config) (err error) {
 	}
 
 	d.sleep()
-	// println(d.getFrequency())
 
 	// set base addresses
 	d.writeRegister(REG_FIFO_TX_BASE_ADDR, 0)
@@ -67,6 +67,7 @@ func (d *Device) Configure(cfg Config) (err error) {
 	return err
 }
 
+// ReConfigure updates the LoRa module configuration
 func (d *Device) ReConfigure(cfg Config) (err error) {
 	if cfg.Frequency != 0 {
 		d.setFrequency(cfg.Frequency)
@@ -86,10 +87,41 @@ func (d *Device) ReConfigure(cfg Config) (err error) {
 	return err
 }
 
-// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000).
+// SendPacket transmits the packet
+// Note that this will return before the packet has finished being sent,
+// use the IsTransmitting() function if you need to know when sending is done.
 func (d *Device) SendPacket(packet []byte) {
+
+	// wait for any previous SendPacket to be done
+	print("SendPacket")
+	for d.IsTransmitting() {
+		print(".")
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	d.writeRegister(REG_IRQ_FLAGS, IRQ_TX_DONE_MASK)
+
+	// reset FIFO address and paload length
+	d.writeRegister(REG_FIFO_ADDR_PTR, 0)
+	d.writeRegister(REG_PAYLOAD_LENGTH, 0)
+
+	if len(packet) > MAX_PKT_LENGTH {
+		packet = packet[0:MAX_PKT_LENGTH]
+	}
+
+	for i := 0; i < len(packet); i++ {
+		d.writeRegister(REG_FIFO, packet[i])
+	}
+
+	d.writeRegister(REG_PAYLOAD_LENGTH, uint8(len(packet)))
+	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_TX)
 }
 
+func (d *Device) IsTransmitting() bool {
+	return (d.readRegister(REG_OP_MODE) & MODE_TX) == MODE_TX
+}
+
+// LastPacketRSSI gives the RSSI of the last packet received
 func (d *Device) LastPacketRSSI() uint8 {
 	// section 5.5.5
 	var adjustValue uint8 = 157
@@ -99,10 +131,14 @@ func (d *Device) LastPacketRSSI() uint8 {
 	return d.readRegister(REG_PKT_RSSI_VALUE) - adjustValue
 }
 
+// LastPacketSNR gives the SNR of the last packet received
 func (d *Device) LastPacketSNR() uint8 {
 	return uint8(d.readRegister(REG_PKT_SNR_VALUE) / 4)
 }
 
+// LastPacketFrequencyError gives the frequency error of the last packet received
+// You can use this to adjust this transeiver frequency to more closly match the
+// frequency being used by the sender, as this can drift over time
 func (d *Device) LastPacketFrequencyError() int32 {
 	// TODO
 	// int32_t freqError = 0;
@@ -160,13 +196,34 @@ func (d *Device) setFrequency(frequency uint32) {
 }
 
 func (d *Device) getSpreadingFactor() uint8 {
-	return 0
+	return d.readRegister(REG_MODEM_CONFIG_2) >> 4
 }
+
 func (d *Device) setSpreadingFactor(spreadingFactor uint8) {
+	if spreadingFactor < 6 {
+		spreadingFactor = 6
+	} else if spreadingFactor > 12 {
+		spreadingFactor = 12
+	}
+
+	if spreadingFactor == 6 {
+		d.writeRegister(REG_DETECTION_OPTIMIZE, 0xc5)
+		d.writeRegister(REG_DETECTION_THRESHOLD, 0x0c)
+	} else {
+		d.writeRegister(REG_DETECTION_OPTIMIZE, 0xc3)
+		d.writeRegister(REG_DETECTION_THRESHOLD, 0x0a)
+	}
+
+	var newValue uint8 = (d.readRegister(REG_MODEM_CONFIG_2) & 0x0f) | ((spreadingFactor << 4) & 0xf0)
+	d.writeRegister(REG_MODEM_CONFIG_2, newValue)
+	d.setLdoFlag()
 }
+
 func (d *Device) getBandwidth() int32 {
+	// TODO
 	return 0
 }
+
 func (d *Device) setBandwidth(sbw int32) {
 	var bw uint8
 
@@ -218,20 +275,19 @@ func (d *Device) setCodingRate(denominator uint8) {
 	} else if denominator > 8 {
 		denominator = 8
 	}
-
 	var cr = denominator - 4
-
 	d.writeRegister(REG_MODEM_CONFIG_1, (d.readRegister(REG_MODEM_CONFIG_1)&0xf1)|(cr<<1))
 }
 
 func (d *Device) setTxPower(txPower int8) {
+	// TODO
 }
 
 func (d *Device) readRegister(reg uint8) uint8 {
 	d.csPin.Low()
-	d.bus.Tx([]byte{reg & 0x7f}, nil)
+	d.spi.Tx([]byte{reg & 0x7f}, nil)
 	var value [1]byte
-	d.bus.Tx(nil, value[:])
+	d.spi.Tx(nil, value[:])
 	d.csPin.High()
 	return value[0]
 }
@@ -239,8 +295,8 @@ func (d *Device) readRegister(reg uint8) uint8 {
 func (d *Device) writeRegister(reg uint8, value uint8) uint8 {
 	var response [1]byte
 	d.csPin.Low()
-	d.bus.Tx([]byte{reg | 0x80}, nil)
-	d.bus.Tx([]byte{value}, response[:])
+	d.spi.Tx([]byte{reg | 0x80}, nil)
+	d.spi.Tx([]byte{value}, response[:])
 	d.csPin.High()
 	return response[0]
 }
