@@ -56,22 +56,24 @@ func (d *Device) SendPacket(packet []byte) {
 
 func (d *Device) PrintRegisters() {
 	for i := 0; i < 128; i++ {
-		fmt.Printf("% 02x: ", i)
-		var b byte = d.readRegister(uint8(i))
-		fmt.Printf("% 02x\n", b)
+		fmt.Printf("%02x: %02x\n", i, d.readRegister(uint8(i)))
 	}
 }
 
 func (d *Device) readRegister(reg uint8) uint8 {
-	var data [1]byte
-	d.csPin.High()
-	time.Sleep(1 * time.Millisecond)
 	d.csPin.Low()
-	var err = d.bus.Tx([]byte{reg}, data[:])
+	d.bus.Tx([]byte{reg & 0x7f}, nil)
+	var value [1]byte
+	d.bus.Tx([]byte{0x00}, value[:])
 	d.csPin.High()
-	if err != nil {
-		print("readRegister err: ")
-		fmt.Println(err)
-	}
-	return data[0]
+	return value[0]
+}
+
+func (d *Device) writeRegister(reg uint8, value uint8) uint8 {
+	var response [1]byte
+	d.csPin.Low()
+	d.bus.Tx([]byte{reg | 0x80}, nil)
+	d.bus.Tx([]byte{value}, response[:])
+	d.csPin.High()
+	return response[0]
 }
