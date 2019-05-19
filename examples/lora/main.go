@@ -36,9 +36,9 @@ func main() {
 
 	machine.SPI0.Configure(machine.SPIConfig{})
 
-	transceiver := lora.New(machine.SPI0, csPin, rstPin)
+	loraRadio := lora.New(machine.SPI0, csPin, rstPin)
 
-	var err = transceiver.Configure(loraConfig)
+	var err = loraRadio.Configure(loraConfig)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -49,7 +49,7 @@ func main() {
 		counter += 1
 		var packet = "TinyGo LoRa: " + strconv.Itoa(counter)
 		println("Sending:", packet)
-		transceiver.SendPacket([]byte(packet))
+		loraRadio.SendPacket([]byte(packet))
 		time.Sleep(5000 * time.Millisecond)
 	}
 }
