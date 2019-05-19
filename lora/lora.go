@@ -21,7 +21,7 @@ type Device struct {
 }
 
 type Config struct {
-	Frequency       int32
+	Frequency       uint32
 	SpreadingFactor int8
 	Bandwidth       int32
 	CodingRate      int8
@@ -39,13 +39,49 @@ func New(b machine.SPI, csPin machine.GPIO, rstPin machine.GPIO, dio0Pin machine
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) (err error) {
-	d.rstPin.Low()
-	time.Sleep(10 * time.Millisecond)
-	d.rstPin.High()
-	time.Sleep(10 * time.Millisecond)
+	d.csPin.High()
+
+	d.reset()
 
 	if d.readRegister(REG_VERSION) != 0x12 {
-		err = errors.New("SX127x module not found")
+		return errors.New("SX127x module not found")
+	}
+
+	d.sleep()
+	// println(d.getFrequency())
+
+	// set base addresses
+	d.writeRegister(REG_FIFO_TX_BASE_ADDR, 0)
+	d.writeRegister(REG_FIFO_RX_BASE_ADDR, 0)
+
+	// set LNA boost
+	d.writeRegister(REG_LNA, d.readRegister(REG_LNA)|0x03)
+
+	// set auto AGC
+	d.writeRegister(REG_MODEM_CONFIG_3, 0x04)
+
+	err = d.ReConfigure(cfg)
+
+	d.idle()
+
+	return err
+}
+
+func (d *Device) ReConfigure(cfg Config) (err error) {
+	if cfg.Frequency != 0 {
+		d.setFrequency(cfg.Frequency)
+	}
+	if cfg.SpreadingFactor != 0 {
+		d.setSpreadingFactor(cfg.SpreadingFactor)
+	}
+	if cfg.Bandwidth != 0 {
+		d.setBandwidth(cfg.Bandwidth)
+	}
+	if cfg.CodingRate != 0 {
+		d.setCodingRate(cfg.CodingRate)
+	}
+	if cfg.TxPower != 0 {
+		d.setTxPower(cfg.TxPower)
 	}
 	return err
 }
@@ -60,11 +96,50 @@ func (d *Device) PrintRegisters() {
 	}
 }
 
+func (d *Device) reset() {
+	d.rstPin.Low()
+	time.Sleep(10 * time.Millisecond)
+	d.rstPin.High()
+	time.Sleep(10 * time.Millisecond)
+}
+
+func (d *Device) sleep() {
+	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_SLEEP)
+}
+
+func (d *Device) idle() {
+	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_STDBY)
+}
+
+func (d *Device) getFrequency() uint32 {
+	var f uint64 = uint64(d.readRegister(REG_FRF_LSB))
+	f += uint64(d.readRegister(REG_FRF_MID)) << 8
+	f += uint64(d.readRegister(REG_FRF_MSB)) << 16
+	f = (f * 32000000) >> 19
+	return uint32(f)
+}
+
+func (d *Device) setFrequency(frequency uint32) {
+	var frf uint64 = (uint64(frequency) << 19) / 32000000
+	d.writeRegister(REG_FRF_MSB, uint8(frf>>16))
+	d.writeRegister(REG_FRF_MID, uint8(frf>>8))
+	d.writeRegister(REG_FRF_LSB, uint8(frf>>0))
+}
+
+func (d *Device) setSpreadingFactor(spreadingFactor int8) {
+}
+func (d *Device) setBandwidth(bandwidth int32) {
+}
+func (d *Device) setCodingRate(codingRate int8) {
+}
+func (d *Device) setTxPower(txPower int8) {
+}
+
 func (d *Device) readRegister(reg uint8) uint8 {
 	d.csPin.Low()
 	d.bus.Tx([]byte{reg & 0x7f}, nil)
 	var value [1]byte
-	d.bus.Tx([]byte{0x00}, value[:])
+	d.bus.Tx(nil, value[:])
 	d.csPin.High()
 	return value[0]
 }
