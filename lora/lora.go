@@ -3,6 +3,27 @@
 // Datasheet:
 // https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V6.pdf
 //
+// LoRa Configuration Parameters:
+//
+// Frequency: is the frequency the tranceiver uses. Valid frequencies depend on
+//  the type of LoRa module, typically around 433MHz or 866MHz. It has
+//  a granularity of about 23Hz, how close it can be to others depends on the
+//  Bandwidth bing used.
+//
+// Bandwidth: is the bandwidth used for tranmissions, ranging from 7k8 to 512k
+//  A higher bandwidth gives faster transmissions, lower gives greater range
+//
+// SpreadingFactor: is how a transmission is spread over the spectrum. It ranges
+//  from 6 to 12, a higher value gives greater range but slower transmissions.
+//
+// CodingRate: is the cyclic error coding used to improve the robustness of the
+//  transmission. It ranges from 5 to 8, a higher value gives greater
+//  reliability but slower transmissions.
+//
+// TxPower: is the power used for the transmission, ranging from 1 to 20.
+//  A higher power gives greater range. Regulations in your country likely
+//  limit the maximum power permited.
+//
 // Presently this is only synchronous and so does not use any DIOx pins
 //
 package lora
