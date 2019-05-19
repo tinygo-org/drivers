@@ -10,27 +10,35 @@ import (
 	"github.com/tinygo-org/drivers/lora"
 )
 
+var loraConfig = lora.Config{
+	Frequency:       433998500,
+	SpreadingFactor: 9,
+	Bandwidth:       312500,
+	CodingRate:      6,
+	TxPower:         17,
+}
+
 func main() {
 	println("LoRa Example")
-	time.Sleep(10000 * time.Millisecond)
-	println("LoRa Example 1")
-	time.Sleep(10000 * time.Millisecond)
-	// SPI settings for Feather M0 LoRa board
-	csPin := machine.GPIO{machine.D8}
-	csPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	rstPin := machine.GPIO{machine.D4}
-	rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	dio0Pin := machine.GPIO{machine.D3}
-	dio0Pin.Configure(machine.GPIOConfig{Mode: machine.GPIO_INPUT})
 
-	println("LoRa Example 2")
+	// SPI settings for Feather M0 LoRa board
+	// csPin := machine.GPIO{machine.D8}
+	// csPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	// rstPin := machine.GPIO{machine.D4}
+	// rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	// dio0Pin := machine.GPIO{machine.D3}
+	// dio0Pin.Configure(machine.GPIOConfig{Mode: machine.GPIO_INPUT})
+
+	csPin := machine.GPIO{machine.P16}
+	csPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	rstPin := machine.GPIO{machine.P0}
+	rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+
 	machine.SPI0.Configure(machine.SPIConfig{})
 
-	println("LoRa Example 3")
-	transceiver := lora.New(machine.SPI0, csPin, rstPin, dio0Pin)
-	println("LoRa Example 4")
-	var err = transceiver.Configure(lora.Config{})
-	transceiver.PrintRegisters()
+	transceiver := lora.New(machine.SPI0, csPin, rstPin)
+
+	var err = transceiver.Configure(loraConfig)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -38,10 +46,10 @@ func main() {
 
 	var counter int = 0
 	for {
-		println("LoRa Example Loop")
 		counter += 1
-		var packet = "TinyGo LoRA: " + strconv.Itoa(counter)
+		var packet = "TinyGo LoRa: " + strconv.Itoa(counter)
+		println("Sending:", packet)
 		transceiver.SendPacket([]byte(packet))
-		time.Sleep(2000 * time.Millisecond)
+		time.Sleep(5000 * time.Millisecond)
 	}
 }
