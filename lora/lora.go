@@ -59,7 +59,7 @@ func New(spi machine.SPI, csPin machine.GPIO, rstPin machine.GPIO) Device {
 	}
 }
 
-// Configure initializes the display with default configuration
+// Configure initializes and configures the LoRa module
 func (d *Device) Configure(cfg Config) (err error) {
 	d.csPin.High()
 
@@ -108,21 +108,18 @@ func (d *Device) ReConfigure(cfg Config) (err error) {
 	return err
 }
 
-// SendPacket transmits the packet
+// SendPacket transmits a packet
 // Note that this will return before the packet has finished being sent,
 // use the IsTransmitting() function if you need to know when sending is done.
 func (d *Device) SendPacket(packet []byte) {
 
 	// wait for any previous SendPacket to be done
-	print("SendPacket")
 	for d.IsTransmitting() {
-		print(".")
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 
+	// reset TX_DONE, FIFO address and paload length
 	d.writeRegister(REG_IRQ_FLAGS, IRQ_TX_DONE_MASK)
-
-	// reset FIFO address and paload length
 	d.writeRegister(REG_FIFO_ADDR_PTR, 0)
 	d.writeRegister(REG_PAYLOAD_LENGTH, 0)
 
