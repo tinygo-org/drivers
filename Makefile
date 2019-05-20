@@ -11,6 +11,7 @@ smoke-test:
 	@mkdir -p build
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/adxl345/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/apa102/main.go
+	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/at24cx/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/bh1750/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/blinkm/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/bmp180/main.go
