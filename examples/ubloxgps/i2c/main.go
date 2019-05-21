@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"machine"
 
 	"github.com/tinygo-org/drivers/gps"
@@ -16,8 +17,8 @@ func main() {
 		fix = parser.NextFix()
 		if fix.Valid {
 			print(fix.Time.Format("15:04:05"))
-			print(", lat=", fix.Latitude)
-			print(", long=", fix.Longitude)
+			print(", lat=", fmt.Sprintf("%f", fix.Latitude))
+			print(", long=", fmt.Sprintf("%f", fix.Longitude))
 			print(", altitude:=", fix.Altitude)
 			print(", satellites=", fix.Satellites)
 			println()

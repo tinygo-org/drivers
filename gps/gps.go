@@ -99,7 +99,8 @@ func (gps *GPSDevice) available() (available int) {
 	return available
 }
 
-func (gps *GPSDevice) WriteBytes(bytes []byte) {
+// WriteBytes sends data/commands to the GPS device
+func (gps *GPSDevice) writeBytes(bytes []byte) {
 	if gps.uart != nil {
 		gps.uart.Write(bytes)
 	} else {
