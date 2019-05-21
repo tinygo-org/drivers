@@ -2,6 +2,7 @@
 package gps
 
 import (
+	"encoding/hex"
 	"machine"
 	"strings"
 	"time"
@@ -38,8 +39,17 @@ func NewI2C(bus *machine.I2C) GPSDevice {
 	}
 }
 
-// ReadNextSentence returns the next NMEA sentence from the GPS device.
-func (gps *GPSDevice) ReadNextSentence() (sentence string) {
+// ReadNextSentence returns the next valid NMEA sentence from the GPS device.
+func (gps *GPSDevice) NextSentence() (sentence string) {
+	sentence = gps.readNextSentence()
+	for !validSentence(sentence) {
+		sentence = gps.readNextSentence()
+	}
+	return sentence
+}
+
+// readNextSentence returns the next sentence from the GPS device.
+func (gps *GPSDevice) readNextSentence() (sentence string) {
 	gps.sentence.Reset()
 	var b byte = ' '
 
@@ -106,4 +116,17 @@ func (gps *GPSDevice) writeBytes(bytes []byte) {
 	} else {
 		gps.bus.Tx(gps.address, []byte{}, bytes)
 	}
+}
+
+// validSentence checks if a sentence has been received uncorrupted
+func validSentence(sentence string) bool {
+	if len(sentence) < 4 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
+		return false
+	}
+	var cs byte = 0
+	for i := 1; i < len(sentence)-3; i++ {
+		cs ^= sentence[i]
+	}
+	checksum := hex.EncodeToString([]byte{cs})
+	return (checksum[0] == sentence[len(sentence)-2]) && (checksum[1] == sentence[len(sentence)-1])
 }

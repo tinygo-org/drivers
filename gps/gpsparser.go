@@ -43,7 +43,7 @@ func (parser *GPSParser) NextFix() (fix Fix) {
 // $--GGA,,,,,,,,,,,,,,*hh
 func nextGGA(gpsDevice GPSDevice) (sentence string) {
 	for {
-		sentence = gpsDevice.ReadNextSentence()
+		sentence = gpsDevice.NextSentence()
 		if sentence[3:6] == "GGA" {
 			return sentence
 		}
