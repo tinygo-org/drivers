@@ -15,7 +15,7 @@ func main() {
 	for {
 		fix = parser.NextFix()
 		if fix.Valid {
-			print(fix.Time)
+			print(fix.Time.Format("15:04:05"))
 			print(", lat=", fix.Latitude)
 			print(", long=", fix.Longitude)
 			print(", altitude:=", fix.Altitude)

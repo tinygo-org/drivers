@@ -1,9 +1,9 @@
 package gps
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type GPSParser struct {
@@ -13,9 +13,9 @@ type GPSParser struct {
 // fix is a GPS location fix
 type Fix struct {
 	Valid      bool
-	Time       string
-	Latitude   string
-	Longitude  string
+	Time       time.Time
+	Latitude   float32
+	Longitude  float32
 	Altitude   int32
 	Satellites int16
 }
@@ -26,20 +26,22 @@ func Parser(gpsDevice GPSDevice) GPSParser {
 	}
 }
 
+// NextFix returns the next GPS location Fix from the GPS device
 func (parser *GPSParser) NextFix() (fix Fix) {
 	var ggaSentence = nextGGA(parser.gpsDevice)
 	var ggaFields = strings.Split(ggaSentence, ",")
-	fix.Valid = true
 	fix.Altitude = findAltitude(ggaFields)
 	fix.Satellites = findSatellites(ggaFields)
 	fix.Longitude = findLongitude(ggaFields)
 	fix.Latitude = findLatitude(ggaFields)
 	fix.Time = findTime(ggaFields)
+	fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
 	return fix
 }
 
+// nextGGA returns the next GGA type sentence from the GPS device
+// $--GGA,,,,,,,,,,,,,,*hh
 func nextGGA(gpsDevice GPSDevice) (sentence string) {
-	// $--GGA,,,,,,,,,,,,,,*hh
 	for {
 		sentence = gpsDevice.ReadNextSentence()
 		if sentence[3:6] == "GGA" {
@@ -48,19 +50,26 @@ func nextGGA(gpsDevice GPSDevice) (sentence string) {
 	}
 }
 
-func findTime(ggaFields []string) (t string) {
-	// $GNGGA,hhmmss.ss,,,,,,,,,,,,,*63
+// findTime returns the time from a GGA sentence:
+// $--GGA,hhmmss.ss,,,,,,,,,,,,,*xx
+func findTime(ggaFields []string) time.Time {
 	if len(ggaFields) < 1 || len(ggaFields[1]) < 6 {
-		return "hh:mm:ss"
+		return time.Time{}
 	}
-	hh := string(ggaFields[1][0:2])
-	mm := string(ggaFields[1][2:4])
-	ss := string(ggaFields[1][4:6])
-	return hh + ":" + mm + ":" + ss
+	ts := strings.Builder{}
+	ts.WriteString(ggaFields[1][0:2])
+	ts.WriteString(":")
+	ts.WriteString(ggaFields[1][2:4])
+	ts.WriteString(":")
+	ts.WriteString(ggaFields[1][4:6])
+	var t, _ = time.Parse("15:04:05", ts.String())
+
+	return t
 }
 
-func findAltitude(ggaFields []string) (a int32) {
-	// $GNGGA,,,,,,,,,25.8,,,,,*63
+// findAltitude returns the altitude from a GGA sentence:
+// $--GGA,,,,,,,,,25.8,,,,,*63
+func findAltitude(ggaFields []string) int32 {
 	if len(ggaFields) > 8 && len(ggaFields[9]) > 0 {
 		var v, _ = strconv.ParseFloat(ggaFields[9], 32)
 		return int32(v)
@@ -68,41 +77,43 @@ func findAltitude(ggaFields []string) (a int32) {
 	return -99999
 }
 
-func findLatitude(ggaFields []string) (l string) {
-	// $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
+// findLatitude returns the Latitude from a GGA sentence:
+// $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
+func findLatitude(ggaFields []string) float32 {
 	if len(ggaFields) > 2 && len(ggaFields[2]) > 8 {
 		var dd = ggaFields[2][0:2]
 		var mm = ggaFields[2][2:]
 		var d, _ = strconv.ParseFloat(dd, 32)
 		var m, _ = strconv.ParseFloat(mm, 32)
-		var v = (d + (m / 60))
+		var v = float32(d + (m / 60))
 		if ggaFields[3] == "S" {
 			v *= -1
 		}
-		return fmt.Sprintf("%f", v)
+		return v
 	}
-	return "-0.0"
+	return 0.0
 }
 
-func findLongitude(ggaFields []string) (l string) {
-	// $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
+// findLatitude returns the longitude from a GGA sentence:
+// $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
+func findLongitude(ggaFields []string) float32 {
 	if len(ggaFields) > 4 && len(ggaFields[4]) > 8 {
 		var ddd = ggaFields[4][0:3]
 		var mm = ggaFields[4][3:]
 		var d, _ = strconv.ParseFloat(ddd, 32)
 		var m, _ = strconv.ParseFloat(mm, 32)
-		var v = (d + (m / 60))
+		var v = float32(d + (m / 60))
 		if ggaFields[5] == "W" {
 			v *= -1
 		}
-		var s = fmt.Sprintf("%f", v)
-		return s
+		return v
 	}
-	return "-0.0"
+	return 0.0
 }
 
+// findSatellites returns the satellites from a GGA sentence:
+// $--GGA,,,,,,,nn,,,,,,,*hh
 func findSatellites(ggaFields []string) (n int16) {
-	// $--GGA,,,,,,,nn,,,,,,,*hh
 	if len(ggaFields) > 6 && len(ggaFields[7]) > 0 {
 		var nn = ggaFields[7]
 		var v, _ = strconv.ParseInt(nn, 10, 32)
