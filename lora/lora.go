@@ -238,8 +238,32 @@ func (d *Device) setSpreadingFactor(spreadingFactor uint8) {
 }
 
 func (d *Device) getBandwidth() int32 {
-	// TODO
-	return 0
+	var bw uint8 = d.readRegister(REG_MODEM_CONFIG_1) >> 4
+
+	switch bw {
+	case 0:
+		return 7800
+	case 1:
+		return 10400
+	case 2:
+		return 15600
+	case 3:
+		return 20800
+	case 4:
+		return 31250
+	case 5:
+		return 41700
+	case 6:
+		return 62500
+	case 7:
+		return 125000
+	case 8:
+		return 250000
+	case 9:
+		return 500000
+	}
+
+	return -1
 }
 
 func (d *Device) setBandwidth(sbw int32) {
@@ -253,7 +277,7 @@ func (d *Device) setBandwidth(sbw int32) {
 		bw = 2
 	} else if sbw <= 20800 {
 		bw = 3
-	} else if sbw <= 312500 {
+	} else if sbw <= 31250 {
 		bw = 4
 	} else if sbw <= 41700 {
 		bw = 5
