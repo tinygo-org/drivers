@@ -14,6 +14,8 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/bh1750/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/blinkm/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/bmp180/main.go
+	tinygo build -size short -o ./build/test.elf -target=bluepill ./examples/ds1307/sram/main.go
+	tinygo build -size short -o ./build/test.elf -target=bluepill ./examples/ds1307/time/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/ds3231/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/easystepper/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/espconsole/main.go
