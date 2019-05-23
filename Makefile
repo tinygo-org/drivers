@@ -19,6 +19,8 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/espconsole/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/esphub/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/espstation/main.go
+	tinygo build -size short -o ./build/test.elf -target=feather-m0 ./examples/gps/i2c/main.go
+	tinygo build -size short -o ./build/test.elf -target=feather-m0 ./examples/gps/uart/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hd44780/customchar/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hd44780/text/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hub75/main.go
