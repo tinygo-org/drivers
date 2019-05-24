@@ -59,11 +59,11 @@ func New() Device {
 func (d *Device) Configure(cfg Config) {
 	d.SetRotation(cfg.Rotation)
 
-	set := 0
+	set := uint32(0)
 	for i := machine.LED_COL_1; i <= machine.LED_ROW_3; i++ {
 		set |= 1 << uint8(i)
 	}
-	nrf.GPIO.DIRSET = nrf.RegValue(set)
+	nrf.GPIO.DIRSET.Set(set)
 	d.ClearDisplay()
 	d.DisableAll()
 }
@@ -97,9 +97,9 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 func (d *Device) Display() error {
 	for row := 0; row < 3; row++ {
 		d.DisableAll()
-		set := 0
+		set := uint32(0)
 		set |= 1 << uint8(machine.LED_ROW_1+row)
-		nrf.GPIO.OUTSET = nrf.RegValue(set)
+		nrf.GPIO.OUTSET.Set(set)
 
 		set = 0
 		for col := 0; col < 9; col++ {
@@ -109,7 +109,7 @@ func (d *Device) Display() error {
 			}
 
 		}
-		nrf.GPIO.OUTCLR = nrf.RegValue(set)
+		nrf.GPIO.OUTCLR.Set(set)
 		time.Sleep(time.Millisecond * 2)
 	}
 	return nil
@@ -126,27 +126,27 @@ func (d *Device) ClearDisplay() {
 
 // DisableAll disables all the LEDs without modifying the buffer
 func (d *Device) DisableAll() {
-	set := 0
+	set := uint32(0)
 	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
 		set |= 1 << uint8(i)
 	}
-	nrf.GPIO.OUTSET = nrf.RegValue(set)
-	nrf.GPIO.OUTCLR = (1 << machine.LED_ROW_1) | (1 << machine.LED_ROW_2) | (1 << machine.LED_ROW_3)
+	nrf.GPIO.OUTSET.Set(set)
+	nrf.GPIO.OUTCLR.Set((1 << machine.LED_ROW_1) | (1 << machine.LED_ROW_2) | (1 << machine.LED_ROW_3))
 }
 
 // EnableAll enables all the LEDs without modifying the buffer
 func EnableAll() error {
-	set := 0
+	set := uint32(0)
 	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
 		set |= 1 << uint8(i)
 	}
-	nrf.GPIO.OUTSET = nrf.RegValue(set)
+	nrf.GPIO.OUTSET.Set(set)
 
 	set = 0
 	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
 		set |= 1 << uint8(i)
 	}
-	nrf.GPIO.OUTCLR = nrf.RegValue(set)
+	nrf.GPIO.OUTCLR.Set(set)
 
 	return nil
 }
