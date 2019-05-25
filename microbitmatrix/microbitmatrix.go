@@ -4,7 +4,6 @@
 package microbitmatrix
 
 import (
-	"device/nrf"
 	"image/color"
 	"machine"
 	"time"
@@ -46,6 +45,7 @@ type Config struct {
 }
 
 type Device struct {
+	pin      [12]*machine.GPIO
 	buffer   [3][9]bool
 	rotation uint8
 }
@@ -59,11 +59,10 @@ func New() Device {
 func (d *Device) Configure(cfg Config) {
 	d.SetRotation(cfg.Rotation)
 
-	set := 0
-	for i := machine.LED_COL_1; i <= machine.LED_ROW_3; i++ {
-		set |= 1 << uint8(i)
+	for i := uint8(machine.LED_COL_1); i <= machine.LED_ROW_3; i++ {
+		d.pin[i-machine.LED_COL_1] = &machine.GPIO{i}
+		d.pin[i-machine.LED_COL_1].Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
 	}
-	nrf.GPIO.DIRSET = nrf.RegValue(set)
 	d.ClearDisplay()
 	d.DisableAll()
 }
@@ -97,19 +96,14 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 func (d *Device) Display() error {
 	for row := 0; row < 3; row++ {
 		d.DisableAll()
-		set := 0
-		set |= 1 << uint8(machine.LED_ROW_1+row)
-		nrf.GPIO.OUTSET = nrf.RegValue(set)
+		d.pin[9+row].High()
 
-		set = 0
 		for col := 0; col < 9; col++ {
-
 			if d.buffer[row][col] {
-				set |= 1 << uint8(machine.LED_COL_1+col)
+				d.pin[col].Low()
 			}
 
 		}
-		nrf.GPIO.OUTCLR = nrf.RegValue(set)
 		time.Sleep(time.Millisecond * 2)
 	}
 	return nil
@@ -126,29 +120,22 @@ func (d *Device) ClearDisplay() {
 
 // DisableAll disables all the LEDs without modifying the buffer
 func (d *Device) DisableAll() {
-	set := 0
 	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
-		set |= 1 << uint8(i)
+		d.pin[i-machine.LED_COL_1].High()
 	}
-	nrf.GPIO.OUTSET = nrf.RegValue(set)
-	nrf.GPIO.OUTCLR = (1 << machine.LED_ROW_1) | (1 << machine.LED_ROW_2) | (1 << machine.LED_ROW_3)
+	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
+		d.pin[i-machine.LED_COL_1].Low()
+	}
 }
 
 // EnableAll enables all the LEDs without modifying the buffer
-func EnableAll() error {
-	set := 0
-	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
-		set |= 1 << uint8(i)
-	}
-	nrf.GPIO.OUTSET = nrf.RegValue(set)
-
-	set = 0
+func (d *Device) EnableAll() {
 	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
-		set |= 1 << uint8(i)
+		d.pin[i-machine.LED_COL_1].Low()
 	}
-	nrf.GPIO.OUTCLR = nrf.RegValue(set)
-
-	return nil
+	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
+		d.pin[i-machine.LED_COL_1].High()
+	}
 }
 
 // Size returns the current size of the display.
