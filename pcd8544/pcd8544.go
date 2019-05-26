@@ -13,9 +13,9 @@ import (
 // Device wraps an SPI connection.
 type Device struct {
 	bus        machine.SPI
-	dcPin      machine.GPIO
-	rstPin     machine.GPIO
-	scePin     machine.GPIO
+	dcPin      machine.Pin
+	rstPin     machine.Pin
+	scePin     machine.Pin
 	buffer     []byte
 	width      int16
 	height     int16
@@ -28,7 +28,7 @@ type Config struct {
 }
 
 // New creates a new PCD8544 connection. The SPI bus must already be configured.
-func New(bus machine.SPI, dcPin machine.GPIO, rstPin machine.GPIO, scePin machine.GPIO) *Device {
+func New(bus machine.SPI, dcPin, rstPin, scePin machine.Pin) *Device {
 	return &Device{
 		bus:    bus,
 		dcPin:  dcPin,

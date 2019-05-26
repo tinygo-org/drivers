@@ -45,7 +45,7 @@ type Config struct {
 }
 
 type Device struct {
-	pin      [12]*machine.GPIO
+	pin      [12]machine.Pin
 	buffer   [3][9]bool
 	rotation uint8
 }
@@ -59,9 +59,9 @@ func New() Device {
 func (d *Device) Configure(cfg Config) {
 	d.SetRotation(cfg.Rotation)
 
-	for i := uint8(machine.LED_COL_1); i <= machine.LED_ROW_3; i++ {
-		d.pin[i-machine.LED_COL_1] = &machine.GPIO{i}
-		d.pin[i-machine.LED_COL_1].Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	for i := machine.LED_COL_1; i <= machine.LED_ROW_3; i++ {
+		d.pin[i-machine.LED_COL_1] = i
+		d.pin[i-machine.LED_COL_1].Configure(machine.PinConfig{Mode: machine.PinOutput})
 	}
 	d.ClearDisplay()
 	d.DisableAll()

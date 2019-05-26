@@ -3,6 +3,7 @@ package hd44780
 import (
 	"errors"
 	"io"
+	"machine"
 	"time"
 )
 
@@ -38,7 +39,7 @@ type Config struct {
 }
 
 // NewGPIO4Bit returns 4bit data length HD44780 driver. Datapins are LCD DB pins starting from DB4 to DB7
-func NewGPIO4Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
+func NewGPIO4Bit(dataPins []machine.Pin, e, rs, rw machine.Pin) (Device, error) {
 	const fourBitMode = 4
 	if len(dataPins) != fourBitMode {
 		return Device{}, errors.New("4 pins are required in data slice (D4-D7) when HD44780 is used in 4 bit mode")
@@ -47,7 +48,7 @@ func NewGPIO4Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
 }
 
 // NewGPIO8Bit returns 8bit data length HD44780 driver. Datapins are LCD DB pins starting from DB0 to DB7
-func NewGPIO8Bit(dataPins []uint8, e, rs, rw uint8) (Device, error) {
+func NewGPIO8Bit(dataPins []machine.Pin, e, rs, rw machine.Pin) (Device, error) {
 	const eightBitMode = 8
 	if len(dataPins) != eightBitMode {
 		return Device{}, errors.New("8 pins are required in data slice (D0-D7) when HD44780 is used in 8 bit mode")

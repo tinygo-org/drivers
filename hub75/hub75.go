@@ -21,12 +21,12 @@ type Config struct {
 
 type Device struct {
 	bus               machine.SPI
-	a                 machine.GPIO
-	b                 machine.GPIO
-	c                 machine.GPIO
-	d                 machine.GPIO
-	oe                machine.GPIO
-	lat               machine.GPIO
+	a                 machine.Pin
+	b                 machine.Pin
+	c                 machine.Pin
+	d                 machine.Pin
+	oe                machine.Pin
+	lat               machine.Pin
 	width             int16
 	height            int16
 	brightness        uint8
@@ -51,28 +51,22 @@ type Device struct {
 }
 
 // New returns a new HUB75 driver. Pass in a fully configured SPI bus.
-func New(b machine.SPI, latPin uint8, oePin uint8, aPin uint8, bPin uint8, cPin uint8, dPin uint8) Device {
-	pinA := machine.GPIO{aPin}
-	pinA.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinB := machine.GPIO{bPin}
-	pinB.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinC := machine.GPIO{cPin}
-	pinC.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinD := machine.GPIO{dPin}
-	pinD.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinOE := machine.GPIO{oePin}
-	pinOE.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinLAT := machine.GPIO{latPin}
-	pinLAT.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+func New(b machine.SPI, latPin, oePin, aPin, bPin, cPin, dPin machine.Pin) Device {
+	aPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	bPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	cPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	dPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	oePin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	latPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	return Device{
 		bus: b,
-		a:   pinA,
-		b:   pinB,
-		c:   pinC,
-		d:   pinD,
-		oe:  pinOE,
-		lat: pinLAT,
+		a:   aPin,
+		b:   bPin,
+		c:   cPin,
+		d:   dPin,
+		oe:  oePin,
+		lat: latPin,
 	}
 }
 
