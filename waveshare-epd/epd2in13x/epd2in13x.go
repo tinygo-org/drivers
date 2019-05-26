@@ -18,10 +18,10 @@ type Config struct {
 
 type Device struct {
 	bus          machine.SPI
-	cs           machine.GPIO
-	dc           machine.GPIO
-	rst          machine.GPIO
-	busy         machine.GPIO
+	cs           machine.Pin
+	dc           machine.Pin
+	rst          machine.Pin
+	busy         machine.Pin
 	width        int16
 	height       int16
 	buffer       [][]uint8
@@ -31,21 +31,17 @@ type Device struct {
 type Color uint8
 
 // New returns a new epd2in13x driver. Pass in a fully configured SPI bus.
-func New(bus machine.SPI, csPin uint8, dcPin uint8, rstPin uint8, busyPin uint8) Device {
-	pinCs := machine.GPIO{csPin}
-	pinCs.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinDc := machine.GPIO{dcPin}
-	pinDc.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinRst := machine.GPIO{rstPin}
-	pinRst.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	pinBusy := machine.GPIO{busyPin}
-	pinBusy.Configure(machine.GPIOConfig{Mode: machine.GPIO_INPUT})
+func New(bus machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
+	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	busyPin.Configure(machine.PinConfig{Mode: machine.PinInput})
 	return Device{
 		bus:  bus,
-		cs:   pinCs,
-		dc:   pinDc,
-		rst:  pinRst,
-		busy: pinBusy,
+		cs:   csPin,
+		dc:   dcPin,
+		rst:  rstPin,
+		busy: busyPin,
 	}
 }
 

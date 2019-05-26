@@ -14,8 +14,8 @@ import (
 )
 
 func main() {
-	neo := machine.GPIO{machine.NEOPIXELS}
-	neo.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	neo := machine.NEOPIXELS
+	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	ws := ws2812.New(neo)
 	leds := make([]color.RGBA, 10)

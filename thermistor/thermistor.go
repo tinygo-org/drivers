@@ -43,7 +43,7 @@ type Device struct {
 }
 
 // New returns a new thermistor driver given an ADC pin.
-func New(pin uint8) Device {
+func New(pin machine.Pin) Device {
 	adc := machine.ADC{pin}
 	return Device{
 		adc:                &adc,

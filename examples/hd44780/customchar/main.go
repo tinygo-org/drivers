@@ -9,7 +9,7 @@ import (
 func main() {
 
 	lcd, _ := hd44780.NewGPIO4Bit(
-		[]uint8{machine.P0, machine.P1, machine.P2, machine.P3},
+		[]machine.Pin{machine.P0, machine.P1, machine.P2, machine.P3},
 		machine.P4,
 		machine.P5,
 		machine.P6,
