@@ -1,4 +1,8 @@
-package hd44780
+// Package lis3dh provides a driver for the HD44780 LCD controller.
+//
+// Datasheet: https://www.sparkfun.com/datasheets/LCD/HD44780.pdf
+//
+package hd44780 // import "tinygo.org/x/drivers/hd44780"
 
 import (
 	"errors"

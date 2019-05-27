@@ -1,5 +1,5 @@
 // Package gps provides a driver for GPS receivers over UART and I2C
-package gps
+package gps // import "tinygo.org/x/drivers/gps"
 
 import (
 	"encoding/hex"

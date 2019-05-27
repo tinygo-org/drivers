@@ -4,7 +4,7 @@
 // Datasheet:
 // https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/0_Datasheets/Humidity/Sensirion_Humidity_Sensors_SHT3x_Datasheet_digital.pdf
 //
-package sht3x
+package sht3x // import "tinygo.org/x/drivers/sht3x"
 
 import (
 	"machine"

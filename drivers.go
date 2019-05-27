@@ -39,4 +39,4 @@
 // there are no interdependencies in order to minimize the final size of compiled code that
 // uses any of these drivers.
 //
-package drivers
+package drivers // import "tinygo.org/x/drivers"

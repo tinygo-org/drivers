@@ -3,7 +3,7 @@ package main
 import (
 	"machine"
 
-	"github.com/tinygo-org/drivers/hd44780"
+	"tinygo.org/x/drivers/hd44780"
 )
 
 func main() {

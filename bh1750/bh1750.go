@@ -3,7 +3,7 @@
 // Datasheet:
 // https://www.mouser.com/ds/2/348/bh1750fvi-e-186247.pdf
 //
-package bh1750
+package bh1750 // import "tinygo.org/x/drivers/bh1750"
 
 import (
 	"time"

@@ -5,7 +5,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/lis3dh"
+	"tinygo.org/x/drivers/lis3dh"
 )
 
 var i2c = machine.I2C1

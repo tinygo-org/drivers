@@ -7,7 +7,7 @@ import (
 
 	"time"
 
-	"github.com/tinygo-org/drivers/waveshare-epd/epd2in13"
+	"tinygo.org/x/drivers/waveshare-epd/epd2in13"
 )
 
 var display epd2in13.Device
@@ -60,9 +60,9 @@ func main() {
 
 	// There are two memory areas in the display, once the display is refreshed, memory areas are auto-toggled.
 	// DisplayRect needs to be called twice
-	display.DisplayRect(40,83,48,83)
+	display.DisplayRect(40, 83, 48, 83)
 	display.WaitUntilIdle()
-	display.DisplayRect(40,83,48,83)
+	display.DisplayRect(40, 83, 48, 83)
 	display.WaitUntilIdle()
 
 	println("You could remove power now")

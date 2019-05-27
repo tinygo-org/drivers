@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tinygo-org/drivers/microbitmatrix"
+	"tinygo.org/x/drivers/microbitmatrix"
 )
 
 var display microbitmatrix.Device

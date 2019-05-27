@@ -10,7 +10,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/espat"
+	"tinygo.org/x/drivers/espat"
 )
 
 // change actAsAP to true to act as an access point instead of connecting to one.
