@@ -1,6 +1,6 @@
 # TinyGo Drivers
 
-[![GoDoc](https://godoc.org/github.com/tinygo-org/drivers?status.svg)](https://godoc.org/github.com/tinygo-org/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/master.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/master)
+[![GoDoc](https://godoc.org/github.com/tinygo-org/drivers?status.svg)](https://godoc.org/github.com/tinygo-org/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
 
 
 This package provides a collection of hardware drivers for devices that can be used together with [TinyGo](https://tinygo.org).
@@ -81,7 +81,9 @@ func main() {
 
 ## Contributing
 
-This collection of drivers is part of the [TinyGo](https://github.com/tinygo-org/tinygo) project. Patches are welcome but new drivers should follow the patterns established by similar existing drivers.
+Your contributions are welcome!
+
+Please take a look at our [CONTRIBUTING.md](./CONTRIBUTING.md) document for details.
 
 ## License
 
