@@ -5,7 +5,7 @@ import (
 
 	"machine"
 
-	"github.com/tinygo-org/drivers/bh1750"
+	"tinygo.org/x/drivers/bh1750"
 )
 
 func main() {

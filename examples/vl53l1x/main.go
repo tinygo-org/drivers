@@ -5,7 +5,7 @@ import (
 
 	"time"
 
-	"github.com/tinygo-org/drivers/vl53v1x"
+	"tinygo.org/x/drivers/vl53l1x"
 )
 
 func main() {

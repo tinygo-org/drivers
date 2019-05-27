@@ -1,4 +1,9 @@
-package ds1307
+// Package ds1307 provides a driver for the DS1307 RTC
+//
+// Datasheet:
+// https://datasheets.maximintegrated.com/en/ds/DS1307.pdf
+//
+package ds1307 // import "tinygo.org/x/drivers/ds1307"
 
 import (
 	"errors"

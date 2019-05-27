@@ -7,7 +7,7 @@ import (
 
 	"fmt"
 
-	"github.com/tinygo-org/drivers/ds3231"
+	"tinygo.org/x/drivers/ds3231"
 )
 
 func main() {

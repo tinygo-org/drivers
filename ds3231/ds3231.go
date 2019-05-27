@@ -2,7 +2,7 @@
 //
 // Datasheet:
 // https://datasheets.maximintegrated.com/en/ds/DS3231.pdf
-package ds3231
+package ds3231 // import "tinygo.org/x/drivers/ds3231"
 
 import (
 	"machine"

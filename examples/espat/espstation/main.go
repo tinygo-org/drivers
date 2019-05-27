@@ -10,7 +10,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/espat"
+	"tinygo.org/x/drivers/espat"
 )
 
 // access point info

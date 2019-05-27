@@ -5,7 +5,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/sht3x"
+	"tinygo.org/x/drivers/sht3x"
 )
 
 func main() {

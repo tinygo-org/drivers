@@ -5,7 +5,7 @@ import (
 
 	"image/color"
 
-	"github.com/tinygo-org/drivers/waveshare-epd/epd2in13x"
+	"tinygo.org/x/drivers/waveshare-epd/epd2in13x"
 )
 
 var display epd2in13x.Device

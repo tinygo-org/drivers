@@ -8,7 +8,7 @@ This package provides a collection of hardware drivers for devices that can be u
 ## Installing
 
 ```shell
-go get github.com/tinygo-org/drivers
+go get tinygo.org/x/drivers
 ```
 
 ## How to use
@@ -23,7 +23,7 @@ import (
 
     "machine"
 
-    "github.com/tinygo-org/drivers/bmp180"
+    "tinygo.org/x/drivers/bmp180"
 )
 
 func main() {

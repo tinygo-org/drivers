@@ -1,7 +1,8 @@
 // Package microbitmatrix implements a driver for the BBC micro:bit's LED matrix.
 //
 // Schematic: https://github.com/bbcmicrobit/hardware/blob/master/SCH_BBC-Microbit_V1.3B.pdf
-package microbitmatrix
+//
+package microbitmatrix // import "tinygo.org/x/drivers/microbitmatrix"
 
 import (
 	"image/color"
