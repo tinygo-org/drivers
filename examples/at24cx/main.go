@@ -61,7 +61,7 @@ func main() {
 
 	// Move to the beginning of memory
 	eeprom.Seek(0, 0)
-	_, err = eeprom.Write([]uint8{88,88,88})
+	_, err = eeprom.Write([]uint8{88, 88, 88})
 	if err != nil {
 		println("There was an error in Write:", err)
 		return
