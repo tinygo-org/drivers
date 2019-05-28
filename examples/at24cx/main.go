@@ -17,9 +17,9 @@ func main() {
 	for i := uint16(0); i < 100; i++ {
 		values[i] = uint8(65 + i%26)
 	}
-	err := eeprom.WriteBytes(0, values)
+	_, err := eeprom.WriteAt(values, 0)
 	if err != nil {
-		println("There was an error in WriteBytes:", err)
+		println("There was an error in WriteAt:", err)
 		return
 	}
 
@@ -33,6 +33,8 @@ func main() {
 	}
 
 	println("\n\r\n\rRead 26 bytes one by one from address 0")
+	println("Expected: ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	print("Real: ")
 	for i := uint16(0); i < 26; i++ {
 		char, err := eeprom.ReadByte(i)
 		print(string(char))
@@ -41,15 +43,57 @@ func main() {
 			return
 		}
 	}
+	println("")
 
 	println("\n\r\n\rRead 100 bytes from address 26")
+	println("Expected: ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVZYXWVUTSRQPONMLKJIHGFEDCBA")
+	print("Real: ")
 	data := make([]byte, 100)
-	err = eeprom.ReadBytes(26, data)
+	_, err = eeprom.ReadAt(data, 26)
 	if err != nil {
-		println("There was an error in ReadBytes:", err)
+		println("There was an error in ReadAt:", err)
 		return
 	}
 	for i := 0; i < 100; i++ {
 		print(string(data[i]))
 	}
+	println("")
+
+	// Move to the beginning of memory
+	eeprom.Seek(0, 0)
+	_, err = eeprom.Write([]uint8{88,88,88})
+	if err != nil {
+		println("There was an error in Write:", err)
+		return
+	}
+
+	println("\n\r\n\rRead 3 bytes")
+	println("Expected: DEF")
+	print("Real: ")
+	data = make([]byte, 3)
+	_, err = eeprom.Read(data)
+	if err != nil {
+		println("There was an error in Read:", err)
+		return
+	}
+	for _, char := range data {
+		print(string(char))
+	}
+	println("")
+
+	println("\n\r\n\rRead another 3 bytes (from the beginning this time)")
+	eeprom.Seek(-6, 1)
+	println("Expected: XXX")
+	print("Real: ")
+	data = make([]byte, 3)
+	_, err = eeprom.Read(data)
+	if err != nil {
+		println("There was an error in Read:", err)
+		return
+	}
+	for _, char := range data {
+		print(string(char))
+	}
+	println("")
+
 }
