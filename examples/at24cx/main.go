@@ -96,7 +96,6 @@ func main() {
 	}
 	println("")
 
-
 	// Move to the end of memory
 	eeprom.Seek(-4, 2)
 	_, err = eeprom.Write([]uint8{89, 90, 89, 90})
