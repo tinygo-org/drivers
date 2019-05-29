@@ -4,7 +4,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/at24cx"
+	"tinygo.org/x/drivers/at24cx"
 )
 
 func main() {
@@ -86,6 +86,30 @@ func main() {
 	println("Expected: XXX")
 	print("Real: ")
 	data = make([]byte, 3)
+	_, err = eeprom.Read(data)
+	if err != nil {
+		println("There was an error in Read:", err)
+		return
+	}
+	for _, char := range data {
+		print(string(char))
+	}
+	println("")
+
+
+	// Move to the end of memory
+	eeprom.Seek(-4, 2)
+	_, err = eeprom.Write([]uint8{89, 90, 89, 90})
+	if err != nil {
+		println("There was an error in Write:", err)
+		return
+	}
+
+	println("\n\r\n\rRead the last 4 bytes of the memory and the 3 of the beginning")
+	eeprom.Seek(-4, 1)
+	println("Expected: YZYZXXX")
+	print("Real: ")
+	data = make([]byte, 7)
 	_, err = eeprom.Read(data)
 	if err != nil {
 		println("There was an error in Read:", err)

@@ -2,7 +2,7 @@
 //
 // Datasheet:
 // https://www.openimpulse.com/blog/wp-content/uploads/wpsc/downloadables/24C32-Datasheet.pdf
-package at24cx
+package at24cx // import "tinygo.org/x/drivers/at24cx"
 
 import (
 	"errors"
