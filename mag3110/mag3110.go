@@ -2,7 +2,8 @@
 // Freescale/NXP.
 //
 // Datasheet: https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf
-package mag3110
+//
+package mag3110 // import "tinygo.org/x/drivers/mag3110"
 
 import (
 	"machine"
@@ -48,9 +49,10 @@ func (d Device) ReadMagnetic() (x int16, y int16, z int16) {
 	return
 }
 
-// ReadTemperature reads the current die temperature in degrees Celsius.
-func (d Device) ReadTemperature() (temp int8) {
+// ReadTemperature reads and returns the current die temperature in
+// celsius milli degrees (ºC/1000).
+func (d Device) ReadTemperature() (int32, error) {
 	data := make([]byte, 1)
 	d.bus.ReadRegister(uint8(d.Address), DIE_TEMP, data)
-	return int8(data[0])
+	return int32(data[0]) * 1000, nil
 }

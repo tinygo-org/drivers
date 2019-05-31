@@ -1,8 +1,10 @@
-// Package  provides a driver for the digital accelerometer ADXL345
+// Package adxl345 provides a driver for the ADXL345 digital accelerometer.
 //
 // Datasheet EN: http://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
+//
 // Datasheet JP: http://www.analog.com/media/jp/technical-documentation/data-sheets/ADXL345_jp.pdf
-package adxl345
+//
+package adxl345 // import "tinygo.org/x/drivers/adxl345"
 
 import (
 	"machine"
@@ -36,21 +38,20 @@ type bwRate struct {
 	rate     Rate
 }
 
-// Device wraps an I2C connection to a BMP180 device.
+// Device wraps an I2C connection to a ADXL345 device.
 type Device struct {
-	bus              machine.I2C
-	Address          uint16
-	powerCtl         powerCtl
-	dataFormat       dataFormat
-	bwRate           bwRate
-	x, y, z          int32
-	rawX, rawY, rawZ int32
+	bus        machine.I2C
+	Address    uint16
+	powerCtl   powerCtl
+	dataFormat dataFormat
+	bwRate     bwRate
 }
 
-// New creates a new BMP180 connection. The I2C bus must already be
+// New creates a new ADXL345 connection. The I2C bus must already be
 // configured.
 //
-// This function only creates the Device object, it does not touch the device.
+// This function only creates the Device object, it does not init the device.
+// To do that you must call the Configure() method on the Device before using it.
 func New(bus machine.I2C) Device {
 	return Device{
 		bus: bus,
@@ -87,31 +88,34 @@ func (d *Device) Restart() {
 	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
-// Acceleration returns the adjusted x, y and z axis in µG
-func (d *Device) Acceleration() (x int32, y int32, z int32) {
-	return d.x, d.y, d.z
+// ReadAcceleration reads the current acceleration from the device and returns
+// it in µg (micro-gravity). When one of the axes is pointing straight to Earth
+// and the sensor is not moving the returned value will be around 1000000 or
+// -1000000.
+func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
+	rx, ry, rz := d.ReadRawAcceleration()
+
+	x = d.dataFormat.convertToIS(rx)
+	y = d.dataFormat.convertToIS(ry)
+	z = d.dataFormat.convertToIS(rz)
+
+	return
 }
 
-// XYZ returns the raw x, y and z axis from the adxl345
-func (d *Device) RawXYZ() (x int32, y int32, z int32) {
-	return d.rawX, d.rawY, d.rawZ
-}
-
-// Update reads the sensor values and stores them in a buffer
-func (d *Device) Update() {
+// ReadRawAcceleration reads the sensor values and returns the raw x, y and z axis
+// from the adxl345.
+func (d *Device) ReadRawAcceleration() (x int32, y int32, z int32) {
 	data := []byte{0, 0, 0, 0, 0, 0}
 	d.bus.ReadRegister(uint8(d.Address), REG_DATAX0, data)
 
-	d.rawX = readIntLE(data[0], data[1])
-	d.rawY = readIntLE(data[2], data[3])
-	d.rawZ = readIntLE(data[4], data[5])
+	x = readIntLE(data[0], data[1])
+	y = readIntLE(data[2], data[3])
+	z = readIntLE(data[4], data[5])
 
-	d.x = d.dataFormat.convertToIS(d.rawX)
-	d.y = d.dataFormat.convertToIS(d.rawY)
-	d.z = d.dataFormat.convertToIS(d.rawZ)
+	return
 }
 
-// SetRate change the current rate of the sensor
+// UseLowPower sets the ADXL345 to use the low power mode.
 func (d *Device) UseLowPower(power bool) {
 	if power {
 		d.bwRate.lowPower = 1

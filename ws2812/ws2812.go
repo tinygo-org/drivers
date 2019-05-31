@@ -1,5 +1,5 @@
 // Package ws2812 implements a driver for WS2812 and SK6812 RGB LED strips.
-package ws2812
+package ws2812 // import "tinygo.org/x/drivers/ws2812"
 
 import (
 	"image/color"
@@ -8,12 +8,12 @@ import (
 
 // Device wraps a pin object for an easy driver interface.
 type Device struct {
-	Pin machine.GPIO
+	Pin machine.Pin
 }
 
 // New returns a new WS2812 driver. It does not touch the pin object: you have
 // to configure it as an output pin before calling New.
-func New(pin machine.GPIO) Device {
+func New(pin machine.Pin) Device {
 	return Device{pin}
 }
 

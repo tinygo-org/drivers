@@ -1,5 +1,5 @@
 // Simple driver to rotate a 4-wire stepper motor
-package easystepper
+package easystepper // import "tinygo.org/x/drivers/easystepper"
 
 import (
 	"machine"
@@ -8,24 +8,20 @@ import (
 
 // Device holds the pins and the delay between steps
 type Device struct {
-	pins       [4]machine.GPIO
+	pins       [4]machine.Pin
 	stepDelay  int32
 	stepNumber int32
 }
 
 // New returns a new easystepper driver given 4 pins numbers (not pin object),
 // number of steps and rpm
-func New(pin1 uint8, pin2 uint8, pin3 uint8, pin4 uint8, steps int32, rpm int32) Device {
-	m1 := machine.GPIO{pin1}
-	m1.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	m2 := machine.GPIO{pin2}
-	m2.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	m3 := machine.GPIO{pin3}
-	m3.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	m4 := machine.GPIO{pin4}
-	m4.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+func New(pin1, pin2, pin3, pin4 machine.Pin, steps int32, rpm int32) Device {
+	pin1.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	pin2.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	pin3.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	pin4.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	return Device{
-		pins:      [4]machine.GPIO{m1, m2, m3, m4},
+		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
 		stepDelay: 60000000 / (steps * rpm),
 	}
 }
