@@ -11,8 +11,6 @@ const (
 	CTRL_HUMIDITY_ADDR    = 0xF2
 	CTRL_CONFIG           = 0xF5
 	REG_PRESSURE          = 0xF7
-	REG_TEMPERATURE       = 0xFA
-	REG_HUMIDITY          = 0xFD
 	REG_CALIBRATION       = 0x88
 	REG_CALIBRATION_H1    = 0xA1
 	REG_CALIBRATION_H2LSB = 0xE1
@@ -20,4 +18,8 @@ const (
 
 	WHO_AM_I = 0xD0
 	CHIP_ID  = 0x60
+)
+
+const (
+	SEALEVEL_PRESSURE float32 = 1013.25 // in hPa
 )
