@@ -1,3 +1,9 @@
+// Package bme280 provides a driver for the BME280 digital combined
+// humidity and pressure sensor by Bosch.
+//
+// Datasheet:
+// https://cdn-shop.adafruit.com/datasheets/BST-BME280_DS001-10.pdf
+//
 package bme280
 
 import (
