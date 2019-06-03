@@ -1,6 +1,6 @@
 # TinyGo Drivers
 
-[![GoDoc](https://godoc.org/github.com/tinygo-org/drivers?status.svg)](https://godoc.org/github.com/tinygo-org/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
+[![GoDoc](https://godoc.org/tinygo.org/x/drivers?status.svg)](https://godoc.org/tinygo.org/x/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
 
 
 This package provides a collection of hardware drivers for devices that can be used together with [TinyGo](https://tinygo.org).
