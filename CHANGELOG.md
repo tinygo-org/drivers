@@ -1,3 +1,11 @@
+0.2.0
+---
+- **new devices**
+    - AT24C32/64 2-wire serial EEPROM
+    - BME280 humidity/pressure sensor
+- **bugfixes**
+    - ws2812: better support for nrf52832
+
 0.1.0
 ---
 - **first release**
