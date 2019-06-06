@@ -16,6 +16,8 @@ Please open a Github issue with your problem, and we will be happy to assist.
 
 We probably have not implemented it yet. Your contribution adding the hardware support to TinyGo would be greatly appreciated.
 
+Please first open a Github issue. We want to help, and also make sure that there is no duplications of efforts. Sometimes what you need is already being worked on by someone else.
+
 ## How to use our Github repository
 
 The `master` branch of this repo will always have the latest released version of the TinyGo drivers. All of the active development work for the next release will take place in the `dev` branch. The TinyGo drivers will use semantic versioning and will create a tag/release for each release.
