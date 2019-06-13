@@ -36,7 +36,7 @@ func main() {
 
 	machine.SPI0.Configure(machine.SPIConfig{})
 
-	loraRadio := lora.New(machine.SPI0, csPin, rstPin)
+	loraRadio := sx127x.New(machine.SPI0, csPin, rstPin)
 
 	var err = loraRadio.Configure(loraConfig)
 	if err != nil {

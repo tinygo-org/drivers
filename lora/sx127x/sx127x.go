@@ -26,7 +26,7 @@
 //
 // Presently this is only synchronous and so does not use any DIOx pins
 //
-package lora
+package sx127x
 
 import (
 	"errors"
