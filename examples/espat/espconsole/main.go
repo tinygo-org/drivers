@@ -13,7 +13,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/espat"
+	"tinygo.org/x/drivers/espat"
 )
 
 // change actAsAP to true to act as an access point instead of connecting to one.
@@ -25,9 +25,9 @@ const pass = "YOURPASS"
 
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-	uart       = machine.UART1
-	tx   uint8 = machine.D10
-	rx   uint8 = machine.D11
+	uart = machine.UART1
+	tx   = machine.D10
+	rx   = machine.D11
 
 	console = machine.UART0
 

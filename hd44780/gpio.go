@@ -7,36 +7,31 @@ import (
 )
 
 type GPIO struct {
-	dataPins []machine.GPIO
-	e        machine.GPIO
-	rw       machine.GPIO
-	rs       machine.GPIO
+	dataPins []machine.Pin
+	en       machine.Pin
+	rw       machine.Pin
+	rs       machine.Pin
 
 	write func(data byte)
 	read  func() byte
 }
 
-func newGPIO(dataPins []uint8, e, rs, rw uint8, mode byte) Device {
-
-	pins := make([]machine.GPIO, len(dataPins))
+func newGPIO(dataPins []machine.Pin, en, rs, rw machine.Pin, mode byte) Device {
+	pins := make([]machine.Pin, len(dataPins))
 	for i := 0; i < len(dataPins); i++ {
-		m := machine.GPIO{Pin: dataPins[i]}
-		m.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-		pins[i] = m
+		dataPins[i].Configure(machine.PinConfig{Mode: machine.PinOutput})
+		pins[i] = dataPins[i]
 	}
-	enable := machine.GPIO{e}
-	enable.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	registerSelect := machine.GPIO{rs}
-	registerSelect.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	readWrite := machine.GPIO{rw}
-	readWrite.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	readWrite.Low()
+	en.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rw.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rw.Low()
 
 	gpio := GPIO{
 		dataPins: pins,
-		e:        enable,
-		rs:       registerSelect,
-		rw:       readWrite,
+		en:       en,
+		rs:       rs,
+		rw:       rw,
 	}
 
 	if mode == DATA_LENGTH_4BIT {
@@ -73,19 +68,19 @@ func (g *GPIO) Write(data []byte) (n int, err error) {
 }
 
 func (g *GPIO) write8BitMode(data byte) {
-	g.e.High()
+	g.en.High()
 	g.setPins(data)
-	g.e.Low()
+	g.en.Low()
 }
 
 func (g *GPIO) write4BitMode(data byte) {
-	g.e.High()
+	g.en.High()
 	g.setPins(data >> 4)
-	g.e.Low()
+	g.en.Low()
 
-	g.e.High()
+	g.en.High()
 	g.setPins(data)
-	g.e.Low()
+	g.en.Low()
 }
 
 // Read reads len(data) bytes from display RAM to data starting from RAM address counter position
@@ -95,35 +90,35 @@ func (g *GPIO) Read(data []byte) (n int, err error) {
 		return 0, errors.New("Length greater than 0 is required")
 	}
 	g.rw.High()
-	g.reconfigureGPIOMode(machine.GPIO_INPUT)
+	g.reconfigureGPIOMode(machine.PinInput)
 	for i := 0; i < len(data); i++ {
 		data[i] = g.read()
 		n++
 	}
-	g.reconfigureGPIOMode(machine.GPIO_OUTPUT)
+	g.reconfigureGPIOMode(machine.PinInput)
 	return n, nil
 }
 
 func (g *GPIO) read4BitMode() byte {
-	g.e.High()
+	g.en.High()
 	data := (g.pins() << 4 & 0xF0)
-	g.e.Low()
-	g.e.High()
+	g.en.Low()
+	g.en.High()
 	data |= (g.pins() & 0x0F)
-	g.e.Low()
+	g.en.Low()
 	return data
 }
 
 func (g *GPIO) read8BitMode() byte {
-	g.e.High()
+	g.en.High()
 	data := g.pins()
-	g.e.Low()
+	g.en.Low()
 	return data
 }
 
-func (g *GPIO) reconfigureGPIOMode(mode machine.GPIOMode) {
+func (g *GPIO) reconfigureGPIOMode(mode machine.PinMode) {
 	for i := 0; i < len(g.dataPins); i++ {
-		g.dataPins[i].Configure(machine.GPIOConfig{Mode: mode})
+		g.dataPins[i].Configure(machine.PinConfig{Mode: mode})
 	}
 }
 

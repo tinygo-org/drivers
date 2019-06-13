@@ -4,17 +4,17 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/examples/pcd8544/setbuffer/data"
-	"github.com/tinygo-org/drivers/pcd8544"
+	"tinygo.org/x/drivers/examples/pcd8544/setbuffer/data"
+	"tinygo.org/x/drivers/pcd8544"
 )
 
 func main() {
-	dcPin := machine.GPIO{machine.P3}
-	dcPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	rstPin := machine.GPIO{machine.P4}
-	rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	scePin := machine.GPIO{machine.P5}
-	scePin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	dcPin := machine.P3
+	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rstPin := machine.P4
+	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	scePin := machine.P5
+	scePin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	machine.SPI0.Configure(machine.SPIConfig{})
 

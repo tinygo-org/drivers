@@ -4,7 +4,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/drivers/adxl345"
+	"tinygo.org/x/drivers/adxl345"
 )
 
 func main() {

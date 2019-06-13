@@ -1,0 +1,36 @@
+0.2.0
+---
+- **new devices**
+    - AT24C32/64 2-wire serial EEPROM
+    - BME280 humidity/pressure sensor
+- **bugfixes**
+    - ws2812: better support for nrf52832
+
+0.1.0
+---
+- **first release**
+    - This is the first official release of the TinyGo drivers repo, matching TinyGo 0.6.0. The following devices are supported:
+        - ADXL345
+        - APA102
+        - BH1750
+        - BlinkM
+        - BMP180
+        - DS1307
+        - DS3231
+        - Easystepper
+        - ESP8266/ESP32
+        - GPS
+        - HUB75
+        - LIS3DH
+        - MAG3110
+        - microbit LED matrix
+        - MMA8653
+        - MPU6050
+        - PCD8544
+        - SHT3x
+        - SSD1306
+        - Thermistor
+        - VL53L1X
+        - Waveshare 2.13"
+        - Waveshare 2.13" (B & C)
+        - WS2812
