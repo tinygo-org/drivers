@@ -1,4 +1,4 @@
-package lora
+package sx127x
 
 const (
 	// registers

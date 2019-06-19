@@ -1,4 +1,4 @@
-// Package lora provides a driver for SX127x LoRa transceivers.
+// Package sx127x provides a driver for SX127x LoRa transceivers.
 //
 // Datasheet:
 // https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V6.pdf
@@ -63,13 +63,13 @@ func New(spi machine.SPI, csPin machine.GPIO, rstPin machine.GPIO) Device {
 func (d *Device) Configure(cfg Config) (err error) {
 	d.csPin.High()
 
-	d.reset()
+	d.Reset()
 
 	if d.readRegister(REG_VERSION) != 0x12 {
 		return errors.New("SX127x module not found")
 	}
 
-	d.sleep()
+	d.Sleep()
 
 	// set base addresses
 	d.writeRegister(REG_FIFO_TX_BASE_ADDR, 0)
@@ -81,30 +81,24 @@ func (d *Device) Configure(cfg Config) (err error) {
 	// set auto AGC
 	d.writeRegister(REG_MODEM_CONFIG_3, 0x04)
 
-	err = d.ReConfigure(cfg)
+	if cfg.Frequency != 0 {
+		d.SetFrequency(cfg.Frequency)
+	}
+	if cfg.SpreadingFactor != 0 {
+		d.SetSpreadingFactor(cfg.SpreadingFactor)
+	}
+	if cfg.Bandwidth != 0 {
+		d.SetBandwidth(cfg.Bandwidth)
+	}
+	if cfg.CodingRate != 0 {
+		d.SetCodingRate(cfg.CodingRate)
+	}
+	if cfg.TxPower != 0 {
+		d.SetTxPower(cfg.TxPower)
+	}
 
 	d.idle()
 
-	return err
-}
-
-// ReConfigure updates the LoRa module configuration
-func (d *Device) ReConfigure(cfg Config) (err error) {
-	if cfg.Frequency != 0 {
-		d.setFrequency(cfg.Frequency)
-	}
-	if cfg.SpreadingFactor != 0 {
-		d.setSpreadingFactor(cfg.SpreadingFactor)
-	}
-	if cfg.Bandwidth != 0 {
-		d.setBandwidth(cfg.Bandwidth)
-	}
-	if cfg.CodingRate != 0 {
-		d.setCodingRate(cfg.CodingRate)
-	}
-	if cfg.TxPower != 0 {
-		d.setTxPower(cfg.TxPower)
-	}
 	return err
 }
 
@@ -135,6 +129,7 @@ func (d *Device) SendPacket(packet []byte) {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_TX)
 }
 
+// IsTransmitting tests if a packet transmission is in progress
 func (d *Device) IsTransmitting() bool {
 	return (d.readRegister(REG_OP_MODE) & MODE_TX) == MODE_TX
 }
@@ -177,28 +172,32 @@ func (d *Device) LastPacketFrequencyError() int32 {
 	return 0
 }
 
+// PrintRegisters outputs the sx127x transceiver registers
 func (d *Device) PrintRegisters() {
 	for i := 0; i < 128; i++ {
 		fmt.Printf("%02x: %02x\n", i, d.readRegister(uint8(i)))
 	}
 }
 
-func (d *Device) reset() {
+// Reset the sx127x device
+func (d *Device) Reset() {
 	d.rstPin.Low()
 	time.Sleep(10 * time.Millisecond)
 	d.rstPin.High()
 	time.Sleep(10 * time.Millisecond)
 }
 
-func (d *Device) sleep() {
+// Sleep puts the sx127x device into sleep mode
+func (d *Device) Sleep() {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_SLEEP)
 }
 
-func (d *Device) idle() {
+// Idle puts the sx127x device into idle mode
+func (d *Device) Idle() {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_STDBY)
 }
 
-func (d *Device) getFrequency() uint32 {
+func (d *Device) GetFrequency() uint32 {
 	var f uint64 = uint64(d.readRegister(REG_FRF_LSB))
 	f += uint64(d.readRegister(REG_FRF_MID)) << 8
 	f += uint64(d.readRegister(REG_FRF_MSB)) << 16
@@ -206,18 +205,18 @@ func (d *Device) getFrequency() uint32 {
 	return uint32(f)
 }
 
-func (d *Device) setFrequency(frequency uint32) {
+func (d *Device) SetFrequency(frequency uint32) {
 	var frf uint64 = (uint64(frequency) << 19) / 32000000
 	d.writeRegister(REG_FRF_MSB, uint8(frf>>16))
 	d.writeRegister(REG_FRF_MID, uint8(frf>>8))
 	d.writeRegister(REG_FRF_LSB, uint8(frf>>0))
 }
 
-func (d *Device) getSpreadingFactor() uint8 {
+func (d *Device) GetSpreadingFactor() uint8 {
 	return d.readRegister(REG_MODEM_CONFIG_2) >> 4
 }
 
-func (d *Device) setSpreadingFactor(spreadingFactor uint8) {
+func (d *Device) SetSpreadingFactor(spreadingFactor uint8) {
 	if spreadingFactor < 6 {
 		spreadingFactor = 6
 	} else if spreadingFactor > 12 {
@@ -232,13 +231,13 @@ func (d *Device) setSpreadingFactor(spreadingFactor uint8) {
 		d.writeRegister(REG_DETECTION_THRESHOLD, 0x0a)
 	}
 
-	var newValue uint8 = (d.readRegister(REG_MODEM_CONFIG_2) & 0x0f) | ((spreadingFactor << 4) & 0xf0)
+	var newValue = (d.readRegister(REG_MODEM_CONFIG_2) & 0x0f) | ((spreadingFactor << 4) & 0xf0)
 	d.writeRegister(REG_MODEM_CONFIG_2, newValue)
 	d.setLdoFlag()
 }
 
-func (d *Device) getBandwidth() int32 {
-	var bw uint8 = d.readRegister(REG_MODEM_CONFIG_1) >> 4
+func (d *Device) GetBandwidth() int32 {
+	var bw = d.readRegister(REG_MODEM_CONFIG_1) >> 4
 
 	switch bw {
 	case 0:
@@ -266,7 +265,7 @@ func (d *Device) getBandwidth() int32 {
 	return -1
 }
 
-func (d *Device) setBandwidth(sbw int32) {
+func (d *Device) SetBandwidth(sbw int32) {
 	var bw uint8
 
 	if sbw <= 7800 {
@@ -297,9 +296,9 @@ func (d *Device) setBandwidth(sbw int32) {
 
 func (d *Device) setLdoFlag() {
 	// Section 4.1.1.5
-	var symbolDuration int32 = 1000 / (d.getBandwidth() / (1 << d.getSpreadingFactor()))
+	var symbolDuration = 1000 / (d.GetBandwidth() / (1 << d.GetSpreadingFactor()))
 
-	var config3 uint8 = d.readRegister(REG_MODEM_CONFIG_3)
+	var config3 = d.readRegister(REG_MODEM_CONFIG_3)
 
 	// Section 4.1.1.6
 	if symbolDuration > 16 {
@@ -311,7 +310,7 @@ func (d *Device) setLdoFlag() {
 	d.writeRegister(REG_MODEM_CONFIG_3, config3)
 }
 
-func (d *Device) setCodingRate(denominator uint8) {
+func (d *Device) SetCodingRate(denominator uint8) {
 	if denominator < 5 {
 		denominator = 5
 	} else if denominator > 8 {
@@ -321,8 +320,24 @@ func (d *Device) setCodingRate(denominator uint8) {
 	d.writeRegister(REG_MODEM_CONFIG_1, (d.readRegister(REG_MODEM_CONFIG_1)&0xf1)|(cr<<1))
 }
 
-func (d *Device) setTxPower(txPower int8) {
-	// TODO
+// SetTxPower sets the transmitter output power
+func (d *Device) SetTxPower(txPower int8) {
+	if txPower < 2 {
+		// power is less than 2 dBm, enable PA on RFO
+		writeRegister(REG_PA_CONFIG, PA_SELECT_RFO, 7, 7)
+		writeRegister(REG_PA_CONFIG, LOW_POWER|(txPower+3), 6, 0)
+		writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
+	} else if (txPower >= 2) && (txPower <= 17) {
+		// power is 2 - 17 dBm, enable PA1 + PA2 on PA_BOOST
+		writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
+		writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-2), 6, 0)
+		writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
+	} else if txPower == 20 {
+		// power is 20 dBm, enable PA1 + PA2 on PA_BOOST and enable high power mode
+		writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
+		writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-5), 6, 0)
+		writeRegister(REG_PA_DAC, PA_BOOST_ON, 2, 0)
+	}
 }
 
 func (d *Device) readRegister(reg uint8) uint8 {
