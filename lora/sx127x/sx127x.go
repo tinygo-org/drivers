@@ -97,7 +97,7 @@ func (d *Device) Configure(cfg Config) (err error) {
 		d.SetTxPower(cfg.TxPower)
 	}
 
-	d.idle()
+	d.Standby()
 
 	return err
 }
@@ -192,8 +192,8 @@ func (d *Device) Sleep() {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_SLEEP)
 }
 
-// Idle puts the sx127x device into idle mode
-func (d *Device) Idle() {
+// Standby puts the sx127x device into standby mode
+func (d *Device) Standby() {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_STDBY)
 }
 
