@@ -8,7 +8,7 @@ import (
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
-func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, error) {
+func (d *Device) DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
 	addr := raddr.IP.String()
 	sendport := strconv.Itoa(raddr.Port)
 	listenport := strconv.Itoa(laddr.Port)
@@ -19,11 +19,11 @@ func (d Device) DialUDP(network string, laddr, raddr *UDPAddr) (*SerialConn, err
 	// connect new socket
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: &d, laddr: laddr, raddr: raddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr, raddr: raddr}, nil
 }
 
 // ListenUDP listens for UDP connections on the port listed in laddr.
-func (d Device) ListenUDP(network string, laddr *UDPAddr) (*SerialConn, error) {
+func (d *Device) ListenUDP(network string, laddr *UDPAddr) (*UDPSerialConn, error) {
 	addr := "0"
 	sendport := "0"
 	listenport := strconv.Itoa(laddr.Port)
@@ -34,15 +34,44 @@ func (d Device) ListenUDP(network string, laddr *UDPAddr) (*SerialConn, error) {
 	// connect new socket
 	d.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &SerialConn{Adaptor: &d, laddr: laddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr}, nil
 }
 
-// SerialConn is a loosely net.Conn compatible intended to support
-// TCP/UDP over serial.
+// DialTCP makes a TCP network connection. raadr is the port that the messages will
+// be sent to, and laddr is the port that will be listened to in order to
+// receive incoming messages.
+func (d *Device) DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
+	addr := raddr.IP.String()
+	sendport := strconv.Itoa(raddr.Port)
+
+	// disconnect any old socket
+	d.DisconnectSocket()
+
+	// connect new socket
+	d.ConnectTCPSocket(addr, sendport)
+
+	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr, raddr: raddr}, nil
+}
+
+// SerialConn is a loosely net.Conn compatible implementation
 type SerialConn struct {
 	Adaptor *Device
-	laddr   *UDPAddr
-	raddr   *UDPAddr
+}
+
+// UDPSerialConn is a loosely net.Conn compatible intended to support
+// UDP over serial.
+type UDPSerialConn struct {
+	SerialConn
+	laddr *UDPAddr
+	raddr *UDPAddr
+}
+
+// TCPSerialConn is a loosely net.Conn compatible intended to support
+// TCP over serial.
+type TCPSerialConn struct {
+	SerialConn
+	laddr *TCPAddr
+	raddr *TCPAddr
 }
 
 // Read reads data from the connection.
@@ -73,12 +102,22 @@ func (c *SerialConn) Close() error {
 }
 
 // LocalAddr returns the local network address.
-func (c *SerialConn) LocalAddr() UDPAddr {
+func (c *UDPSerialConn) LocalAddr() UDPAddr {
 	return *c.laddr
 }
 
 // RemoteAddr returns the remote network address.
-func (c *SerialConn) RemoteAddr() UDPAddr {
+func (c *UDPSerialConn) RemoteAddr() UDPAddr {
+	return *c.laddr
+}
+
+// LocalAddr returns the local network address.
+func (c *TCPSerialConn) LocalAddr() TCPAddr {
+	return *c.laddr
+}
+
+// RemoteAddr returns the remote network address.
+func (c *TCPSerialConn) RemoteAddr() TCPAddr {
 	return *c.laddr
 }
 
@@ -130,6 +169,13 @@ type UDPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone; added in Go 1.1
+}
+
+// TCPAddr here to serve as compatible type. until TinyGo can compile the net package.
+type TCPAddr struct {
+	IP   IP
+	Port int
+	Zone string // IPv6 scoped addressing zone
 }
 
 // ParseIP parses s as an IP address, returning the result.

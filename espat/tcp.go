@@ -19,7 +19,7 @@ func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port
 	d.Set(TCPConnect, val)
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(pause * time.Millisecond)
 	d.Response()
 	return nil
 }
