@@ -2,6 +2,7 @@ package espat
 
 import (
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -154,6 +155,51 @@ func (c *SerialConn) SetReadDeadline(t time.Time) error {
 // A zero value for t means Write will not time out.
 func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 	return nil
+}
+
+// ResolveTCPAddr returns an address of TCP end point.
+//
+// The network must be a TCP network name.
+//
+func (d *Device) ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+	// TODO: make sure network is 'tcp'
+	// separate domain from port, if any
+	r := strings.Split(address, ":")
+	ip, err := d.GetDNS(r[0])
+	if err != nil {
+		return nil, err
+	}
+	if len(r) > 1 {
+		port, e := strconv.Atoi(r[1])
+		if e != nil {
+			return nil, e
+		}
+		return &TCPAddr{IP: ip, Port: port}, nil
+	}
+	return &TCPAddr{IP: ip}, nil
+}
+
+// ResolveUDPAddr returns an address of UDP end point.
+//
+// The network must be a UDP network name.
+//
+func (d *Device) ResolveUDPAddr(network, address string) (*UDPAddr, error) {
+	// TODO: make sure network is 'udp'
+	// separate domain from port, if any
+	r := strings.Split(address, ":")
+	ip, err := d.GetDNS(r[0])
+	if err != nil {
+		return nil, err
+	}
+	if len(r) > 1 {
+		port, e := strconv.Atoi(r[1])
+		if e != nil {
+			return nil, e
+		}
+		return &UDPAddr{IP: ip, Port: port}, nil
+	}
+
+	return &UDPAddr{IP: ip}, nil
 }
 
 // The following definitions are here to support a Golang standard package

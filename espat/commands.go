@@ -85,6 +85,9 @@ const (
 	// Establish TCP connection or register UDP port
 	TCPConnect = "+CIPSTART"
 
+	// DNS Lookup
+	TCPDNSLookup = "+CIPDOMAIN"
+
 	// Send Data
 	TCPSend = "+CIPSEND"
 

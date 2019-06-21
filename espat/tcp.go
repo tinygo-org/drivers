@@ -15,11 +15,23 @@ const (
 	TCPTransferModeUnvarnished = 1
 )
 
+// GetDNS returns the IP address for a domain name.
+func (d *Device) GetDNS(domain string) (IP, error) {
+	d.Set(TCPDNSLookup, "\""+domain+"\"")
+	time.Sleep(1000 * time.Millisecond)
+	r := strings.Split(string(d.Response()), ":")
+	if len(r) != 2 {
+		return nil, errors.New("Invalid domain lookup result")
+	}
+	res := strings.Split(r[1], "\r\n")
+	return IP(res[0]), nil
+}
+
 // ConnectTCPSocket creates a new TCP socket connection for the ESP8266/ESP32.
 // Currently only supports single connection mode.
 func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
-	val := "\"" + protocol + "\",\"" + addr + "\"," + port
+	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
 	d.Set(TCPConnect, val)
 	time.Sleep(1000 * time.Millisecond)
 	r := d.Response()
