@@ -13,6 +13,7 @@ package main
 
 import (
 	"machine"
+	"math/rand"
 	"time"
 
 	"github.com/eclipse/paho.mqtt.golang/packets"
@@ -38,26 +39,28 @@ var (
 	conn    *espat.TCPSerialConn
 	err     error
 	mid     uint16
+	topic   = "tinygo"
 )
 
 func main() {
-	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
-
 	time.Sleep(3000 * time.Millisecond)
+
+	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
+	rand.Seed(time.Now().UnixNano())
 
 	// Init esp8266/esp32
 	adaptor = espat.New(uart)
 	adaptor.Configure()
 
 	// first check if connected
-	if adaptor.Connected() {
-		console.Write([]byte("Connected to wifi adaptor.\r\n"))
+	if connectToESP() {
+		println("Connected to wifi adaptor.")
 		adaptor.Echo(false)
 
 		connectToAP()
 	} else {
-		console.Write([]byte("\r\n"))
-		console.Write([]byte("Unable to connect to wifi adaptor.\r\n"))
+		println("")
+		println("Unable to connect to wifi adaptor.")
 		return
 	}
 
@@ -70,7 +73,7 @@ func main() {
 	}
 	laddr := &espat.TCPAddr{Port: 1883}
 
-	console.Write([]byte("Dialing TCP connection...\r\n"))
+	println("Dialing TCP connection...")
 	conn, err = adaptor.DialTCP("tcp", laddr, raddr)
 	if err != nil {
 		println("tcp connect error")
@@ -80,34 +83,39 @@ func main() {
 	err = connectToMQTTServer()
 
 	for {
-		console.Write([]byte("Publishing MQTT packets...\r\n"))
-
-		publish := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
-		publish.Qos = 0
-		publish.TopicName = "tinygo"
-		publish.Payload = []byte("Hello, mqtt\r\n")
-		publish.MessageID = mid
-		mid++
-
-		publish.Write(conn)
+		publishToMQTT()
 
 		time.Sleep(1000 * time.Millisecond)
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
-	console.Write([]byte("Disconnecting TCP...\r\n"))
+	println("Disconnecting TCP...")
 	conn.Close()
-	console.Write([]byte("Done.\r\n"))
+
+	println("Done.")
+}
+
+// connect to ESP8266/ESP32
+func connectToESP() bool {
+	for i := 0; i < 5; i++ {
+		println("Connecting to wifi adaptor...")
+		if adaptor.Connected() {
+			return true
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return false
 }
 
 // connect to access point
 func connectToAP() {
-	console.Write([]byte("Connecting to wifi network...\r\n"))
+	println("Connecting to wifi network...")
+
 	adaptor.SetWifiMode(espat.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
-	console.Write([]byte("Connected.\r\n"))
-	console.Write([]byte(adaptor.GetClientIP()))
-	console.Write([]byte("\r\n"))
+
+	println("Connected.")
+	println(adaptor.GetClientIP())
 }
 
 func connectToMQTTServer() error {
@@ -116,12 +124,12 @@ func connectToMQTTServer() error {
 	connectPkt.Qos = 0
 	// connectPkt.Username = "tinygo"
 	// connectPkt.Password = []byte("1234")
-	connectPkt.ClientIdentifier = "tinygo-client"
+	connectPkt.ClientIdentifier = "tinygo-client-" + randomString(10)
 	connectPkt.ProtocolVersion = 4
 	connectPkt.ProtocolName = "MQTT"
 	connectPkt.Keepalive = 30
 
-	console.Write([]byte("Sending MQTT connect...\r\n"))
+	println("Sending MQTT connect...")
 	err := connectPkt.Write(conn)
 	if err != nil {
 		println("mqtt connect error")
@@ -129,7 +137,7 @@ func connectToMQTTServer() error {
 		return err
 	}
 
-	console.Write([]byte("Waiting for MQTT connect...\r\n"))
+	println("Waiting for MQTT connect...")
 	// TODO: handle timeout
 	for {
 		packet, _ := packets.ReadPacket(conn)
@@ -137,7 +145,7 @@ func connectToMQTTServer() error {
 		if packet != nil {
 			_, ok := packet.(*packets.ConnackPacket)
 			if ok {
-				console.Write([]byte("Connected to MQTT server.\r\n"))
+				println("Connected to MQTT server.")
 				println(packet.String())
 				return nil
 			}
@@ -145,4 +153,31 @@ func connectToMQTTServer() error {
 
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func publishToMQTT() error {
+	println("Publishing MQTT message...")
+
+	publish := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
+	publish.Qos = 0
+	publish.TopicName = topic
+	publish.Payload = []byte("Hello, mqtt\r\n")
+	publish.MessageID = mid
+	mid++
+
+	return publish.Write(conn)
+}
+
+// Returns an int >= min, < max
+func randomInt(min, max int) int {
+	return min + rand.Intn(max-min)
+}
+
+// Generate a random string of A-Z chars with len = l
+func randomString(len int) string {
+	bytes := make([]byte, len)
+	for i := 0; i < len; i++ {
+		bytes[i] = byte(randomInt(65, 90))
+	}
+	return string(bytes)
 }
