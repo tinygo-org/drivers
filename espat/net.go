@@ -1,6 +1,7 @@
 package espat
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,56 @@ func (d *Device) DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn,
 	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr, raddr: raddr}, nil
 }
 
+// Dial connects to the address on the named network.
+// It tries to provide a mostly compatible interface
+// to net.Dial().
+func (d *Device) Dial(network, address string) (Conn, error) {
+	switch network {
+	case "tcp":
+		raddr, err := d.ResolveTCPAddr(network, address)
+		if err != nil {
+			return nil, err
+		}
+
+		c, e := d.DialTCP(network, &TCPAddr{}, raddr)
+		return c.opConn(), e
+	case "udp":
+		raddr, err := d.ResolveUDPAddr(network, address)
+		if err != nil {
+			return nil, err
+		}
+
+		c, e := d.DialUDP(network, &UDPAddr{}, raddr)
+		return c.opConn(), e
+	default:
+		return nil, errors.New("invalid network for dial")
+	}
+}
+
+// DialTLS makes a TLS network connection. It tries to provide a mostly compatible interface
+// to tls.Dial().
+// DialTLS connects to the given network address.
+func (d *Device) DialTLS(network, address string, config *TLSConfig) (*TCPSerialConn, error) {
+	raddr, err := d.ResolveTCPAddr(network, address)
+	if err != nil {
+		return nil, err
+	}
+
+	addr := raddr.IP.String()
+	sendport := strconv.Itoa(raddr.Port)
+
+	// disconnect any old socket
+	d.DisconnectSocket()
+
+	// connect new socket
+	err = d.ConnectSSLSocket(addr, sendport)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: d}, raddr: raddr}, nil
+}
+
 // SerialConn is a loosely net.Conn compatible implementation
 type SerialConn struct {
 	Adaptor *Device
@@ -103,23 +154,37 @@ func (c *SerialConn) Close() error {
 }
 
 // LocalAddr returns the local network address.
-func (c *UDPSerialConn) LocalAddr() UDPAddr {
-	return *c.laddr
+func (c *UDPSerialConn) LocalAddr() Addr {
+	return c.laddr.opAddr()
 }
 
 // RemoteAddr returns the remote network address.
-func (c *UDPSerialConn) RemoteAddr() UDPAddr {
-	return *c.laddr
+func (c *UDPSerialConn) RemoteAddr() Addr {
+	return c.laddr.opAddr()
+}
+
+func (c *UDPSerialConn) opConn() Conn {
+	if c == nil {
+		return nil
+	}
+	return c
 }
 
 // LocalAddr returns the local network address.
-func (c *TCPSerialConn) LocalAddr() TCPAddr {
-	return *c.laddr
+func (c *TCPSerialConn) LocalAddr() Addr {
+	return c.laddr.opAddr()
 }
 
 // RemoteAddr returns the remote network address.
-func (c *TCPSerialConn) RemoteAddr() TCPAddr {
-	return *c.laddr
+func (c *TCPSerialConn) RemoteAddr() Addr {
+	return c.laddr.opAddr()
+}
+
+func (c *TCPSerialConn) opConn() Conn {
+	if c == nil {
+		return nil
+	}
+	return c
 }
 
 // SetDeadline sets the read and write deadlines associated
@@ -217,11 +282,51 @@ type UDPAddr struct {
 	Zone string // IPv6 scoped addressing zone; added in Go 1.1
 }
 
+// Network returns the address's network name, "udp".
+func (a *UDPAddr) Network() string { return "udp" }
+
+func (a *UDPAddr) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if a.Port != 0 {
+		return a.IP.String() + ":" + strconv.Itoa(a.Port)
+	}
+	return a.IP.String()
+}
+
+func (a *UDPAddr) opAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
+}
+
 // TCPAddr here to serve as compatible type. until TinyGo can compile the net package.
 type TCPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone
+}
+
+// Network returns the address's network name, "tcp".
+func (a *TCPAddr) Network() string { return "tcp" }
+
+func (a *TCPAddr) String() string {
+	if a == nil {
+		return "<nil>"
+	}
+	if a.Port != 0 {
+		return a.IP.String() + ":" + strconv.Itoa(a.Port)
+	}
+	return a.IP.String()
+}
+
+func (a *TCPAddr) opAddr() Addr {
+	if a == nil {
+		return nil
+	}
+	return a
 }
 
 // ParseIP parses s as an IP address, returning the result.
@@ -232,4 +337,68 @@ func ParseIP(s string) IP {
 // String returns the string form of the IP address ip.
 func (ip IP) String() string {
 	return string(ip)
+}
+
+// TLSConfig is a placeholder for future compatibility with
+// tls.Config.
+type TLSConfig struct {
+}
+
+// Conn is a generic stream-oriented network connection.
+// This interface is from the Go standard library.
+type Conn interface {
+	// Read reads data from the connection.
+	// Read can be made to time out and return an Error with Timeout() == true
+	// after a fixed time limit; see SetDeadline and SetReadDeadline.
+	Read(b []byte) (n int, err error)
+
+	// Write writes data to the connection.
+	// Write can be made to time out and return an Error with Timeout() == true
+	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
+	Write(b []byte) (n int, err error)
+
+	// Close closes the connection.
+	// Any blocked Read or Write operations will be unblocked and return errors.
+	Close() error
+
+	// LocalAddr returns the local network address.
+	LocalAddr() Addr
+
+	// RemoteAddr returns the remote network address.
+	RemoteAddr() Addr
+
+	// SetDeadline sets the read and write deadlines associated
+	// with the connection. It is equivalent to calling both
+	// SetReadDeadline and SetWriteDeadline.
+	//
+	// A deadline is an absolute time after which I/O operations
+	// fail with a timeout (see type Error) instead of
+	// blocking. The deadline applies to all future and pending
+	// I/O, not just the immediately following call to Read or
+	// Write. After a deadline has been exceeded, the connection
+	// can be refreshed by setting a deadline in the future.
+	//
+	// An idle timeout can be implemented by repeatedly extending
+	// the deadline after successful Read or Write calls.
+	//
+	// A zero value for t means I/O operations will not time out.
+	SetDeadline(t time.Time) error
+
+	// SetReadDeadline sets the deadline for future Read calls
+	// and any currently-blocked Read call.
+	// A zero value for t means Read will not time out.
+	SetReadDeadline(t time.Time) error
+
+	// SetWriteDeadline sets the deadline for future Write calls
+	// and any currently-blocked Write call.
+	// Even if write times out, it may return n > 0, indicating that
+	// some of the data was successfully written.
+	// A zero value for t means Write will not time out.
+	SetWriteDeadline(t time.Time) error
+}
+
+// Addr represents a network end point address.
+type Addr interface {
+	Network() string // name of the network (for example, "tcp", "udp")
+	String() string  // string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
 }

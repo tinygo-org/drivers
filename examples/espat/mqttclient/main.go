@@ -23,9 +23,11 @@ import (
 // access point info
 const ssid = "YOURSSID"
 const pass = "YOURPASS"
+const useSSL = true
 
 // IP address of the MQTT broker to use. Replace with your own info.
-const server = "test.mosquitto.org:1883"
+//const server = "test.mosquitto.org:1883"
+const server = "test.mosquitto.org:8883"
 
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
@@ -36,7 +38,7 @@ var (
 	console = machine.UART0
 
 	adaptor *espat.Device
-	conn    *espat.TCPSerialConn
+	conn    espat.Conn
 	err     error
 	mid     uint16
 	topic   = "tinygo"
@@ -64,20 +66,23 @@ func main() {
 		return
 	}
 
-	// now make TCP connection
-	raddr, _ := adaptor.ResolveTCPAddr("tcp", server)
-	if raddr != nil {
-		println("The IP address from DNS lookup is:")
-		println(string(raddr.IP))
-		println(raddr.Port)
-	}
-	laddr := &espat.TCPAddr{Port: 1883}
-
-	println("Dialing TCP connection...")
-	conn, err = adaptor.DialTCP("tcp", laddr, raddr)
-	if err != nil {
-		println("tcp connect error")
-		println(err.Error())
+	// make connection
+	if useSSL {
+		println("Dialing SSL connection...")
+		conn, err = adaptor.DialTLS("tcp", server, nil)
+		if err != nil {
+			println("SSL connect error")
+			println(err)
+			return
+		}
+	} else {
+		println("Dialing TCP connection...")
+		conn, err = adaptor.Dial("tcp", server)
+		if err != nil {
+			println("TCP connect error")
+			println(err)
+			return
+		}
 	}
 
 	err = connectToMQTTServer()
