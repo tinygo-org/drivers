@@ -54,6 +54,20 @@ func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	return errors.New("ConnectUDPSocket error:" + string(r))
 }
 
+// ConnectSSLSocket creates a new SSL socket connection for the ESP8266/ESP32.
+// Currently only supports single connection mode.
+func (d *Device) ConnectSSLSocket(addr, port string) error {
+	protocol := "SSL"
+	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
+	d.Set(TCPConnect, val)
+	time.Sleep(5000 * time.Millisecond)
+	r := d.Response()
+	if strings.Contains(string(r), "CONNECT") {
+		return nil
+	}
+	return errors.New("ConnectSSLSocket error:" + string(r))
+}
+
 // DisconnectSocket disconnects the ESP8266/ESP32 from the current TCP/UDP connection.
 func (d *Device) DisconnectSocket() error {
 	d.Execute(TCPClose)
