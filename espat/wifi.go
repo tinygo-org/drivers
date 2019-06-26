@@ -2,7 +2,6 @@ package espat
 
 import (
 	"strconv"
-	"time"
 )
 
 const (
@@ -19,15 +18,14 @@ const (
 // GetWifiMode returns the ESP8266/ESP32 wifi mode.
 func (d *Device) GetWifiMode() []byte {
 	d.Query(WifiMode)
-	return d.Response()
+	return d.Response(100)
 }
 
 // SetWifiMode sets the ESP8266/ESP32 wifi mode.
 func (d *Device) SetWifiMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(WifiMode, val)
-	time.Sleep(pause * time.Millisecond)
-	d.Response()
+	d.Response(pause)
 	return nil
 }
 
@@ -36,7 +34,7 @@ func (d *Device) SetWifiMode(mode int) error {
 // GetConnectedAP returns the ESP8266/ESP32 is currently connected to as a client.
 func (d *Device) GetConnectedAP() []byte {
 	d.Query(ConnectAP)
-	return d.Response()
+	return d.Response(100)
 }
 
 // ConnectToAP connects the ESP8266/ESP32 to an access point.
@@ -44,32 +42,28 @@ func (d *Device) GetConnectedAP() []byte {
 func (d *Device) ConnectToAP(ssid, pwd string, ws int) error {
 	val := "\"" + ssid + "\",\"" + pwd + "\""
 	d.Set(ConnectAP, val)
-	// TODO: a better way to wait for connect and check for up to ws seconds.
-	time.Sleep(time.Duration(ws) * time.Second)
-	d.Response()
+	d.Response(ws * 1000)
 	return nil
 }
 
 // DisconnectFromAP disconnects the ESP8266/ESP32 from the current access point.
 func (d *Device) DisconnectFromAP() error {
 	d.Execute(Disconnect)
-	time.Sleep(1000 * time.Millisecond)
-	d.Response()
+	d.Response(1000)
 	return nil
 }
 
 // GetClientIP returns the ESP8266/ESP32 current client IP addess when connected to an Access Point.
 func (d *Device) GetClientIP() string {
 	d.Query(SetStationIP)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // SetClientIP sets the ESP8266/ESP32 current client IP addess when connected to an Access Point.
 func (d *Device) SetClientIP(ipaddr string) []byte {
 	val := "\"" + ipaddr + "\""
 	d.Set(ConnectAP, val)
-	time.Sleep(500 * time.Millisecond)
-	d.Response()
+	d.Response(500)
 	return nil
 }
 
@@ -78,7 +72,7 @@ func (d *Device) SetClientIP(ipaddr string) []byte {
 // GetAPConfig returns the ESP8266/ESP32 current configuration when acting as an Access Point.
 func (d *Device) GetAPConfig() string {
 	d.Query(SoftAPConfigCurrent)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // SetAPConfig sets the ESP8266/ESP32 current configuration when acting as an Access Point.
@@ -89,29 +83,27 @@ func (d *Device) SetAPConfig(ssid, pwd string, ch, security int) error {
 	ecnval := strconv.Itoa(security)
 	val := "\"" + ssid + "\",\"" + pwd + "\"," + chval + "," + ecnval
 	d.Set(SoftAPConfigCurrent, val)
-	time.Sleep(1000 * time.Millisecond)
-	d.Response()
+	d.Response(1000)
 	return nil
 }
 
 // GetAPClients returns the ESP8266/ESP32 current clients when acting as an Access Point.
 func (d *Device) GetAPClients() string {
 	d.Query(ListConnectedIP)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // GetAPIP returns the ESP8266/ESP32 current IP addess when configured as an Access Point.
 func (d *Device) GetAPIP() string {
 	d.Query(SetSoftAPIPCurrent)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // SetAPIP sets the ESP8266/ESP32 current IP addess when configured as an Access Point.
 func (d *Device) SetAPIP(ipaddr string) error {
 	val := "\"" + ipaddr + "\""
 	d.Set(SetSoftAPIPCurrent, val)
-	time.Sleep(500 * time.Millisecond)
-	d.Response()
+	d.Response(500)
 	return nil
 }
 
@@ -119,7 +111,7 @@ func (d *Device) SetAPIP(ipaddr string) error {
 // from flash storage. These settings are those used after a reset.
 func (d *Device) GetAPConfigFlash() string {
 	d.Query(SoftAPConfigFlash)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // SetAPConfigFlash sets the ESP8266/ESP32 current configuration acting as an Access Point,
@@ -131,8 +123,7 @@ func (d *Device) SetAPConfigFlash(ssid, pwd string, ch, security int) error {
 	ecnval := strconv.Itoa(security)
 	val := "\"" + ssid + "\",\"" + pwd + "\"," + chval + "," + ecnval
 	d.Set(SoftAPConfigFlash, val)
-	time.Sleep(1000 * time.Millisecond)
-	d.Response()
+	d.Response(1000)
 	return nil
 }
 
@@ -140,7 +131,7 @@ func (d *Device) SetAPConfigFlash(ssid, pwd string, ch, security int) error {
 // This is the IP address that will be used after a reset.
 func (d *Device) GetAPIPFlash() string {
 	d.Query(SetSoftAPIPFlash)
-	return string(d.Response())
+	return string(d.Response(100))
 }
 
 // SetAPIPFlash sets the ESP8266/ESP32 current IP addess when configured as an Access Point.
@@ -148,7 +139,6 @@ func (d *Device) GetAPIPFlash() string {
 func (d *Device) SetAPIPFlash(ipaddr string) error {
 	val := "\"" + ipaddr + "\""
 	d.Set(SetSoftAPIPFlash, val)
-	time.Sleep(500 * time.Millisecond)
-	d.Response()
+	d.Response(500)
 	return nil
 }

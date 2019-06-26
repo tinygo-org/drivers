@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -18,8 +17,7 @@ const (
 // GetDNS returns the IP address for a domain name.
 func (d *Device) GetDNS(domain string) (IP, error) {
 	d.Set(TCPDNSLookup, "\""+domain+"\"")
-	time.Sleep(1000 * time.Millisecond)
-	r := strings.Split(string(d.Response()), ":")
+	r := strings.Split(string(d.Response(1000)), ":")
 	if len(r) != 2 {
 		return nil, errors.New("Invalid domain lookup result")
 	}
@@ -33,8 +31,7 @@ func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
 	d.Set(TCPConnect, val)
-	time.Sleep(1000 * time.Millisecond)
-	r := d.Response()
+	r := d.Response(1000)
 	if strings.Contains(string(r), "OK") {
 		return nil
 	}
@@ -46,8 +43,7 @@ func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	protocol := "UDP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",2"
 	d.Set(TCPConnect, val)
-	time.Sleep(pause * time.Millisecond)
-	r := d.Response()
+	r := d.Response(pause)
 	if strings.Contains(string(r), "OK") {
 		return nil
 	}
@@ -60,8 +56,8 @@ func (d *Device) ConnectSSLSocket(addr, port string) error {
 	protocol := "SSL"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
 	d.Set(TCPConnect, val)
-	time.Sleep(5000 * time.Millisecond)
-	r := d.Response()
+	// this operation takes longer, so wait up to 6 seconds to complete.
+	r := d.Response(6000)
 	if strings.Contains(string(r), "CONNECT") {
 		return nil
 	}
@@ -71,8 +67,7 @@ func (d *Device) ConnectSSLSocket(addr, port string) error {
 // DisconnectSocket disconnects the ESP8266/ESP32 from the current TCP/UDP connection.
 func (d *Device) DisconnectSocket() error {
 	d.Execute(TCPClose)
-	time.Sleep(pause * time.Millisecond)
-	d.Response()
+	d.Response(pause)
 	return nil
 }
 
@@ -81,15 +76,14 @@ func (d *Device) DisconnectSocket() error {
 func (d *Device) SetMux(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TCPMultiple, val)
-	time.Sleep(pause * time.Millisecond)
-	d.Response()
+	d.Response(pause)
 	return nil
 }
 
 // GetMux returns the ESP8266/ESP32 current client TCP/UDP configuration for concurrent connections.
 func (d *Device) GetMux() ([]byte, error) {
 	d.Query(TCPMultiple)
-	return d.Response(), nil
+	return d.Response(pause), nil
 }
 
 // SetTCPTransferMode sets the ESP8266/ESP32 current client TCP/UDP transfer mode.
@@ -97,26 +91,24 @@ func (d *Device) GetMux() ([]byte, error) {
 func (d *Device) SetTCPTransferMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TransmissionMode, val)
-	time.Sleep(pause * time.Millisecond)
-	d.Response()
+	d.Response(pause)
 	return nil
 }
 
 // GetTCPTransferMode returns the ESP8266/ESP32 current client TCP/UDP transfer mode.
 func (d *Device) GetTCPTransferMode() []byte {
 	d.Query(TransmissionMode)
-	return d.Response()
+	return d.Response(pause)
 }
 
 // StartSocketSend gets the ESP8266/ESP32 ready to receive TCP/UDP socket data.
 func (d *Device) StartSocketSend(size int) error {
 	val := strconv.Itoa(size)
 	d.Set(TCPSend, val)
-	time.Sleep(pause * time.Millisecond)
 
 	// when ">" is received, it indicates
 	// ready to receive data
-	r := d.Response()
+	r := d.Response(pause)
 	if strings.Contains(string(r), ">") {
 		return nil
 	}
@@ -127,10 +119,7 @@ func (d *Device) StartSocketSend(size int) error {
 // and to return to command mode. This is only used in "unvarnished" raw mode.
 func (d *Device) EndSocketSend() error {
 	d.Write([]byte("+++"))
-	time.Sleep(pause * time.Millisecond)
 
-	// TODO: wait until ">" is received, which indicates
-	// ready to receive data
-	d.Response()
+	d.Response(pause)
 	return nil
 }
