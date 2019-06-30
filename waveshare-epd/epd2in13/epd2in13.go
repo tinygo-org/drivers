@@ -12,8 +12,10 @@ import (
 )
 
 type Config struct {
-	Width  int16
-	Height int16
+	Width        int16
+	Height       int16
+	Rotation     uint8
+	DisplayWidth int16
 }
 
 type Device struct {
@@ -23,9 +25,11 @@ type Device struct {
 	rst          machine.Pin
 	busy         machine.Pin
 	width        int16
+	displayWidth int16
 	height       int16
 	buffer       []uint8
 	bufferLength uint32
+	rotation     uint8
 }
 
 // Look up table for full updates
@@ -66,11 +70,17 @@ func (d *Device) Configure(cfg Config) {
 	} else {
 		d.width = 128
 	}
+	if cfg.DisplayWidth != 0 {
+		d.displayWidth = cfg.DisplayWidth
+	} else {
+		d.displayWidth = 122
+	}
 	if cfg.Height != 0 {
 		d.height = cfg.Height
 	} else {
 		d.height = 250
 	}
+	d.rotation = cfg.Rotation % 4
 	d.bufferLength = (uint32(d.width) * uint32(d.height)) / 8
 	d.buffer = make([]uint8, d.bufferLength)
 	for i := uint32(0); i < d.bufferLength; i++ {
@@ -158,6 +168,7 @@ func (d *Device) SetLUT(fullUpdate bool) {
 // We use RGBA(0,0,0, 255) as white (transparent)
 // Anything else as black
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
+	x, y = d.xy(x, y)
 	if x < 0 || x >= d.width || y < 0 || y >= d.height {
 		return
 	}
@@ -188,9 +199,22 @@ func (d *Device) Display() error {
 }
 
 // DisplayRect sends only an area of the buffer to the screen.
+// The rectangle points need to be a multiple of 8 in the screen.
+// They might not work as expected if the screen is rotated.
 func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error {
+	x, y = d.xy(x, y)
 	if x < 0 || y < 0 || x >= d.width || y >= d.height || width < 0 || height < 0 {
 		return errors.New("wrong rectangle")
+	}
+	if d.rotation == 1 {
+		width, height = height, width
+		x -= width
+	} else if d.rotation == 2 {
+		x -= width - 1
+		y -= height - 1
+	} else if d.rotation == 3 {
+		width, height = height, width
+		y -= height
 	}
 	x &= 0xF8
 	width &= 0xF8
@@ -274,5 +298,28 @@ func (d *Device) ClearBuffer() {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
+	if d.rotation == 1 || d.rotation == 3 {
+		return d.height, d.width
+	}
 	return d.width, d.height
+}
+
+// SetRotation changes the rotation of the device
+func (d *Device) SetRotation(rotation uint8) {
+	d.rotation = rotation % 4
+}
+
+// xy chages the coordinates according to the rotation
+func (d *Device) xy(x, y int16) (int16, int16) {
+	switch d.rotation {
+	case 0:
+		return x, y
+	case 1:
+		return d.displayWidth - y - 1, x
+	case 2:
+		return d.displayWidth - x - 1, d.height - y - 1
+	case 3:
+		return y, d.height - x - 1
+	}
+	return x, y
 }
