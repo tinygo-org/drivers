@@ -7,7 +7,7 @@
 //
 // You must install the Paho MQTT package to build this program:
 //
-// 		go get github.com/eclipse/paho.mqtt.golang
+// 		go get -u github.com/eclipse/paho.mqtt.golang
 //
 package main
 
@@ -16,18 +16,17 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/eclipse/paho.mqtt.golang/packets"
 	"tinygo.org/x/drivers/espat"
+	"tinygo.org/x/drivers/espat/mqtt"
 )
 
 // access point info
 const ssid = "YOURSSID"
 const pass = "YOURPASS"
-const useSSL = true
 
 // IP address of the MQTT broker to use. Replace with your own info.
-//const server = "test.mosquitto.org:1883"
-const server = "test.mosquitto.org:8883"
+//const server = "tcp://test.mosquitto.org:1883"
+const server = "ssl://test.mosquitto.org:8883"
 
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
@@ -38,9 +37,6 @@ var (
 	console = machine.UART0
 
 	adaptor *espat.Device
-	conn    espat.Conn
-	err     error
-	mid     uint16
 	topic   = "tinygo"
 )
 
@@ -62,40 +58,34 @@ func main() {
 		connectToAP()
 	} else {
 		println("")
-		println("Unable to connect to wifi adaptor.")
+		failMessage("Unable to connect to wifi adaptor.")
 		return
 	}
 
-	// make connection
-	if useSSL {
-		println("Dialing SSL connection...")
-		conn, err = adaptor.DialTLS("tcp", server, nil)
-		if err != nil {
-			println("SSL connect error")
-			println(err)
-			return
-		}
-	} else {
-		println("Dialing TCP connection...")
-		conn, err = adaptor.Dial("tcp", server)
-		if err != nil {
-			println("TCP connect error")
-			println(err)
-			return
-		}
+	opts := mqtt.NewClientOptions(adaptor)
+	opts.AddBroker(server).SetClientID("tinygo-client-" + randomString(10))
+
+	println("Connectng to MQTT...")
+	cl := mqtt.NewClient(opts)
+	if token := cl.Connect(); token.Wait() && token.Error() != nil {
+		failMessage(token.Error().Error())
 	}
 
-	err = connectToMQTTServer()
-
 	for {
-		publishToMQTT()
+		println("Publishing MQTT message...")
+		data := []byte("{\"e\":[{ \"n\":\"hello\", \"v\":101 }]}")
+		token := cl.Publish(topic, 0, false, data)
+		token.Wait()
+		if token.Error() != nil {
+			println(token.Error().Error())
+		}
 
 		time.Sleep(1000 * time.Millisecond)
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
-	println("Disconnecting TCP...")
-	conn.Close()
+	println("Disconnecting MQTT...")
+	cl.Disconnect(100)
 
 	println("Done.")
 }
@@ -123,56 +113,6 @@ func connectToAP() {
 	println(adaptor.GetClientIP())
 }
 
-func connectToMQTTServer() error {
-	// send the MQTT connect message
-	connectPkt := packets.NewControlPacket(packets.Connect).(*packets.ConnectPacket)
-	connectPkt.Qos = 0
-	// connectPkt.Username = "tinygo"
-	// connectPkt.Password = []byte("1234")
-	connectPkt.ClientIdentifier = "tinygo-client-" + randomString(10)
-	connectPkt.ProtocolVersion = 4
-	connectPkt.ProtocolName = "MQTT"
-	connectPkt.Keepalive = 30
-
-	println("Sending MQTT connect...")
-	err := connectPkt.Write(conn)
-	if err != nil {
-		println("mqtt connect error")
-		println(err.Error())
-		return err
-	}
-
-	println("Waiting for MQTT connect...")
-	// TODO: handle timeout
-	for {
-		packet, _ := packets.ReadPacket(conn)
-
-		if packet != nil {
-			_, ok := packet.(*packets.ConnackPacket)
-			if ok {
-				println("Connected to MQTT server.")
-				println(packet.String())
-				return nil
-			}
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
-func publishToMQTT() error {
-	println("Publishing MQTT message...")
-
-	publish := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
-	publish.Qos = 0
-	publish.TopicName = topic
-	publish.Payload = []byte("Hello, mqtt\r\n")
-	publish.MessageID = mid
-	mid++
-
-	return publish.Write(conn)
-}
-
 // Returns an int >= min, < max
 func randomInt(min, max int) int {
 	return min + rand.Intn(max-min)
@@ -185,4 +125,11 @@ func randomString(len int) string {
 		bytes[i] = byte(randomInt(65, 90))
 	}
 	return string(bytes)
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }
