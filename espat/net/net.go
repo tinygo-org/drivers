@@ -1,113 +1,93 @@
-package espat
+// package net is intended to provide compatible interfaces with the
+// Go standard library's net package.
+package net
 
 import (
 	"errors"
 	"strconv"
 	"strings"
 	"time"
+
+	"tinygo.org/x/drivers/espat"
 )
 
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
-func (d *Device) DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
+func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
 	addr := raddr.IP.String()
 	sendport := strconv.Itoa(raddr.Port)
 	listenport := strconv.Itoa(laddr.Port)
 
 	// disconnect any old socket
-	d.DisconnectSocket()
+	espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	d.ConnectUDPSocket(addr, sendport, listenport)
+	espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr, raddr: raddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
 
 // ListenUDP listens for UDP connections on the port listed in laddr.
-func (d *Device) ListenUDP(network string, laddr *UDPAddr) (*UDPSerialConn, error) {
+func ListenUDP(network string, laddr *UDPAddr) (*UDPSerialConn, error) {
 	addr := "0"
 	sendport := "0"
 	listenport := strconv.Itoa(laddr.Port)
 
 	// disconnect any old socket
-	d.DisconnectSocket()
+	espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	d.ConnectUDPSocket(addr, sendport, listenport)
+	espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
 
-	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr}, nil
 }
 
 // DialTCP makes a TCP network connection. raadr is the port that the messages will
 // be sent to, and laddr is the port that will be listened to in order to
 // receive incoming messages.
-func (d *Device) DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
+func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
 	addr := raddr.IP.String()
 	sendport := strconv.Itoa(raddr.Port)
 
 	// disconnect any old socket
-	d.DisconnectSocket()
+	espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	d.ConnectTCPSocket(addr, sendport)
+	espat.ActiveDevice.ConnectTCPSocket(addr, sendport)
 
-	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: d}, laddr: laddr, raddr: raddr}, nil
+	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
 
 // Dial connects to the address on the named network.
 // It tries to provide a mostly compatible interface
 // to net.Dial().
-func (d *Device) Dial(network, address string) (Conn, error) {
+func Dial(network, address string) (Conn, error) {
 	switch network {
 	case "tcp":
-		raddr, err := d.ResolveTCPAddr(network, address)
+		raddr, err := ResolveTCPAddr(network, address)
 		if err != nil {
 			return nil, err
 		}
 
-		c, e := d.DialTCP(network, &TCPAddr{}, raddr)
+		c, e := DialTCP(network, &TCPAddr{}, raddr)
 		return c.opConn(), e
 	case "udp":
-		raddr, err := d.ResolveUDPAddr(network, address)
+		raddr, err := ResolveUDPAddr(network, address)
 		if err != nil {
 			return nil, err
 		}
 
-		c, e := d.DialUDP(network, &UDPAddr{}, raddr)
+		c, e := DialUDP(network, &UDPAddr{}, raddr)
 		return c.opConn(), e
 	default:
 		return nil, errors.New("invalid network for dial")
 	}
 }
 
-// DialTLS makes a TLS network connection. It tries to provide a mostly compatible interface
-// to tls.Dial().
-// DialTLS connects to the given network address.
-func (d *Device) DialTLS(network, address string, config *TLSConfig) (*TCPSerialConn, error) {
-	raddr, err := d.ResolveTCPAddr(network, address)
-	if err != nil {
-		return nil, err
-	}
-
-	addr := raddr.IP.String()
-	sendport := strconv.Itoa(raddr.Port)
-
-	// disconnect any old socket
-	d.DisconnectSocket()
-
-	// connect new socket
-	err = d.ConnectSSLSocket(addr, sendport)
-	if err != nil {
-		return nil, err
-	}
-
-	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: d}, raddr: raddr}, nil
-}
-
 // SerialConn is a loosely net.Conn compatible implementation
 type SerialConn struct {
-	Adaptor *Device
+	Adaptor *espat.Device
 }
 
 // UDPSerialConn is a loosely net.Conn compatible intended to support
@@ -118,12 +98,22 @@ type UDPSerialConn struct {
 	raddr *UDPAddr
 }
 
+// NewUDPSerialConn returns a new UDPSerialConn/
+func NewUDPSerialConn(c SerialConn, laddr, raddr *UDPAddr) *UDPSerialConn {
+	return &UDPSerialConn{SerialConn: c, raddr: raddr}
+}
+
 // TCPSerialConn is a loosely net.Conn compatible intended to support
 // TCP over serial.
 type TCPSerialConn struct {
 	SerialConn
 	laddr *TCPAddr
 	raddr *TCPAddr
+}
+
+// NewTCPSerialConn returns a new TCPSerialConn/
+func NewTCPSerialConn(c SerialConn, laddr, raddr *TCPAddr) *TCPSerialConn {
+	return &TCPSerialConn{SerialConn: c, raddr: raddr}
 }
 
 // Read reads data from the connection.
@@ -226,14 +216,15 @@ func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 //
 // The network must be a TCP network name.
 //
-func (d *Device) ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
 	r := strings.Split(address, ":")
-	ip, err := d.GetDNS(r[0])
+	addr, err := espat.ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err
 	}
+	ip := IP(addr)
 	if len(r) > 1 {
 		port, e := strconv.Atoi(r[1])
 		if e != nil {
@@ -248,14 +239,15 @@ func (d *Device) ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 //
 // The network must be a UDP network name.
 //
-func (d *Device) ResolveUDPAddr(network, address string) (*UDPAddr, error) {
+func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	// TODO: make sure network is 'udp'
 	// separate domain from port, if any
 	r := strings.Split(address, ":")
-	ip, err := d.GetDNS(r[0])
+	addr, err := espat.ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err
 	}
+	ip := IP(addr)
 	if len(r) > 1 {
 		port, e := strconv.Atoi(r[1])
 		if e != nil {
@@ -337,11 +329,6 @@ func ParseIP(s string) IP {
 // String returns the string form of the IP address ip.
 func (ip IP) String() string {
 	return string(ip)
-}
-
-// TLSConfig is a placeholder for future compatibility with
-// tls.Config.
-type TLSConfig struct {
 }
 
 // Conn is a generic stream-oriented network connection.

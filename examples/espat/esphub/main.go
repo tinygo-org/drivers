@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/espat"
+	"tinygo.org/x/drivers/espat/net"
 )
 
 // change actAsAP to true to act as an access point instead of connecting to one.
@@ -25,8 +26,6 @@ var (
 	uart = machine.UART1
 	tx   = machine.D10
 	rx   = machine.D11
-
-	console = machine.UART0
 
 	adaptor *espat.Device
 )
@@ -44,7 +43,7 @@ func main() {
 
 	// first check if connected
 	if adaptor.Connected() {
-		console.Write([]byte("Connected to wifi adaptor.\r\n"))
+		println("Connected to wifi adaptor.")
 		adaptor.Echo(false)
 
 		if actAsAP {
@@ -53,24 +52,22 @@ func main() {
 			connectToAP()
 		}
 	} else {
-		console.Write([]byte("\r\n"))
-		console.Write([]byte("Unable to connect to wifi adaptor.\r\n"))
+		println("Unable to connect to wifi adaptor.")
 		return
 	}
 
 	// now make UDP connection
-	laddr := &espat.UDPAddr{Port: 2222}
-	console.Write([]byte("Loading UDP listener...\r\n"))
-	conn, _ := adaptor.ListenUDP("UDP", laddr)
+	laddr := &net.UDPAddr{Port: 2222}
+	println("Loading UDP listener...")
+	conn, _ := net.ListenUDP("UDP", laddr)
 
-	console.Write([]byte("Waiting for data...\r\n"))
+	println("Waiting for data...")
 	data := make([]byte, 50)
 	blink := true
 	for {
 		n, _ := conn.Read(data)
 		if n > 0 {
-			console.Write(data[:n])
-			console.Write([]byte("\r\n"))
+			println(string(data[:n]))
 			conn.Write([]byte("hello back\r\n"))
 		}
 		blink = !blink
@@ -83,29 +80,26 @@ func main() {
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
-	console.Write([]byte("Disconnecting UDP...\r\n"))
+	println("Disconnecting UDP...")
 	conn.Close()
-	console.Write([]byte("Done.\r\n"))
+	println("Done.")
 }
 
 // connect to access point
 func connectToAP() {
-	console.Write([]byte("Connecting to wifi network...\r\n"))
+	println("Connecting to wifi network...")
 	adaptor.SetWifiMode(espat.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
-	console.Write([]byte("Connected.\r\n"))
-	console.Write([]byte(adaptor.GetClientIP()))
-	console.Write([]byte("\r\n"))
+	println("Connected.")
+	println(adaptor.GetClientIP())
 }
 
 // provide access point
 func provideAP() {
-	console.Write([]byte("Starting wifi network as access point '"))
-	console.Write([]byte(ssid))
-	console.Write([]byte("'...\r\n"))
+	println("Starting wifi network as access point:")
+	println(ssid)
 	adaptor.SetWifiMode(espat.WifiModeAP)
 	adaptor.SetAPConfig(ssid, pass, 7, espat.WifiAPSecurityWPA2_PSK)
-	console.Write([]byte("Ready.\r\n"))
-	console.Write([]byte(adaptor.GetAPIP()))
-	console.Write([]byte("\r\n"))
+	println("Ready.")
+	println(adaptor.GetAPIP())
 }

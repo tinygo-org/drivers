@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/espat"
+	"tinygo.org/x/drivers/espat/net"
 )
 
 // access point info
@@ -26,8 +27,6 @@ var (
 	tx   = machine.D10
 	rx   = machine.D11
 
-	console = machine.UART0
-
 	adaptor *espat.Device
 )
 
@@ -40,44 +39,42 @@ func main() {
 
 	// first check if connected
 	if adaptor.Connected() {
-		console.Write([]byte("Connected to wifi adaptor.\r\n"))
+		println("Connected to wifi adaptor.")
 		adaptor.Echo(false)
 
 		connectToAP()
 	} else {
-		console.Write([]byte("\r\n"))
-		console.Write([]byte("Unable to connect to wifi adaptor.\r\n"))
+		println("Unable to connect to wifi adaptor.")
 		return
 	}
 
 	// now make UDP connection
-	ip := espat.ParseIP(hubIP)
-	raddr := &espat.UDPAddr{IP: ip, Port: 2222}
-	laddr := &espat.UDPAddr{Port: 2222}
+	ip := net.ParseIP(hubIP)
+	raddr := &net.UDPAddr{IP: ip, Port: 2222}
+	laddr := &net.UDPAddr{Port: 2222}
 
-	console.Write([]byte("Dialing UDP connection...\r\n"))
-	conn, _ := adaptor.DialUDP("udp", laddr, raddr)
+	println("Dialing UDP connection...")
+	conn, _ := net.DialUDP("udp", laddr, raddr)
 
 	for {
 		// send data
-		console.Write([]byte("Sending data...\r\n"))
+		println("Sending data...")
 		conn.Write([]byte("hello\r\n"))
 
 		time.Sleep(1000 * time.Millisecond)
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
-	console.Write([]byte("Disconnecting UDP...\r\n"))
+	println("Disconnecting UDP...")
 	conn.Close()
-	console.Write([]byte("Done.\r\n"))
+	println("Done.")
 }
 
 // connect to access point
 func connectToAP() {
-	console.Write([]byte("Connecting to wifi network...\r\n"))
+	println("Connecting to wifi network...")
 	adaptor.SetWifiMode(espat.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
-	console.Write([]byte("Connected.\r\n"))
-	console.Write([]byte(adaptor.GetClientIP()))
-	console.Write([]byte("\r\n"))
+	println("Connected.")
+	println(adaptor.GetClientIP())
 }
