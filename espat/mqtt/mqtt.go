@@ -7,6 +7,8 @@ import (
 
 	"github.com/eclipse/paho.mqtt.golang/packets"
 	"tinygo.org/x/drivers/espat"
+	"tinygo.org/x/drivers/espat/net"
+	"tinygo.org/x/drivers/espat/tls"
 )
 
 // NewClient will create an MQTT v3.1.1 client with all of the options specified
@@ -20,7 +22,7 @@ func NewClient(o *ClientOptions) Client {
 
 type mqttclient struct {
 	adaptor   *espat.Device
-	conn      espat.Conn
+	conn      net.Conn
 	connected bool
 	opts      *ClientOptions
 	mid       uint16
@@ -52,13 +54,13 @@ func (c *mqttclient) Connect() Token {
 	// make connection
 	if strings.Contains(c.opts.Servers, "ssl://") {
 		url := strings.TrimPrefix(c.opts.Servers, "ssl://")
-		c.conn, err = c.adaptor.DialTLS("tcp", url, nil)
+		c.conn, err = tls.Dial("tcp", url, nil)
 		if err != nil {
 			return &mqtttoken{err: err}
 		}
 	} else if strings.Contains(c.opts.Servers, "tcp://") {
 		url := strings.TrimPrefix(c.opts.Servers, "tcp://")
-		c.conn, err = c.adaptor.Dial("tcp", url)
+		c.conn, err = net.Dial("tcp", url)
 		if err != nil {
 			return &mqtttoken{err: err}
 		}

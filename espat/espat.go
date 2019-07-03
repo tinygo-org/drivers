@@ -36,6 +36,9 @@ type Device struct {
 	socketdata []byte
 }
 
+// ActiveDevice is the currently configured Device in use. There can only be one.
+var ActiveDevice *Device
+
 // New returns a new espat driver. Pass in a fully configured UART bus.
 func New(b machine.UART) *Device {
 	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
@@ -43,6 +46,7 @@ func New(b machine.UART) *Device {
 
 // Configure sets up the device for communication.
 func (d Device) Configure() {
+	ActiveDevice = &d
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.

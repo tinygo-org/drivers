@@ -15,14 +15,14 @@ const (
 )
 
 // GetDNS returns the IP address for a domain name.
-func (d *Device) GetDNS(domain string) (IP, error) {
+func (d *Device) GetDNS(domain string) (string, error) {
 	d.Set(TCPDNSLookup, "\""+domain+"\"")
 	r := strings.Split(string(d.Response(1000)), ":")
 	if len(r) != 2 {
-		return nil, errors.New("Invalid domain lookup result")
+		return "", errors.New("Invalid domain lookup result")
 	}
 	res := strings.Split(r[1], "\r\n")
-	return IP(res[0]), nil
+	return res[0], nil
 }
 
 // ConnectTCPSocket creates a new TCP socket connection for the ESP8266/ESP32.
