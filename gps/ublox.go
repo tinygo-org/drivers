@@ -49,5 +49,5 @@ func sendCommand(gpsDevice GPSDevice, command []byte) (err error) {
 			}
 		}
 	}
-	return errors.New("No ACK to GPS command")
+	return errors.New("no ACK to GPS command")
 }

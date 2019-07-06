@@ -74,7 +74,7 @@ func (d *Device) Seek(offset int64, whence int) (int64, error) {
 	case 2:
 		whence = SRAMEndAddress
 	default:
-		return 0, errors.New("Invalid starting point")
+		return 0, errors.New("invalid starting point")
 	}
 	d.AddressSRAM = uint8(whence) + uint8(offset)
 	if d.AddressSRAM > SRAMEndAddress {
@@ -87,7 +87,7 @@ func (d *Device) Seek(offset int64, whence int) (int64, error) {
 // returns number of bytes written and error, if any
 func (d *Device) Write(data []byte) (n int, err error) {
 	if int(d.AddressSRAM)+len(data)-1 > SRAMEndAddress {
-		return 0, errors.New("Writing outside of SRAM")
+		return 0, errors.New("writing outside of SRAM")
 	}
 	buffer := make([]byte, len(data)+1)
 	buffer[0] = d.AddressSRAM
