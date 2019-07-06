@@ -87,7 +87,7 @@ func (g *GPIO) write4BitMode(data byte) {
 // Ram address can be changed by writing address in command mode
 func (g *GPIO) Read(data []byte) (n int, err error) {
 	if len(data) == 0 {
-		return 0, errors.New("Length greater than 0 is required")
+		return 0, errors.New("length greater than 0 is required")
 	}
 	g.rw.High()
 	g.reconfigureGPIOMode(machine.PinInput)
