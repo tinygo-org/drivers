@@ -20,17 +20,17 @@ func main() {
 	bzrPin := machine.A0
 	bzrPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	bzr := buzzer.New(machine.A0)
+	bzr := buzzer.New(bzrPin)
 
 	song := []note{
-		{buzzer.C4, buzzer.Quarter},
-		{buzzer.D4, buzzer.Quarter},
-		{buzzer.E4, buzzer.Quarter},
-		{buzzer.F4, buzzer.Quarter},
-		{buzzer.G4, buzzer.Quarter},
-		{buzzer.A4, buzzer.Quarter},
-		{buzzer.B4, buzzer.Quarter},
-		{buzzer.C5, buzzer.Quarter},
+		{buzzer.C3, buzzer.Quarter},
+		{buzzer.D3, buzzer.Quarter},
+		{buzzer.E3, buzzer.Quarter},
+		{buzzer.F3, buzzer.Quarter},
+		{buzzer.G3, buzzer.Quarter},
+		{buzzer.A3, buzzer.Quarter},
+		{buzzer.B3, buzzer.Quarter},
+		{buzzer.C3, buzzer.Quarter},
 	}
 
 	for _, val := range song {
