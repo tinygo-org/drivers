@@ -12,10 +12,10 @@ import (
 )
 
 type Config struct {
-	Width        int16
+	Width        int16 // Width is the display resolution
 	Height       int16
-	Rotation     uint8
-	DisplayWidth int16
+	LogicalWidth int16    // LogicalWidth must be a multiple of 8 and same size or bigger than Width
+	Rotation     Rotation // Rotation is clock-wise
 }
 
 type Device struct {
@@ -24,13 +24,15 @@ type Device struct {
 	dc           machine.Pin
 	rst          machine.Pin
 	busy         machine.Pin
+	logicalWidth int16
 	width        int16
-	displayWidth int16
 	height       int16
 	buffer       []uint8
 	bufferLength uint32
-	rotation     uint8
+	rotation     Rotation
 }
+
+type Rotation uint8
 
 // Look up table for full updates
 var lutFullUpdate = [30]uint8{
@@ -65,23 +67,23 @@ func New(bus machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
 
 // Configure sets up the device.
 func (d *Device) Configure(cfg Config) {
+	if cfg.LogicalWidth != 0 {
+		d.logicalWidth = cfg.LogicalWidth
+	} else {
+		d.logicalWidth = 128
+	}
 	if cfg.Width != 0 {
 		d.width = cfg.Width
 	} else {
-		d.width = 128
-	}
-	if cfg.DisplayWidth != 0 {
-		d.displayWidth = cfg.DisplayWidth
-	} else {
-		d.displayWidth = 122
+		d.width = 122
 	}
 	if cfg.Height != 0 {
 		d.height = cfg.Height
 	} else {
 		d.height = 250
 	}
-	d.rotation = cfg.Rotation % 4
-	d.bufferLength = (uint32(d.width) * uint32(d.height)) / 8
+	d.rotation = cfg.Rotation
+	d.bufferLength = (uint32(d.logicalWidth) * uint32(d.height)) / 8
 	d.buffer = make([]uint8, d.bufferLength)
 	for i := uint32(0); i < d.bufferLength; i++ {
 		d.buffer[i] = 0xFF
@@ -169,10 +171,10 @@ func (d *Device) SetLUT(fullUpdate bool) {
 // Anything else as black
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	x, y = d.xy(x, y)
-	if x < 0 || x >= d.width || y < 0 || y >= d.height {
+	if x < 0 || x >= d.logicalWidth || y < 0 || y >= d.height {
 		return
 	}
-	byteIndex := (x + y*d.width) / 8
+	byteIndex := (x + y*d.logicalWidth) / 8
 	if c.R == 0 && c.G == 0 && c.B == 0 { // TRANSPARENT / WHITE
 		d.buffer[byteIndex] |= 0x80 >> uint8(x%8)
 	} else { // WHITE / EMPTY
@@ -182,12 +184,12 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 
 // Display sends the buffer to the screen.
 func (d *Device) Display() error {
-	d.setMemoryArea(0, 0, d.width-1, d.height-1)
+	d.setMemoryArea(0, 0, d.logicalWidth-1, d.height-1)
 	for j := int16(0); j < d.height; j++ {
 		d.setMemoryPointer(0, j)
 		d.SendCommand(WRITE_RAM)
-		for i := int16(0); i < d.width/8; i++ {
-			d.SendData(d.buffer[i+j*(d.width/8)])
+		for i := int16(0); i < d.logicalWidth/8; i++ {
+			d.SendData(d.buffer[i+j*(d.logicalWidth/8)])
 		}
 	}
 
@@ -203,24 +205,24 @@ func (d *Device) Display() error {
 // They might not work as expected if the screen is rotated.
 func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error {
 	x, y = d.xy(x, y)
-	if x < 0 || y < 0 || x >= d.width || y >= d.height || width < 0 || height < 0 {
+	if x < 0 || y < 0 || x >= d.logicalWidth || y >= d.height || width < 0 || height < 0 {
 		return errors.New("wrong rectangle")
 	}
-	if d.rotation == 1 {
+	if d.rotation == ROTATION_90 {
 		width, height = height, width
 		x -= width
-	} else if d.rotation == 2 {
+	} else if d.rotation == ROTATION_180 {
 		x -= width - 1
 		y -= height - 1
-	} else if d.rotation == 3 {
+	} else if d.rotation == ROTATION_270 {
 		width, height = height, width
 		y -= height
 	}
 	x &= 0xF8
 	width &= 0xF8
 	width = x + width // reuse variables
-	if width >= d.width {
-		width = d.width
+	if width >= d.logicalWidth {
+		width = d.logicalWidth
 	}
 	height = y + height
 	if height > d.height {
@@ -233,7 +235,7 @@ func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error 
 		d.setMemoryPointer(8*x, y)
 		d.SendCommand(WRITE_RAM)
 		for i := int16(x); i < width; i++ {
-			d.SendData(d.buffer[i+y*d.width/8])
+			d.SendData(d.buffer[i+y*d.logicalWidth/8])
 		}
 	}
 
@@ -246,7 +248,7 @@ func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error 
 
 // ClearDisplay erases the device SRAM
 func (d *Device) ClearDisplay() {
-	d.setMemoryArea(0, 0, d.width-1, d.height-1)
+	d.setMemoryArea(0, 0, d.logicalWidth-1, d.height-1)
 	d.setMemoryPointer(0, 0)
 	d.SendCommand(WRITE_RAM)
 	for i := uint32(0); i < d.bufferLength; i++ {
@@ -298,27 +300,27 @@ func (d *Device) ClearBuffer() {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
-	if d.rotation == 1 || d.rotation == 3 {
-		return d.height, d.width
+	if d.rotation == ROTATION_90 || d.rotation == ROTATION_270 {
+		return d.height, d.logicalWidth
 	}
-	return d.width, d.height
+	return d.logicalWidth, d.height
 }
 
-// SetRotation changes the rotation of the device
-func (d *Device) SetRotation(rotation uint8) {
-	d.rotation = rotation % 4
+// SetRotation changes the rotation (clock-wise) of the device
+func (d *Device) SetRotation(rotation Rotation) {
+	d.rotation = rotation
 }
 
 // xy chages the coordinates according to the rotation
 func (d *Device) xy(x, y int16) (int16, int16) {
 	switch d.rotation {
-	case 0:
+	case NO_ROTATION:
 		return x, y
-	case 1:
-		return d.displayWidth - y - 1, x
-	case 2:
-		return d.displayWidth - x - 1, d.height - y - 1
-	case 3:
+	case ROTATION_90:
+		return d.width - y - 1, x
+	case ROTATION_180:
+		return d.width - x - 1, d.height - y - 1
+	case ROTATION_270:
 		return y, d.height - x - 1
 	}
 	return x, y

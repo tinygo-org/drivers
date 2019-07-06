@@ -23,4 +23,9 @@ const (
 	SET_RAM_X_ADDRESS_COUNTER            = 0x4E
 	SET_RAM_Y_ADDRESS_COUNTER            = 0x4F
 	TERMINATE_FRAME_READ_WRITE           = 0xFF
+
+	NO_ROTATION  Rotation = 0
+	ROTATION_90  Rotation = 1 // 90 degrees clock-wise rotation
+	ROTATION_180 Rotation = 2
+	ROTATION_270 Rotation = 3
 )
