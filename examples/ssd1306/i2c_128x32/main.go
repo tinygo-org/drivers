@@ -1,4 +1,4 @@
-package i2c_128x32
+package main
 
 import (
 	"machine"
