@@ -1,4 +1,4 @@
-package st7735
+package main
 
 import (
 	"machine"
