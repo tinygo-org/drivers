@@ -351,27 +351,15 @@ func (d *Device) SetRotation(rotation Rotation) {
 	madctl := uint8(0)
 	switch rotation % 4 {
 	case 0:
-		if d.model == MINI80x160 {
-			madctl = MADCTL_MX | MADCTL_MY
-		} else {
-			madctl = MADCTL_MX | MADCTL_MY
-		}
+		madctl = MADCTL_MX | MADCTL_MY
 		break
 	case 1:
-		if d.model == MINI80x160 {
-			madctl = MADCTL_MY | MADCTL_MV
-		} else {
-			madctl = MADCTL_MY | MADCTL_MV
-		}
+		madctl = MADCTL_MY | MADCTL_MV
 		break
 	case 2:
 		break
 	case 3:
-		if d.model == MINI80x160 {
-			madctl = MADCTL_MX | MADCTL_MY
-		} else {
-			madctl = MADCTL_MX | MADCTL_MV
-		}
+		madctl = MADCTL_MX | MADCTL_MV
 		break
 	}
 	if d.isBGR {
