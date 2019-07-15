@@ -30,6 +30,7 @@ type Device struct {
 	batchLength  int16
 	model        Model
 	isBGR        bool
+	batchData    []uint8
 }
 
 // Config is the configuration for the display
@@ -96,6 +97,7 @@ func (d *Device) Configure(cfg Config) {
 		d.batchLength = d.height
 	}
 	d.batchLength += d.batchLength & 1
+	d.batchData = make([]uint8, d.batchLength*2)
 
 	// reset the device
 	d.resetPin.High()
@@ -258,11 +260,9 @@ func (d *Device) setWindow(x, y, w, h int16) {
 
 // FillRectangle fills a rectangle at a given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
+	k, i := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
-		(((d.rotation == NO_ROTATION || d.rotation == ROTATION_180) &&
-			(x >= d.width || y >= d.height || (x+width) > d.width || (y+height) > d.height)) ||
-			((d.rotation == ROTATION_90 || d.rotation == ROTATION_270) &&
-				(x >= d.height || y >= d.width || (x+width) > d.height || (y+height) > d.width))) {
+		x >= k || (x+width) > k || y >= i || (y+height) > i {
 		return errors.New("rectangle coordinates outside display area")
 	}
 	d.setWindow(x, y, width, height)
@@ -270,17 +270,16 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	c1 := uint8(c565 >> 8)
 	c2 := uint8(c565)
 
-	data := make([]uint8, d.batchLength*2)
-	for i := int16(0); i < d.batchLength; i++ {
-		data[i*2] = c1
-		data[i*2+1] = c2
+	for i = 0; i < d.batchLength; i++ {
+		d.batchData[i*2] = c1
+		d.batchData[i*2+1] = c2
 	}
-	i := width * height
+	i = width * height
 	for i > 0 {
 		if i >= d.batchLength {
-			d.Tx(data, false)
+			d.Tx(d.batchData, false)
 		} else {
-			d.Tx(data[:i*2], false)
+			d.Tx(d.batchData[:i*2], false)
 		}
 		i -= d.batchLength
 	}
@@ -289,31 +288,34 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 
 // FillRectangle fills a rectangle at a given coordinates with a buffer
 func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
+	k, l := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
-		(((d.rotation == NO_ROTATION || d.rotation == ROTATION_180) &&
-			(x >= d.width || y >= d.height || (x+width) > d.width || (y+height) > d.height)) ||
-			((d.rotation == ROTATION_90 || d.rotation == ROTATION_270) &&
-				(x >= d.height || y >= d.width || (x+width) > d.height || (y+height) > d.width))) {
+		x >= k || (x+width) > k || y >= l || (y+height) > l {
 		return errors.New("rectangle coordinates outside display area")
 	}
+	k = width * height
+	l = int16(len(buffer))
+	if k != l {
+		return errors.New("buffer length does not match with rectangle size")
+	}
+
 	d.setWindow(x, y, width, height)
 
-	k := width * height
-	data := make([]uint8, d.batchLength*2)
 	offset := int16(0)
 	for k > 0 {
 		for i := int16(0); i < d.batchLength; i++ {
-
-			c565 := RGBATo565(buffer[offset+i])
-			c1 := uint8(c565 >> 8)
-			c2 := uint8(c565)
-			data[i*2] = c1
-			data[i*2+1] = c2
+			if offset+i<l {
+				c565 := RGBATo565(buffer[offset+i])
+				c1 := uint8(c565 >> 8)
+				c2 := uint8(c565)
+				d.batchData[i*2] = c1
+				d.batchData[i*2+1] = c2
+			}
 		}
 		if k >= d.batchLength {
-			d.Tx(data, false)
+			d.Tx(d.batchData, false)
 		} else {
-			d.Tx(data[:k*2], false)
+			d.Tx(d.batchData[:k*2], false)
 		}
 		k -= d.batchLength
 		offset += d.batchLength
@@ -433,9 +435,6 @@ func (d *Device) IsBGR(bgr bool) {
 // RGBATo565 converts a color.RGBA to uint16 used in the display
 func RGBATo565(c color.RGBA) uint16 {
 	r, g, b, _ := c.RGBA()
-	/*r = 65535-r
-	g = 65535-g
-	b = 65535-b*/
 	return uint16((r & 0xF800) +
 		((g & 0xFC00) >> 5) +
 		((b & 0xF800) >> 11))
