@@ -8,6 +8,19 @@ The way this driver works is by using the UART interface to communicate with the
 
 In order to use this driver, you must have the ESP-AT firmware installed on the ESP8266/ESP32 chip.
 
+### Installing on Arduino Nano33 IoT
+
+In order to install the needed firmware on the Arduino Nano33 IoT board's built-in NINA W102 chip, you will need to use the `arduino-nano33-iot` branch of this fork of the firmware:
+
+https://github.com/hybridgroup/esp32-at
+
+To flash this firmware on the Arduino Nano33 IoT you will need to follow the following procedure:
+
+- Using the normal Arduino software, load the `SerialNINAPassthrough` sketch on to the board.
+- Flash the NINA 102 firmware using the `make flash` command in the https://github.com/hybridgroup/esp32-at repo.
+
+You only need to do this one time, and then the correct ESP-AT firmware will be on the NINA chip, and you can just flash the Arduino Nano33 IoT board using TinyGo. We should be able to remove some of these step in a future release of this software.
+
 ### Installing on ESP32
 
 The official repository for the ESP-AT for the ESP32 processor is located here:
