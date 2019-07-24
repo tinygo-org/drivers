@@ -16,7 +16,9 @@ https://github.com/hybridgroup/esp32-at
 
 To flash this firmware on the Arduino Nano33 IoT you will need to follow the following procedure:
 
-- Using the normal Arduino software, load the `SerialNINAPassthrough` sketch on to the board.
+- Install _Arduino SAMD Boards_ from the Boards Manager.
+- Install _WiFiNANO_ from the Library Manager.
+- Using the normal Arduino software, load the `SerialNINAPassthrough` sketch on to the board (in File -> Examples -> WiFiNINA-> Tools).
 - Flash the NINA 102 firmware using the `make flash` command in the https://github.com/hybridgroup/esp32-at repo.
 
 You only need to do this one time, and then the correct ESP-AT firmware will be on the NINA chip, and you can just flash the Arduino Nano33 IoT board using TinyGo. We should be able to remove some of these step in a future release of this software.
