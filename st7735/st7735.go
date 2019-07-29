@@ -252,9 +252,9 @@ func (d *Device) setWindow(x, y, w, h int16) {
 		y += d.columnOffset
 	}
 	d.Tx([]uint8{CASET}, true)
-	d.Tx([]uint8{uint8(x << 8), uint8(x), uint8((x + w - 1) << 8), uint8(x + w - 1)}, false)
+	d.Tx([]uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)}, false)
 	d.Tx([]uint8{RASET}, true)
-	d.Tx([]uint8{uint8(y << 8), uint8(y), uint8((y + h - 1) << 8), uint8(y + h - 1)}, false)
+	d.Tx([]uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)}, false)
 	d.Command(RAMWR)
 }
 
