@@ -234,9 +234,8 @@ func (d *Device) Display() error {
 
 // SetPixel sets a pixel in the screen
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
-	if x < 0 || y < 0 ||
-		(((d.rotation == NO_ROTATION || d.rotation == ROTATION_180) && (x >= d.width || y >= d.height)) ||
-			((d.rotation == ROTATION_90 || d.rotation == ROTATION_270) && (x >= d.height || y >= d.width))) {
+	w, h := d.Size()
+	if x < 0 || y < 0 || x >= w || y >= h {
 		return
 	}
 	d.FillRectangle(x, y, 1, 1, c)
@@ -304,7 +303,7 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []col
 	offset := int16(0)
 	for k > 0 {
 		for i := int16(0); i < d.batchLength; i++ {
-			if offset+i<l {
+			if offset+i < l {
 				c565 := RGBATo565(buffer[offset+i])
 				c1 := uint8(c565 >> 8)
 				c2 := uint8(c565)
