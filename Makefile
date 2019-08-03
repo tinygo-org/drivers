@@ -37,8 +37,9 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/sht3x/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/ssd1306/i2c_128x32/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/ssd1306/spi_128x64/main.go
-	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/thermistor/main.go
+	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/st7735/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/st7789/main.go
+	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/thermistor/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/vl53l1x/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/waveshare-epd/epd2in13/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/waveshare-epd/epd2in13x/main.go

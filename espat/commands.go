@@ -42,12 +42,14 @@ const (
 	Disconnect = "+CWQAP"
 
 	// Set softAP configuration. This also activates the ESP8266/ESP32 to act as an access point.
-	// The settings will not be saved in flash memory, so they will be forgotten on next reset.
-	SoftAPConfigCurrent = "+CWSAP_CUR"
+	// On the ESP8266 the settings will not be saved in flash memory, so they will be forgotten on next reset.
+	// On the ESP32 the settings WILL be saved in flash memory, so they will be used on next reset.
+	SoftAPConfigCurrent = "+CWSAP"
 
-	// Set softAP configuration as saved in flash. This also activates the ESP8266/ESP32 to act as an
-	// access point. The settings will be saved in flash memory, so they will be used on next reset.
-	SoftAPConfigFlash = "+CWSAP_DEF"
+	// Set softAP configuration. This also activates the ESP8266/ESP32 to act as an access point.
+	// On the ESP8266 the settings will not be saved in flash memory, so they will be forgotten on next reset.
+	// On the ESP32 the settings WILL be saved in flash memory, so they will be used on next reset.
+	SoftAPConfigFlash = "+CWSAP"
 
 	// List station IP's connected to softAP
 	ListConnectedIP = "+CWLIF"
@@ -65,12 +67,14 @@ const (
 	SetStationIP = "+CIPSTA"
 
 	// Set IP address of ESP8266/ESP32 when acting as access point.
-	// The IP address will not be saved in flash memory, so it will be forgotten on next reset.
-	SetSoftAPIPCurrent = "+CIPAP_CUR"
+	// On the ESP8266 the IP address will not be saved in flash memory, so it will be forgotten on next reset.
+	// On the ESP32 the IP address WILL be saved in flash memory, so it will be used on next reset.
+	SetSoftAPIPCurrent = "+CIPAP"
 
 	// Set IP address of ESP8266/ESP32 when acting as access point.
-	// The IP address will be saved in flash memory, so they will be used on next reset.
-	SetSoftAPIPFlash = "+CIPAP_DEF"
+	// On the ESP8266 the IP address will not be saved in flash memory, so it will be forgotten on next reset.
+	// On the ESP32 the IP address WILL be saved in flash memory, so it will be used on next reset.
+	SetSoftAPIPFlash = "+CIPAP"
 )
 
 // TCP/IP commands
@@ -80,6 +84,9 @@ const (
 
 	// Establish TCP connection or register UDP port
 	TCPConnect = "+CIPSTART"
+
+	// DNS Lookup
+	TCPDNSLookup = "+CIPDOMAIN"
 
 	// Send Data
 	TCPSend = "+CIPSEND"

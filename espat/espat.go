@@ -36,6 +36,9 @@ type Device struct {
 	socketdata []byte
 }
 
+// ActiveDevice is the currently configured Device in use. There can only be one.
+var ActiveDevice *Device
+
 // New returns a new espat driver. Pass in a fully configured UART bus.
 func New(b machine.UART) *Device {
 	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
@@ -43,6 +46,7 @@ func New(b machine.UART) *Device {
 
 // Configure sets up the device for communication.
 func (d Device) Configure() {
+	ActiveDevice = &d
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.
@@ -50,7 +54,7 @@ func (d *Device) Connected() bool {
 	d.Execute(Test)
 
 	// handle response here, should include "OK"
-	r := d.Response()
+	r := d.Response(100)
 	if strings.Contains(string(r), "OK") {
 		return true
 	}
@@ -93,7 +97,7 @@ func (d Device) Set(cmd, params string) error {
 // Version returns the ESP8266/ESP32 firmware version info.
 func (d Device) Version() []byte {
 	d.Execute(Version)
-	return d.Response()
+	return d.Response(100)
 }
 
 // Echo sets the ESP8266/ESP32 echo setting.
@@ -104,7 +108,7 @@ func (d Device) Echo(set bool) {
 		d.Execute(EchoConfigOff)
 	}
 	// TODO: check for success
-	d.Response()
+	d.Response(100)
 }
 
 // Reset restarts the ESP8266/ESP32 firmware. Due to how the baud rate changes,
@@ -112,13 +116,13 @@ func (d Device) Echo(set bool) {
 // what you are doing when you call this.
 func (d Device) Reset() {
 	d.Execute(Restart)
-	d.Response()
+	d.Response(100)
 }
 
 // ReadSocket returns the data that has already been read in from the responses.
 func (d *Device) ReadSocket(b []byte) (n int, err error) {
 	// make sure no data in buffer
-	d.Response()
+	d.Response(100)
 
 	count := len(b)
 	if len(b) >= len(d.socketdata) {
@@ -137,8 +141,11 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 }
 
 // Response gets the next response bytes from the ESP8266/ESP32.
-func (d *Device) Response() []byte {
-	var i, retries int
+// The call will retry for up to timeout milliseconds before returning nothing.
+func (d *Device) Response(timeout int) []byte {
+	var i int
+	pause := 10 // pause to wait for 10 ms
+	retries := timeout / pause
 
 	header := make([]byte, 2)
 	for {
@@ -174,13 +181,13 @@ func (d *Device) Response() []byte {
 				i++
 			}
 		}
-		retries++
-		if retries > 2 {
+		retries--
+		if retries == 0 {
 			break
 		}
 
 		// pause to make sure is no more data to be read
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(time.Duration(pause) * time.Millisecond)
 	}
 	return d.response[:i]
 }

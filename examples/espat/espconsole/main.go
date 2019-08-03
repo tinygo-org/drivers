@@ -80,11 +80,8 @@ func main() {
 				input[i+1] = byte('\n')
 				adaptor.Write(input[:i+2])
 
-				// give the ESP8266 a chance to respond.
-				time.Sleep(10 * time.Millisecond)
-
 				// display response
-				console.Write(adaptor.Response())
+				console.Write(adaptor.Response(100))
 
 				// prompt
 				prompt()
@@ -118,6 +115,7 @@ func connectToAP() {
 
 // provide access point
 func provideAP() {
+	time.Sleep(500 * time.Millisecond)
 	console.Write([]byte("Starting wifi network as access point '"))
 	console.Write([]byte(ssid))
 	console.Write([]byte("'...\r\n"))

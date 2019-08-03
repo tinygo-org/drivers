@@ -1,4 +1,4 @@
-package i2c_128x64
+package main
 
 import (
 	"image/color"
