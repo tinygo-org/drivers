@@ -1,3 +1,13 @@
+0.4.0
+---
+- **new devices**
+    - SSD1331 TFT color display
+    - ST7735 TFT color display
+    - ST7789 TFT color display
+- **docs**
+    - espat
+        - complete list of dependencies for flashing NINA-W102 as used in Arduino Nano33 IoT board.
+
 0.3.0
 ---
 - **new devices**
