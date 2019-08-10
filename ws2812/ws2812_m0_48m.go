@@ -23,7 +23,7 @@ func (d Device) WriteByte(c byte) error {
 	// T1L: 22 cycles or 458.3ns -> together 49 cycles or 1020.8ns
 	value := uint32(c) << 24
 	arm.AsmFull(`
-	send_bit:
+	1: @ send_bit
 		str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
 		lsls  {value}, #1              @ [1]
 		nop                            @ [6]
@@ -32,9 +32,9 @@ func (d Device) WriteByte(c byte) error {
 		nop
 		nop
 		nop
-		bcs.n skip_store               @ [1/3]
+		bcs.n 2f                       @ [1/3] skip_store
 		str   {maskClear}, {portClear} @ [2]   T0H -> T0L transition
-	skip_store:
+	2: @ skip_store
 		nop                            @ [15]
 		nop
 		nop
@@ -68,7 +68,7 @@ func (d Device) WriteByte(c byte) error {
 		nop
 		nop
 		subs  {i}, #1                  @ [1]
-		bne.n send_bit                 @ [1/3]
+		bne.n 1b                       @ [1/3] send_bit
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
