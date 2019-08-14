@@ -1,4 +1,4 @@
-// +build circuitplay_express itsybitsy_m0
+// +build circuitplay_express itsybitsy_m0 arduino_nano33
 
 package ws2812
 
