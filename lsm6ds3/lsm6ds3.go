@@ -96,10 +96,6 @@ func (d *Device) Configure(cfg Configuration) {
 
 		// Enable pedometer
 		d.bus.WriteRegister(uint8(d.Address), TAP_CFG, []byte{0x40})
-
-		// Configure step detector interrupt
-		//d.bus.WriteRegister(uint8(d.Address), INT1_CTRL, []byte{0x10}) // FIFO
-
 	} else { // NORMAL USE
 		// Configure accelerometer
 		data := make([]uint8, 1)
