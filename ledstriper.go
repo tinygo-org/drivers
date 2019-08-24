@@ -2,7 +2,7 @@ package drivers
 
 import "image/color"
 
-type LedStriper interface {
+type LEDStriper interface {
 	// Write the raw bitstring out using the specific led strip protocol.
 	Write(buf []byte) (n int, err error)
 

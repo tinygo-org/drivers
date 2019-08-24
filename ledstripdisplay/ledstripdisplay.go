@@ -1,4 +1,4 @@
-// Simple driver to create a _screen_ with led strips
+// Simple driver to create a _screen_ with LED strips
 package ledstripdisplay // import "tinygo.org/x/drivers/ledstripdisplay"
 
 import (
@@ -9,7 +9,7 @@ import (
 
 const (
 	/**
-	 * Order of the ledstrip in the different layouts
+	 * Order of the LEDstrip in the different layouts
 	 *
 	 * PARALLEL_1 :
 	 *  0  1  2  3
@@ -49,9 +49,9 @@ const (
 type Layout uint8
 type Rotation uint8
 
-// Device holds LedStriper device and some other information
+// Device holds LEDStriper device and some other information
 type Device struct {
-	ledstrip drivers.LedStriper
+	ledstrip drivers.LEDStriper
 	width    int16
 	height   int16
 	layout   Layout
@@ -64,8 +64,8 @@ type Config struct {
 	Rotation Rotation
 }
 
-// New returns a new ledstripdisplay driver given a LedStriper, layout and rotation
-func New(ledstrip drivers.LedStriper, width, height int16, layout Layout) Device {
+// New returns a new ledstripdisplay driver given a LEDStriper, layout and rotation
+func New(ledstrip drivers.LEDStriper, width, height int16, layout Layout) Device {
 	return Device{
 		ledstrip: ledstrip,
 		width:    width,
