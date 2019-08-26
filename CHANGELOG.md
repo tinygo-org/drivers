@@ -1,3 +1,12 @@
+0.5.0
+---
+- **new devices**
+    - LSM6DS3 accelerometer
+- **bugfixes**
+    - ws2812: fix timings for the nrf51
+- **enhancements**
+    - ws2812: Add build tag for Arduino Nano33 IoT
+
 0.4.0
 ---
 - **new devices**
