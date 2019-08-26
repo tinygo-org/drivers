@@ -28,6 +28,7 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hd44780/text/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hub75/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/lis3dh/main.go
+	tinygo build -size short -o ./build/test.elf -target=arduino-nano33 ./examples/lsm6ds3/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/mag3110/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/microbitmatrix/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/mma8653/main.go
