@@ -42,6 +42,7 @@ type Device struct {
 	rstPin machine.GPIO
 }
 
+// Config holds the LoRa configuration parameters
 type Config struct {
 	Frequency       uint32
 	SpreadingFactor uint8
@@ -197,6 +198,7 @@ func (d *Device) Standby() {
 	d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_STDBY)
 }
 
+// GetFrequency returns the frequency the LoRa module is using
 func (d *Device) GetFrequency() uint32 {
 	var f uint64 = uint64(d.readRegister(REG_FRF_LSB))
 	f += uint64(d.readRegister(REG_FRF_MID)) << 8
@@ -205,6 +207,7 @@ func (d *Device) GetFrequency() uint32 {
 	return uint32(f)
 }
 
+// SetFrequency updates the frequency the LoRa module is using
 func (d *Device) SetFrequency(frequency uint32) {
 	var frf uint64 = (uint64(frequency) << 19) / 32000000
 	d.writeRegister(REG_FRF_MSB, uint8(frf>>16))
@@ -212,10 +215,12 @@ func (d *Device) SetFrequency(frequency uint32) {
 	d.writeRegister(REG_FRF_LSB, uint8(frf>>0))
 }
 
+// GetSpreadingFactor returns the spreading factor the LoRa module is using
 func (d *Device) GetSpreadingFactor() uint8 {
 	return d.readRegister(REG_MODEM_CONFIG_2) >> 4
 }
 
+// SetSpreadingFactor updates the spreading factor the LoRa module is using
 func (d *Device) SetSpreadingFactor(spreadingFactor uint8) {
 	if spreadingFactor < 6 {
 		spreadingFactor = 6
@@ -236,6 +241,7 @@ func (d *Device) SetSpreadingFactor(spreadingFactor uint8) {
 	d.setLdoFlag()
 }
 
+// GetBandwidth returns the bandwidth the LoRa module is using
 func (d *Device) GetBandwidth() int32 {
 	var bw = d.readRegister(REG_MODEM_CONFIG_1) >> 4
 
@@ -265,6 +271,7 @@ func (d *Device) GetBandwidth() int32 {
 	return -1
 }
 
+// SetBandwidth updates the bandwidth the LoRa module is using
 func (d *Device) SetBandwidth(sbw int32) {
 	var bw uint8
 
@@ -310,6 +317,7 @@ func (d *Device) setLdoFlag() {
 	d.writeRegister(REG_MODEM_CONFIG_3, config3)
 }
 
+// SetCodingRate updates the coding rate the LoRa module is using
 func (d *Device) SetCodingRate(denominator uint8) {
 	if denominator < 5 {
 		denominator = 5
