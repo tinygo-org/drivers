@@ -112,7 +112,7 @@ func (d *Device) SendPacket(packet []byte) {
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	// reset TX_DONE, FIFO address and paload length
+	// reset TX_DONE, FIFO address and payload length
 	d.writeRegister(REG_IRQ_FLAGS, IRQ_TX_DONE_MASK)
 	d.writeRegister(REG_FIFO_ADDR_PTR, 0)
 	d.writeRegister(REG_PAYLOAD_LENGTH, 0)
