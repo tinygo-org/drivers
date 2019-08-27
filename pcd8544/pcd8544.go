@@ -127,7 +127,7 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 func (d *Device) SetBuffer(buffer []byte) error {
 	if int16(len(buffer)) != d.bufferSize {
 		//return ErrBuffer
-		return errors.New("Wrong size buffer")
+		return errors.New("wrong size buffer")
 	}
 	for i := int16(0); i < d.bufferSize; i++ {
 		d.buffer[i] = buffer[i]

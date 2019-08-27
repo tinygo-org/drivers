@@ -1,4 +1,4 @@
-// Package lis3dh provides a driver for the HD44780 LCD controller.
+// Package hd44780 provides a driver for the HD44780 LCD controller.
 //
 // Datasheet: https://www.sparkfun.com/datasheets/LCD/HD44780.pdf
 //
@@ -66,7 +66,7 @@ func (d *Device) Configure(cfg Config) error {
 	d.width = uint8(cfg.Width)
 	d.height = uint8(cfg.Height)
 	if d.width == 0 || d.height == 0 {
-		return errors.New("Width and height must be set")
+		return errors.New("width and height must be set")
 	}
 	memoryMap := uint8(ONE_LINE)
 	if d.height > 1 {

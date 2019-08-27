@@ -18,14 +18,14 @@ import (
 const ssid = "YOURSSID"
 const pass = "YOURPASS"
 
-// IP address of the listener aka "hub". Replace with your own info.
-const hubIP = "0.0.0.0"
+// IP address of the server aka "hub". Replace with your own info.
+const serverIP = "0.0.0.0"
 
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
 	uart = machine.UART1
-	tx   = machine.D10
-	rx   = machine.D11
+	tx   = machine.PA22
+	rx   = machine.PA23
 
 	adaptor *espat.Device
 )
@@ -48,13 +48,13 @@ func main() {
 		return
 	}
 
-	// now make UDP connection
-	ip := net.ParseIP(hubIP)
-	raddr := &net.UDPAddr{IP: ip, Port: 2222}
-	laddr := &net.UDPAddr{Port: 2222}
+	// now make TCP connection
+	ip := net.ParseIP(serverIP)
+	raddr := &net.TCPAddr{IP: ip, Port: 8080}
+	laddr := &net.TCPAddr{Port: 8080}
 
-	println("Dialing UDP connection...")
-	conn, _ := net.DialUDP("udp", laddr, raddr)
+	println("Dialing TCP connection...")
+	conn, _ := net.DialTCP("tcp", laddr, raddr)
 
 	for {
 		// send data
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
-	println("Disconnecting UDP...")
+	println("Disconnecting TCP...")
 	conn.Close()
 	println("Done.")
 }

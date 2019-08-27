@@ -28,6 +28,7 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hd44780/text/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hub75/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/lis3dh/main.go
+	tinygo build -size short -o ./build/test.elf -target=arduino-nano33 ./examples/lsm6ds3/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/mag3110/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/microbitmatrix/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/mma8653/main.go
@@ -37,11 +38,16 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/sht3x/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/ssd1306/i2c_128x32/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/ssd1306/spi_128x64/main.go
+	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/ssd1331/main.go
+	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/st7735/main.go
+	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/st7789/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/thermistor/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/vl53l1x/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/waveshare-epd/epd2in13/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/ws2812/main.go
 	tinygo build -size short -o ./build/test.elf -target=trinket-m0 ./examples/bme280/main.go
+	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/microphone/main.go
+	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/buzzer/main.go
 
 test: clean fmt-check smoke-test
