@@ -12,14 +12,14 @@ import (
 
 var loraConfig = lora.Config{
 	Frequency:       433998500,
-	SpreadingFactor: 9,
-	Bandwidth:       312500,
+	SpreadingFactor: 7,
+	Bandwidth:       125000,
 	CodingRate:      6,
 	TxPower:         17,
 }
 
 func main() {
-	println("LoRa Example")
+	println("LoRa Sender Example")
 
 	// SPI settings for Feather M0 LoRa board
 	// csPin := machine.GPIO{machine.D8}
@@ -44,10 +44,9 @@ func main() {
 		return
 	}
 
-	var counter int = 0
-	for {
-		counter += 1
-		var packet = "TinyGo LoRa: " + strconv.Itoa(counter)
+	println("Sending LoRa packets every 5 seconds...")
+	for i := 0; ; i++ {
+		var packet = "TinyGo LoRa Sender: " + strconv.Itoa(counter)
 		println("Sending:", packet)
 		loraRadio.SendPacket([]byte(packet))
 		time.Sleep(5000 * time.Millisecond)
