@@ -8,7 +8,7 @@
 // Frequency: is the frequency the tranceiver uses. Valid frequencies depend on
 //  the type of LoRa module, typically around 433MHz or 866MHz. It has
 //  a granularity of about 23Hz, how close it can be to others depends on the
-//  Bandwidth bing used.
+//  Bandwidth being used.
 //
 // Bandwidth: is the bandwidth used for tranmissions, ranging from 7k8 to 512k
 //  A higher bandwidth gives faster transmissions, lower gives greater range
@@ -24,7 +24,7 @@
 //  A higher power gives greater range. Regulations in your country likely
 //  limit the maximum power permited.
 //
-// Presently this is only synchronous and so does not use any DIOx pins
+// Presently this driver is only synchronous and so does not use any DIOx pins
 //
 package sx127x
 
@@ -38,8 +38,8 @@ import (
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
 	spi    machine.SPI
-	csPin  machine.GPIO
-	rstPin machine.GPIO
+	csPin  machine.Pin
+	rstPin machine.Pin
 }
 
 // Config holds the LoRa configuration parameters
@@ -52,7 +52,7 @@ type Config struct {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(spi machine.SPI, csPin machine.GPIO, rstPin machine.GPIO) Device {
+func New(spi machine.SPI, csPin machine.Pin, rstPin machine.Pin) Device {
 	return Device{
 		spi:    spi,
 		csPin:  csPin,
@@ -139,7 +139,7 @@ func (d *Device) IsTransmitting() bool {
 func (d *Device) LastPacketRSSI() uint8 {
 	// section 5.5.5
 	var adjustValue uint8 = 157
-	if d.getFrequency() < 868000000 {
+	if d.GetFrequency() < 868000000 {
 		adjustValue = 164
 	}
 	return d.readRegister(REG_PKT_RSSI_VALUE) - adjustValue
@@ -200,7 +200,7 @@ func (d *Device) Standby() {
 
 // GetFrequency returns the frequency the LoRa module is using
 func (d *Device) GetFrequency() uint32 {
-	var f uint64 = uint64(d.readRegister(REG_FRF_LSB))
+	f := uint64(d.readRegister(REG_FRF_LSB))
 	f += uint64(d.readRegister(REG_FRF_MID)) << 8
 	f += uint64(d.readRegister(REG_FRF_MSB)) << 16
 	f = (f * 32000000) >> 19
@@ -209,7 +209,7 @@ func (d *Device) GetFrequency() uint32 {
 
 // SetFrequency updates the frequency the LoRa module is using
 func (d *Device) SetFrequency(frequency uint32) {
-	var frf uint64 = (uint64(frequency) << 19) / 32000000
+	var frf = (uint64(frequency) << 19) / 32000000
 	d.writeRegister(REG_FRF_MSB, uint8(frf>>16))
 	d.writeRegister(REG_FRF_MID, uint8(frf>>8))
 	d.writeRegister(REG_FRF_LSB, uint8(frf>>0))
@@ -330,22 +330,23 @@ func (d *Device) SetCodingRate(denominator uint8) {
 
 // SetTxPower sets the transmitter output power
 func (d *Device) SetTxPower(txPower int8) {
-	if txPower < 2 {
-		// power is less than 2 dBm, enable PA on RFO
-		writeRegister(REG_PA_CONFIG, PA_SELECT_RFO, 7, 7)
-		writeRegister(REG_PA_CONFIG, LOW_POWER|(txPower+3), 6, 0)
-		writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
-	} else if (txPower >= 2) && (txPower <= 17) {
-		// power is 2 - 17 dBm, enable PA1 + PA2 on PA_BOOST
-		writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
-		writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-2), 6, 0)
-		writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
-	} else if txPower == 20 {
-		// power is 20 dBm, enable PA1 + PA2 on PA_BOOST and enable high power mode
-		writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
-		writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-5), 6, 0)
-		writeRegister(REG_PA_DAC, PA_BOOST_ON, 2, 0)
-	}
+	//TODO
+	// if txPower < 2 {
+	// 	// power is less than 2 dBm, enable PA on RFO
+	// 	writeRegister(REG_PA_CONFIG, PA_SELECT_RFO, 7, 7)
+	// 	writeRegister(REG_PA_CONFIG, LOW_POWER|(txPower+3), 6, 0)
+	// 	writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
+	// } else if (txPower >= 2) && (txPower <= 17) {
+	// 	// power is 2 - 17 dBm, enable PA1 + PA2 on PA_BOOST
+	// 	writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
+	// 	writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-2), 6, 0)
+	// 	writeRegister(REG_PA_DAC, PA_BOOST_OFF, 2, 0)
+	// } else if txPower == 20 {
+	// 	// power is 20 dBm, enable PA1 + PA2 on PA_BOOST and enable high power mode
+	// 	writeRegister(REG_PA_CONFIG, PA_SELECT_BOOST, 7, 7)
+	// 	writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-5), 6, 0)
+	// 	writeRegister(REG_PA_DAC, PA_BOOST_ON, 2, 0)
+	// }
 }
 
 func (d *Device) readRegister(reg uint8) uint8 {

@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/tinygo-org/drivers/lora"
+	"tinygo.org/x/drivers/lora/sx127x"
 )
 
-var loraConfig = lora.Config{
+var loraConfig = sx127x.Config{
 	Frequency:       433998500,
 	SpreadingFactor: 7,
 	Bandwidth:       125000,
@@ -22,17 +22,17 @@ func main() {
 	println("LoRa Sender Example")
 
 	// SPI settings for Feather M0 LoRa board
-	// csPin := machine.GPIO{machine.D8}
-	// csPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	// rstPin := machine.GPIO{machine.D4}
-	// rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	// dio0Pin := machine.GPIO{machine.D3}
-	// dio0Pin.Configure(machine.GPIOConfig{Mode: machine.GPIO_INPUT})
+	csPin := machine.D8
+	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rstPin := machine.D4
+	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	dio0Pin := machine.D3
+	dio0Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	csPin := machine.GPIO{machine.P16}
-	csPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
-	rstPin := machine.GPIO{machine.P0}
-	rstPin.Configure(machine.GPIOConfig{Mode: machine.GPIO_OUTPUT})
+	// csPin := machine.P16
+	// csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// rstPin := machine.P0
+	// rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	machine.SPI0.Configure(machine.SPIConfig{})
 
@@ -46,7 +46,7 @@ func main() {
 
 	println("Sending LoRa packets every 5 seconds...")
 	for i := 0; ; i++ {
-		var packet = "TinyGo LoRa Sender: " + strconv.Itoa(counter)
+		var packet = "TinyGo LoRa Sender: " + strconv.Itoa(i)
 		println("Sending:", packet)
 		loraRadio.SendPacket([]byte(packet))
 		time.Sleep(5000 * time.Millisecond)
