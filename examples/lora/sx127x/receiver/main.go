@@ -16,6 +16,8 @@ var loraConfig = sx127x.Config{
 	TxPower:         17,
 }
 
+var packet [255]byte
+
 func main() {
 	println("LoRa Receiver Example")
 
@@ -38,12 +40,11 @@ func main() {
 	println("Receiving LoRa packets...")
 
 	for {
-		packetSize := loraRadio.parsePacket()
+		packetSize := loraRadio.ParsePacket()
 		if packetSize > 0 {
 			println("Got packet, RSSI=", loraRadio.LastPacketRSSI())
-			var packet [packetSize]byte
-			loraRadio.readPacket(packet)
-			println(string(packet))
+			size := loraRadio.ReadPacket(packet[:])
+			println(string(packet[:size]))
 		}
 	}
 }

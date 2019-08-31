@@ -135,6 +135,16 @@ func (d *Device) IsTransmitting() bool {
 	return (d.readRegister(REG_OP_MODE) & MODE_TX) == MODE_TX
 }
 
+// ParsePacket returns the size of a received packet waiting to be read
+func (d *Device) ParsePacket() int {
+	return 0
+}
+
+// ReadPacket reads a received packet into a byte array
+func (d *Device) ReadPacket(packet []byte) int {
+	return 0
+}
+
 // LastPacketRSSI gives the RSSI of the last packet received
 func (d *Device) LastPacketRSSI() uint8 {
 	// section 5.5.5
