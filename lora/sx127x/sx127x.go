@@ -40,7 +40,7 @@ type Device struct {
 	spi                machine.SPI
 	csPin              machine.Pin
 	rstPin             machine.Pin
-	packetIndex        int
+	packetIndex        uint8
 	implicitHeaderMode bool
 }
 
@@ -184,7 +184,17 @@ func (d *Device) ParsePacket(size uint8) uint8 {
 
 // ReadPacket reads a received packet into a byte array
 func (d *Device) ReadPacket(packet []byte) int {
-	return 0
+	available := int(d.readRegister(REG_RX_NB_BYTES) - d.packetIndex)
+	if available > len(packet) {
+		available = len(packet)
+	}
+
+	for i := 0; i < available; i++ {
+		d.packetIndex++
+		packet[i] = d.readRegister(REG_FIFO)
+	}
+
+	return available
 }
 
 // LastPacketRSSI gives the RSSI of the last packet received
