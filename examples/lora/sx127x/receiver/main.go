@@ -40,7 +40,7 @@ func main() {
 	println("Receiving LoRa packets...")
 
 	for {
-		packetSize := loraRadio.ParsePacket()
+		packetSize := loraRadio.ParsePacket(0)
 		if packetSize > 0 {
 			println("Got packet, RSSI=", loraRadio.LastPacketRSSI())
 			size := loraRadio.ReadPacket(packet[:])

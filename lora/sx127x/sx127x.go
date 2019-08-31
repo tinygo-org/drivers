@@ -37,9 +37,11 @@ import (
 
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
-	spi    machine.SPI
-	csPin  machine.Pin
-	rstPin machine.Pin
+	spi                machine.SPI
+	csPin              machine.Pin
+	rstPin             machine.Pin
+	packetIndex        int
+	implicitHeaderMode bool
 }
 
 // Config holds the LoRa configuration parameters
@@ -136,8 +138,48 @@ func (d *Device) IsTransmitting() bool {
 }
 
 // ParsePacket returns the size of a received packet waiting to be read
-func (d *Device) ParsePacket() int {
-	return 0
+func (d *Device) ParsePacket(size uint8) uint8 {
+	var packetLength uint8
+	irqFlags := d.readRegister(REG_IRQ_FLAGS)
+
+	if size > 0 {
+		d.implicitMode()
+		d.writeRegister(REG_PAYLOAD_LENGTH, size&0xff)
+	} else {
+		d.explicitMode()
+	}
+
+	// clear IRQ's
+	d.writeRegister(REG_IRQ_FLAGS, irqFlags)
+
+	if (irqFlags&IRQ_RX_DONE_MASK) == 0 && (irqFlags&IRQ_PAYLOAD_CRC_ERROR_MASK) == 0 {
+		// received a packet
+		d.packetIndex = 0
+
+		// read packet length
+		if d.implicitHeaderMode {
+			packetLength = d.readRegister(REG_PAYLOAD_LENGTH)
+		} else {
+			packetLength = d.readRegister(REG_RX_NB_BYTES)
+		}
+
+		// set FIFO address to current RX address
+		d.writeRegister(REG_FIFO_ADDR_PTR, d.readRegister(REG_FIFO_RX_CURRENT_ADDR))
+
+		// put in standby mode
+		d.Standby()
+
+	} else if d.readRegister(REG_OP_MODE) != (MODE_LONG_RANGE_MODE | MODE_RX_SINGLE) {
+		// not currently in RX mode
+
+		// reset FIFO address
+		d.writeRegister(REG_FIFO_ADDR_PTR, 0)
+
+		// put in single RX mode
+		d.writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE|MODE_RX_SINGLE)
+	}
+
+	return packetLength
 }
 
 // ReadPacket reads a received packet into a byte array
@@ -357,6 +399,16 @@ func (d *Device) SetTxPower(txPower int8) {
 	// 	writeRegister(REG_PA_CONFIG, MAX_POWER|(txPower-5), 6, 0)
 	// 	writeRegister(REG_PA_DAC, PA_BOOST_ON, 2, 0)
 	// }
+}
+
+func (d *Device) explicitMode() {
+	d.implicitHeaderMode = false
+	d.writeRegister(REG_MODEM_CONFIG_1, d.readRegister(REG_MODEM_CONFIG_1)&0xfe)
+}
+
+func (d *Device) implicitMode() {
+	d.implicitHeaderMode = true
+	d.writeRegister(REG_MODEM_CONFIG_1, d.readRegister(REG_MODEM_CONFIG_1)|0x01)
 }
 
 func (d *Device) readRegister(reg uint8) uint8 {
