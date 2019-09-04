@@ -19,15 +19,21 @@ import (
 // connection) are created before the application is actually ready.
 func NewClient(o *ClientOptions) Client {
 	c := &mqttclient{opts: o, adaptor: o.Adaptor}
+	c.msgRouter, c.stopRouter = newRouter()
 	return c
 }
 
 type mqttclient struct {
-	adaptor   *espat.Device
-	conn      net.Conn
-	connected bool
-	opts      *ClientOptions
-	mid       uint16
+	adaptor         *espat.Device
+	conn            net.Conn
+	connected       bool
+	opts            *ClientOptions
+	mid             uint16
+	inbound         chan packets.ControlPacket
+	stop            chan struct{}
+	msgRouter       *router
+	stopRouter      chan bool
+	incomingPubChan chan *packets.PublishPacket
 }
 
 // AddRoute allows you to add a handler for messages on a specific topic
@@ -71,6 +77,12 @@ func (c *mqttclient) Connect() Token {
 		return &mqtttoken{err: errors.New("invalid protocol")}
 	}
 
+	c.mid = 1
+	c.inbound = make(chan packets.ControlPacket)
+	c.stop = make(chan struct{})
+	c.incomingPubChan = make(chan *packets.PublishPacket)
+	c.msgRouter.matchAndDispatch(c.incomingPubChan, c.opts.Order, c)
+
 	// send the MQTT connect message
 	connectPkt := packets.NewControlPacket(packets.Connect).(*packets.ConnectPacket)
 	connectPkt.Qos = 0
@@ -84,7 +96,7 @@ func (c *mqttclient) Connect() Token {
 		connectPkt.PasswordFlag = true
 	}
 
-	connectPkt.ClientIdentifier = c.opts.ClientID //"tinygo-client-" + randomString(10)
+	connectPkt.ClientIdentifier = c.opts.ClientID
 	connectPkt.ProtocolVersion = byte(c.opts.ProtocolVersion)
 	connectPkt.ProtocolName = "MQTT"
 	connectPkt.Keepalive = 30
@@ -94,26 +106,25 @@ func (c *mqttclient) Connect() Token {
 		return &mqtttoken{err: err}
 	}
 
-	// TODO: handle timeout
-	for {
-		packet, _ := packets.ReadPacket(c.conn)
-
-		if packet != nil {
-			ack, ok := packet.(*packets.ConnackPacket)
-			if ok {
-				if ack.ReturnCode == 0 {
-					// success
-					return &mqtttoken{}
-				}
-				// otherwise something went wrong
+	// TODO: handle timeout as ReadPacket blocks until it gets a packet.
+	// CONNECT response.
+	packet, err := packets.ReadPacket(c.conn)
+	if err != nil {
+		return &mqtttoken{err: err}
+	}
+	if packet != nil {
+		ack, ok := packet.(*packets.ConnackPacket)
+		if ok {
+			if ack.ReturnCode != 0 {
 				return &mqtttoken{err: errors.New(packet.String())}
 			}
+			c.connected = true
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}
 
-	c.connected = true
+	go readMessages(c)
+	go processInbound(c)
+
 	return &mqtttoken{}
 }
 
@@ -129,6 +140,10 @@ func (c *mqttclient) Disconnect(quiesce uint) {
 // to the specified topic.
 // Returns a token to track delivery of the message to the broker
 func (c *mqttclient) Publish(topic string, qos byte, retained bool, payload interface{}) Token {
+	if !c.IsConnected() {
+		return &mqtttoken{err: errors.New("MQTT client not connected")}
+	}
+
 	pub := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
 	pub.Qos = qos
 	pub.TopicName = topic
@@ -144,12 +159,37 @@ func (c *mqttclient) Publish(topic string, qos byte, retained bool, payload inte
 	c.mid++
 
 	err := pub.Write(c.conn)
-	return &mqtttoken{err: err}
+	if err != nil {
+		return &mqtttoken{err: err}
+	}
+
+	return &mqtttoken{}
 }
 
 // Subscribe starts a new subscription. Provide a MessageHandler to be executed when
 // a message is published on the topic provided.
 func (c *mqttclient) Subscribe(topic string, qos byte, callback MessageHandler) Token {
+	if !c.IsConnected() {
+		return &mqtttoken{err: errors.New("MQTT client not connected")}
+	}
+
+	sub := packets.NewControlPacket(packets.Subscribe).(*packets.SubscribePacket)
+	sub.Topics = append(sub.Topics, topic)
+	sub.Qoss = append(sub.Qoss, qos)
+
+	if callback != nil {
+		c.msgRouter.addRoute(topic, callback)
+	}
+
+	sub.MessageID = c.mid
+	c.mid++
+
+	// drop in the channel to send
+	err := sub.Write(c.conn)
+	if err != nil {
+		return &mqtttoken{err: err}
+	}
+
 	return &mqtttoken{}
 }
 
@@ -173,18 +213,92 @@ func (c *mqttclient) OptionsReader() ClientOptionsReader {
 	return r
 }
 
-type mqtttoken struct {
-	err error
+func processInbound(c *mqttclient) {
+	for {
+		select {
+		case msg := <-c.inbound:
+			switch m := msg.(type) {
+			case *packets.PingrespPacket:
+				// TODO: handle this
+			case *packets.SubackPacket:
+				// TODO: handle this
+			case *packets.UnsubackPacket:
+				// TODO: handle this
+			case *packets.PublishPacket:
+				// TODO: handle Qos
+				c.incomingPubChan <- m
+			case *packets.PubackPacket:
+				// TODO: handle this
+			case *packets.PubrecPacket:
+				// TODO: handle this
+			case *packets.PubrelPacket:
+				// TODO: handle this
+			case *packets.PubcompPacket:
+				// TODO: handle this
+			}
+		case <-c.stop:
+			return
+		}
+	}
 }
 
-func (t *mqtttoken) Wait() bool {
-	return true
+// readMessages reads incoming messages off the wire.
+// incoming messages are then send into inbound channel.
+func readMessages(c *mqttclient) {
+	var err error
+	var cp packets.ControlPacket
+
+PROCESS:
+	for {
+		if cp, err = c.ReadPacket(); err != nil {
+			break PROCESS
+		}
+		if cp != nil {
+			c.inbound <- cp
+			// TODO: Notify keepalive logic that we recently received a packet
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// TODO: handle if we received an error on read.
+	// If disconnect is in progress, swallow error and return
 }
 
-func (t *mqtttoken) WaitTimeout(time.Duration) bool {
-	return true
+func (c *mqttclient) ackFunc(packet *packets.PublishPacket) func() {
+	return func() {
+		switch packet.Qos {
+		case 2:
+			// pr := packets.NewControlPacket(packets.Pubrec).(*packets.PubrecPacket)
+			// pr.MessageID = packet.MessageID
+			// DEBUG.Println(NET, "putting pubrec msg on obound")
+			// select {
+			// case c.oboundP <- &PacketAndToken{p: pr, t: nil}:
+			// case <-c.stop:
+			// }
+			// DEBUG.Println(NET, "done putting pubrec msg on obound")
+		case 1:
+			// pa := packets.NewControlPacket(packets.Puback).(*packets.PubackPacket)
+			// pa.MessageID = packet.MessageID
+			// DEBUG.Println(NET, "putting puback msg on obound")
+			// persistOutbound(c.persist, pa)
+			// select {
+			// case c.oboundP <- &PacketAndToken{p: pa, t: nil}:
+			// case <-c.stop:
+			// }
+			// DEBUG.Println(NET, "done putting puback msg on obound")
+		case 0:
+			// do nothing, since there is no need to send an ack packet back
+		}
+	}
 }
 
-func (t *mqtttoken) Error() error {
-	return t.err
+// ReadPacket tries to read the next incoming packet from the MQTT broker.
+// If there is no data yet but also is no error, it returns nil for both values.
+func (c *mqttclient) ReadPacket() (packets.ControlPacket, error) {
+	// check for data first...
+	if espat.ActiveDevice.IsSocketDataAvailable() {
+		return packets.ReadPacket(c.conn)
+	}
+	return nil, nil
 }

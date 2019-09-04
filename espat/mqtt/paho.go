@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eclipse/paho.mqtt.golang/packets"
 	"tinygo.org/x/drivers/espat"
 )
 
@@ -153,6 +154,18 @@ func (m *message) Payload() []byte {
 
 func (m *message) Ack() {
 	return
+}
+
+func messageFromPublish(p *packets.PublishPacket, ack func()) Message {
+	return &message{
+		duplicate: p.Dup,
+		qos:       p.Qos,
+		retained:  p.Retain,
+		topic:     p.TopicName,
+		messageID: p.MessageID,
+		payload:   p.Payload,
+		ack:       ack,
+	}
 }
 
 // ClientOptionsReader provides an interface for reading ClientOptions after the client has been initialized.

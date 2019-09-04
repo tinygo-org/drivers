@@ -17,7 +17,14 @@ const (
 // GetDNS returns the IP address for a domain name.
 func (d *Device) GetDNS(domain string) (string, error) {
 	d.Set(TCPDNSLookup, "\""+domain+"\"")
-	r := strings.Split(string(d.Response(1000)), ":")
+	resp, err := d.Response(1000)
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(string(resp), ":") {
+		return "", errors.New("GetDNS error:" + string(resp))
+	}
+	r := strings.Split(string(resp), ":")
 	if len(r) != 2 {
 		return "", errors.New("Invalid domain lookup result")
 	}
@@ -30,24 +37,30 @@ func (d *Device) GetDNS(domain string) (string, error) {
 func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
-	d.Set(TCPConnect, val)
-	r := d.Response(1000)
-	if strings.Contains(string(r), "OK") {
-		return nil
+	err := d.Set(TCPConnect, val)
+	if err != nil {
+		return err
 	}
-	return errors.New("ConnectTCPSocket error:" + string(r))
+	_, e := d.Response(3000)
+	if e != nil {
+		return e
+	}
+	return nil
 }
 
 // ConnectUDPSocket creates a new UDP connection for the ESP8266/ESP32.
 func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	protocol := "UDP"
 	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",2"
-	d.Set(TCPConnect, val)
-	r := d.Response(pause)
-	if strings.Contains(string(r), "OK") {
-		return nil
+	err := d.Set(TCPConnect, val)
+	if err != nil {
+		return err
 	}
-	return errors.New("ConnectUDPSocket error:" + string(r))
+	_, e := d.Response(3000)
+	if e != nil {
+		return e
+	}
+	return nil
 }
 
 // ConnectSSLSocket creates a new SSL socket connection for the ESP8266/ESP32.
@@ -57,17 +70,23 @@ func (d *Device) ConnectSSLSocket(addr, port string) error {
 	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
 	d.Set(TCPConnect, val)
 	// this operation takes longer, so wait up to 6 seconds to complete.
-	r := d.Response(6000)
-	if strings.Contains(string(r), "CONNECT") {
-		return nil
+	_, err := d.Response(6000)
+	if err != nil {
+		return err
 	}
-	return errors.New("ConnectSSLSocket error:" + string(r))
+	return nil
 }
 
 // DisconnectSocket disconnects the ESP8266/ESP32 from the current TCP/UDP connection.
 func (d *Device) DisconnectSocket() error {
-	d.Execute(TCPClose)
-	d.Response(pause)
+	err := d.Execute(TCPClose)
+	if err != nil {
+		return err
+	}
+	_, e := d.Response(pause)
+	if e != nil {
+		return e
+	}
 	return nil
 }
 
@@ -76,14 +95,14 @@ func (d *Device) DisconnectSocket() error {
 func (d *Device) SetMux(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TCPMultiple, val)
-	d.Response(pause)
-	return nil
+	_, err := d.Response(pause)
+	return err
 }
 
 // GetMux returns the ESP8266/ESP32 current client TCP/UDP configuration for concurrent connections.
 func (d *Device) GetMux() ([]byte, error) {
 	d.Query(TCPMultiple)
-	return d.Response(pause), nil
+	return d.Response(pause)
 }
 
 // SetTCPTransferMode sets the ESP8266/ESP32 current client TCP/UDP transfer mode.
@@ -91,12 +110,12 @@ func (d *Device) GetMux() ([]byte, error) {
 func (d *Device) SetTCPTransferMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TransmissionMode, val)
-	d.Response(pause)
-	return nil
+	_, err := d.Response(pause)
+	return err
 }
 
 // GetTCPTransferMode returns the ESP8266/ESP32 current client TCP/UDP transfer mode.
-func (d *Device) GetTCPTransferMode() []byte {
+func (d *Device) GetTCPTransferMode() ([]byte, error) {
 	d.Query(TransmissionMode)
 	return d.Response(pause)
 }
@@ -108,7 +127,10 @@ func (d *Device) StartSocketSend(size int) error {
 
 	// when ">" is received, it indicates
 	// ready to receive data
-	r := d.Response(pause)
+	r, err := d.Response(2000)
+	if err != nil {
+		return err
+	}
 	if strings.Contains(string(r), ">") {
 		return nil
 	}
@@ -120,6 +142,6 @@ func (d *Device) StartSocketSend(size int) error {
 func (d *Device) EndSocketSend() error {
 	d.Write([]byte("+++"))
 
-	d.Response(pause)
-	return nil
+	_, err := d.Response(pause)
+	return err
 }

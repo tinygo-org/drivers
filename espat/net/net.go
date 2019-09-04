@@ -23,7 +23,10 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
 	espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	err := espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	if err != nil {
+		return nil, err
+	}
 
 	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
@@ -38,7 +41,10 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPSerialConn, error) {
 	espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	err := espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	if err != nil {
+		return nil, err
+	}
 
 	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr}, nil
 }
@@ -50,11 +56,14 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
 	addr := raddr.IP.String()
 	sendport := strconv.Itoa(raddr.Port)
 
-	// disconnect any old socket
-	espat.ActiveDevice.DisconnectSocket()
+	// disconnect any old socket?
+	//espat.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	espat.ActiveDevice.ConnectTCPSocket(addr, sendport)
+	err := espat.ActiveDevice.ConnectTCPSocket(addr, sendport)
+	if err != nil {
+		return nil, err
+	}
 
 	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
@@ -132,8 +141,19 @@ func (c *SerialConn) Read(b []byte) (n int, err error) {
 func (c *SerialConn) Write(b []byte) (n int, err error) {
 	// specify that is a data transfer to the
 	// currently open socket, not commands to the ESP8266/ESP32.
-	c.Adaptor.StartSocketSend(len(b))
-	return c.Adaptor.Write(b)
+	err = c.Adaptor.StartSocketSend(len(b))
+	if err != nil {
+		return
+	}
+	n, err = c.Adaptor.Write(b)
+	if err != nil {
+		return n, err
+	}
+	_, err = c.Adaptor.Response(1000)
+	if err != nil {
+		return n, err
+	}
+	return n, err
 }
 
 // Close closes the connection.
