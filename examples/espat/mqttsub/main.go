@@ -5,13 +5,14 @@
 // In other words:
 // Your computer <--> UART0 <--> MCU <--> UART1 <--> ESP8266 <--> Internet <--> MQTT broker.
 //
-// You must install the Paho MQTT package to build this program:
+// You must also install the Paho MQTT package to build this program:
 //
 // 		go get -u github.com/eclipse/paho.mqtt.golang
 //
 package main
 
 import (
+	"fmt"
 	"machine"
 	"math/rand"
 	"time"
@@ -25,22 +26,29 @@ const ssid = "YOURSSID"
 const pass = "YOURPASS"
 
 // IP address of the MQTT broker to use. Replace with your own info.
-const server = "tcp://test.mosquitto.org:1883"
+//const server = "tcp://test.mosquitto.org:1883"
 
-//const server = "ssl://test.mosquitto.org:8883"
+const server = "ssl://test.mosquitto.org:8883"
 
-// these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-	uart = machine.UART2
+	// these are defaults for the Arduino Nano33 IoT.
+	uart = machine.UART1
 	tx   = machine.PA22
 	rx   = machine.PA23
 
 	console = machine.UART0
 
 	adaptor *espat.Device
-	topic   = "tinygo"
+	cl      mqtt.Client
+	topicTx = "tinygo/tx"
+	topicRx = "tinygo/rx"
 )
+
+func subHandler(client mqtt.Client, msg mqtt.Message) {
+	fmt.Printf("[%s]  ", msg.Topic())
+	fmt.Printf("%s\r\n", msg.Payload())
+}
 
 func main() {
 	time.Sleep(3000 * time.Millisecond)
@@ -68,15 +76,34 @@ func main() {
 	opts.AddBroker(server).SetClientID("tinygo-client-" + randomString(10))
 
 	println("Connecting to MQTT broker at", server)
-	cl := mqtt.NewClient(opts)
+	cl = mqtt.NewClient(opts)
 	if token := cl.Connect(); token.Wait() && token.Error() != nil {
 		failMessage(token.Error().Error())
 	}
 
+	// subscribe
+	token := cl.Subscribe(topicRx, 0, subHandler)
+	token.Wait()
+	if token.Error() != nil {
+		failMessage(token.Error().Error())
+	}
+
+	go publishing()
+
+	select {}
+
+	// Right now this code is never reached. Need a way to trigger it...
+	println("Disconnecting MQTT...")
+	cl.Disconnect(100)
+
+	println("Done.")
+}
+
+func publishing() {
 	for {
 		println("Publishing MQTT message...")
 		data := []byte("{\"e\":[{ \"n\":\"hello\", \"v\":101 }]}")
-		token := cl.Publish(topic, 0, false, data)
+		token := cl.Publish(topicTx, 0, false, data)
 		token.Wait()
 		if token.Error() != nil {
 			println(token.Error().Error())
@@ -84,12 +111,6 @@ func main() {
 
 		time.Sleep(1000 * time.Millisecond)
 	}
-
-	// Right now this code is never reached. Need a way to trigger it...
-	println("Disconnecting MQTT...")
-	cl.Disconnect(100)
-
-	println("Done.")
 }
 
 // connect to ESP8266/ESP32

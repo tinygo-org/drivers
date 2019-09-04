@@ -24,7 +24,7 @@ const pass = "YOURPASS"
 // these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-	uart = machine.UART2
+	uart = machine.UART1
 	tx   = machine.PA22
 	rx   = machine.PA23
 
@@ -43,17 +43,14 @@ func main() {
 	readyled.High()
 
 	// first check if connected
-	if adaptor.Connected() {
+	if connectToESP() {
 		println("Connected to wifi adaptor.")
 		adaptor.Echo(false)
 
-		if actAsAP {
-			provideAP()
-		} else {
-			connectToAP()
-		}
+		connectToAP()
 	} else {
-		println("Unable to connect to wifi adaptor.")
+		println("")
+		failMessage("Unable to connect to wifi adaptor.")
 		return
 	}
 
@@ -86,21 +83,47 @@ func main() {
 	println("Done.")
 }
 
+// connect to ESP8266/ESP32
+func connectToESP() bool {
+	for i := 0; i < 5; i++ {
+		println("Connecting to wifi adaptor...")
+		if adaptor.Connected() {
+			return true
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return false
+}
+
 // connect to access point
 func connectToAP() {
-	println("Connecting to wifi network...")
+	println("Connecting to wifi network '" + ssid + "'")
+
 	adaptor.SetWifiMode(espat.WifiModeClient)
 	adaptor.ConnectToAP(ssid, pass, 10)
+
 	println("Connected.")
-	println(adaptor.GetClientIP())
+	ip, err := adaptor.GetClientIP()
+	if err != nil {
+		failMessage(err.Error())
+	}
+
+	println(ip)
 }
 
 // provide access point
 func provideAP() {
-	println("Starting wifi network as access point:")
-	println(ssid)
+	println("Starting wifi network as access point '" + ssid + "'...")
 	adaptor.SetWifiMode(espat.WifiModeAP)
 	adaptor.SetAPConfig(ssid, pass, 7, espat.WifiAPSecurityWPA2_PSK)
 	println("Ready.")
-	println(adaptor.GetAPIP())
+	ip, _ := adaptor.GetAPIP()
+	println(ip)
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }
