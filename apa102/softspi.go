@@ -1,6 +1,6 @@
 package apa102
 
-import "github.com/tinygo-org/tinygo/src/machine"
+import "machine"
 
 // bbSPI is a dumb bit-bang implementation of SPI protocol that is hardcoded
 // to mode 0 and ignores trying to receive data. Just enough for the APA102.
