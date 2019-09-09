@@ -1,3 +1,8 @@
+0.6.0
+---
+- **new devices**
+    - Support software SPI for APA102 (Itsy Bitsy M0 on-board "Dotstar" LED as example)
+
 0.5.0
 ---
 - **new devices**
