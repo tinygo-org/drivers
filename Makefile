@@ -50,5 +50,6 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=trinket-m0 ./examples/bme280/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/microphone/main.go
 	tinygo build -size short -o ./build/test.elf -target=circuitplay-express ./examples/buzzer/main.go
+	tinygo build -size short -o ./build/test.elf -target=trinket-m0 ./examples/veml6070/main.go
 
 test: clean fmt-check smoke-test
