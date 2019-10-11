@@ -383,21 +383,8 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	if isCommand {
-		d.csPin.High()
-		d.dcPin.Low()
-		d.csPin.Low()
-
-		d.bus.Tx(data, nil)
-		d.csPin.High()
-	} else {
-		d.csPin.High()
-		d.dcPin.High()
-		d.csPin.Low()
-
-		d.bus.Tx(data, nil)
-		d.csPin.High()
-	}
+	d.dcPin.Set(!isCommand)
+	d.bus.Tx(data, nil)
 }
 
 // Size returns the current size of the display.
