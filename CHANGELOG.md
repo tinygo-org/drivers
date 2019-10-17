@@ -1,3 +1,18 @@
+0.7.0
+---
+- **new devices**
+    - veml6070: add Vishay UV light sensor
+- **enhancements**
+    - lis3dh: example uses I2C1 so requires config to specify pins since they are not default
+    - ssd1331: make SPI TX faster
+    - st7735: make SPI Tx faster
+- **docs**
+    - complete missing GoDocs for main and sub-packages
+- **core**
+    - add Version string for support purposes
+- **examples**
+    - Change all espat driver examples to use Arduino Nano33 IoT by default
+
 0.6.0
 ---
 - **new devices**
