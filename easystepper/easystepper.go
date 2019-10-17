@@ -1,4 +1,4 @@
-// Simple driver to rotate a 4-wire stepper motor
+// Package easystepper provides a simple driver to rotate a 4-wire stepper motor.
 package easystepper // import "tinygo.org/x/drivers/easystepper"
 
 import (

@@ -1,5 +1,5 @@
-// Package drivers provides a collection of hardware drivers for devices that
-// can be used together with TinyGo (https://tinygo.org).
+// Package drivers provides a collection of hardware drivers for TinyGo (https://tinygo.org)
+// for devices such as sensors and displays.
 //
 // Here is an example in TinyGo that uses the BMP180 digital barometer:
 //
@@ -9,7 +9,7 @@
 //		"time"
 //		"machine"
 //
-// 		"github.com/tinygo-org/drivers/bmp180"
+// 		"tinygo.org/x/drivers/bmp180"
 // 	)
 //
 // 	func main() {

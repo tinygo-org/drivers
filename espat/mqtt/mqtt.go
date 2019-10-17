@@ -1,3 +1,5 @@
+// Package mqtt is intended to provide compatible interfaces with the
+// Paho mqtt library.
 package mqtt
 
 import (
