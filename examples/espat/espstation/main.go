@@ -21,11 +21,12 @@ const pass = "YOURPASS"
 // IP address of the listener aka "hub". Replace with your own info.
 const hubIP = "0.0.0.0"
 
+// these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-	uart = machine.UART1
-	tx   = machine.D10
-	rx   = machine.D11
+	uart = machine.UART2
+	tx   = machine.PA22
+	rx   = machine.PA23
 
 	adaptor *espat.Device
 )

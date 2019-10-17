@@ -20,9 +20,9 @@ smoke-test:
 	tinygo build -size short -o ./build/test.elf -target=bluepill ./examples/ds1307/time/main.go
 	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/ds3231/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/easystepper/main.go
-	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/espconsole/main.go
-	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/esphub/main.go
-	tinygo build -size short -o ./build/test.elf -target=itsybitsy-m0 ./examples/espat/espstation/main.go
+	tinygo build -size short -o ./build/test.elf -target=arduino-nano33 ./examples/espat/espconsole/main.go
+	tinygo build -size short -o ./build/test.elf -target=arduino-nano33 ./examples/espat/esphub/main.go
+	tinygo build -size short -o ./build/test.elf -target=arduino-nano33 ./examples/espat/espstation/main.go
 	tinygo build -size short -o ./build/test.elf -target=feather-m0 ./examples/gps/i2c/main.go
 	tinygo build -size short -o ./build/test.elf -target=feather-m0 ./examples/gps/uart/main.go
 	tinygo build -size short -o ./build/test.elf -target=microbit ./examples/hd44780/customchar/main.go
