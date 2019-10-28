@@ -194,12 +194,13 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []col
 	offset := int32(0)
 	for k > 0 {
 		for i := int32(0); i < d.batchLength; i++ {
-
-			c565 := RGBATo565(buffer[offset+i])
-			c1 := uint8(c565 >> 8)
-			c2 := uint8(c565)
-			data[i*2] = c1
-			data[i*2+1] = c2
+			if offset+i < int32(len(buffer)) {
+				c565 := RGBATo565(buffer[offset+i])
+				c1 := uint8(c565 >> 8)
+				c2 := uint8(c565)
+				data[i*2] = c1
+				data[i*2+1] = c2
+			}
 		}
 		if k >= d.batchLength {
 			d.Tx(data, false)
