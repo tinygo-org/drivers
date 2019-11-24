@@ -49,6 +49,14 @@ func (d *Device) Move(steps int32) {
 	d.stepNumber = int32(stepN)
 }
 
+// Off turns off all motor pins
+func (d *Device) Off() {
+	d.pins[0].Low()
+	d.pins[1].Low()
+	d.pins[2].Low()
+	d.pins[3].Low()
+}
+
 // stepMotor changes the pins' state to the correct step
 func (d *Device) stepMotor(step int8) {
 	switch step {
