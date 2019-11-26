@@ -1,3 +1,16 @@
+0.8.0
+---
+- **new devices**
+    - mcp3008: add implementation for MCP3008 ADC with SPI interface
+    - semihosting: initial implementation of ARM semihosting
+- **enhancements**
+    - espat: refactor response processing for greater speed and efficiency
+    - espat: implement mqtt subscribe functionality via blocking select/channels (experiemental)
+- **bugfixes**
+    - st7789: fix index out of bounds error
+- **examples**
+    - Add espat driver example for mqtt subscribe
+
 0.7.0
 ---
 - **new devices**
