@@ -54,8 +54,6 @@ const (
 	TCPStateLastACK     = 9
 	TCPStateTimeWait    = 10
 	/*
-		// Socket not available constant
-		#define SOCK_NOT_AVAIL  255
 		// Default state value for Wifi state field
 		#define NA_STATE -1
 	*/
@@ -73,62 +71,62 @@ const (
 
 	dummyData = 0xFF
 
-	SET_NET_CMD           = 0x10
-	SET_PASSPHRASE_CMD    = 0x11
-	SET_KEY_CMD           = 0x12
-	SET_IP_CONFIG_CMD     = 0x14
-	SET_DNS_CONFIG_CMD    = 0x15
-	SET_HOSTNAME_CMD      = 0x16
-	SET_POWER_MODE_CMD    = 0x17
-	SET_AP_NET_CMD        = 0x18
-	SET_AP_PASSPHRASE_CMD = 0x19
-	SET_DEBUG_CMD         = 0x1A
-	GET_TEMPERATURE_CMD   = 0x1B
-	GET_REASON_CODE_CMD   = 0x1F
+	CmdSetNet          = 0x10
+	CmdSetPassphrase   = 0x11
+	CmdSetKey          = 0x12
+	CmdSetIPConfig     = 0x14
+	CmdSetDNSConfig    = 0x15
+	CmdSetHostname     = 0x16
+	CmdSetPowerMode    = 0x17
+	CmdSetAPNet        = 0x18
+	CmdSetAPPassphrase = 0x19
+	CmdSetDebug        = 0x1A
+	CmdGetTemperature  = 0x1B
+	CmdGetReasonCode   = 0x1F
 	//	TEST_CMD	        = 0x13
 
-	GET_CONN_STATUS_CMD      = 0x20
-	GET_IPADDR_CMD           = 0x21
-	GET_MACADDR_CMD          = 0x22
-	GET_CURR_SSID_CMD        = 0x23
-	GET_CURR_BSSID_CMD       = 0x24
-	GET_CURR_RSSI_CMD        = 0x25
-	GET_CURR_ENCT_CMD        = 0x26
-	SCAN_NETWORKS            = 0x27
-	START_SERVER_TCP_CMD     = 0x28
-	GET_STATE_TCP_CMD        = 0x29
-	DATA_SENT_TCP_CMD        = 0x2A
-	AVAIL_DATA_TCP_CMD       = 0x2B
-	GET_DATA_TCP_CMD         = 0x2C
-	START_CLIENT_TCP_CMD     = 0x2D
-	STOP_CLIENT_TCP_CMD      = 0x2E
-	GET_CLIENT_STATE_TCP_CMD = 0x2F
-	DISCONNECT_CMD           = 0x30
-	GET_IDX_RSSI_CMD         = 0x32
-	GET_IDX_ENCT_CMD         = 0x33
-	REQ_HOST_BY_NAME_CMD     = 0x34
-	GET_HOST_BY_NAME_CMD     = 0x35
-	START_SCAN_NETWORKS_CMD  = 0x36
-	GET_FW_VERSION_CMD       = 0x37
-	SEND_DATA_UDP_CMD        = 0x39
-	GET_REMOTE_DATA_CMD      = 0x3A
-	GET_TIME_CMD             = 0x3B
-	GET_IDX_BSSID            = 0x3C
-	GET_IDX_CHANNEL_CMD      = 0x3D
-	PING_CMD                 = 0x3E
-	GET_SOCKET_CMD           = 0x3F
+	CmdGetConnStatus     = 0x20
+	CmdGetIPAddr         = 0x21
+	CmdGetMACAddr        = 0x22
+	CmdGetCurrSSID       = 0x23
+	CmdGetCurrBSSID      = 0x24
+	CmdGetCurrRSSI       = 0x25
+	CmdGetCurrEncrType   = 0x26
+	CmdScanNetworks      = 0x27
+	CmdStartServerTCP    = 0x28
+	CmdGetStateTCP       = 0x29
+	CmdDataSentTCP       = 0x2A
+	CmdAvailDataTCP      = 0x2B
+	CmdGetDataTCP        = 0x2C
+	CmdStartClientTCP    = 0x2D
+	CmdStopClientTCP     = 0x2E
+	CmdGetClientStateTCP = 0x2F
+	CmdDisconnect        = 0x30
+	CmdGetIdxRSSI        = 0x32
+	CmdGetIdxEncrType    = 0x33
+	CmdReqHostByName     = 0x34
+	CmdGetHostByName     = 0x35
+	CmdStartScanNetworks = 0x36
+	CmdGetFwVersion      = 0x37
+	CmdSendDataUDP       = 0x39
+	CmdGetRemoteData     = 0x3A
+	CmdGetTime           = 0x3B
+	CmdGetIdxBSSID       = 0x3C
+	CmdGetIdxChannel     = 0x3D
+	CmdPing              = 0x3E
+	CmdGetSocket         = 0x3F
 	//	GET_IDX_SSID_CMD	= 0x31,
 	//	GET_TEST_CMD		= 0x38
 
 	// All command with DATA_FLAG 0x40 send a 16bit Len
-	SEND_DATA_TCP_CMD   = 0x44
-	GET_DATABUF_TCP_CMD = 0x45
-	INSERT_DATABUF_CMD  = 0x46
+	CmdSendDataTCP   = 0x44
+	CmdGetDatabufTCP = 0x45
+	CmdInsertDataBuf = 0x46
 
 	// regular format commands
-	SET_PIN_MODE      = 0x50
-	SET_DIGITAL_WRITE = 0x51
-	SET_ANALOG_WRITE  = 0x52
+	CmdSetPinMode      = 0x50
+	CmdSetDigitalWrite = 0x51
+	CmdSetAnalogWrite  = 0x52
 
 	ErrTimeoutSlaveReady  Error = 0x01
 	ErrTimeoutSlaveSelect Error = 0x02
@@ -139,6 +137,22 @@ const (
 	ErrIncorrectSentinel  Error = 0xE2
 	ErrCmdErrorReceived   Error = 0xEF
 	ErrNotImplemented     Error = 0xF0
+	ErrUnknownHost        Error = 0xF1
+	ErrSocketAlreadySet   Error = 0xF2
+	ErrConnectionTimeout  Error = 0xF3
+	ErrNoData             Error = 0xF4
+	ErrDataNotWritten     Error = 0xF5
+	ErrCheckDataError     Error = 0xF6
+	ErrNoSocketAvail      Error = 0xFF
+
+	NoSocketAvail uint8 = 0xFF
+)
+
+const (
+	ProtoModeTCP = iota
+	ProtoModeUDP
+	ProtoModeTLS
+	ProtoModeMul
 )
 
 type ConnectionStatus uint8
@@ -189,9 +203,25 @@ type IPAddress string // TODO: does WiFiNINA support ipv6???
 
 func (addr IPAddress) String() string {
 	if len(addr) < 4 {
-		return fmt.Sprintf("%0X", addr)
+		return ""
 	}
 	return fmt.Sprintf("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3])
+}
+
+func ParseIPv4(s string) (IPAddress, error) {
+	var v0, v1, v2, v3 uint8
+	if _, err := fmt.Sscanf(s, "%d.%d.%d.%d", &v0, &v1, &v2, &v3); err != nil {
+		return "", err
+	}
+	return IPAddress([]byte{v0, v1, v2, v3}), nil
+}
+
+func (addr IPAddress) AsUint32() uint32 {
+	if len(addr) < 4 {
+		return 0
+	}
+	b := []byte(string(addr))
+	return binary.BigEndian.Uint32(b[0:4])
 }
 
 type MACAddress uint64
@@ -241,53 +271,141 @@ func (d *Device) Configure() {
 	d.GPIO0.High()
 	d.CS.High()
 	d.RESET.Low()
-	time.Sleep(1 * time.Millisecond)
+	timer.Wait(1 * time.Millisecond)
+	//time.Sleep(1 * time.Millisecond)
 	d.RESET.High()
-	time.Sleep(1 * time.Millisecond)
+	timer.Wait(1 * time.Millisecond)
+	//time.Sleep(1 * time.Millisecond)
 
 	d.GPIO0.Low()
 	d.GPIO0.Configure(machine.PinConfig{machine.PinInput})
 
 }
 
+// ----------- client methods (should this be a separate struct?) ------------
+
+func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) error {
+	if _debug {
+		println("[StartClient] called StartClient()\r")
+		fmt.Printf("[StartClient] addr: % 02X, port: %d, sock: %d\r\n", addr, port, sock)
+	}
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return err
+	}
+	l := d.sendCmd(CmdStartClientTCP, 4)
+	l += d.sendParam32(addr, false)
+	l += d.sendParam16(port, false)
+	l += d.sendParam8(sock, false)
+	l += d.sendParam8(mode, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	_, err := d.waitRspCmd1(CmdStartClientTCP)
+	return err
+}
+
+func (d *Device) GetSocket() (uint8, error) {
+	return d.getUint8(d.req0(CmdGetSocket))
+}
+
+func (d *Device) GetClientState(sock uint8) (uint8, error) {
+	return d.getUint8(d.reqUint8(CmdGetClientStateTCP, sock))
+}
+
+func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return 0, err
+	}
+
+	l := d.sendCmd(CmdSendDataTCP, 2)
+	l += d.sendParamBuf([]byte{sock}, false)
+	l += d.sendParamBuf(buf, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	return d.getUint16(d.waitRspCmd1(CmdSendDataTCP))
+}
+
+func (d *Device) CheckDataSent(sock uint8) (bool, error) {
+	var lastErr error
+	for timeout := 0; timeout < 10; timeout++ {
+		sent, err := d.getUint8(d.reqUint8(CmdDataSentTCP, sock))
+		if err != nil {
+			lastErr = err
+		}
+		if sent > 0 {
+			return true, nil
+		}
+		timer.Wait(100 * time.Microsecond)
+	}
+	return false, lastErr
+}
+
+func (d *Device) StopClient(sock uint8) error {
+	if _debug {
+		println("[StopClient] called StopClient()\r")
+	}
+	_, err := d.getUint8(d.reqUint8(CmdStopClientTCP, sock))
+	return err
+}
+
+// ---------- /client methods (should this be a separate struct?) ------------
+
+/*
+	static bool startServer(uint16_t port, uint8_t sock);
+	static uint8_t getServerState(uint8_t sock);
+	static bool getData(uint8_t connId, uint8_t *data, bool peek, bool* connClose);
+	static int getDataBuf(uint8_t connId, uint8_t *buf, uint16_t bufSize);
+	static bool sendData(uint8_t sock, const uint8_t *data, uint16_t len);
+	static bool sendDataUdp(uint8_t sock, const char* host, uint16_t port, const uint8_t *data, uint16_t len);
+	static uint16_t availData(uint8_t connId);
+
+
+	static bool ping(const char *host);
+	static void reset();
+
+	static void getRemoteIpAddress(IPAddress& ip);
+	static uint16_t getRemotePort();
+*/
+
 func (d *Device) Disconnect() error {
-	_, err := d.req1(DISCONNECT_CMD)
+	_, err := d.req1(CmdDisconnect)
 	return err
 }
 
 func (d *Device) GetFwVersion() (string, error) {
-	return d.getString(d.req0(GET_FW_VERSION_CMD))
+	return d.getString(d.req0(CmdGetFwVersion))
 }
 
 func (d *Device) GetConnectionStatus() (ConnectionStatus, error) {
-	status, err := d.getUint8(d.req0(GET_CONN_STATUS_CMD))
+	status, err := d.getUint8(d.req0(CmdGetConnStatus))
 	return ConnectionStatus(status), err
 }
 
 func (d *Device) GetCurrentEncryptionType() (EncryptionType, error) {
-	enctype, err := d.getUint8(d.req1(GET_CURR_ENCT_CMD))
+	enctype, err := d.getUint8(d.req1(CmdGetCurrEncrType))
 	return EncryptionType(enctype), err
 }
 
 func (d *Device) GetCurrentBSSID() (MACAddress, error) {
-	return d.getMACAddress(d.req1(GET_CURR_BSSID_CMD))
+	return d.getMACAddress(d.req1(CmdGetCurrBSSID))
 }
 
 func (d *Device) GetCurrentRSSI() (int32, error) {
-	return d.getInt32(d.req1(GET_CURR_RSSI_CMD))
+	return d.getInt32(d.req1(CmdGetCurrBSSID))
 }
 
 func (d *Device) GetCurrentSSID() (string, error) {
-	return d.getString(d.req1(GET_CURR_SSID_CMD))
+	return d.getString(d.req1(CmdGetCurrSSID))
 }
 
 func (d *Device) GetMACAddress() (MACAddress, error) {
-	return d.getMACAddress(d.req1(GET_MACADDR_CMD))
+	return d.getMACAddress(d.req1(CmdGetMACAddr))
 }
 
 func (d *Device) GetIP() (ip, subnet, gateway IPAddress, err error) {
 	sl := make([]string, 3)
-	if l, err := d.reqRspStr1(GET_IPADDR_CMD, dummyData, sl); err != nil {
+	if l, err := d.reqRspStr1(CmdGetIPAddr, dummyData, sl); err != nil {
 		return "", "", "", err
 	} else if l != 3 {
 		return "", "", "", ErrUnexpectedLength
@@ -296,28 +414,36 @@ func (d *Device) GetIP() (ip, subnet, gateway IPAddress, err error) {
 }
 
 func (d *Device) GetHostByName(hostname string) (IPAddress, error) {
-	return "", ErrNotImplemented
+	ok, err := d.getUint8(d.reqStr(CmdReqHostByName, hostname))
+	if err != nil {
+		return "", err
+	}
+	if ok != 1 {
+		return "", ErrUnknownHost
+	}
+	ip, err := d.getString(d.req0(CmdGetHostByName))
+	return IPAddress(ip), err
 }
 
 func (d *Device) GetNetworkBSSID(idx int) (MACAddress, error) {
 	if idx < 0 || idx >= MaxNetworks {
 		return 0, nil
 	}
-	return d.getMACAddress(d.reqUint8(GET_IDX_BSSID, uint8(idx)))
+	return d.getMACAddress(d.reqUint8(CmdGetIdxBSSID, uint8(idx)))
 }
 
 func (d *Device) GetNetworkChannel(idx int) (uint8, error) {
 	if idx < 0 || idx >= MaxNetworks {
 		return 0, nil
 	}
-	return d.getUint8(d.reqUint8(GET_IDX_CHANNEL_CMD, uint8(idx)))
+	return d.getUint8(d.reqUint8(CmdGetIdxChannel, uint8(idx)))
 }
 
 func (d *Device) GetNetworkEncrType(idx int) (EncryptionType, error) {
 	if idx < 0 || idx >= MaxNetworks {
 		return 0, nil
 	}
-	enctype, err := d.getUint8(d.reqUint8(GET_IDX_ENCT_CMD, uint8(idx)))
+	enctype, err := d.getUint8(d.reqUint8(CmdGetIdxEncrType, uint8(idx)))
 	return EncryptionType(enctype), err
 }
 
@@ -325,7 +451,7 @@ func (d *Device) GetNetworkRSSI(idx int) (int32, error) {
 	if idx < 0 || idx >= MaxNetworks {
 		return 0, nil
 	}
-	return d.getInt32(d.reqUint8(GET_IDX_RSSI_CMD, uint8(idx)))
+	return d.getInt32(d.reqUint8(CmdGetIdxRSSI, uint8(idx)))
 }
 
 func (d *Device) GetNetworkSSID(idx int) string {
@@ -336,15 +462,15 @@ func (d *Device) GetNetworkSSID(idx int) string {
 }
 
 func (d *Device) GetReasonCode() (uint8, error) {
-	return d.getUint8(d.req0(GET_REASON_CODE_CMD))
+	return d.getUint8(d.req0(CmdGetReasonCode))
 }
 
 func (d *Device) GetTime() (string, error) {
-	return d.getString(d.req0(GET_TIME_CMD))
+	return d.getString(d.req0(CmdGetTime))
 }
 
 func (d *Device) GetTemperature() (float32, error) {
-	return d.getFloat32(d.req0(GET_TEMPERATURE_CMD))
+	return d.getFloat32(d.req0(CmdGetTemperature))
 }
 
 func (d *Device) Ping(ip IPAddress, ttl uint8) int16 {
@@ -356,17 +482,17 @@ func (d *Device) SetDebug(on bool) error {
 	if on {
 		v = 1
 	}
-	_, err := d.reqUint8(SET_DEBUG_CMD, v)
+	_, err := d.reqUint8(CmdSetDebug, v)
 	return err
 }
 
 func (d *Device) SetNetwork(ssid string) error {
-	_, err := d.reqStr(SET_NET_CMD, ssid)
+	_, err := d.reqStr(CmdSetNet, ssid)
 	return err
 }
 
 func (d *Device) SetPassphrase(ssid string, passphrase string) error {
-	_, err := d.reqStr2(SET_PASSPHRASE_CMD, ssid, passphrase)
+	_, err := d.reqStr2(CmdSetPassphrase, ssid, passphrase)
 	return err
 }
 
@@ -375,12 +501,12 @@ func (d *Device) SetKey(ssid string, index uint8, key string) error {
 }
 
 func (d *Device) SetNetworkForAP(ssid string) error {
-	_, err := d.reqStr(SET_AP_NET_CMD, ssid)
+	_, err := d.reqStr(CmdSetAPNet, ssid)
 	return err
 }
 
 func (d *Device) SetPassphraseForAP(ssid string, passphrase string) error {
-	_, err := d.reqStr2(SET_AP_PASSPHRASE_CMD, ssid, passphrase)
+	_, err := d.reqStr2(CmdSetAPPassphrase, ssid, passphrase)
 	return err
 }
 
@@ -397,16 +523,16 @@ func (d *Device) SetHostname(hostname string) error {
 }
 
 func (d *Device) SetPowerMode(mode uint8) error {
-	_, err := d.reqUint8(SET_POWER_MODE_CMD, mode)
+	_, err := d.reqUint8(CmdSetPowerMode, mode)
 	return err
 }
 
 func (d *Device) ScanNetworks() (uint8, error) {
-	return d.reqRspStr0(SCAN_NETWORKS, d.ssids[:])
+	return d.reqRspStr0(CmdScanNetworks, d.ssids[:])
 }
 
 func (d *Device) StartScanNetworks() (uint8, error) {
-	return d.getUint8(d.req0(START_SCAN_NETWORKS_CMD))
+	return d.getUint8(d.req0(CmdStartServerTCP))
 }
 
 func (d *Device) getString(l uint8, err error) (string, error) {
@@ -421,9 +547,25 @@ func (d *Device) getUint8(l uint8, err error) (uint8, error) {
 		return 0, err
 	}
 	if l != 1 {
+		if _debug {
+			println("expected length 1, was actually", l, "\r")
+		}
 		return 0, ErrUnexpectedLength
 	}
 	return d.buf[0], err
+}
+
+func (d *Device) getUint16(l uint8, err error) (uint16, error) {
+	if err != nil {
+		return 0, err
+	}
+	if l != 2 {
+		if _debug {
+			println("expected length 2, was actually", l, "\r")
+		}
+		return 0, ErrUnexpectedLength
+	}
+	return binary.BigEndian.Uint16(d.buf[0:2]), err
 }
 
 func (d *Device) getUint32(l uint8, err error) (uint32, error) {
@@ -584,6 +726,35 @@ func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 	return
 }
 
+func (d *Device) sendParamLen16(p uint16) (l int) {
+	d.SPI.Transfer(uint8(p >> 8))
+	d.SPI.Transfer(uint8(p & 0xFF))
+	return 2
+}
+
+func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
+	if _debug {
+		println("sendParamBuf:", len(p), "lastParam:", isLastParam, "\r")
+	}
+	l += len(p)
+	l += d.sendParamLen16(uint16(l))
+	for _, b := range p {
+		if _debug {
+			fmt.Printf("% 02x", b)
+		}
+		d.SPI.Transfer(b)
+		l += 1
+	}
+	if _debug {
+		println("\r")
+	}
+	if isLastParam {
+		d.SPI.Transfer(CmdEnd)
+		l += 1
+	}
+	return
+}
+
 func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
 	l = len(p)
 	d.SPI.Transfer(uint8(l))
@@ -596,6 +767,9 @@ func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
 }
 
 func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
+	if _debug {
+		println("sendParam8:", p, "lastParam:", isLastParam, "\r")
+	}
 	l = 2
 	d.SPI.Transfer(1)
 	d.SPI.Transfer(p)
@@ -609,6 +783,20 @@ func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
 func (d *Device) sendParam16(p uint16, isLastParam bool) (l int) {
 	l = 3
 	d.SPI.Transfer(2)
+	d.SPI.Transfer(uint8(p >> 8))
+	d.SPI.Transfer(uint8(p & 0xFF))
+	if isLastParam {
+		d.SPI.Transfer(CmdEnd)
+		l += 1
+	}
+	return
+}
+
+func (d *Device) sendParam32(p uint32, isLastParam bool) (l int) {
+	l = 5
+	d.SPI.Transfer(4)
+	d.SPI.Transfer(uint8(p >> 24))
+	d.SPI.Transfer(uint8(p >> 16))
 	d.SPI.Transfer(uint8(p >> 8))
 	d.SPI.Transfer(uint8(p & 0xFF))
 	if isLastParam {
@@ -641,7 +829,7 @@ func (d *Device) waitForSlaveReady() error {
 	if _debug {
 		println("waitForSlaveReady()\r")
 	}
-	for t := timer.New(10 * time.Second); !(d.ACK.Get() == false); {
+	for t := timer.New(30 * time.Second); !(d.ACK.Get() == false); {
 		if t.Expired() {
 			return ErrTimeoutSlaveReady
 		}
