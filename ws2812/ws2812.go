@@ -27,11 +27,11 @@ func (d Device) Write(buf []byte) (n int, err error) {
 
 // Write the given color slice out using the WS2812 protocol.
 // Colors are sent out in the usual GRB format.
-func (d Device) WriteColors(buf []color.RGBA) error {
+func (d Device) WriteColors(buf []color.RGBA) (n int, err error) {
 	for _, color := range buf {
 		d.WriteByte(color.G) // green
 		d.WriteByte(color.R) // red
 		d.WriteByte(color.B) // blue
 	}
-	return nil
+	return len(buf), nil
 }
