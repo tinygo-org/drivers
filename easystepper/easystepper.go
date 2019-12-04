@@ -120,12 +120,12 @@ func (d *DualDevice) Move(stepsA, stepsB int32) {
 			stepN[max] = int8((s + 2*(s%2)) % 4)
 		}
 
-		if ((s*stepsA)/stepsB) > minStep {
+		if ((s*stepsB)/stepsA) > minStep {
 			minStep++
 			if directions[min] {
-				stepN[min] = int8(s % 4)
+				stepN[min] = int8(minStep % 4)
 			} else {
-				stepN[min] = int8((s + 2*(s%2)) % 4)
+				stepN[min] = int8((minStep + 2*(minStep%2)) % 4)
 			}
 		}
 
