@@ -31,7 +31,7 @@ func (d Device) WriteByte(c byte) error {
 	send_bit:
 		str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
 		lsls  {value}, #1              @ [1]
-		nop                            @ [10]
+		nop                            @ [13]
 		nop
 		nop
 		nop
