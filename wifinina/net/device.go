@@ -3,6 +3,7 @@ package net
 type DeviceDriver interface {
 	GetDNS(domain string) (string, error)
 	ConnectTCPSocket(addr, port string) error
+	ConnectSSLSocket(addr, port string) error
 	ConnectUDPSocket(addr, sendport, listenport string) error
 	DisconnectSocket() error
 	StartSocketSend(size int) error

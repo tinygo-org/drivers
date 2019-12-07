@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"machine"
-
-	"github.com/bgould/tinygo-model-m/timer"
 )
 
 const _debug = false
@@ -143,6 +141,7 @@ const (
 	ErrNoData             Error = 0xF4
 	ErrDataNotWritten     Error = 0xF5
 	ErrCheckDataError     Error = 0xF6
+	ErrBufferTooSmall     Error = 0xF7
 	ErrNoSocketAvail      Error = 0xFF
 
 	NoSocketAvail uint8 = 0xFF
@@ -257,7 +256,7 @@ type Device struct {
 	GPIO0 machine.Pin
 	RESET machine.Pin
 
-	buf   [256]byte
+	buf   [64]byte
 	ssids [10]string
 }
 
@@ -271,11 +270,9 @@ func (d *Device) Configure() {
 	d.GPIO0.High()
 	d.CS.High()
 	d.RESET.Low()
-	timer.Wait(1 * time.Millisecond)
-	//time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 	d.RESET.High()
-	timer.Wait(1 * time.Millisecond)
-	//time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 
 	d.GPIO0.Low()
 	d.GPIO0.Configure(machine.PinConfig{machine.PinInput})
@@ -317,7 +314,6 @@ func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
 		d.spiSlaveDeselect()
 		return 0, err
 	}
-
 	l := d.sendCmd(CmdSendDataTCP, 2)
 	l += d.sendParamBuf([]byte{sock}, false)
 	l += d.sendParamBuf(buf, true)
@@ -336,9 +332,29 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 		if sent > 0 {
 			return true, nil
 		}
-		timer.Wait(100 * time.Microsecond)
+		wait(100 * time.Microsecond)
 	}
 	return false, lastErr
+}
+
+func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return 0, err
+	}
+	p := uint16(len(buf))
+	l := d.sendCmd(CmdGetDatabufTCP, 2)
+	l += d.sendParamBuf([]byte{sock}, false)
+	l += d.sendParamBuf([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return 0, err
+	}
+	n, err := d.waitRspBuf16(CmdGetDatabufTCP, buf)
+	d.spiSlaveDeselect()
+	return int(n), err
 }
 
 func (d *Device) StopClient(sock uint8) error {
@@ -713,7 +729,9 @@ func (d *Device) waitRspCmd1(cmd uint8) (l uint8, err error) {
 
 func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 	if _debug {
-		println("sendCmd", cmd, numParam, "\r")
+		fmt.Printf(
+			"sendCmd: %02X %02X %02X",
+			CmdStart, cmd & ^(uint8(FlagReply)), numParam)
 	}
 	l = 3
 	d.SPI.Transfer(CmdStart)
@@ -722,6 +740,12 @@ func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 	if numParam == 0 {
 		d.SPI.Transfer(CmdEnd)
 		l += 1
+		if _debug {
+			fmt.Printf(" %02X", CmdEnd)
+		}
+	}
+	if _debug {
+		fmt.Printf(" (%d)\r\n", l)
 	}
 	return
 }
@@ -729,28 +753,33 @@ func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 func (d *Device) sendParamLen16(p uint16) (l int) {
 	d.SPI.Transfer(uint8(p >> 8))
 	d.SPI.Transfer(uint8(p & 0xFF))
+	if _debug {
+		fmt.Printf(" %02X %02X", uint8(p>>8), uint8(p&0xFF))
+	}
 	return 2
 }
 
 func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
 	if _debug {
-		println("sendParamBuf:", len(p), "lastParam:", isLastParam, "\r")
+		println("sendParamBuf:")
 	}
-	l += len(p)
-	l += d.sendParamLen16(uint16(l))
+	l += d.sendParamLen16(uint16(len(p)))
 	for _, b := range p {
 		if _debug {
-			fmt.Printf("% 02x", b)
+			fmt.Printf(" %02X", b)
 		}
 		d.SPI.Transfer(b)
 		l += 1
 	}
-	if _debug {
-		println("\r")
-	}
 	if isLastParam {
+		if _debug {
+			fmt.Printf(" %02X", CmdEnd)
+		}
 		d.SPI.Transfer(CmdEnd)
 		l += 1
+	}
+	if _debug {
+		fmt.Printf(" (%d) \r\n", l)
 	}
 	return
 }
@@ -829,7 +858,7 @@ func (d *Device) waitForSlaveReady() error {
 	if _debug {
 		println("waitForSlaveReady()\r")
 	}
-	for t := timer.New(30 * time.Second); !(d.ACK.Get() == false); {
+	for t := newTimer(10 * time.Second); !(d.ACK.Get() == false); {
 		if t.Expired() {
 			return ErrTimeoutSlaveReady
 		}
@@ -842,7 +871,7 @@ func (d *Device) spiSlaveSelect() error {
 		println("spiSlaveSelect()\r")
 	}
 	d.CS.Low()
-	for t := timer.New(5 * time.Millisecond); !t.Expired(); {
+	for t := newTimer(5 * time.Millisecond); !t.Expired(); {
 		if d.ACK.Get() {
 			return nil
 		}
@@ -867,6 +896,9 @@ func (d *Device) waitSpiChar(wait byte) (bool, error) {
 			return false, ErrCmdErrorReceived
 		}
 	}
+	if _debug && read != wait {
+		fmt.Printf("read: %02X, wait: %02X\r\n", read, wait)
+	}
 	return read == wait, nil
 }
 
@@ -886,6 +918,30 @@ func (d *Device) waitRspCmd(cmd uint8, np uint8) (l uint8, err error) {
 		d.readParam(&l)
 		for i := uint8(0); i < l; i++ {
 			d.readParam(&d.buf[i])
+		}
+	}
+	if !d.readAndCheckByte(CmdEnd, &data) {
+		err = ErrIncorrectSentinel
+	}
+	return
+}
+
+func (d *Device) waitRspBuf16(cmd uint8, buf []byte) (l uint16, err error) {
+	if _debug {
+		println("waitRspBuf16")
+	}
+	var check bool
+	var data byte
+	if check, err = d.checkStartCmd(); !check {
+		return
+	}
+	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
+		return
+	}
+	if check = d.readAndCheckByte(1, &data); check {
+		l, _ = d.readParamLen16()
+		for i := uint16(0); i < l; i++ {
+			d.readParam(&buf[i])
 		}
 	}
 	if !d.readAndCheckByte(CmdEnd, &data) {
@@ -943,13 +999,27 @@ func (d *Device) readAndCheckByte(check byte, read *byte) bool {
 	return (*read == check)
 }
 
+// readParamLen16 reads 2 bytes from the SPI bus (MSB first), returning uint16
+func (d *Device) readParamLen16() (v uint16, err error) {
+	if b, err := d.SPI.Transfer(0xFF); err == nil {
+		v |= uint16(b << 8)
+		if b, err = d.SPI.Transfer(0xFF); err == nil {
+			v |= uint16(b)
+		}
+	}
+	return
+}
+
 func (d *Device) readParam(b *byte) (err error) {
 	*b, err = d.SPI.Transfer(0xFF)
 	return
 }
 
 func (d *Device) addPadding(l int) {
-	for i := l % 4; i >= 0; i-- {
+	if _debug {
+		println("addPadding", l, "\r")
+	}
+	for i := (4 - (l % 4)) & 3; i > 0; i-- {
 		if _debug {
 			println("padding\r")
 		}

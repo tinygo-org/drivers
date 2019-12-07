@@ -4,17 +4,26 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+)
 
-	"github.com/bgould/tinygo-model-m/timer"
+const (
+	ReadBufferSize = 128
 )
 
 func (d *Device) NewDriver() *Driver {
-	return &Driver{d, NoSocketAvail}
+	return &Driver{dev: d, sock: NoSocketAvail}
 }
 
 type Driver struct {
-	dev  *Device
-	sock uint8
+	dev     *Device
+	sock    uint8
+	readBuf readBuffer
+}
+
+type readBuffer struct {
+	data [ReadBufferSize]byte
+	head int
+	size int
 }
 
 func (drv *Driver) GetDNS(domain string) (string, error) {
@@ -23,8 +32,14 @@ func (drv *Driver) GetDNS(domain string) (string, error) {
 }
 
 func (drv *Driver) ConnectTCPSocket(addr, portStr string) error {
+	return drv.connectSocket(addr, portStr, ProtoModeTCP)
+}
 
-	//fmt.Println("[ConnectTCPSocket] called ConnectTCPSocket\r")
+func (drv *Driver) ConnectSSLSocket(addr, portStr string) error {
+	return drv.connectSocket(addr, portStr, ProtoModeTLS)
+}
+
+func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 
 	// convert port to uint16
 	p64, err := strconv.ParseUint(portStr, 10, 16)
@@ -35,12 +50,10 @@ func (drv *Driver) ConnectTCPSocket(addr, portStr string) error {
 
 	// look up the hostname if necessary; if an IP address was specified, the
 	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
-	//fmt.Println("[ConnectTCPSocket] Getting host name\r")
 	ipAddr, err := drv.dev.GetHostByName(addr)
 	if err != nil {
 		return err
 	}
-	//fmt.Printf("[ConnectTCPSocket] Attempting to connect to %s\r\n", ipAddr)
 	ip := ipAddr.AsUint32()
 
 	// check to see if socket is already set; if so, stop it
@@ -54,29 +67,24 @@ func (drv *Driver) ConnectTCPSocket(addr, portStr string) error {
 	if drv.sock, err = drv.dev.GetSocket(); err != nil {
 		return err
 	}
-	//fmt.Printf("[ConnectTCPSocket] TCP socket set to: %d", drv.sock)
 
 	// attempt to start the client
-	//fmt.Println("[ConnectTCPSocket] starting client to IP", ipAddr, port, "\r")
 	if err := drv.dev.StartClient(ip, port, drv.sock, ProtoModeTCP); err != nil {
 		return err
 	}
 
 	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
-	for t := timer.New(4 * time.Second); !t.Expired(); {
+	for t := newTimer(4 * time.Second); !t.Expired(); {
 		connected, err := drv.connected()
 		if err != nil {
-			//fmt.Println("[ConnectTCPSocket] Returning error", err.Error(), "\r")
 			return err
 		}
 		if connected {
-			//fmt.Println("[ConnectTCPSocket] Connected!\r")
 			return nil
 		}
-		timer.Wait(1 * time.Millisecond)
+		wait(1 * time.Millisecond)
 	}
 
-	//fmt.Println("[ConnectTCPSocket] Connection Timeout\r")
 	return ErrConnectionTimeout
 }
 
@@ -91,7 +99,6 @@ func (drv *Driver) DisconnectSocket() error {
 func (drv *Driver) StartSocketSend(size int) error {
 	// not needed for WiFiNINA???
 	return nil
-	// return ErrNotImplemented
 }
 
 func (drv *Driver) Write(b []byte) (n int, err error) {
@@ -115,15 +122,57 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 }
 
 func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
-	return 0, ErrNotImplemented
-}
-
-func (drv *Driver) available() int {
-	if drv.sock != NoSocketAvail {
-
+	avail, err := drv.available()
+	if err != nil {
+		println("ReadSocket error: " + err.Error())
+		return 0, err
 	}
-	return 0
+	if avail == 0 {
+		return 0, nil
+	}
+	length := len(b)
+	//println("length:", length, "avail:", avail)
+	if avail < length {
+		length = avail
+	}
+	copy(b, drv.readBuf.data[drv.readBuf.head:drv.readBuf.head+length])
+	//println("copied: " + string(b[0:length]))
+	drv.readBuf.head += length
+	drv.readBuf.size -= length
+	//println("head:", drv.readBuf.head, "size:", drv.readBuf.size)
+	return length, nil
 }
+
+func (drv *Driver) available() (int, error) {
+	if drv.readBuf.size == 0 {
+		n, err := drv.dev.GetDataBuf(drv.sock, drv.readBuf.data[:])
+		if n > 0 {
+			drv.readBuf.head = 0
+			drv.readBuf.size = n
+		}
+		if err != nil {
+			return int(n), err
+		}
+	}
+	return drv.readBuf.size, nil
+}
+
+func (drv *Driver) connected() (bool, error) {
+	if drv.sock == NoSocketAvail {
+		return false, nil
+	}
+	s, err := drv.status()
+	if err != nil {
+		return false, err
+	}
+	isConnected := !(s == TCPStateListen || s == TCPStateClosed ||
+		s == TCPStateFinWait1 || s == TCPStateFinWait2 || s == TCPStateTimeWait ||
+		s == TCPStateSynSent || s == TCPStateSynRcvd || s == TCPStateCloseWait)
+	return isConnected, nil
+}
+
+/*
+
 
 func (drv *Driver) connected() (bool, error) {
 	if drv.sock == NoSocketAvail {
@@ -146,6 +195,7 @@ func (drv *Driver) connected() (bool, error) {
 	}
 	return isConnected, nil
 }
+*/
 
 func (drv *Driver) status() (uint8, error) {
 	if drv.sock == NoSocketAvail {
@@ -155,15 +205,13 @@ func (drv *Driver) status() (uint8, error) {
 }
 
 func (drv *Driver) stop() error {
-	//println("[stop] entering stop()\r")
 	if drv.sock == NoSocketAvail {
 		return nil
 	}
 	drv.dev.StopClient(drv.sock)
-	for t := timer.New(5 * time.Second); !t.Expired(); {
+	for t := newTimer(5 * time.Second); !t.Expired(); {
 		st, _ := drv.status()
 		if st == TCPStateClosed {
-			//println("[stop] TCPStateClosed\r")
 			break
 		}
 		//time.Sleep(1 * time.Millisecond)
