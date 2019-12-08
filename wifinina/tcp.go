@@ -69,13 +69,13 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	}
 
 	// attempt to start the client
-	if err := drv.dev.StartClient(ip, port, drv.sock, ProtoModeTCP); err != nil {
+	if err := drv.dev.StartClient(ip, port, drv.sock, mode); err != nil {
 		return err
 	}
 
 	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
 	for t := newTimer(4 * time.Second); !t.Expired(); {
-		connected, err := drv.connected()
+		connected, err := drv.IsConnected()
 		if err != nil {
 			return err
 		}
@@ -143,6 +143,12 @@ func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 	return length, nil
 }
 
+// IsSocketDataAvailable returns of there is socket data available
+func (drv *Driver) IsSocketDataAvailable() bool {
+	n, err := drv.available()
+	return err == nil && n > 0
+}
+
 func (drv *Driver) available() (int, error) {
 	if drv.readBuf.size == 0 {
 		n, err := drv.dev.GetDataBuf(drv.sock, drv.readBuf.data[:])
@@ -157,7 +163,7 @@ func (drv *Driver) available() (int, error) {
 	return drv.readBuf.size, nil
 }
 
-func (drv *Driver) connected() (bool, error) {
+func (drv *Driver) IsConnected() (bool, error) {
 	if drv.sock == NoSocketAvail {
 		return false, nil
 	}
@@ -172,8 +178,6 @@ func (drv *Driver) connected() (bool, error) {
 }
 
 /*
-
-
 func (drv *Driver) connected() (bool, error) {
 	if drv.sock == NoSocketAvail {
 		return false, nil

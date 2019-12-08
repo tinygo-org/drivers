@@ -24,7 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers/wifinina"
+	"github.com/eclipse/paho.mqtt.golang/packets"
+	"tinygo.org/x/drivers/wifinina/net"
 )
 
 const (
@@ -155,6 +156,18 @@ func (m *message) Ack() {
 	return
 }
 
+func messageFromPublish(p *packets.PublishPacket, ack func()) Message {
+	return &message{
+		duplicate: p.Dup,
+		qos:       p.Qos,
+		retained:  p.Retain,
+		topic:     p.TopicName,
+		messageID: p.MessageID,
+		payload:   p.Payload,
+		ack:       ack,
+	}
+}
+
 // ClientOptionsReader provides an interface for reading ClientOptions after the client has been initialized.
 type ClientOptionsReader struct {
 	options *ClientOptions
@@ -162,7 +175,7 @@ type ClientOptionsReader struct {
 
 // ClientOptions contains configurable options for an MQTT Client.
 type ClientOptions struct {
-	Adaptor *wifinina.Device
+	Adaptor net.DeviceDriver
 
 	//Servers                 []*url.URL
 	Servers  string
@@ -196,8 +209,8 @@ type ClientOptions struct {
 }
 
 // NewClientOptions returns a new ClientOptions struct.
-func NewClientOptions(adaptor *wifinina.Device) *ClientOptions {
-	return &ClientOptions{Adaptor: adaptor, ProtocolVersion: 4}
+func NewClientOptions() *ClientOptions {
+	return &ClientOptions{Adaptor: net.ActiveDevice, ProtocolVersion: 4}
 }
 
 // AddBroker adds a broker URI to the list of brokers to be used. The format should be
@@ -241,5 +254,27 @@ func (o *ClientOptions) SetUsername(u string) *ClientOptions {
 // be sent in plaintext accross the wire.
 func (o *ClientOptions) SetPassword(p string) *ClientOptions {
 	o.Password = p
+	return o
+}
+
+// SetWill accepts a string will message to be set. When the client connects,
+// it will give this will message to the broker, which will then publish the
+// provided payload (the will) to any clients that are subscribed to the provided
+// topic.
+func (o *ClientOptions) SetWill(topic string, payload string, qos byte, retained bool) *ClientOptions {
+	o.SetBinaryWill(topic, []byte(payload), qos, retained)
+	return o
+}
+
+// SetBinaryWill accepts a []byte will message to be set. When the client connects,
+// it will give this will message to the broker, which will then publish the
+// provided payload (the will) to any clients that are subscribed to the provided
+// topic.
+func (o *ClientOptions) SetBinaryWill(topic string, payload []byte, qos byte, retained bool) *ClientOptions {
+	o.WillEnabled = true
+	o.WillTopic = topic
+	o.WillPayload = payload
+	o.WillQos = qos
+	o.WillRetained = retained
 	return o
 }

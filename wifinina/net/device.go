@@ -9,6 +9,7 @@ type DeviceDriver interface {
 	StartSocketSend(size int) error
 	Write(b []byte) (n int, err error)
 	ReadSocket(b []byte) (n int, err error)
+	IsSocketDataAvailable() bool
 }
 
 var ActiveDevice DeviceDriver
