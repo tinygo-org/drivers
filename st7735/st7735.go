@@ -151,29 +151,9 @@ func (d *Device) Configure(cfg Config) {
 
 	if d.model == GREENTAB {
 		d.InvertColors(false)
-		d.Command(CASET)
-		d.Data(0x00)
-		d.Data(0x02)
-		d.Data(0x00)
-		d.Data(0x7F + 0x02)
-		d.Command(RASET)
-		d.Data(0x00)
-		d.Data(0x01)
-		d.Data(0x00)
-		d.Data(0x9F + 0x01)
 	} else if d.model == MINI80x160 {
 		d.isBGR = true
 		d.InvertColors(true)
-		d.Command(CASET)
-		d.Data(0x00)
-		d.Data(0x00)
-		d.Data(0x00)
-		d.Data(0x7F)
-		d.Command(RASET)
-		d.Data(0x00)
-		d.Data(0x00)
-		d.Data(0x00)
-		d.Data(0x9F)
 	}
 
 	// common color adjustment

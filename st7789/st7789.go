@@ -100,18 +100,6 @@ func (d *Device) Configure(cfg Config) {
 	time.Sleep(10 * time.Millisecond)
 
 	d.SetRotation(d.rotation)
-
-	d.Command(CASET)
-	d.Data(0x00)
-	d.Data(uint8(d.columnOffset))
-	d.Data((240 + uint8(d.columnOffset)) >> 8)
-	d.Data(((240 + uint8(d.columnOffset)) >> 8) & 0xFF)
-	d.Command(RASET)
-	d.Data(0x00)
-	d.Data(uint8(d.rowOffset))
-	d.Data((240 + uint8(d.rowOffset)) >> 8)
-	d.Data(((240 + uint8(d.rowOffset)) >> 8) & 0xFF)
-
 	d.InvertColors(true)
 
 	d.Command(NORON)
