@@ -1,4 +1,4 @@
-// +build circuitplay_express itsybitsy_m0 arduino_nano33
+// +build circuitplay_express itsybitsy_m0 arduino_nano33 feather_m0 trinket_m0
 
 package ws2812
 
