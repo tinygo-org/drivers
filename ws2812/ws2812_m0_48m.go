@@ -1,4 +1,4 @@
-// +build circuitplay_express itsybitsy_m0 arduino_nano33 feather_m0 trinket_m0
+// +build atsamd21
 
 package ws2812
 
