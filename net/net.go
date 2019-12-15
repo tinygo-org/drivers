@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"tinygo.org/x/drivers/espat"
 )
 
 // DialUDP makes a UDP network connection. raadr is the port that the messages will
@@ -20,15 +18,15 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
 	listenport := strconv.Itoa(laddr.Port)
 
 	// disconnect any old socket
-	espat.ActiveDevice.DisconnectSocket()
+	ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	err := espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	err := ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
 	if err != nil {
 		return nil, err
 	}
 
-	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
 
 // ListenUDP listens for UDP connections on the port listed in laddr.
@@ -38,15 +36,15 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPSerialConn, error) {
 	listenport := strconv.Itoa(laddr.Port)
 
 	// disconnect any old socket
-	espat.ActiveDevice.DisconnectSocket()
+	ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	err := espat.ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
+	err := ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
 	if err != nil {
 		return nil, err
 	}
 
-	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr}, nil
+	return &UDPSerialConn{SerialConn: SerialConn{Adaptor: ActiveDevice}, laddr: laddr}, nil
 }
 
 // DialTCP makes a TCP network connection. raadr is the port that the messages will
@@ -57,15 +55,15 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
 	sendport := strconv.Itoa(raddr.Port)
 
 	// disconnect any old socket?
-	//espat.ActiveDevice.DisconnectSocket()
+	//ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	err := espat.ActiveDevice.ConnectTCPSocket(addr, sendport)
+	err := ActiveDevice.ConnectTCPSocket(addr, sendport)
 	if err != nil {
 		return nil, err
 	}
 
-	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: espat.ActiveDevice}, laddr: laddr, raddr: raddr}, nil
+	return &TCPSerialConn{SerialConn: SerialConn{Adaptor: ActiveDevice}, laddr: laddr, raddr: raddr}, nil
 }
 
 // Dial connects to the address on the named network.
@@ -96,7 +94,7 @@ func Dial(network, address string) (Conn, error) {
 
 // SerialConn is a loosely net.Conn compatible implementation
 type SerialConn struct {
-	Adaptor *espat.Device
+	Adaptor DeviceDriver
 }
 
 // UDPSerialConn is a loosely net.Conn compatible intended to support
@@ -149,6 +147,7 @@ func (c *SerialConn) Write(b []byte) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
+	/* TODO(bcg): this is kind of specific to espat, should maybe refactor */
 	_, err = c.Adaptor.Response(1000)
 	if err != nil {
 		return n, err
@@ -240,7 +239,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
 	r := strings.Split(address, ":")
-	addr, err := espat.ActiveDevice.GetDNS(r[0])
+	addr, err := ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +262,7 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	// TODO: make sure network is 'udp'
 	// separate domain from port, if any
 	r := strings.Split(address, ":")
-	addr, err := espat.ActiveDevice.GetDNS(r[0])
+	addr, err := ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err
 	}
