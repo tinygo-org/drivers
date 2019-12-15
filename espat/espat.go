@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"tinygo.org/x/drivers/net"
 )
 
 // Device wraps UART connection to the ESP8266/ESP32.
@@ -48,6 +50,7 @@ func New(b machine.UART) *Device {
 // Configure sets up the device for communication.
 func (d Device) Configure() {
 	ActiveDevice = &d
+	net.ActiveDevice = ActiveDevice
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.

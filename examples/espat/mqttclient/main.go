@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/espat"
-	"tinygo.org/x/drivers/espat/mqtt"
+	"tinygo.org/x/drivers/net/mqtt"
 )
 
 // access point info
@@ -64,7 +64,7 @@ func main() {
 		return
 	}
 
-	opts := mqtt.NewClientOptions(adaptor)
+	opts := mqtt.NewClientOptions()
 	opts.AddBroker(server).SetClientID("tinygo-client-" + randomString(10))
 
 	println("Connecting to MQTT broker at", server)

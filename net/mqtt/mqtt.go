@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"github.com/eclipse/paho.mqtt.golang/packets"
-	"tinygo.org/x/drivers/espat"
-	"tinygo.org/x/drivers/espat/net"
-	"tinygo.org/x/drivers/espat/tls"
+	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net/tls"
 )
 
 // NewClient will create an MQTT v3.1.1 client with all of the options specified
@@ -24,7 +23,7 @@ func NewClient(o *ClientOptions) Client {
 }
 
 type mqttclient struct {
-	adaptor         *espat.Device
+	adaptor         net.DeviceDriver
 	conn            net.Conn
 	connected       bool
 	opts            *ClientOptions
@@ -297,7 +296,7 @@ func (c *mqttclient) ackFunc(packet *packets.PublishPacket) func() {
 // If there is no data yet but also is no error, it returns nil for both values.
 func (c *mqttclient) ReadPacket() (packets.ControlPacket, error) {
 	// check for data first...
-	if espat.ActiveDevice.IsSocketDataAvailable() {
+	if net.ActiveDevice.IsSocketDataAvailable() {
 		return packets.ReadPacket(c.conn)
 	}
 	return nil, nil
