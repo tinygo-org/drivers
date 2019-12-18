@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"tinygo.org/x/drivers/net"
 )
 
 const (
 	ReadBufferSize = 128
 )
 
-func (d *Device) NewDriver() *Driver {
+func (d *Device) NewDriver() net.DeviceDriver {
 	return &Driver{dev: d, sock: NoSocketAvail}
 }
 
@@ -99,6 +101,10 @@ func (drv *Driver) DisconnectSocket() error {
 func (drv *Driver) StartSocketSend(size int) error {
 	// not needed for WiFiNINA???
 	return nil
+}
+
+func (drv *Driver) Response(timeout int) ([]byte, error) {
+	return nil, nil
 }
 
 func (drv *Driver) Write(b []byte) (n int, err error) {

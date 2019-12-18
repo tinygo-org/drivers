@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"machine"
+
+	"tinygo.org/x/drivers/net"
 )
 
 const _debug = false
@@ -186,7 +188,7 @@ func (e EncryptionType) String() string {
 	case EncTypeTKIP:
 		return "TKIP"
 	case EncTypeCCMP:
-		return "CCMP"
+		return "WPA2"
 	case EncTypeWEP:
 		return "WEP"
 	case EncTypeNone:
@@ -261,6 +263,8 @@ type Device struct {
 }
 
 func (d *Device) Configure() {
+
+	net.UseDriver(d.NewDriver())
 
 	d.CS.Configure(machine.PinConfig{machine.PinOutput})
 	d.ACK.Configure(machine.PinConfig{machine.PinInput})
