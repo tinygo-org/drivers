@@ -11,8 +11,8 @@ import (
 	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/net"
 	"tinygo.org/x/drivers/wifinina"
-	"tinygo.org/x/drivers/wifinina/net"
 )
 
 // access point info
@@ -62,7 +62,6 @@ func main() {
 	})
 
 	adaptor.Configure()
-	net.UseDriver(adaptor.NewDriver())
 
 	connectToAP()
 

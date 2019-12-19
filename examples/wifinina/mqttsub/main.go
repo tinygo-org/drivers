@@ -5,7 +5,7 @@
 // In other words:
 // Your computer <--> UART0 <--> MCU <--> UART1 <--> ESP8266 <--> Internet <--> MQTT broker.
 //
-// You must install the Paho MQTT package to build this program:
+// You must also install the Paho MQTT package to build this program:
 //
 // 		go get -u github.com/eclipse/paho.mqtt.golang
 //
@@ -30,7 +30,6 @@ const server = "tcp://test.mosquitto.org:1883"
 
 //const server = "ssl://test.mosquitto.org:8883"
 
-// these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
 
@@ -50,8 +49,16 @@ var (
 	}
 
 	console = machine.UART0
-	topic   = "tinygo"
+
+	cl      mqtt.Client
+	topicTx = "tinygo/tx"
+	topicRx = "tinygo/rx"
 )
+
+func subHandler(client mqtt.Client, msg mqtt.Message) {
+	fmt.Printf("[%s]  ", msg.Topic())
+	fmt.Printf("%s\r\n", msg.Payload())
+}
 
 func main() {
 	time.Sleep(3000 * time.Millisecond)
@@ -75,37 +82,42 @@ func main() {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(server).SetClientID("tinygo-client-" + randomString(10))
 
-	println("Connectng to MQTT...")
-	cl := mqtt.NewClient(opts)
+	println("Connecting to MQTT broker at", server)
+	cl = mqtt.NewClient(opts)
 	if token := cl.Connect(); token.Wait() && token.Error() != nil {
 		failMessage(token.Error().Error())
 	}
 
-	for i := 0; ; i++ {
-		println("Publishing MQTT message...")
-		//data := []byte("{\"e\":[{ \"n\":\"hello\", \"v\":101 }]}")
-		data := []byte(fmt.Sprintf(`{"e":[{"n":"hello %d","v":101}]}`, i))
-		token := cl.Publish(topic, 0, false, data)
-		token.Wait()
-		if err := token.Error(); err != nil {
-			switch t := err.(type) {
-			case wifinina.Error:
-				println(t.Error(), "attempting to reconnect")
-				if token := cl.Connect(); token.Wait() && token.Error() != nil {
-					failMessage(token.Error().Error())
-				}
-			default:
-				println(err.Error())
-			}
-		}
-		time.Sleep(1 * time.Millisecond)
+	// subscribe
+	token := cl.Subscribe(topicRx, 0, subHandler)
+	token.Wait()
+	if token.Error() != nil {
+		failMessage(token.Error().Error())
 	}
+
+	go publishing()
+
+	select {}
 
 	// Right now this code is never reached. Need a way to trigger it...
 	println("Disconnecting MQTT...")
 	cl.Disconnect(100)
 
 	println("Done.")
+}
+
+func publishing() {
+	for i := 0; ; i++ {
+		println("Publishing MQTT message...")
+		data := []byte(fmt.Sprintf(`{"e":[{"n":"hello %d","v":101}]}`, i))
+		token := cl.Publish(topicRx, 0, false, data)
+		token.Wait()
+		if token.Error() != nil {
+			println(token.Error().Error())
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // connect to access point
