@@ -137,15 +137,12 @@ func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 		return 0, nil
 	}
 	length := len(b)
-	//println("length:", length, "avail:", avail)
 	if avail < length {
 		length = avail
 	}
 	copy(b, drv.readBuf.data[drv.readBuf.head:drv.readBuf.head+length])
-	//println("copied: " + string(b[0:length]))
 	drv.readBuf.head += length
 	drv.readBuf.size -= length
-	//println("head:", drv.readBuf.head, "size:", drv.readBuf.size)
 	return length, nil
 }
 
@@ -180,32 +177,14 @@ func (drv *Driver) IsConnected() (bool, error) {
 	isConnected := !(s == TCPStateListen || s == TCPStateClosed ||
 		s == TCPStateFinWait1 || s == TCPStateFinWait2 || s == TCPStateTimeWait ||
 		s == TCPStateSynSent || s == TCPStateSynRcvd || s == TCPStateCloseWait)
+	// TODO: investigate if the below is necessary (as per Arduino driver)
+	//if !isConnected {
+	//	//close socket buffer?
+	//	WiFiSocketBuffer.close(_sock);
+	//	_sock = 255;
+	//}
 	return isConnected, nil
 }
-
-/*
-func (drv *Driver) connected() (bool, error) {
-	if drv.sock == NoSocketAvail {
-		return false, nil
-	}
-	if drv.available() > 0 {
-		return true, nil
-	}
-	s, err := drv.status()
-	if err != nil {
-		return false, err
-	}
-	isConnected := !(s == TCPStateListen || s == TCPStateClosed ||
-		s == TCPStateFinWait1 || s == TCPStateFinWait2 || s == TCPStateTimeWait ||
-		s == TCPStateSynSent || s == TCPStateSynRcvd || s == TCPStateCloseWait)
-	if !isConnected {
-		// close socket buffer?
-		// WiFiSocketBuffer.close(_sock);
-		// _sock = 255;
-	}
-	return isConnected, nil
-}
-*/
 
 func (drv *Driver) status() (uint8, error) {
 	if drv.sock == NoSocketAvail {
@@ -224,6 +203,9 @@ func (drv *Driver) stop() error {
 		if st == TCPStateClosed {
 			break
 		}
+		// FIXME: without the time.Sleep below this blocks until TCPStateClosed,
+		// however with it got goroutine stack overflows; not sure if this is still
+		// an issue so should investigate further
 		//time.Sleep(1 * time.Millisecond)
 	}
 	drv.sock = NoSocketAvail

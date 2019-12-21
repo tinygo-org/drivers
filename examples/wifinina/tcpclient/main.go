@@ -60,8 +60,6 @@ func main() {
 		SCK:       machine.NINA_SCK,
 	})
 
-	//configureDisplay()
-
 	adaptor.Configure()
 
 	connectToAP()

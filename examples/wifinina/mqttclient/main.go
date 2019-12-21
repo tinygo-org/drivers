@@ -83,7 +83,6 @@ func main() {
 
 	for i := 0; ; i++ {
 		println("Publishing MQTT message...")
-		//data := []byte("{\"e\":[{ \"n\":\"hello\", \"v\":101 }]}")
 		data := []byte(fmt.Sprintf(`{"e":[{"n":"hello %d","v":101}]}`, i))
 		token := cl.Publish(topic, 0, false, data)
 		token.Wait()
