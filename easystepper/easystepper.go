@@ -21,28 +21,22 @@ type DualDevice struct {
 // New returns a new easystepper driver given 4 pins numbers (not pin object),
 // number of steps and rpm
 func New(pin1, pin2, pin3, pin4 machine.Pin, steps int32, rpm int32) Device {
-	pin1.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin2.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin3.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin4.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	return Device{
 		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
 		stepDelay: 60000000 / (steps * rpm),
 	}
 }
 
+// Configure configures the pins of the Device
+func (d *Device) Configure() {
+	for _, pin := range d.pins {
+		pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	}
+}
+
 // NewDual returns a new dual easystepper driver given 8 pins numbers (not pin object),
 // number of steps and rpm
 func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 machine.Pin, steps int32, rpm int32) DualDevice {
-	pin1.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin2.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin3.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin4.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin5.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin6.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin7.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	pin8.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
 	var dual DualDevice
 	dual.devices[0] = Device{
 		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
@@ -53,6 +47,12 @@ func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 machine.Pin, steps i
 		stepDelay: 60000000 / (steps * rpm),
 	}
 	return dual
+}
+
+// Configure configures the pins of the DualDevice
+func (d *DualDevice) Configure() {
+	d.devices[0].Configure()
+	d.devices[1].Configure()
 }
 
 // Move rotates the motor the number of given steps
@@ -73,10 +73,9 @@ func (d *Device) Move(steps int32) {
 
 // Off turns off all motor pins
 func (d *Device) Off() {
-	d.pins[0].Low()
-	d.pins[1].Low()
-	d.pins[2].Low()
-	d.pins[3].Low()
+	for _, pin := range d.pins {
+		pin.Low()
+	}
 }
 
 // Move rotates the motors the number of given steps

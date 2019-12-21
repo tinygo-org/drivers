@@ -9,6 +9,7 @@ import (
 
 func main() {
 	motor := easystepper.New(machine.P13, machine.P15, machine.P14, machine.P16, 200, 75)
+	motor.Configure()
 
 	for {
 		println("CLOCKWISE")
