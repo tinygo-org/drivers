@@ -67,11 +67,7 @@ func (d *Device) Move(steps int32) {
 	d.stepMotor(d.stepNumber)
 	for s = int32(d.stepNumber); s < steps; s++ {
 		time.Sleep(time.Duration(d.stepDelay) * time.Microsecond)
-		if direction {
-			d.stepMotor(uint8(s % 4))
-		} else {
-			d.stepMotor(uint8((s + 2*(s%2)) % 4))
-		}
+		d.moveDirectionSteps(direction, s)
 	}
 }
 
@@ -109,19 +105,11 @@ func (d *DualDevice) Move(stepsA, stepsB int32) {
 	minStep = int32(d.devices[min].stepNumber)
 	for s := int32(d.devices[max].stepNumber); s < stepsA; s++ {
 		time.Sleep(time.Duration(d.devices[0].stepDelay) * time.Microsecond)
-		if directions[max] {
-			d.devices[max].stepMotor(uint8(s % 4))
-		} else {
-			d.devices[max].stepMotor(uint8((s + 2*(s%2)) % 4))
-		}
+		d.devices[max].moveDirectionSteps(directions[max], s)
 
 		if ((s * stepsB) / stepsA) > minStep {
 			minStep++
-			if directions[min] {
-				d.devices[min].stepMotor(uint8(minStep % 4))
-			} else {
-				d.devices[min].stepMotor(uint8((minStep + 2*(minStep%2)) % 4))
-			}
+			d.devices[min].moveDirectionSteps(directions[min], minStep)
 		}
 	}
 }
@@ -161,4 +149,15 @@ func (d *Device) stepMotor(step uint8) {
 		break
 	}
 	d.stepNumber = step
+}
+
+// moveDirectionSteps uses the direction to calculate the correct step and change the motor to it.
+// Direction true: 0, 1, 2, 3, 0, 1, 2, ...
+// Direction false: 0, 3, 2, 1, 0, 3, 2, ...
+func (d *Device) moveDirectionSteps(direction bool, step int32) {
+	if direction {
+		d.stepMotor(uint8(step % 4))
+	} else {
+		d.stepMotor(uint8((step + 2*(step%2)) % 4))
+	}
 }
