@@ -10,7 +10,7 @@ import (
 type Device struct {
 	pins       [4]machine.Pin
 	stepDelay  int32
-	stepNumber int32
+	stepNumber uint8
 }
 
 // DualDevice holds information for controlling 2 motors
@@ -60,23 +60,19 @@ func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 machine.Pin, steps i
 func (d *Device) Move(steps int32) {
 	direction := steps > 0
 	if steps < 0 {
-		steps = -steps - d.stepNumber
-	} else {
-		steps += d.stepNumber
+		steps = -steps
 	}
-	var stepN int8
+	steps += int32(d.stepNumber)
 	var s int32
-	d.stepMotor(int8(d.stepNumber % 4))
-	for s = d.stepNumber; s < steps; s++ {
+	d.stepMotor(d.stepNumber)
+	for s = int32(d.stepNumber); s < steps; s++ {
 		time.Sleep(time.Duration(d.stepDelay) * time.Microsecond)
 		if direction {
-			stepN = int8(s % 4)
+			d.stepMotor(uint8(s % 4))
 		} else {
-			stepN = int8((s + 2*(s%2)) % 4)
+			d.stepMotor(uint8((s + 2*(s%2)) % 4))
 		}
-		d.stepMotor(stepN)
 	}
-	d.stepNumber = int32(stepN)
 }
 
 // Off turns off all motor pins
@@ -90,10 +86,9 @@ func (d *Device) Off() {
 // Move rotates the motors the number of given steps
 // (negative steps will rotate it the opposite direction)
 func (d *DualDevice) Move(stepsA, stepsB int32) {
-	min := 1
-	max := 0
+	min := uint8(1)
+	max := uint8(0)
 	var directions [2]bool
-	var stepN [2]int8
 	var minStep int32
 
 	directions[0] = stepsA > 0
@@ -104,35 +99,31 @@ func (d *DualDevice) Move(stepsA, stepsB int32) {
 	if stepsB < 0 {
 		stepsB = -stepsB
 	}
-
 	if stepsB > stepsA {
 		stepsA, stepsB = stepsB, stepsA
-		min = 0
-		max = 1
+		max, min = min, max
 	}
-	d.devices[0].stepMotor(int8(d.devices[0].stepNumber % 4))
-	d.devices[1].stepMotor(int8(d.devices[1].stepNumber % 4))
-	for s := int32(0); s < stepsA; s++ {
+	d.devices[0].stepMotor(d.devices[0].stepNumber)
+	d.devices[1].stepMotor(d.devices[1].stepNumber)
+	stepsA += int32(d.devices[max].stepNumber)
+	minStep = int32(d.devices[min].stepNumber)
+	for s := int32(d.devices[max].stepNumber); s < stepsA; s++ {
 		time.Sleep(time.Duration(d.devices[0].stepDelay) * time.Microsecond)
 		if directions[max] {
-			stepN[max] = int8(s % 4)
+			d.devices[max].stepMotor(uint8(s % 4))
 		} else {
-			stepN[max] = int8((s + 2*(s%2)) % 4)
+			d.devices[max].stepMotor(uint8((s + 2*(s%2)) % 4))
 		}
 
-		if ((s*stepsB)/stepsA) > minStep {
+		if ((s * stepsB) / stepsA) > minStep {
 			minStep++
 			if directions[min] {
-				stepN[min] = int8(minStep % 4)
+				d.devices[min].stepMotor(uint8(minStep % 4))
 			} else {
-				stepN[min] = int8((minStep + 2*(minStep%2)) % 4)
+				d.devices[min].stepMotor(uint8((minStep + 2*(minStep%2)) % 4))
 			}
 		}
-
-		d.devices[0].stepMotor(stepN[0])
-		d.devices[1].stepMotor(stepN[1])
 	}
-
 }
 
 // Off turns off all motor pins
@@ -142,7 +133,7 @@ func (d *DualDevice) Off() {
 }
 
 // stepMotor changes the pins' state to the correct step
-func (d *Device) stepMotor(step int8) {
+func (d *Device) stepMotor(step uint8) {
 	switch step {
 	case 0:
 		d.pins[0].High()
@@ -169,4 +160,5 @@ func (d *Device) stepMotor(step int8) {
 		d.pins[3].High()
 		break
 	}
+	d.stepNumber = step
 }
