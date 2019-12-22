@@ -8,11 +8,19 @@ import (
 )
 
 func main() {
-	buttons := shifter.New(machine.BUTTON_LATCH, machine.BUTTON_CLK, machine.BUTTON_OUT)
+	buttons := shifter.New(shifter.EIGHT_BITS, machine.BUTTON_LATCH, machine.BUTTON_CLK, machine.BUTTON_OUT)
 	buttons.Configure()
 
 	for {
-		pressed := buttons.Read8Input()
+		// Slower
+		for i := 0; i < 8; i++ {
+			if buttons.Pins[i].Get() {
+				println("Button", i, "pressed")
+			}
+		}
+
+		// Faster
+		pressed, _ := buttons.Read8Input()
 		if pressed&machine.BUTTON_LEFT_MASK > 0 {
 			println("Button LEFT pressed")
 		}
