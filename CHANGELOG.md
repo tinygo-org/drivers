@@ -1,3 +1,21 @@
+0.9.0
+---
+- **new devices**
+    - net: shared implementation of net package for serial wifi devices
+    - shifter: add support for bit Parallel In Serial Out (PISO) shifter
+    - stepper: add support for dual stepper motor
+    - wifinina: add implementation for WiFiNINA firmware
+- **enhancements**
+    - st7735: improvements in st7735 driver
+    - st7789: improvements in st7789 driver
+    - ws2812: add support for 120Mhz Cortex-M4
+    - ws2812: added Feather M0 and Trinket M0 to build tags for WS2812
+    - ws2812: add support for simulation
+- **bugfixes**
+    - ws2812: fix "invalid symbol redefinition" error
+- **examples**
+    - Add examples for wifinina drivers
+
 0.8.0
 ---
 - **new devices**
