@@ -66,15 +66,8 @@ func (d *Device) Configure(cfg Config) {
 		d.height = 240
 	}
 	d.rotation = cfg.Rotation
-
-	if cfg.RowOffset != 0 {
-		d.rowOffsetCfg = cfg.RowOffset
-	} else {
-		d.rowOffsetCfg = 80
-	}
-	if cfg.ColumnOffset != 0 {
-		d.columnOffsetCfg = cfg.ColumnOffset
-	}
+	d.rowOffsetCfg = cfg.RowOffset
+	d.columnOffsetCfg = cfg.ColumnOffset
 
 	d.batchLength = int32(d.width)
 	if d.height > d.width {
