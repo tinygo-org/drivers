@@ -76,21 +76,8 @@ func (d *Device) Configure(cfg Config) {
 		d.height = 160
 	}
 	d.rotation = cfg.Rotation
-
-	if cfg.RowOffset != 0 {
-		d.rowOffset = cfg.RowOffset
-	} else {
-		d.rowOffset = 1
-	}
-	if cfg.ColumnOffset != 0 {
-		d.columnOffset = cfg.ColumnOffset
-	} else {
-		if d.model == MINI80x160 {
-			d.columnOffset = 26
-		} else {
-			d.columnOffset = 2
-		}
-	}
+	d.rowOffset = cfg.RowOffset
+	d.columnOffset = cfg.ColumnOffset
 
 	d.batchLength = d.width
 	if d.height > d.width {
