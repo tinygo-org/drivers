@@ -5,29 +5,6 @@ import (
 	"time"
 )
 
-const (
-	// Default I2C address
-	Address = 0x48
-
-	// Temperature Value MSB Register
-	RegTempValueMSB = 0x0
-
-	// Temperature Value LSB Register
-	RegTempValueLSB = 0x1
-
-	// Status Register
-	RegStatus = 0x2
-
-	// Config Register
-	RegConfig = 0x3
-
-	// ID Register
-	RegID = 0x0B
-
-	// Software Reset Register
-	RegReset = 0x2F
-)
-
 type Error uint8
 
 const (
@@ -78,6 +55,11 @@ func (dev *Device) Configure() (err error) {
 	time.Sleep(10 * time.Millisecond)
 	return
 
+}
+
+// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000)
+func (d *Device) ReadTemperature() (temperature int32, err error) {
+	return (int32(d.readUint16(RegTempValueMSB)) * 1000) / 128, nil
 }
 
 // ReadTempC returns the value in the temperature value register, in Celcius
