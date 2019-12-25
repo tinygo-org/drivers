@@ -56,6 +56,7 @@ The following 35 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
+| [ADT7410 I2C Temperature Sensor](https://www.analog.com/media/en/technical-documentation/data-sheets/ADT7410.pdf) | I2C |
 | [ADXL345 accelerometer](http://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf) | I2C |
 | [APA102 RGB LED](https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf) | SPI |
 | [AT24CX 2-wire serial EEPROM](https://www.openimpulse.com/blog/wp-content/uploads/wpsc/downloadables/24C32-Datasheet.pdf) | I2C |
