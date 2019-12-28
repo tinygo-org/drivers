@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/tinygo-org/tinygo/src/machine"
-	"github.com/tinygo-org/tinygo/src/runtime/volatile"
 )
 
 const _debug = false
@@ -147,7 +146,12 @@ func (d *Device) Size() (x, y int16) {
 
 // SetPixel modifies the internal buffer.
 func (d *Device) SetPixel(x, y int16, c color.RGBA) {
-
+	d.setWindow(x, y, 1, 1)
+	c565 := RGBATo565(c)
+	d.startWrite()
+	d.driver.writeByte(byte(c565 >> 8))
+	d.driver.writeByte(byte(c565))
+	d.endWrite()
 }
 
 // Display sends the buffer (if any) to the screen.
@@ -228,19 +232,17 @@ func (d *Device) writeColor(c565 uint16, l int) {
 	hi := uint8(c565 >> 8)
 	lo := uint8(c565)
 	for i := 0; i < l; i++ {
-		d.driver.spiWrite(hi)
-		d.driver.spiWrite(lo)
+		d.driver.writeByte(hi)
+		d.driver.writeByte(lo)
 	}
 }
 
 func (d *Device) startWrite() {
-	d.driver.beginTransaction()
 	d.csLow()
 }
 
 func (d *Device) endWrite() {
 	d.csHigh()
-	d.driver.endTransaction()
 }
 
 func (d *Device) sendCommand(cmd byte, data []byte) {
@@ -251,16 +253,14 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 		}
 		println()
 	}
-	d.driver.beginTransaction()
 	d.csLow()
 	d.dcLow()
-	d.driver.spiWrite(cmd)
+	d.driver.writeByte(cmd)
 	d.dcHigh()
 	for _, b := range data {
-		d.driver.spiWrite(b)
+		d.driver.writeByte(b)
 	}
 	d.csHigh()
-	d.driver.endTransaction()
 }
 
 //go:inline
@@ -289,10 +289,7 @@ func (d *Device) dcLow() {
 
 type driver interface {
 	configure(config *Config)
-	beginTransaction()
-	spiWrite(b byte)
-	endTransaction()
-	//sendCommand(cmd byte, data []byte)
+	writeByte(b byte)
 }
 
 /*
@@ -315,98 +312,10 @@ func NewSPI(spi *machine.SPI, dc, cs, rst, rd machine.Pin) *Device {
 func (sd *spiDriver) configure(config *Config) {
 }
 
-func (sd *spiDriver) beginTransaction() {
-}
-
-func (sd *spiDriver) spiWrite(b byte) {
+func (sd *spiDriver) writeByte(b byte) {
 	sd.spi.Transfer(b)
 }
-
-func (sd *spiDriver) endTransaction() {
-}
 */
-
-type parallelDriver struct {
-	d0 machine.Pin
-	wr machine.Pin
-
-	setPort *uint32
-	setMask uint32
-
-	clrPort *uint32
-	clrMask uint32
-
-	wrPortSet *uint32
-	wrMaskSet uint32
-
-	wrPortClr *uint32
-	wrMaskClr uint32
-}
-
-func NewParallel(d0, wr, dc, cs, rst, rd machine.Pin) *Device {
-	return &Device{
-		dc:  dc,
-		cs:  cs,
-		rd:  rd,
-		rst: rst,
-		driver: &parallelDriver{
-			d0: d0,
-			wr: wr,
-		},
-	}
-}
-
-func (pd *parallelDriver) configure(config *Config) {
-	output := machine.PinConfig{machine.PinOutput}
-	for pin := pd.d0; pin < pd.d0+8; pin++ {
-		if _debug {
-			println("configuring pin", uint8(pin))
-		}
-		pin.Configure(output)
-		pin.Low()
-	}
-	if _debug {
-		println("configuring wr")
-	}
-	pd.wr.Configure(output)
-	pd.wr.High()
-
-	pd.setPort, _ = pd.d0.PortMaskSet()
-	pd.setMask = uint32(pd.d0) & 0x1f
-
-	pd.clrPort, _ = (pd.d0).PortMaskClear()
-	pd.clrMask = 0xFF << uint32(pd.d0)
-
-	pd.wrPortSet, pd.wrMaskSet = pd.wr.PortMaskSet()
-	pd.wrPortClr, pd.wrMaskClr = pd.wr.PortMaskClear()
-}
-
-func (pd *parallelDriver) beginTransaction() {
-}
-
-//go:inline
-func (pd *parallelDriver) spiWrite(b byte) {
-	/*
-		// TODO: this can probably be done with a single write to the port
-		for pin, c := pd.d0, pd.d0+8; pin < c; pin++ {
-			if b&1 > 0 {
-				pin.High()
-			} else {
-				pin.Low()
-			}
-			b >>= 1
-		}
-		pd.wr.Low()
-		pd.wr.High()
-	*/
-	volatile.StoreUint32(pd.clrPort, pd.clrMask)
-	volatile.StoreUint32(pd.setPort, uint32(b)<<pd.setMask)
-	volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
-	volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
-}
-
-func (pd *parallelDriver) endTransaction() {
-}
 
 func delay(micros int) {
 	/*
