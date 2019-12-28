@@ -165,41 +165,41 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	d.setWindow(x, y, width, height)
 	c565 := RGBATo565(c)
 	d.startWrite()
-	d.writeColor(c565, int(width*height))
+	d.writeColor(c565, int(width)*int(height))
 	d.endWrite()
 	return nil
-	/*
-		for i = 0; i < d.batchLength; i++ {
-			d.batchData[i*2] = c1
-			d.batchData[i*2+1] = c2
-		}
-		i = width * height
-		for i > 0 {
-			if i >= d.batchLength {
-				d.Tx(d.batchData, false)
-			} else {
-				d.Tx(d.batchData[:i*2], false)
-			}
-			i -= d.batchLength
-		}
-		return nil
-	*/
+}
+
+func (d *Device) DrawRectangle(x, y, w, h int16, c color.RGBA) error {
+	if err := d.DrawFastHLine(x, x+w-1, y, c); err != nil {
+		return err
+	}
+	if err := d.DrawFastHLine(x, x+w-1, y+h-1, c); err != nil {
+		return err
+	}
+	if err := d.DrawFastVLine(x, y, y+h-1, c); err != nil {
+		return err
+	}
+	if err := d.DrawFastVLine(x+w-1, y, y+h-1, c); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DrawFastVLine draws a vertical line faster than using SetPixel
-func (d *Device) DrawFastVLine(x, y0, y1 int16, c color.RGBA) {
+func (d *Device) DrawFastVLine(x, y0, y1 int16, c color.RGBA) error {
 	if y0 > y1 {
 		y0, y1 = y1, y0
 	}
-	d.FillRectangle(x, y0, 1, y1-y0+1, c)
+	return d.FillRectangle(x, y0, 1, y1-y0+1, c)
 }
 
 // DrawFastHLine draws a horizontal line faster than using SetPixel
-func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
+func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) error {
 	if x0 > x1 {
 		x0, x1 = x1, x0
 	}
-	d.FillRectangle(x0, y, x1-x0+1, y, c)
+	return d.FillRectangle(x0, y, x1-x0+1, 1, c)
 }
 
 // FillScreen fills the screen with a given color
