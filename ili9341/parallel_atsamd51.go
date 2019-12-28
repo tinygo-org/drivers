@@ -56,28 +56,47 @@ func (pd *parallelDriver) configure(config *Config) {
 	pd.wrPortClr, pd.wrMaskClr = pd.wr.PortMaskClear()
 }
 
-func (pd *parallelDriver) beginTransaction() {
-}
-
-func (pd *parallelDriver) writeByte(b byte) {
-	/*
-		// TODO: this can probably be done with a single write to the port
-		for pin, c := pd.d0, pd.d0+8; pin < c; pin++ {
-			if b&1 > 0 {
-				pin.High()
-			} else {
-				pin.Low()
-			}
-			b >>= 1
-		}
-		pd.wr.Low()
-		pd.wr.High()
-	*/
+func (pd *parallelDriver) write8(b byte) {
 	volatile.StoreUint32(pd.clrPort, pd.clrMask)
 	volatile.StoreUint32(pd.setPort, uint32(b)<<pd.setMask)
 	volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
 	volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
 }
 
-func (pd *parallelDriver) endTransaction() {
+func (pd *parallelDriver) write8n(b byte, n int) {
+	setMask := uint32(b) << pd.setMask
+	for i := 0; i < n; i++ {
+		volatile.StoreUint32(pd.clrPort, pd.clrMask)
+		volatile.StoreUint32(pd.setPort, setMask)
+		volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
+		volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
+	}
+}
+
+func (pd *parallelDriver) write16(data uint16) {
+	volatile.StoreUint32(pd.clrPort, pd.clrMask)
+	volatile.StoreUint32(pd.setPort, uint32(data>>8)<<pd.setMask)
+	volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
+	volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
+
+	volatile.StoreUint32(pd.clrPort, pd.clrMask)
+	volatile.StoreUint32(pd.setPort, uint32(byte(data))<<pd.setMask)
+	volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
+	volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
+}
+
+func (pd *parallelDriver) write16n(data uint16, n int) {
+	setMaskHi := uint32(data>>8) << pd.setMask
+	setMaskLo := uint32(byte(data)) << pd.setMask
+	for i := 0; i < n; i++ {
+		volatile.StoreUint32(pd.clrPort, pd.clrMask)
+		volatile.StoreUint32(pd.setPort, setMaskHi)
+		volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
+		volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
+
+		volatile.StoreUint32(pd.clrPort, pd.clrMask)
+		volatile.StoreUint32(pd.setPort, setMaskLo)
+		volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
+		volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
+	}
 }

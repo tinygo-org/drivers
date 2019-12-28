@@ -149,8 +149,7 @@ func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 	d.setWindow(x, y, 1, 1)
 	c565 := RGBATo565(c)
 	d.startWrite()
-	d.driver.writeByte(byte(c565 >> 8))
-	d.driver.writeByte(byte(c565))
+	d.driver.write16(c565)
 	d.endWrite()
 }
 
@@ -169,11 +168,12 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	d.setWindow(x, y, width, height)
 	c565 := RGBATo565(c)
 	d.startWrite()
-	d.writeColor(c565, int(width)*int(height))
+	d.driver.write16n(c565, int(width)*int(height))
 	d.endWrite()
 	return nil
 }
 
+// DrawRectangle fills a rectangle at a given coordinates with a color
 func (d *Device) DrawRectangle(x, y, w, h int16, c color.RGBA) error {
 	if err := d.DrawFastHLine(x, x+w-1, y, c); err != nil {
 		return err
@@ -228,15 +228,6 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	d.sendCommand(RAMWR, nil)
 }
 
-func (d *Device) writeColor(c565 uint16, l int) {
-	hi := uint8(c565 >> 8)
-	lo := uint8(c565)
-	for i := 0; i < l; i++ {
-		d.driver.writeByte(hi)
-		d.driver.writeByte(lo)
-	}
-}
-
 func (d *Device) startWrite() {
 	d.csLow()
 }
@@ -255,75 +246,49 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 	}
 	d.csLow()
 	d.dcLow()
-	d.driver.writeByte(cmd)
+	d.driver.write8(cmd)
 	d.dcHigh()
 	for _, b := range data {
-		d.driver.writeByte(b)
+		d.driver.write8(b)
 	}
 	d.csHigh()
 }
 
-//go:inline
 func (d *Device) csHigh() {
 	if d.cs != machine.NoPin {
 		d.cs.High()
 	}
 }
 
-//go:inline
 func (d *Device) csLow() {
 	if d.cs != machine.NoPin {
 		d.cs.Low()
 	}
 }
 
-//go:inline
 func (d *Device) dcHigh() {
 	d.dc.High()
 }
 
-//go:inline
 func (d *Device) dcLow() {
 	d.dc.Low()
 }
 
 type driver interface {
 	configure(config *Config)
-	writeByte(b byte)
+	write8(b byte)
+	write8n(b byte, n int)
+	write16(data uint16)
+	write16n(data uint16, n int)
 }
-
-/*
-type spiDriver struct {
-	spi *machine.SPI
-}
-
-func NewSPI(spi *machine.SPI, dc, cs, rst, rd machine.Pin) *Device {
-	return &Device{
-		dc:  dc,
-		cs:  cs,
-		rd:  rd,
-		rst: rst,
-		driver: &spiDriver{
-			spi: spi,
-		},
-	}
-}
-
-func (sd *spiDriver) configure(config *Config) {
-}
-
-func (sd *spiDriver) writeByte(b byte) {
-	sd.spi.Transfer(b)
-}
-*/
 
 func delay(micros int) {
+	time.Sleep(time.Duration(micros) * time.Millisecond)
 	/*
-		time.Sleep(time.Duration(micros) * time.Millisecond)
+		t := time.Now().UnixNano() + int64(time.Duration(micros*1000)*time.Microsecond)
+		for time.Now().UnixNano() < t {
+		}
 	*/
-	t := time.Now().UnixNano() + int64(time.Duration(micros*1000)*time.Microsecond)
-	for time.Now().UnixNano() < t {
-	}
 }
 
 // RGBATo565 converts a color.RGBA to uint16 used in the display
