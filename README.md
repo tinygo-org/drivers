@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 35 devices are supported.
+The following 36 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -72,6 +72,7 @@ The following 35 devices are supported.
 | [ESP8266/ESP32 AT Command set for WiFi/TCP/UDP](https://github.com/espressif/esp32-at) | UART |
 | [GPS module](https://www.u-blox.com/en/product/neo-6-series) | I2C/UART |
 | [HUB75 RGB led matrix](https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf) | SPI |
+| [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf) | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
