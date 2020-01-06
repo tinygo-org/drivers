@@ -4,7 +4,7 @@ type Rotation uint8
 
 const (
 
-	// source:
+	// register definitions based on source:
 	// https://github.com/adafruit/Adafruit_ILI9341/blob/master/Adafruit_ILI9341.h
 	/*!
 	 * @file Adafruit_ILI9341.h
@@ -98,6 +98,14 @@ const (
 	GMCTRP1 = 0xE0 ///< Positive Gamma Correction
 	GMCTRN1 = 0xE1 ///< Negative Gamma Correction
 	//PWCTR6     0xFC
+
+	MADCTL_MY  = 0x80 ///< Bottom to top
+	MADCTL_MX  = 0x40 ///< Right to left
+	MADCTL_MV  = 0x20 ///< Reverse Mode
+	MADCTL_ML  = 0x10 ///< LCD refresh Bottom to top
+	MADCTL_RGB = 0x00 ///< Red-Green-Blue pixel order
+	MADCTL_BGR = 0x08 ///< Blue-Green-Red pixel order
+	MADCTL_MH  = 0x04 ///< LCD refresh right to left
 
 	// Color definitions
 	BLACK       = 0x0000 ///<   0,   0,   0

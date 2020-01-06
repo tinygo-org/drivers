@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"machine"
 	"time"
-
-	"github.com/tinygo-org/tinygo/src/machine"
 )
 
 const _debug = false
@@ -58,7 +57,7 @@ func (d *Device) Configure(config Config) {
 		println("configuring dc")
 	}
 	d.dc.Configure(output)
-	d.dcHigh() // data mode
+	d.dc.High() // data mode
 
 	// driver-specific configuration
 	if _debug {
@@ -141,6 +140,9 @@ func (d *Device) Configure(config Config) {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (x, y int16) {
+	if d.rotation == 1 || d.rotation == 3 {
+		return d.height, d.width
+	}
 	return d.width, d.height
 }
 
@@ -228,6 +230,27 @@ func (d *Device) FillScreen(c color.RGBA) {
 	}
 }
 
+func (d *Device) GetRotation() Rotation {
+	return d.rotation
+}
+
+// SetRotation changes the rotation of the device (clock-wise)
+func (d *Device) SetRotation(rotation Rotation) {
+	madctl := uint8(0)
+	switch rotation % 4 {
+	case 0:
+		madctl = MADCTL_MX | MADCTL_BGR
+	case 1:
+		madctl = MADCTL_MV | MADCTL_BGR
+	case 2:
+		madctl = MADCTL_MY | MADCTL_BGR
+	case 3:
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+	}
+	d.sendCommand(MADCTL, []uint8{madctl})
+	d.rotation = rotation
+}
+
 // setWindow prepares the screen to be modified at a given rectangle
 func (d *Device) setWindow(x, y, w, h int16) {
 	//x += d.columnOffset
@@ -241,12 +264,18 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	d.sendCommand(RAMWR, nil)
 }
 
+//go:inline
 func (d *Device) startWrite() {
-	d.csLow()
+	if d.cs != machine.NoPin {
+		d.cs.Low()
+	}
 }
 
+//go:inline
 func (d *Device) endWrite() {
-	d.csHigh()
+	if d.cs != machine.NoPin {
+		d.cs.High()
+	}
 }
 
 func (d *Device) sendCommand(cmd byte, data []byte) {
@@ -257,34 +286,14 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 		}
 		println()
 	}
-	d.csLow()
-	d.dcLow()
+	d.startWrite()
+	d.dc.Low()
 	d.driver.write8(cmd)
-	d.dcHigh()
+	d.dc.High()
 	for _, b := range data {
 		d.driver.write8(b)
 	}
-	d.csHigh()
-}
-
-func (d *Device) csHigh() {
-	if d.cs != machine.NoPin {
-		d.cs.High()
-	}
-}
-
-func (d *Device) csLow() {
-	if d.cs != machine.NoPin {
-		d.cs.Low()
-	}
-}
-
-func (d *Device) dcHigh() {
-	d.dc.High()
-}
-
-func (d *Device) dcLow() {
-	d.dc.Low()
+	d.endWrite()
 }
 
 type driver interface {
@@ -295,13 +304,10 @@ type driver interface {
 	write16sl(data []uint16)
 }
 
-func delay(micros int) {
-	time.Sleep(time.Duration(micros) * time.Millisecond)
-	/*
-		t := time.Now().UnixNano() + int64(time.Duration(micros*1000)*time.Microsecond)
-		for time.Now().UnixNano() < t {
-		}
-	*/
+func delay(m int) {
+	t := time.Now().UnixNano() + int64(time.Duration(m*1000)*time.Microsecond)
+	for time.Now().UnixNano() < t {
+	}
 }
 
 // RGBATo565 converts a color.RGBA to uint16 used in the display
