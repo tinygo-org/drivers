@@ -1,4 +1,4 @@
-// +build nrf52
+// +build nrf52 nrf52840
 
 package ws2812
 
