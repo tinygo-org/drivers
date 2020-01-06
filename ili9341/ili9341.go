@@ -2,7 +2,6 @@ package ili9341
 
 import (
 	"errors"
-	"fmt"
 	"image/color"
 	"machine"
 	"time"
@@ -40,43 +39,25 @@ func (d *Device) Configure(config Config) {
 	d.height = config.Height
 
 	output := machine.PinConfig{machine.PinOutput}
-	if _debug {
-		println("height, width == ", d.width, d.height)
-	}
 
 	// configure chip select if there is one
-	if _debug {
-		println("configuring cs")
-	}
 	if d.cs != machine.NoPin {
 		d.cs.Configure(output)
 		d.cs.High() // deselect
 	}
 
-	if _debug {
-		println("configuring dc")
-	}
 	d.dc.Configure(output)
 	d.dc.High() // data mode
 
 	// driver-specific configuration
-	if _debug {
-		println("configuring driver")
-	}
 	d.driver.configure(&config)
 
-	if _debug {
-		println("configuring rd")
-	}
 	if d.rd != machine.NoPin {
 		d.rd.Configure(output)
 		d.rd.High()
 	}
 
 	// reset the display
-	if _debug {
-		println("configuring rst")
-	}
 	if d.rst != machine.NoPin {
 		// configure hardware reset if there is one
 		d.rst.Configure(output)
@@ -92,9 +73,6 @@ func (d *Device) Configure(config Config) {
 		delay(150)
 	}
 
-	if _debug {
-		println("configuring initCmd")
-	}
 	initCmd := []byte{
 		0xEF, 3, 0x03, 0x80, 0x02,
 		0xCF, 3, 0x00, 0xC1, 0x30,
@@ -279,13 +257,6 @@ func (d *Device) endWrite() {
 }
 
 func (d *Device) sendCommand(cmd byte, data []byte) {
-	if _debug {
-		fmt.Printf("sending command: %02X", cmd)
-		for _, b := range data {
-			fmt.Printf(" %02X", b)
-		}
-		println()
-	}
 	d.startWrite()
 	d.dc.Low()
 	d.driver.write8(cmd)
