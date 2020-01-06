@@ -4,41 +4,8 @@ type Rotation uint8
 
 const (
 
-	// register definitions based on source:
+	// register constants based on source:
 	// https://github.com/adafruit/Adafruit_ILI9341/blob/master/Adafruit_ILI9341.h
-	/*!
-	 * @file Adafruit_ILI9341.h
-	 *
-	 * This is the documentation for Adafruit's ILI9341 driver for the
-	 * Arduino platform.
-	 *
-	 * This library works with the Adafruit 2.8" Touch Shield V2 (SPI)
-	 *    http://www.adafruit.com/products/1651
-	 * Adafruit 2.4" TFT LCD with Touchscreen Breakout w/MicroSD Socket - ILI9341
-	 *    https://www.adafruit.com/product/2478
-	 * 2.8" TFT LCD with Touchscreen Breakout Board w/MicroSD Socket - ILI9341
-	 *    https://www.adafruit.com/product/1770
-	 * 2.2" 18-bit color TFT LCD display with microSD card breakout - ILI9340
-	 *    https://www.adafruit.com/product/1770
-	 * TFT FeatherWing - 2.4" 320x240 Touchscreen For All Feathers
-	 *    https://www.adafruit.com/product/3315
-	 *
-	 * These displays use SPI to communicate, 4 or 5 pins are required
-	 * to interface (RST is optional).
-	 *
-	 * Adafruit invests time and resources providing this open source code,
-	 * please support Adafruit and open-source hardware by purchasing
-	 * products from Adafruit!
-	 *
-	 *
-	 * This library depends on <a href="https://github.com/adafruit/Adafruit_GFX">
-	 * Adafruit_GFX</a> being present on your system. Please make sure you have
-	 * installed the latest version before using this library.
-	 *
-	 * Written by Limor "ladyada" Fried for Adafruit Industries.
-	 *
-	 * BSD license, all text here must be included in any redistribution.
-	 */
 
 	TFTWIDTH  = 240 ///< ILI9341 max TFT width
 	TFTHEIGHT = 320 ///< ILI9341 max TFT height
@@ -107,26 +74,6 @@ const (
 	MADCTL_BGR = 0x08 ///< Blue-Green-Red pixel order
 	MADCTL_MH  = 0x04 ///< LCD refresh right to left
 
-	// Color definitions
-	BLACK       = 0x0000 ///<   0,   0,   0
-	NAVY        = 0x000F ///<   0,   0, 123
-	DARKGREEN   = 0x03E0 ///<   0, 125,   0
-	DARKCYAN    = 0x03EF ///<   0, 125, 123
-	MAROON      = 0x7800 ///< 123,   0,   0
-	PURPLE      = 0x780F ///< 123,   0, 123
-	OLIVE       = 0x7BE0 ///< 123, 125,   0
-	LIGHTGREY   = 0xC618 ///< 198, 195, 198
-	DARKGREY    = 0x7BEF ///< 123, 125, 123
-	BLUE        = 0x001F ///<   0,   0, 255
-	GREEN       = 0x07E0 ///<   0, 255,   0
-	CYAN        = 0x07FF ///<   0, 255, 255
-	RED         = 0xF800 ///< 255,   0,   0
-	MAGENTA     = 0xF81F ///< 255,   0, 255
-	YELLOW      = 0xFFE0 ///< 255, 255,   0
-	WHITE       = 0xFFFF ///< 255, 255, 255
-	ORANGE      = 0xFD20 ///< 255, 165,   0
-	GREENYELLOW = 0xAFE5 ///< 173, 255,  41
-	PINK        = 0xFC18 ///< 255, 130, 198
 )
 
 const (
