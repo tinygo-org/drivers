@@ -1,3 +1,5 @@
+// Port of Adafruit's "pyportal_boing" demo found here:
+// https://github.com/adafruit/Adafruit_ILI9341/blob/master/examples/pyportal_boing
 package main
 
 import (
