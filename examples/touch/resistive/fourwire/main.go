@@ -44,11 +44,9 @@ func main() {
 		point := resistiveTouch.GetTouchPoint()
 		touch := touch.Point{}
 		if point.Z > 100 {
-			rawX := mapval(point.X, Xmin, Xmax, 0, 240)
-			rawY := mapval(point.Y, Ymin, Ymax, 0, 320)
-			touch.X = rawX
-			touch.Y = rawY
-			touch.Z = 1
+			touch.X = mapval(point.X, Xmin, Xmax, 0, 240)
+			touch.Y = mapval(point.Y, Ymin, Ymax, 0, 320)
+			touch.Z = point.Z / 100
 		} else {
 			touch.X = 0
 			touch.Y = 0

@@ -13,7 +13,7 @@ type FourWireTouchscreen struct {
 	XM machine.Pin
 
 	yp machine.ADC
-	ym machine.ADC
+	xm machine.ADC
 	xp machine.ADC
 
 	samples []uint16
@@ -21,7 +21,7 @@ type FourWireTouchscreen struct {
 
 func (res *FourWireTouchscreen) Configure() {
 	res.yp = machine.ADC{res.YP}
-	res.ym = machine.ADC{res.YM}
+	res.xm = machine.ADC{res.XM}
 	res.xp = machine.ADC{res.XP}
 	res.samples = make([]uint16, 2)
 }
@@ -66,20 +66,17 @@ func (res *FourWireTouchscreen) ReadY() uint16 {
 }
 
 func (res *FourWireTouchscreen) ReadZ() uint16 {
-	// set x- to ground
-	res.XM.Configure(machine.PinConfig{machine.PinOutput})
-	res.XM.Low()
+	res.XP.Configure(machine.PinConfig{machine.PinOutput})
+	res.XP.Low()
 
-	// set y+ to VCC
-	res.YP.Configure(machine.PinConfig{machine.PinOutput})
-	res.YP.High()
+	res.YM.Configure(machine.PinConfig{machine.PinOutput})
+	res.YM.High()
 
-	// Hi-Z x+ and y-
-	res.xp.Configure()
-	res.ym.Configure()
+	res.xm.Configure()
+	res.yp.Configure()
 
-	z1 := res.xp.Get()
-	z2 := res.yp.Get() // ??? this is weird
+	z1 := res.xm.Get()
+	z2 := res.yp.Get()
 
 	return (1023 - (z2>>6 - z1>>6))
 }
