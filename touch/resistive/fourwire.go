@@ -6,27 +6,47 @@ import (
 	"tinygo.org/x/drivers/touch"
 )
 
-type FourWireTouchscreen struct {
+type FourWireConfig struct {
+
+	// Y+ pin, must be capable of analog reads
 	YP machine.Pin
+
+	// Y- pin, must be capable of analog reads
 	YM machine.Pin
+
+	// X+ pin, must be capable of analog reads
 	XP machine.Pin
+
+	// X- pin, must be capable of analog reads
 	XM machine.Pin
 
+	// AnalogResolution is the resolution in bits of the ADC used for reading
+	AnalogResolution int
+}
+
+type FourWireTouchscreen struct {
 	yp machine.ADC
-	xm machine.ADC
+	ym machine.ADC
 	xp machine.ADC
+	xm machine.ADC
 
-	samples []uint16
+	samples   []uint16
+	scaleBits int
 }
 
-func (res *FourWireTouchscreen) Configure() {
-	res.yp = machine.ADC{res.YP}
-	res.xm = machine.ADC{res.XM}
-	res.xp = machine.ADC{res.XP}
+func (res *FourWireTouchscreen) Configure(config *FourWireConfig) error {
+
+	res.yp = machine.ADC{config.YP}
+	res.ym = machine.ADC{config.YM}
+	res.xp = machine.ADC{config.XP}
+	res.xm = machine.ADC{config.XM}
+
 	res.samples = make([]uint16, 2)
+
+	return nil
 }
 
-func (res *FourWireTouchscreen) GetTouchPoint() (p touch.Point) {
+func (res *FourWireTouchscreen) ReadTouchPoint() (p touch.Point) {
 	p.X = int(res.ReadX())
 	p.Y = int(res.ReadY())
 	p.Z = int(res.ReadZ())
@@ -34,13 +54,14 @@ func (res *FourWireTouchscreen) GetTouchPoint() (p touch.Point) {
 }
 
 func (res *FourWireTouchscreen) ReadX() uint16 {
-	res.YM.Configure(machine.PinConfig{machine.PinInput})
-	res.YM.Low()
+	res.ym.Pin.Configure(machine.PinConfig{machine.PinInput})
+	res.ym.Pin.Low()
 
-	res.XP.Configure(machine.PinConfig{machine.PinOutput})
-	res.XM.Configure(machine.PinConfig{machine.PinOutput})
-	res.XP.High()
-	res.XM.Low()
+	res.xp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.xp.Pin.High()
+
+	res.xm.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.xm.Pin.Low()
 
 	res.yp.Configure()
 
@@ -50,13 +71,14 @@ func (res *FourWireTouchscreen) ReadX() uint16 {
 }
 
 func (res *FourWireTouchscreen) ReadY() uint16 {
-	res.XM.Configure(machine.PinConfig{machine.PinInput})
-	res.XM.Low()
+	res.xm.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.xm.Pin.Low()
 
-	res.YP.Configure(machine.PinConfig{machine.PinOutput})
-	res.YM.Configure(machine.PinConfig{machine.PinOutput})
-	res.YP.High()
-	res.YM.Low()
+	res.yp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.yp.Pin.High()
+
+	res.ym.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.ym.Pin.Low()
 
 	res.xp.Configure()
 
@@ -66,11 +88,11 @@ func (res *FourWireTouchscreen) ReadY() uint16 {
 }
 
 func (res *FourWireTouchscreen) ReadZ() uint16 {
-	res.XP.Configure(machine.PinConfig{machine.PinOutput})
-	res.XP.Low()
+	res.xp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.xp.Pin.Low()
 
-	res.YM.Configure(machine.PinConfig{machine.PinOutput})
-	res.YM.High()
+	res.ym.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.ym.Pin.High()
 
 	res.xm.Configure()
 	res.yp.Configure()

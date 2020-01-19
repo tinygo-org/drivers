@@ -11,12 +11,7 @@ import (
 )
 
 var (
-	resistiveTouch = resistive.FourWireTouchscreen{
-		YP: machine.TOUCH_YD,
-		YM: machine.TOUCH_YU,
-		XP: machine.TOUCH_XR,
-		XM: machine.TOUCH_XL,
-	}
+	resistiveTouch = &resistive.FourWireTouchscreen{}
 
 	display = ili9341.NewParallel(
 		machine.LCD_DATA0,
@@ -57,7 +52,12 @@ func main() {
 
 	// configure touchscreen
 	machine.InitADC()
-	resistiveTouch.Configure()
+	resistiveTouch.Configure(&resistive.FourWireConfig{
+		YP: machine.TOUCH_YD,
+		YM: machine.TOUCH_YU,
+		XP: machine.TOUCH_XR,
+		XM: machine.TOUCH_XL,
+	})
 
 	// configure display
 	display.Configure(ili9341.Config{})

@@ -11,12 +11,7 @@ import (
 )
 
 var (
-	resistiveTouch = resistive.FourWireTouchscreen{
-		YP: machine.TOUCH_YD, // y+
-		YM: machine.TOUCH_YU, // y-
-		XP: machine.TOUCH_XR, // x+
-		XM: machine.TOUCH_XL, // x-
-	}
+	resistiveTouch = new(resistive.FourWireTouchscreen)
 )
 
 const (
@@ -28,12 +23,14 @@ const (
 
 func main() {
 
-	// configure backlight
-	machine.TFT_BACKLIGHT.Configure(machine.PinConfig{machine.PinOutput})
-
 	// configure touchscreen
 	machine.InitADC()
-	resistiveTouch.Configure()
+	resistiveTouch.Configure(&resistive.FourWireConfig{
+		YP: machine.TOUCH_YD, // y+
+		YM: machine.TOUCH_YU, // y-
+		XP: machine.TOUCH_XR, // x+
+		XM: machine.TOUCH_XL, // x-
+	})
 
 	last := touch.Point{}
 
@@ -41,12 +38,13 @@ func main() {
 	debounce := 0
 	for {
 
-		point := resistiveTouch.GetTouchPoint()
+		point := resistiveTouch.ReadTouchPoint()
 		touch := touch.Point{}
 		if point.Z > 100 {
-			touch.X = mapval(point.X, Xmin, Xmax, 0, 240)
-			touch.Y = mapval(point.Y, Ymin, Ymax, 0, 320)
-			touch.Z = point.Z / 100
+			touch = point
+			//			touch.X = mapval(point.X, Xmin, Xmax, 0, 240)
+			//			touch.Y = mapval(point.Y, Ymin, Ymax, 0, 320)
+			//			touch.Z = point.Z / 100
 		} else {
 			touch.X = 0
 			touch.Y = 0

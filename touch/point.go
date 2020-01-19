@@ -1,9 +1,14 @@
 package touch
 
 type Pointer interface {
-	GetTouchPoint() Point
+	ReadTouchPoint() Point
 }
 
+// Point represents the result of reading a single touch point from a screen.
+// X and Y are the horizontal and vertical coordinates of the touch, while Z
+// represents the touch pressure.  In general, client code will want to inspect
+// the value of Z to see if it is above some threshold to determine if a touch
+// is detected at all.
 type Point struct {
 	X int
 	Y int
