@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	resistiveTouch = new(resistive.FourWireTouchscreen)
+	resistiveTouch = new(resistive.FourWire)
 )
 
 const (
@@ -40,11 +40,10 @@ func main() {
 
 		point := resistiveTouch.ReadTouchPoint()
 		touch := touch.Point{}
-		if point.Z > 100 {
-			touch = point
-			//			touch.X = mapval(point.X, Xmin, Xmax, 0, 240)
-			//			touch.Y = mapval(point.Y, Ymin, Ymax, 0, 320)
-			//			touch.Z = point.Z / 100
+		if point.Z>>6 > 100 {
+			touch.X = mapval(point.X>>6, Xmin, Xmax, 0, 240)
+			touch.Y = mapval(point.Y>>6, Ymin, Ymax, 0, 320)
+			touch.Z = point.Z >> 6 / 100
 		} else {
 			touch.X = 0
 			touch.Y = 0

@@ -6,6 +6,20 @@ import (
 	"tinygo.org/x/drivers/touch"
 )
 
+// FourWire represents a resistive touchscreen with a four-wire interface as
+// described in http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf
+type FourWire struct {
+	yp machine.ADC
+	ym machine.ADC
+	xp machine.ADC
+	xm machine.ADC
+
+	readSamples int
+}
+
+// FourWireConfig is passed to the Configure method. All of the pins must be
+// specified for this to be a valid configuration. ReadSamples is optional, and
+// if not set with default to 2.
 type FourWireConfig struct {
 
 	// Y+ pin, must be capable of analog reads
@@ -20,78 +34,84 @@ type FourWireConfig struct {
 	// X- pin, must be capable of analog reads
 	XM machine.Pin
 
-	// AnalogResolution is the resolution in bits of the ADC used for reading
-	AnalogResolution int
+	// If set, each call to ReadTouchPoint() will sample the X, Y, and Z values
+	// and average them.  This can help smooth out spurious readings, for example
+	// ones that result from the capacitance of a TFT under the touchscreen
+	ReadSamples int
 }
 
-type FourWireTouchscreen struct {
-	yp machine.ADC
-	ym machine.ADC
-	xp machine.ADC
-	xm machine.ADC
+// Configure should be called once before starting to read the device
+func (res *FourWire) Configure(config *FourWireConfig) error {
 
-	samples   []uint16
-	scaleBits int
-}
+	res.yp = machine.ADC{Pin: config.YP}
+	res.ym = machine.ADC{Pin: config.YM}
+	res.xp = machine.ADC{Pin: config.XP}
+	res.xm = machine.ADC{Pin: config.XM}
 
-func (res *FourWireTouchscreen) Configure(config *FourWireConfig) error {
-
-	res.yp = machine.ADC{config.YP}
-	res.ym = machine.ADC{config.YM}
-	res.xp = machine.ADC{config.XP}
-	res.xm = machine.ADC{config.XM}
-
-	res.samples = make([]uint16, 2)
+	if config.ReadSamples < 1 {
+		res.readSamples = 2
+	} else {
+		res.readSamples = config.ReadSamples
+	}
 
 	return nil
 }
 
-func (res *FourWireTouchscreen) ReadTouchPoint() (p touch.Point) {
-	p.X = int(res.ReadX())
-	p.Y = int(res.ReadY())
-	p.Z = int(res.ReadZ())
+// ReadTouchPoint reads a single touch.Point from the device.  If the device
+// was configured with ReadSamples > 1, each value will be sampled that many
+// times and averaged to smooth over spurious results of the analog reads.
+func (res *FourWire) ReadTouchPoint() (p touch.Point) {
+	p.X = int(sample(res.ReadX, res.readSamples))
+	p.Y = int(sample(res.ReadY, res.readSamples))
+	p.Z = int(sample(res.ReadZ, res.readSamples))
 	return
 }
 
-func (res *FourWireTouchscreen) ReadX() uint16 {
-	res.ym.Pin.Configure(machine.PinConfig{machine.PinInput})
-	res.ym.Pin.Low()
+// sample the results of the provided function and average the results
+func sample(fn func() uint16, numSamples int) (v uint16) {
+	sum := 0
+	for n := 0; n < numSamples; n++ {
+		sum += int(fn())
+	}
+	return uint16(sum / numSamples)
+}
 
-	res.xp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+// ReadX reads the "raw" X-value on a 16-bit scale without multiple sampling
+func (res *FourWire) ReadX() uint16 {
+	res.ym.Pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+
+	res.xp.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.xp.Pin.High()
 
-	res.xm.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.xm.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.xm.Pin.Low()
 
 	res.yp.Configure()
 
-	res.samples[0] = res.yp.Get() >> 2
-	res.samples[1] = res.yp.Get() >> 2
-	return 1023 - (((res.samples[0] + res.samples[1]) / 2) >> 4)
+	return 0xFFFF - res.yp.Get()
 }
 
-func (res *FourWireTouchscreen) ReadY() uint16 {
-	res.xm.Pin.Configure(machine.PinConfig{machine.PinOutput})
-	res.xm.Pin.Low()
+// ReadY reads the "raw" Y-value on a 16-bit scale without multiple sampling
+func (res *FourWire) ReadY() uint16 {
+	res.xm.Pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
 
-	res.yp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.yp.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.yp.Pin.High()
 
-	res.ym.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.ym.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.ym.Pin.Low()
 
 	res.xp.Configure()
 
-	res.samples[0] = res.xp.Get() >> 2
-	res.samples[1] = res.xp.Get() >> 2
-	return 1023 - (((res.samples[0] + res.samples[1]) / 2) >> 4)
+	return 0xFFFF - res.xp.Get()
 }
 
-func (res *FourWireTouchscreen) ReadZ() uint16 {
-	res.xp.Pin.Configure(machine.PinConfig{machine.PinOutput})
+// ReadZ reads the "raw" Z-value on a 16-bit scale without multiple sampling
+func (res *FourWire) ReadZ() uint16 {
+	res.xp.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.xp.Pin.Low()
 
-	res.ym.Pin.Configure(machine.PinConfig{machine.PinOutput})
+	res.ym.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.ym.Pin.High()
 
 	res.xm.Configure()
@@ -100,5 +120,5 @@ func (res *FourWireTouchscreen) ReadZ() uint16 {
 	z1 := res.xm.Get()
 	z2 := res.yp.Get()
 
-	return (1023 - (z2>>6 - z1>>6))
+	return 0xFFFF - (z2 - z1)
 }

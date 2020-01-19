@@ -1,5 +1,6 @@
 package touch
 
+// Pointer is a device that is capable of reading a single touch point
 type Pointer interface {
 	ReadTouchPoint() Point
 }

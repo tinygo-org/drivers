@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	resistiveTouch = &resistive.FourWireTouchscreen{}
+	resistiveTouch = &resistive.FourWire{}
 
 	display = ili9341.NewParallel(
 		machine.LCD_DATA0,
@@ -88,11 +88,11 @@ func main() {
 	debounce := 0
 	for {
 
-		point := resistiveTouch.GetTouchPoint()
+		point := resistiveTouch.ReadTouchPoint()
 		touch := touch.Point{}
-		if point.Z > 100 {
-			rawX := mapval(point.X, Xmin, Xmax, 0, 240)
-			rawY := mapval(point.Y, Ymin, Ymax, 0, 320)
+		if point.Z>>6 > 100 {
+			rawX := mapval(point.X>>6, Xmin, Xmax, 0, 240)
+			rawY := mapval(point.Y>>6, Ymin, Ymax, 0, 320)
 			touch.X = rawX
 			touch.Y = rawY
 			touch.Z = 1
@@ -155,8 +155,7 @@ func HandleTouch(touch touch.Point) {
 			return
 		}
 
-		display.DrawRectangle(
-			int16((x/boxSize)*boxSize), 0, boxSize, boxSize, white)
+		display.DrawRectangle((x/boxSize)*boxSize, 0, boxSize, boxSize, white)
 		switch oldColor {
 		case red:
 			x = 0
@@ -184,5 +183,3 @@ func HandleTouch(touch touch.Point) {
 			int16(touch.X), int16(touch.Y), penRadius*2, penRadius*2, currentColor)
 	}
 }
-
-/**** End of Touchpaint demo ************************************************/
