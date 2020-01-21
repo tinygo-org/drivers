@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const _debug = false
-
 type Config struct {
 	Width    int16
 	Height   int16
@@ -227,6 +225,10 @@ func (d *Device) SetRotation(rotation Rotation) {
 	}
 	d.sendCommand(MADCTL, []uint8{madctl})
 	d.rotation = rotation
+}
+
+func (d *Device) SetScroll(line int16) {
+	d.sendCommand(VSCRSADD, []byte{byte(line >> 8), byte(line)})
 }
 
 // setWindow prepares the screen to be modified at a given rectangle
