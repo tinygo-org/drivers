@@ -227,6 +227,7 @@ func (d *Device) SetRotation(rotation Rotation) {
 	d.rotation = rotation
 }
 
+// SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
 	d.sendCommand(VSCRSADD, []byte{byte(line >> 8), byte(line)})
 }
