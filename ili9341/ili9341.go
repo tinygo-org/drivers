@@ -227,9 +227,24 @@ func (d *Device) SetRotation(rotation Rotation) {
 	d.rotation = rotation
 }
 
+// SetScrollWindow sets an area to scroll with fixed top and bottom parts of the display
+func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+	d.sendCommand(VSCRDEF, []uint8{
+		uint8(topFixedArea >> 8), uint8(topFixedArea),
+		uint8(d.height - topFixedArea - bottomFixedArea>>8),
+		uint8(d.height - topFixedArea - bottomFixedArea),
+		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea),
+	})
+}
+
 // SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
-	d.sendCommand(VSCRSADD, []byte{byte(line >> 8), byte(line)})
+	d.sendCommand(VSCRSADD, []uint8{uint8(line >> 8), uint8(line)})
+}
+
+// SpotScroll returns the display to its normal state
+func (d *Device) StopScroll() {
+	d.sendCommand(NORON, nil)
 }
 
 // setWindow prepares the screen to be modified at a given rectangle
