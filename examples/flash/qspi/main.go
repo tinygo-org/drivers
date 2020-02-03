@@ -24,16 +24,14 @@ var (
 	console  = machine.UART0
 	readyLED = machine.LED
 
-	tr1  *flash.Transport
-	dev1 *flash.Device
-	/*
-		fatdisk fs.BlockDevice
-		fatboot *fat.BootSectorCommon
-		fatfs   *fat.FileSystem
-		rootdir fs.Directory
-		currdir fs.Directory
-	*/
-	//fatfsys *fat.FAT
+	dev = flash.NewQSPI(
+		machine.QSPI_CS,
+		machine.QSPI_SCK,
+		machine.QSPI_DATA0,
+		machine.QSPI_DATA1,
+		machine.QSPI_DATA2,
+		machine.QSPI_DATA3,
+	)
 
 	commands map[string]cmdfunc = map[string]cmdfunc{
 		"":      cmdfunc(noop),
@@ -59,27 +57,10 @@ func main() {
 	readyLED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	readyLED.High()
 
-	tr1 = &flash.Transport{
-		SPI:  machine.SPI1,
-		MOSI: machine.SPI1_MOSI_PIN,
-		MISO: machine.SPI1_MISO_PIN,
-		SCK:  machine.SPI1_SCK_PIN,
-		SS:   machine.SPI1_CS_PIN,
-	}
-	tr1.Begin()
-	dev1 = &flash.Device{Transport: tr1}
-
 	readyLED.Low()
-	write("SPI Configured. Reading flash info")
+	write("spi Configured. Reading flash info")
 
-	dev1.Begin()
-
-	var err error
-	if err != nil {
-		println("could not decode boot sector: " + err.Error() + "\r\n")
-	}
-
-	//mnt(nil)
+	dev.Begin()
 
 	prompt()
 
@@ -165,8 +146,9 @@ func dbg(argv []string) {
 }
 
 func lsblk(argv []string) {
-	status, _ := dev1.ReadStatus()
-	serialNumber1, _ := dev1.ReadSerialNumber()
+	id, _ := dev.ReadJEDEC()
+	status, _ := dev.ReadStatus()
+	serialNumber1, _ := dev.ReadSerialNumber()
 	fmt.Printf(
 		"\n-------------------------------------\r\n"+
 			" Device Information:  \r\n"+
@@ -175,7 +157,7 @@ func lsblk(argv []string) {
 			"   Serial: %v\r\n"+
 			"   Status: %2x\r\n"+
 			"-------------------------------------\r\n\r\n",
-		dev1.ID,
+		id,
 		serialNumber1,
 		status,
 	)
@@ -216,7 +198,7 @@ func xxd(argv []string) {
 	}
 	buf := store[0:size]
 	//fatdisk.ReadAt(buf, int64(addr))
-	dev1.ReadBuffer(uint32(addr), buf)
+	dev.ReadBuffer(uint32(addr), buf)
 	xxdfprint(os.Stdout, uint32(addr), buf)
 }
 
@@ -249,118 +231,3 @@ func write(s string) {
 func prompt() {
 	print("==> ")
 }
-
-/*
-const FlashBlockDeviceSectorSize = 512
-
-type FlashBlockDevice struct {
-	flashdev *flash.Device
-	buf      []byte
-	bufaddr  uint32
-	bufvalid bool
-}
-
-func (fbd *FlashBlockDevice) Close() error {
-	// no-op
-	return nil
-}
-
-func (fbd *FlashBlockDevice) Len() int64 {
-	// hard-coded for now
-	return 4096
-}
-
-func (fbd *FlashBlockDevice) SectorSize() int {
-	// hard-coded for now
-	return FlashBlockDeviceSectorSize
-}
-
-func (fbd *FlashBlockDevice) ReadAt(p []byte, addr int64) (n int, err error) {
-
-	if debug {
-		fmt.Printf(" -- reading %d from %08x", len(p), addr)
-	}
-
-	// this is the offset from the start of the first sector that we will read
-	offset := addr % FlashBlockDeviceSectorSize
-
-	// this is the address of the start of the first sector
-	start := uint32(addr - int64(offset))
-
-	// if a buffer does not already exist, create it and mark it as invalid
-	if fbd.buf == nil {
-		fbd.buf = make([]byte, FlashBlockDeviceSectorSize)
-		fbd.bufvalid = false
-	}
-
-	// for the first sector we'll check if it is already cached or not
-	if !fbd.bufvalid || start != fbd.bufaddr {
-		if debug {
-			fmt.Printf(" (not cached)\r\n")
-		}
-		fbd.bufvalid = false
-		fbd.bufaddr = start
-		if err = fbd.flashdev.ReadBuffer(fbd.bufaddr, fbd.buf); err != nil {
-			return
-		}
-		fbd.bufvalid = true
-	} else if debug {
-		fmt.Printf(" (cached)\r\n")
-	}
-
-	if debug {
-		fmt.Printf("    address: %08x, offset: %d, n before: %d", start, offset, n)
-	}
-
-	// copy the first section of bytes into the destination buffer
-	n += copy(p[n:], fbd.buf[offset:])
-	start += FlashBlockDeviceSectorSize
-
-	if debug {
-		fmt.Printf(" - n after: %d\r\n", n)
-	}
-
-	// keep looping over subsequent sectors until we've read n bytes
-	for c := len(p); n < c; start += FlashBlockDeviceSectorSize {
-		if debug {
-			fmt.Printf("    address: %08x, n before: %d", start, n)
-		}
-		fbd.bufvalid = false
-		fbd.bufaddr = start
-		if err = fbd.flashdev.ReadBuffer(fbd.bufaddr, fbd.buf); err != nil {
-			return
-		}
-		fbd.bufvalid = true
-		n += copy(p[n:], fbd.buf)
-		if debug {
-			fmt.Printf(" - n after: %d\r\n", n)
-		}
-	}
-
-	return
-}
-
-/*
-	if err = fbd.flashdev.ReadBuffer(uint32(off), p); err == nil {
-		return len(p), nil
-	}
-
-func min(a int, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-func max(a int, b int) int {
-	if a < b {
-		return b
-	}
-	return a
-}
-
-func (fbd *FlashBlockDevice) WriteAt(p []byte, off int64) (n int, err error) {
-	return 0, fmt.Errorf("Writes not yet supported")
-}
-
-*/

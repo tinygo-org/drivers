@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+/*
 type JedecID [3]byte
 
 func (id *JedecID) Manufacturer() uint8 {
@@ -21,8 +22,13 @@ func (id *JedecID) Capacity() uint8 {
 
 func (id *JedecID) String() string {
 	return fmt.Sprintf(
-		"%2X %2X %2X", id.Manufacturer(), id.MemoryType(), id.Capacity())
+		"%2X %2X %2X",
+		id.Manufacturer(),
+		id.MemoryType(),
+		id.Capacity(),
+	)
 }
+*/
 
 type SerialNumber uint64
 
@@ -31,18 +37,21 @@ func (sn SerialNumber) String() string {
 }
 
 type Device struct {
-	Transport *Transport
-	ID        JedecID
-	SerialNum SerialNumber
+	transport transport
+	attrs     Attrs
 }
 
 func (dev *Device) Begin() (err error) {
 
-	if dev.ID, err = dev.ReadJEDEC(); err != nil {
-		return err
-	}
+	dev.transport.begin()
 
 	// TODO: should check JEDEC ID against list of known devices
+	/*
+		if dev.ID, err = dev.ReadJEDEC(); err != nil {
+			return err
+		}
+		println("JEDEC:", dev.ID.String())
+	*/
 
 	// We don't know what state the flash is in so wait for any remaining writes and then reset.
 
@@ -56,16 +65,16 @@ func (dev *Device) Begin() (err error) {
 	}
 
 	// The suspended write/erase bit should be low.
-	for s, err = dev.ReadStatus2(); (s & 0x80) > 0; s, err = dev.ReadStatus() {
+	for s, err = dev.ReadStatus2(); (s & 0x80) > 0; s, err = dev.ReadStatus2() {
 		if err != nil {
 			return err
 		}
 	}
 
-	if err = dev.Transport.RunCommand(CmdEnableReset); err != nil {
+	if err = dev.transport.runCommand(CmdEnableReset); err != nil {
 		return err
 	}
-	if err = dev.Transport.RunCommand(CmdReset); err != nil {
+	if err = dev.transport.runCommand(CmdReset); err != nil {
 		return err
 	}
 
@@ -77,7 +86,7 @@ func (dev *Device) Begin() (err error) {
 	// Speed up to max device frequency
 	//_trans->setClockSpeed(_flash_dev->max_clock_speed_mhz*1000000UL);
 
-	if err = dev.Transport.RunCommand(CmdWriteDisable); err != nil {
+	if err = dev.transport.runCommand(CmdWriteDisable); err != nil {
 		return err
 	}
 
@@ -87,7 +96,7 @@ func (dev *Device) Begin() (err error) {
 
 func (dev *Device) ReadJEDEC() (JedecID, error) {
 	jedecID := make([]byte, 3)
-	if err := dev.Transport.ReadCommand(CmdReadJedecID, jedecID); err != nil {
+	if err := dev.transport.readCommand(CmdReadJedecID, jedecID); err != nil {
 		return JedecID{}, err
 	}
 	return JedecID{jedecID[0], jedecID[1], jedecID[2]}, nil
@@ -95,7 +104,7 @@ func (dev *Device) ReadJEDEC() (JedecID, error) {
 
 func (dev *Device) ReadSerialNumber() (SerialNumber, error) {
 	sn := make([]byte, 12)
-	if err := dev.Transport.ReadCommand(0x4B, sn); err != nil {
+	if err := dev.transport.readCommand(0x4B, sn); err != nil {
 		return 0, err
 	}
 	return SerialNumber(uint64(sn[11]) | uint64(sn[10])<<0x8 |
@@ -108,21 +117,30 @@ func (dev *Device) ReadBuffer(addr uint32, buf []byte) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
 	}
-	return dev.Transport.ReadMemory(addr, buf)
+	return dev.transport.readMemory(addr, buf)
 }
 
 func (dev *Device) ReadStatus() (status byte, err error) {
-	return dev.Transport.ReadCommandByte(CmdReadStatus)
+	buf := make([]byte, 1)
+	err = dev.transport.readCommand(CmdReadStatus, buf)
+	return buf[0], err
 }
 
 func (dev *Device) ReadStatus2() (status byte, err error) {
-	return dev.Transport.ReadCommandByte(CmdReadStatus2)
+	buf := make([]byte, 1)
+	err = dev.transport.readCommand(CmdReadStatus2, buf)
+	return buf[0], err
 }
 
 func (dev *Device) WaitUntilReady() error {
+	expire := time.Now().UnixNano() + int64(10*time.Second)
 	for s, err := dev.ReadStatus(); (s & 0x03) > 0; s, err = dev.ReadStatus() {
+		println("wait until ready status", s)
 		if err != nil {
 			return err
+		}
+		if time.Now().UnixNano() > expire {
+			return fmt.Errorf("WaitUntilReady expired")
 		}
 	}
 	return nil
