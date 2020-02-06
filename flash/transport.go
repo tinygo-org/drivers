@@ -26,12 +26,15 @@ type Error uint8
 const (
 	_                          = iota
 	ErrInvalidClockSpeed Error = iota
+	ErrInvalidAddrRange
 )
 
 func (err Error) Error() string {
 	switch err {
 	case ErrInvalidClockSpeed:
 		return "invalid clock speed"
+	case ErrInvalidAddrRange:
+		return "invalid address range"
 	default:
 		return "unspecified error"
 	}

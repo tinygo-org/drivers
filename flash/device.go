@@ -5,31 +5,6 @@ import (
 	"time"
 )
 
-/*
-type JedecID [3]byte
-
-func (id *JedecID) Manufacturer() uint8 {
-	return id[0]
-}
-
-func (id *JedecID) MemoryType() uint8 {
-	return id[1]
-}
-
-func (id *JedecID) Capacity() uint8 {
-	return id[2]
-}
-
-func (id *JedecID) String() string {
-	return fmt.Sprintf(
-		"%2X %2X %2X",
-		id.Manufacturer(),
-		id.MemoryType(),
-		id.Capacity(),
-	)
-}
-*/
-
 type SerialNumber uint64
 
 func (sn SerialNumber) String() string {

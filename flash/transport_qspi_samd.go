@@ -9,11 +9,8 @@ import (
 	"unsafe"
 )
 
-// TODO: technically for atsamd51 we don't need to know the pins because there
-//   is only 1 QPSI peripheral and it is uses a fixed set of pins.  However
-//   that might not hold true for NRF or other boards, so leaving pins in the
-//   signature of the contructor for now. Should investigate if this is
-//   necessary or not
+// NewQSPI returns a pointer to a flash device that uses the QSPI peripheral to
+// communicate with a serial memory chip.
 func NewQSPI(cs, sck, d0, d1, d2, d3 machine.Pin) *Device {
 	return &Device{
 		transport: &qspi{
@@ -63,7 +60,7 @@ func (q qspi) begin() {
 	// can ignore the error, 4Mhz is always a valid speed
 	_ = q.setClockSpeed(4e6)
 
-	// configure the CTRLB peripheral
+	// configure the CTRLB register
 	QSPI.CTRLB.Reg = QSPI_CTRLB_MODE_MEMORY |
 		(QSPI_CTRLB_DATALEN_Msk & (QSPI_CTRLB_DATALEN_8BITS << QSPI_CTRLB_DATALEN_Pos)) |
 		(QSPI_CTRLB_CSMODE_Msk & (QSPI_CTRLB_CSMODE_LASTXFER << QSPI_CTRLB_CSMODE_Pos))
@@ -84,27 +81,21 @@ func (q qspi) setClockSpeed(hz uint32) error {
 }
 
 func (q qspi) runCommand(cmd Command) (err error) {
-	const iframe = 0x0 |
-		QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS |
-		QSPI_INSTRFRAME_TFRTYPE_READ |
-		QSPI_INSTRFRAME_INSTREN
 	QSPI.INSTRCTRL.Set(uint32(cmd))
-	QSPI.INSTRFRAME.Set(iframe)
+	QSPI.INSTRFRAME.Set(QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
+		(QSPI_INSTRFRAME_TFRTYPE_READ << QSPI_INSTRFRAME_TFRTYPE_Pos))
 	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	q.endTransfer()
 	return
 }
 
 func (q qspi) readCommand(cmd Command, buf []byte) (err error) {
-	const iframe = 0x0 |
-		QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS |
-		QSPI_INSTRFRAME_TFRTYPE_READ |
-		QSPI_INSTRFRAME_INSTREN |
-		QSPI_INSTRFRAME_DATAEN
 	q.disableAndClearCache()
 	QSPI.INSTRCTRL.Set(uint32(cmd))
+	const iframe = QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI | QSPI_INSTRFRAME_DATAEN |
+		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
+		(QSPI_INSTRFRAME_TFRTYPE_READ << QSPI_INSTRFRAME_TFRTYPE_Pos)
 	QSPI.INSTRFRAME.Set(iframe)
 	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	var ptr uintptr = qspi_AHB_LO
@@ -118,20 +109,17 @@ func (q qspi) readCommand(cmd Command, buf []byte) (err error) {
 }
 
 func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
-	const iframe = 0x0 |
-		QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS |
-		QSPI_INSTRFRAME_INSTREN |
-		QSPI_INSTRFRAME_ADDREN |
-		QSPI_INSTRFRAME_DATAEN |
-		(QSPI_INSTRFRAME_DUMMYLEN_Msk & (8 << QSPI_INSTRFRAME_DUMMYLEN_Pos)) |
-		(QSPI_INSTRFRAME_TFRTYPE_Msk &
-			(QSPI_INSTRFRAME_TFRTYPE_READMEMORY << QSPI_INSTRFRAME_TFRTYPE_Pos))
+	if (addr + uint32(len(buf))) > (qspi_AHB_HI - qspi_AHB_LO) {
+		return ErrInvalidAddrRange
+	}
 	q.disableAndClearCache()
 	QSPI.INSTRCTRL.Set(uint32(CmdQuadRead))
+	const iframe = QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT | QSPI_INSTRFRAME_DATAEN |
+		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
+		QSPI_INSTRFRAME_ADDREN | (8 << QSPI_INSTRFRAME_DUMMYLEN_Pos) |
+		(QSPI_INSTRFRAME_TFRTYPE_READMEMORY << QSPI_INSTRFRAME_TFRTYPE_Pos)
 	QSPI.INSTRFRAME.Set(iframe)
 	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
-	// TODO: need bounds check to ensure inside QSPI memory space to avoid hard fault
 	ln := len(buf)
 	sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
 	copy(buf, sl)
@@ -141,7 +129,24 @@ func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
 }
 
 func (q qspi) writeCommand(cmd Command, data []byte) (err error) {
-	panic("implement me")
+	iframe := uint32(QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
+		(QSPI_INSTRFRAME_TFRTYPE_WRITE << QSPI_INSTRFRAME_TFRTYPE_Pos))
+	if len(data) > 0 {
+		iframe |= QSPI_INSTRFRAME_DATAEN
+	}
+	q.disableAndClearCache()
+	QSPI.INSTRCTRL.Set(uint32(cmd))
+	QSPI.INSTRFRAME.Set(iframe)
+	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	var ptr uintptr = qspi_AHB_LO
+	for i := range data {
+		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), data[i])
+		ptr++
+	}
+	q.endTransfer()
+	q.enableCache()
+	return
 }
 
 func (q qspi) eraseCommand(cmd Command, address uint32) (err error) {

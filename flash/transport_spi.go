@@ -32,7 +32,7 @@ func (tr *spiTransport) begin() {
 }
 
 func (tr *spiTransport) setClockSpeed(hz uint32) error {
-	return tr.spi.Configure(machine.SPIConfig{
+	tr.spi.Configure(machine.SPIConfig{
 		Frequency: hz,
 		MISO:      tr.miso,
 		MOSI:      tr.mosi,
@@ -40,6 +40,7 @@ func (tr *spiTransport) setClockSpeed(hz uint32) error {
 		LSBFirst:  false,
 		Mode:      0,
 	})
+	return nil
 }
 
 func (tr *spiTransport) supportQuadMode() bool {
