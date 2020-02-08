@@ -166,7 +166,7 @@ func (d *Device) ReadRotation() (x int32, y int32, z int32) {
 	return
 }
 
-// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000)
+// ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (int32, error) {
 	d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, d.dataBufferTwo)
 

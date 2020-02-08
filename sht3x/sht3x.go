@@ -29,7 +29,7 @@ func New(bus machine.I2C) Device {
 	}
 }
 
-// Read returns the temperature in celsius milli degrees (ºC/1000).
+// Read returns the temperature in celsius milli degrees (°C/1000).
 func (d *Device) ReadTemperature() (tempMilliCelsius int32, err error) {
 	tempMilliCelsius, _, err = d.ReadTemperatureHumidity()
 	return tempMilliCelsius, err

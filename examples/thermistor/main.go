@@ -19,7 +19,7 @@ func main() {
 
 	for {
 		temp, _ := sensor.ReadTemperature()
-		println("Temperature:", temp/1000, "ºC")
+		println("Temperature:", temp/1000, "°C")
 
 		time.Sleep(2 * time.Second)
 	}

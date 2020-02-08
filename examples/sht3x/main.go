@@ -16,7 +16,7 @@ func main() {
 		temp, humidity, _ := sensor.ReadTemperatureHumidity()
 		t := fmt.Sprintf("%.2f", float32(temp)/1000)
 		h := fmt.Sprintf("%.2f", float32(humidity)/100)
-		println("Temperature:", t, "ºC")
+		println("Temperature:", t, "°C")
 		println("Humidity", h, "%")
 		time.Sleep(2 * time.Second)
 	}
