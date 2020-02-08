@@ -22,7 +22,7 @@ func main() {
 
 	for {
 		temp, _ := sensor.ReadTemperature()
-		println("Temperature:", strconv.FormatFloat(float64(temp)/1000, 'f', 2, 64), "ºC")
+		println("Temperature:", strconv.FormatFloat(float64(temp)/1000, 'f', 2, 64), "°C")
 		press, _ := sensor.ReadPressure()
 		println("Pressure:", strconv.FormatFloat(float64(press)/100000, 'f', 2, 64), "hPa")
 		hum, _ := sensor.ReadHumidity()

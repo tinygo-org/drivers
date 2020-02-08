@@ -26,7 +26,7 @@
 //
 //		for {
 //			temp, _ := sensor.ReadTemperature()
-//			println("Temperature:", float32(temp)/1000, "ºC")
+//			println("Temperature:", float32(temp)/1000, "°C")
 //
 //			pressure, _ := sensor.ReadPressure()
 //			println("Pressure", float32(pressure)/100000, "hPa")

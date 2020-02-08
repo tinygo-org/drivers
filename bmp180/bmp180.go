@@ -80,7 +80,7 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.md = readInt(data[20], data[21])
 }
 
-// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000).
+// ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
 func (d *Device) ReadTemperature() (temperature int32, err error) {
 	rawTemp, err := d.rawTemp()
 	if err != nil {
