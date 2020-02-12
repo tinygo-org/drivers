@@ -2,7 +2,7 @@ package flash
 
 import "machine"
 
-func NewSPI(spi *machine.SPI, miso, mosi, sck, cs machine.Pin) *Device {
+func NewSPI(spi *machine.SPI, mosi, miso, sck, cs machine.Pin) *Device {
 	return &Device{
 		transport: &spiTransport{
 			spi:  spi,
@@ -47,14 +47,14 @@ func (tr *spiTransport) supportQuadMode() bool {
 	return false
 }
 
-func (tr *spiTransport) runCommand(cmd Command) (err error) {
+func (tr *spiTransport) runCommand(cmd byte) (err error) {
 	tr.ss.Low()
 	_, err = tr.spi.Transfer(byte(cmd))
 	tr.ss.High()
 	return
 }
 
-func (tr *spiTransport) readCommand(cmd Command, rsp []byte) (err error) {
+func (tr *spiTransport) readCommand(cmd byte, rsp []byte) (err error) {
 	tr.ss.Low()
 	if _, err := tr.spi.Transfer(byte(cmd)); err == nil {
 		err = tr.readInto(rsp)
@@ -63,7 +63,7 @@ func (tr *spiTransport) readCommand(cmd Command, rsp []byte) (err error) {
 	return
 }
 
-func (tr *spiTransport) readCommandByte(cmd Command) (rsp byte, err error) {
+func (tr *spiTransport) readCommandByte(cmd byte) (rsp byte, err error) {
 	tr.ss.Low()
 	if _, err := tr.spi.Transfer(byte(cmd)); err == nil {
 		rsp, err = tr.spi.Transfer(0xFF)
@@ -72,7 +72,7 @@ func (tr *spiTransport) readCommandByte(cmd Command) (rsp byte, err error) {
 	return
 }
 
-func (tr *spiTransport) writeCommand(cmd Command, data []byte) (err error) {
+func (tr *spiTransport) writeCommand(cmd byte, data []byte) (err error) {
 	tr.ss.Low()
 	if _, err := tr.spi.Transfer(byte(cmd)); err == nil {
 		err = tr.writeFrom(data)
@@ -81,7 +81,7 @@ func (tr *spiTransport) writeCommand(cmd Command, data []byte) (err error) {
 	return
 }
 
-func (tr *spiTransport) eraseCommand(cmd Command, address uint32) (err error) {
+func (tr *spiTransport) eraseCommand(cmd byte, address uint32) (err error) {
 	tr.ss.Low()
 	err = tr.sendAddress(cmd, address)
 	tr.ss.High()
@@ -90,7 +90,7 @@ func (tr *spiTransport) eraseCommand(cmd Command, address uint32) (err error) {
 
 func (tr *spiTransport) readMemory(addr uint32, rsp []byte) (err error) {
 	tr.ss.Low()
-	if err = tr.sendAddress(CmdRead, addr); err == nil {
+	if err = tr.sendAddress(cmdRead, addr); err == nil {
 		err = tr.readInto(rsp)
 	}
 	tr.ss.High()
@@ -99,14 +99,14 @@ func (tr *spiTransport) readMemory(addr uint32, rsp []byte) (err error) {
 
 func (tr *spiTransport) writeMemory(addr uint32, data []byte) (err error) {
 	tr.ss.Low()
-	if err = tr.sendAddress(CmdPageProgram, addr); err == nil {
+	if err = tr.sendAddress(cmdPageProgram, addr); err == nil {
 		err = tr.writeFrom(data)
 	}
 	tr.ss.High()
 	return
 }
 
-func (tr *spiTransport) sendAddress(cmd Command, addr uint32) error {
+func (tr *spiTransport) sendAddress(cmd byte, addr uint32) error {
 	_, err := tr.spi.Transfer(byte(cmd))
 	if err == nil {
 		_, err = tr.spi.Transfer(byte((addr >> 16) & 0xFF))

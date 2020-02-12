@@ -3,7 +3,7 @@
 package flash
 
 import (
-	. "device/sam"
+	"device/sam"
 	"machine"
 	"runtime/volatile"
 	"unsafe"
@@ -42,11 +42,11 @@ type qspi struct {
 func (q qspi) begin() {
 
 	// enable main clocks
-	MCLK.APBCMASK.SetBits(MCLK_APBCMASK_QSPI_)
-	MCLK.AHBMASK.SetBits(MCLK_AHBMASK_QSPI_)
-	MCLK.AHBMASK.ClearBits(MCLK_AHBMASK_QSPI_2X_)
+	sam.MCLK.APBCMASK.SetBits(sam.MCLK_APBCMASK_QSPI_)
+	sam.MCLK.AHBMASK.SetBits(sam.MCLK_AHBMASK_QSPI_)
+	sam.MCLK.AHBMASK.ClearBits(sam.MCLK_AHBMASK_QSPI_2X_)
 
-	QSPI.CTRLA.SetBits(QSPI_CTRLA_SWRST)
+	sam.QSPI.CTRLA.SetBits(sam.QSPI_CTRLA_SWRST)
 
 	// enable all pins to be PinCom
 	q.d0.Configure(machine.PinConfig{Mode: machine.PinCom})
@@ -61,12 +61,12 @@ func (q qspi) begin() {
 	_ = q.setClockSpeed(4e6)
 
 	// configure the CTRLB register
-	QSPI.CTRLB.Reg = QSPI_CTRLB_MODE_MEMORY |
-		(QSPI_CTRLB_DATALEN_Msk & (QSPI_CTRLB_DATALEN_8BITS << QSPI_CTRLB_DATALEN_Pos)) |
-		(QSPI_CTRLB_CSMODE_Msk & (QSPI_CTRLB_CSMODE_LASTXFER << QSPI_CTRLB_CSMODE_Pos))
+	sam.QSPI.CTRLB.Reg = sam.QSPI_CTRLB_MODE_MEMORY |
+		(sam.QSPI_CTRLB_DATALEN_8BITS << sam.QSPI_CTRLB_DATALEN_Pos) |
+		(sam.QSPI_CTRLB_CSMODE_LASTXFER << sam.QSPI_CTRLB_CSMODE_Pos)
 
 	// enable the peripheral
-	QSPI.CTRLA.SetBits(QSPI_CTRLA_ENABLE)
+	sam.QSPI.CTRLA.SetBits(sam.QSPI_CTRLA_ENABLE)
 }
 
 func (q qspi) supportQuadMode() bool {
@@ -75,29 +75,29 @@ func (q qspi) supportQuadMode() bool {
 
 func (q qspi) setClockSpeed(hz uint32) error {
 	if divider := machine.CPUFrequency() / hz; divider < 256 {
-		QSPI.BAUD.Reg = QSPI_BAUD_BAUD_Msk & (divider << QSPI_BAUD_BAUD_Pos)
+		sam.QSPI.BAUD.Reg = sam.QSPI_BAUD_BAUD_Msk & (divider << sam.QSPI_BAUD_BAUD_Pos)
 	}
 	return ErrInvalidClockSpeed
 }
 
-func (q qspi) runCommand(cmd Command) (err error) {
-	QSPI.INSTRCTRL.Set(uint32(cmd))
-	QSPI.INSTRFRAME.Set(QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
-		(QSPI_INSTRFRAME_TFRTYPE_READ << QSPI_INSTRFRAME_TFRTYPE_Pos))
-	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+func (q qspi) runCommand(cmd byte) (err error) {
+	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
+	sam.QSPI.INSTRFRAME.Set(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	q.endTransfer()
 	return
 }
 
-func (q qspi) readCommand(cmd Command, buf []byte) (err error) {
+func (q qspi) readCommand(cmd byte, buf []byte) (err error) {
 	q.disableAndClearCache()
-	QSPI.INSTRCTRL.Set(uint32(cmd))
-	const iframe = QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI | QSPI_INSTRFRAME_DATAEN |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
-		(QSPI_INSTRFRAME_TFRTYPE_READ << QSPI_INSTRFRAME_TFRTYPE_Pos)
-	QSPI.INSTRFRAME.Set(iframe)
-	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
+	const iframe = sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI | sam.QSPI_INSTRFRAME_DATAEN |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	var ptr uintptr = qspi_AHB_LO
 	for i := range buf {
 		buf[i] = volatile.LoadUint8((*uint8)(unsafe.Pointer(ptr)))
@@ -113,13 +113,13 @@ func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
 		return ErrInvalidAddrRange
 	}
 	q.disableAndClearCache()
-	QSPI.INSTRCTRL.Set(uint32(CmdQuadRead))
-	const iframe = QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT | QSPI_INSTRFRAME_DATAEN |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
-		QSPI_INSTRFRAME_ADDREN | (8 << QSPI_INSTRFRAME_DUMMYLEN_Pos) |
-		(QSPI_INSTRFRAME_TFRTYPE_READMEMORY << QSPI_INSTRFRAME_TFRTYPE_Pos)
-	QSPI.INSTRFRAME.Set(iframe)
-	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	sam.QSPI.INSTRCTRL.Set(uint32(cmdQuadRead))
+	const iframe = sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT | sam.QSPI_INSTRFRAME_DATAEN |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_ADDREN | (8 << sam.QSPI_INSTRFRAME_DUMMYLEN_Pos) |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	ln := len(buf)
 	sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
 	copy(buf, sl)
@@ -128,17 +128,17 @@ func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
 	return
 }
 
-func (q qspi) writeCommand(cmd Command, data []byte) (err error) {
-	iframe := uint32(QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		QSPI_INSTRFRAME_ADDRLEN_24BITS | QSPI_INSTRFRAME_INSTREN |
-		(QSPI_INSTRFRAME_TFRTYPE_WRITE << QSPI_INSTRFRAME_TFRTYPE_Pos))
+func (q qspi) writeCommand(cmd byte, data []byte) (err error) {
+	iframe := uint32(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
 	if len(data) > 0 {
-		iframe |= QSPI_INSTRFRAME_DATAEN
+		iframe |= sam.QSPI_INSTRFRAME_DATAEN
 	}
 	q.disableAndClearCache()
-	QSPI.INSTRCTRL.Set(uint32(cmd))
-	QSPI.INSTRFRAME.Set(iframe)
-	QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
+	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	var ptr uintptr = qspi_AHB_LO
 	for i := range data {
 		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), data[i])
@@ -149,7 +149,7 @@ func (q qspi) writeCommand(cmd Command, data []byte) (err error) {
 	return
 }
 
-func (q qspi) eraseCommand(cmd Command, address uint32) (err error) {
+func (q qspi) eraseCommand(cmd byte, address uint32) (err error) {
 	panic("implement me")
 }
 
@@ -159,21 +159,21 @@ func (q qspi) writeMemory(addr uint32, data []byte) (err error) {
 
 //go:inline
 func (q qspi) enableCache() {
-	CMCC.CTRL.SetBits(CMCC_CTRL_CEN)
+	sam.CMCC.CTRL.SetBits(sam.CMCC_CTRL_CEN)
 }
 
 //go:inline
 func (q qspi) disableAndClearCache() {
-	CMCC.CTRL.ClearBits(CMCC_CTRL_CEN)
-	for CMCC.SR.HasBits(CMCC_SR_CSTS) {
+	sam.CMCC.CTRL.ClearBits(sam.CMCC_CTRL_CEN)
+	for sam.CMCC.SR.HasBits(sam.CMCC_SR_CSTS) {
 	}
-	CMCC.MAINT0.SetBits(CMCC_MAINT0_INVALL)
+	sam.CMCC.MAINT0.SetBits(sam.CMCC_MAINT0_INVALL)
 }
 
 //go:inline
 func (q qspi) endTransfer() {
-	QSPI.CTRLA.Set(QSPI_CTRLA_ENABLE | QSPI_CTRLA_LASTXFER)
-	for !QSPI.INTFLAG.HasBits(QSPI_INTFLAG_INSTREND) {
+	sam.QSPI.CTRLA.Set(sam.QSPI_CTRLA_ENABLE | sam.QSPI_CTRLA_LASTXFER)
+	for !sam.QSPI.INTFLAG.HasBits(sam.QSPI_INTFLAG_INSTREND) {
 	}
-	QSPI.INTFLAG.Set(QSPI_INTFLAG_INSTREND)
+	sam.QSPI.INTFLAG.Set(sam.QSPI_INTFLAG_INSTREND)
 }
