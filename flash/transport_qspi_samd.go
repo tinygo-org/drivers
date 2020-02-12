@@ -24,9 +24,12 @@ func NewQSPI(cs, sck, d0, d1, d2, d3 machine.Pin) *Device {
 	}
 }
 
+// QSPI address space on SAMD51 is 0x04000000 to 0x05000000
 const (
-	// QSPI address space on SAMD51 is 0x04000000 to 0x05000000
+	// Low address of the QSPI address space on SAMD51
 	qspi_AHB_LO = 0x04000000
+
+	// High address of the QSPI address space on SAMD51
 	qspi_AHB_HI = 0x05000000
 )
 

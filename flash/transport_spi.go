@@ -2,6 +2,20 @@ package flash
 
 import "machine"
 
+type transport interface {
+	begin()
+	supportQuadMode() bool
+	setClockSpeed(hz uint32) (err error)
+	runCommand(cmd byte) (err error)
+	readCommand(cmd byte, rsp []byte) (err error)
+	writeCommand(cmd byte, data []byte) (err error)
+	eraseCommand(cmd byte, address uint32) (err error)
+	readMemory(addr uint32, rsp []byte) (err error)
+	writeMemory(addr uint32, data []byte) (err error)
+}
+
+// NewSPI returns a pointer to a flash device that uses a SPI peripheral to
+// communicate with a serial memory chip.
 func NewSPI(spi *machine.SPI, mosi, miso, sck, cs machine.Pin) *Device {
 	return &Device{
 		transport: &spiTransport{

@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	cmdRead            = 0x03 // Single Read
-	cmdQuadRead        = 0x6B // 1 line address, 4 line data
-	cmdReadJedecID     = 0x9f // read the JEDEC ID from the device
-	cmdPageProgram     = 0x02 // program a page of memory using single-bit tx
-	cmdQuadPageProgram = 0x32 // 1 line address, 4 line data
+	cmdRead            = 0x03 // read memory using single-bit transfer
+	cmdQuadRead        = 0x6B // read with 1 line address, 4 line data
+	cmdReadJedecID     = 0x9F // read the JEDEC ID from the device
+	cmdPageProgram     = 0x02 // write a page of memory using single-bit transfer
+	cmdQuadPageProgram = 0x32 // write with 1 line address, 4 line data
 	cmdReadStatus      = 0x05 // read status register 1
 	cmdReadStatus2     = 0x35 // read status register 2
 	cmdWriteStatus     = 0x01 // write status register 1
@@ -46,11 +46,11 @@ const (
 func (err Error) Error() string {
 	switch err {
 	case ErrInvalidClockSpeed:
-		return "invalid clock speed"
+		return "flash: invalid clock speed"
 	case ErrInvalidAddrRange:
-		return "invalid address range"
+		return "flash: invalid address range"
 	default:
-		return "unspecified error"
+		return "flash: unspecified error"
 	}
 }
 
@@ -77,18 +77,6 @@ func (sn SerialNumber) String() string {
 type Device struct {
 	transport transport
 	attrs     Attrs
-}
-
-type transport interface {
-	begin()
-	supportQuadMode() bool
-	setClockSpeed(hz uint32) (err error)
-	runCommand(cmd byte) (err error)
-	readCommand(cmd byte, rsp []byte) (err error)
-	writeCommand(cmd byte, data []byte) (err error)
-	eraseCommand(cmd byte, address uint32) (err error)
-	readMemory(addr uint32, rsp []byte) (err error)
-	writeMemory(addr uint32, data []byte) (err error)
 }
 
 type Attrs struct {
@@ -235,6 +223,7 @@ func (dev *Device) WriteEnable() error {
 	return dev.transport.runCommand(cmdWriteEnable)
 }
 
+// EraseBlock erases a block of memory at the specified address
 func (dev *Device) EraseBlock(addr uint32) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
@@ -245,6 +234,7 @@ func (dev *Device) EraseBlock(addr uint32) error {
 	return dev.transport.eraseCommand(cmdEraseBlock, addr*BlockSize)
 }
 
+// EraseSector erases a sector of memory at the specified address
 func (dev *Device) EraseSector(addr uint32) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
@@ -255,6 +245,7 @@ func (dev *Device) EraseSector(addr uint32) error {
 	return dev.transport.eraseCommand(cmdEraseSector, addr*SectorSize)
 }
 
+// EraseChip erases the entire flash memory chip
 func (dev *Device) EraseChip() error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
