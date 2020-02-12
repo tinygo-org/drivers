@@ -13,7 +13,7 @@ import (
 // communicate with a serial memory chip.
 func NewQSPI(cs, sck, d0, d1, d2, d3 machine.Pin) *Device {
 	return &Device{
-		transport: &qspi{
+		transport: &qspiTransport{
 			cs:  cs,
 			sck: sck,
 			d0:  d0,
@@ -30,7 +30,7 @@ const (
 	qspi_AHB_HI = 0x05000000
 )
 
-type qspi struct {
+type qspiTransport struct {
 	cs  machine.Pin
 	sck machine.Pin
 	d0  machine.Pin
@@ -39,7 +39,7 @@ type qspi struct {
 	d3  machine.Pin
 }
 
-func (q qspi) begin() {
+func (q qspiTransport) begin() {
 
 	// enable main clocks
 	sam.MCLK.APBCMASK.SetBits(sam.MCLK_APBCMASK_QSPI_)
@@ -69,18 +69,18 @@ func (q qspi) begin() {
 	sam.QSPI.CTRLA.SetBits(sam.QSPI_CTRLA_ENABLE)
 }
 
-func (q qspi) supportQuadMode() bool {
+func (q qspiTransport) supportQuadMode() bool {
 	return true
 }
 
-func (q qspi) setClockSpeed(hz uint32) error {
+func (q qspiTransport) setClockSpeed(hz uint32) error {
 	if divider := machine.CPUFrequency() / hz; divider < 256 {
 		sam.QSPI.BAUD.Reg = sam.QSPI_BAUD_BAUD_Msk & (divider << sam.QSPI_BAUD_BAUD_Pos)
 	}
 	return ErrInvalidClockSpeed
 }
 
-func (q qspi) runCommand(cmd byte) (err error) {
+func (q qspiTransport) runCommand(cmd byte) (err error) {
 	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
 	sam.QSPI.INSTRFRAME.Set(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
@@ -90,7 +90,7 @@ func (q qspi) runCommand(cmd byte) (err error) {
 	return
 }
 
-func (q qspi) readCommand(cmd byte, buf []byte) (err error) {
+func (q qspiTransport) readCommand(cmd byte, buf []byte) (err error) {
 	q.disableAndClearCache()
 	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
 	const iframe = sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI | sam.QSPI_INSTRFRAME_DATAEN |
@@ -108,7 +108,7 @@ func (q qspi) readCommand(cmd byte, buf []byte) (err error) {
 	return
 }
 
-func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
+func (q qspiTransport) readMemory(addr uint32, buf []byte) (err error) {
 	if (addr + uint32(len(buf))) > (qspi_AHB_HI - qspi_AHB_LO) {
 		return ErrInvalidAddrRange
 	}
@@ -128,7 +128,7 @@ func (q qspi) readMemory(addr uint32, buf []byte) (err error) {
 	return
 }
 
-func (q qspi) writeCommand(cmd byte, data []byte) (err error) {
+func (q qspiTransport) writeCommand(cmd byte, data []byte) (err error) {
 	iframe := uint32(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
@@ -149,29 +149,26 @@ func (q qspi) writeCommand(cmd byte, data []byte) (err error) {
 	return
 }
 
-func (q qspi) eraseCommand(cmd byte, address uint32) (err error) {
+func (q qspiTransport) eraseCommand(cmd byte, address uint32) (err error) {
 	panic("implement me")
 }
 
-func (q qspi) writeMemory(addr uint32, data []byte) (err error) {
+func (q qspiTransport) writeMemory(addr uint32, data []byte) (err error) {
 	panic("implement me")
 }
 
-//go:inline
-func (q qspi) enableCache() {
+func (q qspiTransport) enableCache() {
 	sam.CMCC.CTRL.SetBits(sam.CMCC_CTRL_CEN)
 }
 
-//go:inline
-func (q qspi) disableAndClearCache() {
+func (q qspiTransport) disableAndClearCache() {
 	sam.CMCC.CTRL.ClearBits(sam.CMCC_CTRL_CEN)
 	for sam.CMCC.SR.HasBits(sam.CMCC_SR_CSTS) {
 	}
 	sam.CMCC.MAINT0.SetBits(sam.CMCC_MAINT0_INVALL)
 }
 
-//go:inline
-func (q qspi) endTransfer() {
+func (q qspiTransport) endTransfer() {
 	sam.QSPI.CTRLA.Set(sam.QSPI_CTRLA_ENABLE | sam.QSPI_CTRLA_LASTXFER)
 	for !sam.QSPI.INTFLAG.HasBits(sam.QSPI_INTFLAG_INSTREND) {
 	}

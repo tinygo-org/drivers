@@ -8,26 +8,31 @@ import (
 const (
 	cmdRead            = 0x03 // Single Read
 	cmdQuadRead        = 0x6B // 1 line address, 4 line data
-	cmdReadJedecID     = 0x9f
-	cmdPageProgram     = 0x02
+	cmdReadJedecID     = 0x9f // read the JEDEC ID from the device
+	cmdPageProgram     = 0x02 // program a page of memory using single-bit tx
 	cmdQuadPageProgram = 0x32 // 1 line address, 4 line data
-	cmdReadStatus      = 0x05
-	cmdReadStatus2     = 0x35
-	cmdWriteStatus     = 0x01
-	cmdWriteStatus2    = 0x31
-	cmdEnableReset     = 0x66
-	cmdReset           = 0x99
-	cmdWriteEnable     = 0x06
-	cmdWriteDisable    = 0x04
-	cmdEraseSector     = 0x20
-	cmdEraseBlock      = 0xD8
-	cmdEraseChip       = 0xC7
+	cmdReadStatus      = 0x05 // read status register 1
+	cmdReadStatus2     = 0x35 // read status register 2
+	cmdWriteStatus     = 0x01 // write status register 1
+	cmdWriteStatus2    = 0x31 // write status register 2
+	cmdEnableReset     = 0x66 // enable reset
+	cmdReset           = 0x99 // perform reset
+	cmdWriteEnable     = 0x06 // write-enable memory
+	cmdWriteDisable    = 0x04 // write-protect memory
+	cmdEraseSector     = 0x20 // erase a sector of memory
+	cmdEraseBlock      = 0xD8 // erase a block of memory
+	cmdEraseChip       = 0xC7 // erase the entire chip
 )
 
 const (
-	BlockSize  = 64 * 1024
+	// BlockSize is the number of bytes in a block for most/all NOR flash memory
+	BlockSize = 64 * 1024
+
+	// SectorSize is the number of bytes in a sector for most/all NOR flash memory
 	SectorSize = 4 * 1024
-	PageSize   = 256
+
+	// PageSize is the number of bytes in a page for most/all NOR flash memory
+	PageSize = 256
 )
 
 type Error uint8
@@ -277,7 +282,6 @@ func (dev *Device) ReadStatus2() (status byte, err error) {
 func (dev *Device) WaitUntilReady() error {
 	expire := time.Now().UnixNano() + int64(1*time.Second)
 	for s, err := dev.ReadStatus(); (s & 0x03) > 0; s, err = dev.ReadStatus() {
-		println("wait until ready status", s)
 		if err != nil {
 			return err
 		}
