@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+const (
+	SFLASH_BLOCK_SIZE  = 64 * 1024
+	SFLASH_SECTOR_SIZE = 4 * 1024
+	SFLASH_PAGE_SIZE   = 256
+)
+
 type SerialNumber uint64
 
 func (sn SerialNumber) String() string {
@@ -95,6 +101,65 @@ func (dev *Device) ReadBuffer(addr uint32, buf []byte) error {
 	return dev.transport.readMemory(addr, buf)
 }
 
+func (dev *Device) WriteBuffer(addr uint32, buf []byte) (n int, err error) {
+	remain := uint32(len(buf))
+	buffer := uint32(0)
+	for remain > 0 {
+		if err = dev.WaitUntilReady(); err != nil {
+			return
+		}
+		if err = dev.WriteEnable(); err != nil {
+			return
+		}
+		leftOnPage := SFLASH_PAGE_SIZE - (addr & (SFLASH_PAGE_SIZE - 1))
+		toWrite := remain
+		if leftOnPage < remain {
+			toWrite = leftOnPage
+		}
+		if err = dev.transport.writeMemory(addr, buf[buffer:buffer+toWrite]); err != nil {
+			return
+		}
+		remain -= toWrite
+		buffer += toWrite
+		addr += toWrite
+	}
+	return len(buf) - int(remain), nil
+}
+
+func (dev *Device) WriteEnable() error {
+	return dev.transport.runCommand(CmdWriteEnable)
+}
+
+func (dev *Device) EraseBlock(addr uint32) error {
+	if err := dev.WaitUntilReady(); err != nil {
+		return err
+	}
+	if err := dev.WriteEnable(); err != nil {
+		return err
+	}
+	return dev.transport.eraseCommand(CmdEraseBlock, addr*SFLASH_BLOCK_SIZE)
+}
+
+func (dev *Device) EraseSector(addr uint32) error {
+	if err := dev.WaitUntilReady(); err != nil {
+		return err
+	}
+	if err := dev.WriteEnable(); err != nil {
+		return err
+	}
+	return dev.transport.eraseCommand(CmdEraseSector, addr*SFLASH_SECTOR_SIZE)
+}
+
+func (dev *Device) EraseChip() error {
+	if err := dev.WaitUntilReady(); err != nil {
+		return err
+	}
+	if err := dev.WriteEnable(); err != nil {
+		return err
+	}
+	return dev.transport.runCommand(CmdEraseChip)
+}
+
 func (dev *Device) ReadStatus() (status byte, err error) {
 	buf := make([]byte, 1)
 	err = dev.transport.readCommand(CmdReadStatus, buf)
@@ -108,7 +173,7 @@ func (dev *Device) ReadStatus2() (status byte, err error) {
 }
 
 func (dev *Device) WaitUntilReady() error {
-	expire := time.Now().UnixNano() + int64(10*time.Second)
+	expire := time.Now().UnixNano() + int64(1*time.Second)
 	for s, err := dev.ReadStatus(); (s & 0x03) > 0; s, err = dev.ReadStatus() {
 		println("wait until ready status", s)
 		if err != nil {
