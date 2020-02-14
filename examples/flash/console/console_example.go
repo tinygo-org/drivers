@@ -1,4 +1,4 @@
-package main
+package console_example
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"tinygo.org/x/drivers/flash"
 )
@@ -21,22 +20,16 @@ var (
 	input [consoleBufLen]byte
 	store [storageBufLen]byte
 
-	console  = machine.UART0
-	readyLED = machine.LED
+	console = machine.UART0
 
-	dev = flash.NewQSPI(
-		machine.QSPI_CS,
-		machine.QSPI_SCK,
-		machine.QSPI_DATA0,
-		machine.QSPI_DATA1,
-		machine.QSPI_DATA2,
-		machine.QSPI_DATA3,
-	)
+	dev *flash.Device
 
 	commands map[string]cmdfunc = map[string]cmdfunc{
 		"":      cmdfunc(noop),
 		"dbg":   cmdfunc(dbg),
+		"erase": cmdfunc(erase),
 		"lsblk": cmdfunc(lsblk),
+		"write": cmdfunc(write),
 		"xxd":   cmdfunc(xxd),
 	}
 )
@@ -50,17 +43,12 @@ const (
 	StateCSI
 )
 
-func main() {
+func RunFor(device *flash.Device) {
 
-	time.Sleep(3 * time.Second)
-
-	readyLED.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	readyLED.High()
-
-	readyLED.Low()
-	write("spi Configured. Reading flash info")
-
-	dev.Begin()
+	dev = device
+	dev.Configure(&flash.DeviceConfig{
+		Identifier: flash.DefaultDeviceIdentifier,
+	})
 
 	prompt()
 
@@ -117,7 +105,6 @@ func main() {
 				// TODO: handle escape sequences
 				state = StateInput
 			}
-			//time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -163,6 +150,45 @@ func lsblk(argv []string) {
 	)
 }
 
+func erase(argv []string) {
+	if len(argv) < 3 {
+		println("usage: erase <block|sector> <bytes>")
+	}
+	var err error
+	var addr uint64 = 0x0
+	if addr, err = strconv.ParseUint(argv[2], 16, 32); err != nil {
+		println("Invalid address: " + err.Error() + "\r\n")
+		return
+	}
+	if argv[1] == "block" {
+		if err = dev.EraseBlock(uint32(addr)); err != nil {
+			println("Block erase error: " + err.Error() + "\r\n")
+		}
+	} else if argv[1] == "sector" {
+		if err = dev.EraseSector(uint32(addr)); err != nil {
+			println("Block erase error: " + err.Error() + "\r\n")
+		}
+	} else {
+		println("usage: erase <block|sector> <bytes>")
+	}
+}
+
+func write(argv []string) {
+	if len(argv) < 3 {
+		println("usage: write <hex offset> <bytes>")
+	}
+	var err error
+	var addr uint64 = 0x0
+	if addr, err = strconv.ParseUint(argv[1], 16, 32); err != nil {
+		println("Invalid address: " + err.Error() + "\r\n")
+		return
+	}
+	buf := []byte(argv[2])
+	if _, err = dev.WriteBuffer(uint32(addr), buf); err != nil {
+		println("Write error: " + err.Error() + "\r\n")
+	}
+}
+
 func xxd(argv []string) {
 	var err error
 	var addr uint64 = 0x0
@@ -179,12 +205,6 @@ func xxd(argv []string) {
 		}
 		fallthrough
 	case 2:
-		/*
-			if argv[1][:2] != "0x" {
-				println("Invalid hex address (should start with 0x)")
-				return
-			}
-		*/
 		if addr, err = strconv.ParseUint(argv[1], 16, 32); err != nil {
 			println("Invalid address: " + err.Error() + "\r\n")
 			return
@@ -197,7 +217,6 @@ func xxd(argv []string) {
 		return
 	}
 	buf := store[0:size]
-	//fatdisk.ReadAt(buf, int64(addr))
 	dev.ReadBuffer(uint32(addr), buf)
 	xxdfprint(os.Stdout, uint32(addr), buf)
 }
@@ -220,12 +239,7 @@ func xxdfprint(w io.Writer, offset uint32, b []byte) {
 		}
 		console.Write(buf16)
 		println()
-		//	"%s\r\n", b[i:l], "")
 	}
-}
-
-func write(s string) {
-	println(s)
 }
 
 func prompt() {

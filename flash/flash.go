@@ -60,11 +60,11 @@ type JedecID struct {
 	Capacity uint8
 }
 
-func (id *JedecID) Uint32() uint32 {
+func (id JedecID) Uint32() uint32 {
 	return uint32(id.ManufID)<<16 | uint32(id.MemType)<<8 | uint32(id.Capacity)
 }
 
-func (id *JedecID) String() string {
+func (id JedecID) String() string {
 	return fmt.Sprintf("%06X", id.Uint32())
 }
 
@@ -79,9 +79,13 @@ type Device struct {
 	attrs     Attrs
 }
 
+type DeviceConfig struct {
+	Identifier DeviceIdentifier
+}
+
 type Attrs struct {
 	TotalSize uint32
-	//start_up_time_us uint16
+	StartUp   time.Duration
 
 	// Three response bytes to 0x9f JEDEC ID command.
 	JedecID
@@ -107,7 +111,7 @@ type Attrs struct {
 
 	// Requires a separate command 0x31 to write to the second byte of the status
 	// register. Otherwise two byte are written via 0x01.
-	WriteStatusRegisterSplit bool
+	WriteStatusSplit bool
 
 	// True when the status register is a single byte. This implies the Quad
 	// Enable bit is in the first byte and the Read Status Register 2 command
@@ -115,17 +119,21 @@ type Attrs struct {
 	SingleStatusByte bool
 }
 
-func (dev *Device) Begin() (err error) {
+func (dev *Device) Configure(config *DeviceConfig) (err error) {
 
-	dev.transport.begin()
+	dev.transport.configure(config)
 
-	// TODO: should check JEDEC ID against list of known devices
-	/*
-		if dev.ID, err = dev.ReadJEDEC(); err != nil {
-			return err
-		}
-		println("JEDEC:", dev.ID.String())
-	*/
+	var id JedecID
+	if id, err = dev.ReadJEDEC(); err != nil {
+		return err
+	}
+
+	if config.Identifier != nil {
+		dev.attrs = config.Identifier.Identify(id)
+	} else {
+		dev.attrs = Attrs{JedecID: id}
+		//panic("what to do when identifier is nil???")
+	}
 
 	// We don't know what state the flash is in so wait for any remaining writes and then reset.
 

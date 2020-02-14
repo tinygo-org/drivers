@@ -3,7 +3,7 @@ package flash
 import "machine"
 
 type transport interface {
-	begin()
+	configure(config *DeviceConfig)
 	supportQuadMode() bool
 	setClockSpeed(hz uint32) (err error)
 	runCommand(cmd byte) (err error)
@@ -36,7 +36,7 @@ type spiTransport struct {
 	ss   machine.Pin
 }
 
-func (tr *spiTransport) begin() {
+func (tr *spiTransport) configure(config *DeviceConfig) {
 	// Configure spi bus
 	tr.setClockSpeed(5000000)
 

@@ -42,7 +42,7 @@ type qspiTransport struct {
 	d3  machine.Pin
 }
 
-func (q qspiTransport) begin() {
+func (q qspiTransport) configure(config *DeviceConfig) {
 
 	// enable main clocks
 	sam.MCLK.APBCMASK.SetBits(sam.MCLK_APBCMASK_QSPI_)
