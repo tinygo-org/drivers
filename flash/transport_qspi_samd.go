@@ -31,6 +31,49 @@ const (
 
 	// High address of the QSPI address space on SAMD51
 	qspi_AHB_HI = 0x05000000
+
+	iframeRunCommand = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	iframeReadCommand = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_DATAEN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	iframeReadMemory = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_DATAEN |
+		sam.QSPI_INSTRFRAME_ADDREN |
+		(8 << sam.QSPI_INSTRFRAME_DUMMYLEN_Pos) |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_READMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	iframeWriteCommand = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	iframeEraseCommand = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_ADDREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	iframeWriteMemory = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_ADDREN |
+		sam.QSPI_INSTRFRAME_DATAEN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITEMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 )
 
 type qspiTransport struct {
@@ -91,9 +134,7 @@ func (q qspiTransport) setClockSpeed(hz uint32) error {
 
 func (q qspiTransport) runCommand(cmd byte) (err error) {
 	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
-		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
+	sam.QSPI.INSTRFRAME.Set(iframeRunCommand)
 	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	q.endTransfer()
 	return
@@ -102,10 +143,7 @@ func (q qspiTransport) runCommand(cmd byte) (err error) {
 func (q qspiTransport) readCommand(cmd byte, buf []byte) (err error) {
 	q.disableAndClearCache()
 	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	const iframe = sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI | sam.QSPI_INSTRFRAME_DATAEN |
-		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
-		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
-	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Set(iframeReadCommand)
 	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	var ptr uintptr = qspi_AHB_LO
 	for i := range buf {
@@ -123,11 +161,7 @@ func (q qspiTransport) readMemory(addr uint32, buf []byte) (err error) {
 	}
 	q.disableAndClearCache()
 	sam.QSPI.INSTRCTRL.Set(uint32(cmdQuadRead))
-	const iframe = sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT | sam.QSPI_INSTRFRAME_DATAEN |
-		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
-		sam.QSPI_INSTRFRAME_ADDREN | (8 << sam.QSPI_INSTRFRAME_DUMMYLEN_Pos) |
-		(sam.QSPI_INSTRFRAME_TFRTYPE_READMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
-	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Set(iframeReadMemory)
 	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	ln := len(buf)
 	sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
@@ -138,16 +172,13 @@ func (q qspiTransport) readMemory(addr uint32, buf []byte) (err error) {
 }
 
 func (q qspiTransport) writeCommand(cmd byte, data []byte) (err error) {
-	iframe := uint32(
-		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-			sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
-			(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
+	var dataen uint32
 	if len(data) > 0 {
-		iframe |= sam.QSPI_INSTRFRAME_DATAEN
+		dataen = sam.QSPI_INSTRFRAME_DATAEN
 	}
 	q.disableAndClearCache()
 	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Set(iframeWriteCommand | dataen)
 	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 	var ptr uintptr = qspi_AHB_LO
 	for i := range data {
@@ -159,12 +190,33 @@ func (q qspiTransport) writeCommand(cmd byte, data []byte) (err error) {
 	return
 }
 
-func (q qspiTransport) eraseCommand(cmd byte, address uint32) (err error) {
-	panic("implement me")
+func (q qspiTransport) eraseCommand(cmd byte, addr uint32) (err error) {
+	q.disableAndClearCache()
+	sam.QSPI.INSTRADDR.Set(addr)
+	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
+	sam.QSPI.INSTRFRAME.Set(iframeEraseCommand)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	q.endTransfer()
+	q.enableCache()
+	return
 }
 
 func (q qspiTransport) writeMemory(addr uint32, data []byte) (err error) {
-	panic("implement me")
+	if (addr + uint32(len(data))) > (qspi_AHB_HI - qspi_AHB_LO) {
+		return ErrInvalidAddrRange
+	}
+	q.disableAndClearCache()
+	sam.QSPI.INSTRCTRL.Set(uint32(cmdQuadRead))
+	sam.QSPI.INSTRFRAME.Set(iframeWriteMemory)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	var ptr = qspi_AHB_LO + uintptr(addr)
+	for i := range data {
+		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), data[i])
+		ptr++
+	}
+	q.endTransfer()
+	q.enableCache()
+	return
 }
 
 func (q qspiTransport) enableCache() {

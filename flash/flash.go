@@ -139,7 +139,7 @@ func (dev *Device) Configure(config *DeviceConfig) (err error) {
 
 	// Speed up to max device frequency
 	if dev.attrs.MaxClockSpeedMHz > 0 {
-		//dev.trans.setClockSpeed(uint32(dev.attrs.MaxClockSpeedMHz) * 1e6)
+		dev.trans.setClockSpeed(uint32(dev.attrs.MaxClockSpeedMHz) * 1e6)
 	}
 
 	// Enable Quad Mode if available
