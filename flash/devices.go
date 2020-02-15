@@ -2,16 +2,32 @@ package flash
 
 import "time"
 
+// A DeviceIdentifier can be passed to the Configure() method of a flash Device
+// in order provide a means of discovery of device-specific attributes based on
+// the JEDEC ID read from the device.
 type DeviceIdentifier interface {
+	// Identify returns an Attrs struct based on the provided JEDEC ID
 	Identify(id JedecID) Attrs
 }
 
+// DeviceIdentifierFunc is a functional Identifier implementation
 type DeviceIdentifierFunc func(id JedecID) Attrs
 
+// Identify implements the Identifier interface
 func (fn DeviceIdentifierFunc) Identify(id JedecID) Attrs {
 	return fn(id)
 }
 
+// DefaultDeviceIndentifier is a DeviceIdentifier that is capable of recognizing
+// JEDEC IDs for all of the known memory devices in this package. If you are
+// have no way to be sure about the type of memory device that might be on a
+// board you are targeting, this can be a good starting point to use.  The
+// downside of using this function is that it will prevent the compiler from
+// being able to mark any of the functions for the various devices as unused,
+// resulting in larger code size.  If code size is a concern, and if you know
+// ahead of time you are only dealing with a limited set of memory devices, it
+// might be worthwhile to use your own implementation of a DeviceIdentifier
+// that only references those devices, so that more methods are marked unused.
 var DefaultDeviceIdentifier = DeviceIdentifierFunc(func(id JedecID) Attrs {
 	switch id.Uint32() {
 	case 0x010617:
@@ -196,7 +212,7 @@ func GD25Q16C() Attrs {
 		StartUp:            5000 * time.Microsecond,
 		JedecID:            JedecID{0xC8, 0x40, 0x15},
 		MaxClockSpeedMHz:   104,
-		QuadEnableBitMask:  0x20,
+		QuadEnableBitMask:  0x02,
 		SupportsFastRead:   true,
 		SupportsQSPI:       true,
 		SupportsQSPIWrites: true,

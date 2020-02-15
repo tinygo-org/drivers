@@ -18,7 +18,7 @@ type transport interface {
 // communicate with a serial memory chip.
 func NewSPI(spi *machine.SPI, mosi, miso, sck, cs machine.Pin) *Device {
 	return &Device{
-		transport: &spiTransport{
+		trans: &spiTransport{
 			spi:  spi,
 			mosi: mosi,
 			miso: miso,

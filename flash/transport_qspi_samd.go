@@ -13,7 +13,7 @@ import (
 // communicate with a serial memory chip.
 func NewQSPI(cs, sck, d0, d1, d2, d3 machine.Pin) *Device {
 	return &Device{
-		transport: &qspiTransport{
+		trans: &qspiTransport{
 			cs:  cs,
 			sck: sck,
 			d0:  d0,
@@ -77,8 +77,14 @@ func (q qspiTransport) supportQuadMode() bool {
 }
 
 func (q qspiTransport) setClockSpeed(hz uint32) error {
-	if divider := machine.CPUFrequency() / hz; divider < 256 {
-		sam.QSPI.BAUD.Reg = sam.QSPI_BAUD_BAUD_Msk & (divider << sam.QSPI_BAUD_BAUD_Pos)
+	// The clock speed for the QSPI peripheral is controlled by a divider, so
+	// we can't see the requested speed exactly. Instead we will increment the
+	// divider until the speed is less than or equal to the speed requested.
+	for div, freq := uint32(1), machine.CPUFrequency(); div < 256; div++ {
+		if freq/div <= hz {
+			sam.QSPI.BAUD.Reg = div << sam.QSPI_BAUD_BAUD_Pos
+			return nil
+		}
 	}
 	return ErrInvalidClockSpeed
 }
@@ -132,9 +138,10 @@ func (q qspiTransport) readMemory(addr uint32, buf []byte) (err error) {
 }
 
 func (q qspiTransport) writeCommand(cmd byte, data []byte) (err error) {
-	iframe := uint32(sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
-		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
+	iframe := uint32(
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+			sam.QSPI_INSTRFRAME_ADDRLEN_24BITS | sam.QSPI_INSTRFRAME_INSTREN |
+			(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos))
 	if len(data) > 0 {
 		iframe |= sam.QSPI_INSTRFRAME_DATAEN
 	}

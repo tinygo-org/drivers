@@ -26,7 +26,6 @@ var (
 
 	commands map[string]cmdfunc = map[string]cmdfunc{
 		"":      cmdfunc(noop),
-		"dbg":   cmdfunc(dbg),
 		"erase": cmdfunc(erase),
 		"lsblk": cmdfunc(lsblk),
 		"write": cmdfunc(write),
@@ -122,37 +121,46 @@ func runCommand(line string) {
 
 func noop(argv []string) {}
 
-func dbg(argv []string) {
-	if debug {
-		debug = false
-		println("Console debugging off")
-	} else {
-		debug = true
-		println("Console debugging on")
-	}
-}
-
 func lsblk(argv []string) {
-	id, _ := dev.ReadJEDEC()
-	status, _ := dev.ReadStatus()
+	attrs := dev.Attrs()
+	status1, _ := dev.ReadStatus()
+	status2, _ := dev.ReadStatus2()
 	serialNumber1, _ := dev.ReadSerialNumber()
 	fmt.Printf(
 		"\n-------------------------------------\r\n"+
 			" Device Information:  \r\n"+
 			"-------------------------------------\r\n"+
 			" JEDEC ID: %v\r\n"+
-			"   Serial: %v\r\n"+
-			"   Status: %2x\r\n"+
+			" Serial:   %v\r\n"+
+			" Status 1: %02x\r\n"+
+			" Status 2: %02x\r\n"+
+			" \r\n"+
+			" Max clock speed (MHz): %d\r\n"+
+			" Has Sector Protection: %t\r\n"+
+			" Supports Fast Reads:   %t\r\n"+
+			" Supports QSPI Reads:   %t\r\n"+
+			" Supports QSPI Write:   %t\r\n"+
+			" Write Status Split:    %t\r\n"+
+			" Single Status Byte:    %t\r\n"+
 			"-------------------------------------\r\n\r\n",
-		id,
+		attrs.JedecID,
 		serialNumber1,
-		status,
+		status1,
+		status2,
+		attrs.MaxClockSpeedMHz,
+		attrs.HasSectorProtection,
+		attrs.SupportsFastRead,
+		attrs.SupportsQSPI,
+		attrs.SupportsQSPIWrites,
+		attrs.WriteStatusSplit,
+		attrs.SingleStatusByte,
 	)
 }
 
 func erase(argv []string) {
 	if len(argv) < 3 {
-		println("usage: erase <block|sector> <bytes>")
+		println("usage: erase <chip|block|sector> <bytes>")
+		return
 	}
 	var err error
 	var addr uint64 = 0x0
@@ -166,10 +174,14 @@ func erase(argv []string) {
 		}
 	} else if argv[1] == "sector" {
 		if err = dev.EraseSector(uint32(addr)); err != nil {
-			println("Block erase error: " + err.Error() + "\r\n")
+			println("Sector erase error: " + err.Error() + "\r\n")
+		}
+	} else if argv[1] == "chip" {
+		if err = dev.EraseChip(); err != nil {
+			println("Chip erase error: " + err.Error() + "\r\n")
 		}
 	} else {
-		println("usage: erase <block|sector> <bytes>")
+		println("usage: erase <chip|block|sector> <bytes>")
 	}
 }
 
