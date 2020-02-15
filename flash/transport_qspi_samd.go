@@ -32,12 +32,14 @@ const (
 	// High address of the QSPI address space on SAMD51
 	qspi_AHB_HI = 0x05000000
 
+	// Instruction frame for running sending a command to the device
 	iframeRunCommand = 0x0 |
 		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
 		sam.QSPI_INSTRFRAME_INSTREN |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 
+	// Instruction frame for running a command that returns data
 	iframeReadCommand = 0x0 |
 		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
@@ -45,6 +47,7 @@ const (
 		sam.QSPI_INSTRFRAME_DATAEN |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_READ << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 
+	// Instruction frame to set up the device to read from memory
 	iframeReadMemory = 0x0 |
 		sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
@@ -54,19 +57,14 @@ const (
 		(8 << sam.QSPI_INSTRFRAME_DUMMYLEN_Pos) |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_READMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 
+	// Instruction frame for running a command that requires parameter data
 	iframeWriteCommand = 0x0 |
 		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
 		sam.QSPI_INSTRFRAME_INSTREN |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 
-	iframeEraseCommand = 0x0 |
-		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
-		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
-		sam.QSPI_INSTRFRAME_INSTREN |
-		sam.QSPI_INSTRFRAME_ADDREN |
-		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
-
+	// Instruction frame to set up the device for writing to memory
 	iframeWriteMemory = 0x0 |
 		sam.QSPI_INSTRFRAME_WIDTH_QUAD_OUTPUT |
 		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
@@ -74,6 +72,14 @@ const (
 		sam.QSPI_INSTRFRAME_ADDREN |
 		sam.QSPI_INSTRFRAME_DATAEN |
 		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITEMEMORY << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
+
+	// Instruction frame for running an erase command that requires and address
+	iframeEraseCommand = 0x0 |
+		sam.QSPI_INSTRFRAME_WIDTH_SINGLE_BIT_SPI |
+		sam.QSPI_INSTRFRAME_ADDRLEN_24BITS |
+		sam.QSPI_INSTRFRAME_INSTREN |
+		sam.QSPI_INSTRFRAME_ADDREN |
+		(sam.QSPI_INSTRFRAME_TFRTYPE_WRITE << sam.QSPI_INSTRFRAME_TFRTYPE_Pos)
 )
 
 type qspiTransport struct {
@@ -133,23 +139,15 @@ func (q qspiTransport) setClockSpeed(hz uint32) error {
 }
 
 func (q qspiTransport) runCommand(cmd byte) (err error) {
-	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(iframeRunCommand)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	q.runInstruction(cmd, iframeRunCommand)
 	q.endTransfer()
 	return
 }
 
 func (q qspiTransport) readCommand(cmd byte, buf []byte) (err error) {
 	q.disableAndClearCache()
-	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(iframeReadCommand)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
-	var ptr uintptr = qspi_AHB_LO
-	for i := range buf {
-		buf[i] = volatile.LoadUint8((*uint8)(unsafe.Pointer(ptr)))
-		ptr++
-	}
+	q.runInstruction(cmd, iframeReadCommand)
+	q.readInto(buf, 0)
 	q.endTransfer()
 	q.enableCache()
 	return
@@ -160,12 +158,8 @@ func (q qspiTransport) readMemory(addr uint32, buf []byte) (err error) {
 		return ErrInvalidAddrRange
 	}
 	q.disableAndClearCache()
-	sam.QSPI.INSTRCTRL.Set(uint32(cmdQuadRead))
-	sam.QSPI.INSTRFRAME.Set(iframeReadMemory)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
-	ln := len(buf)
-	sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
-	copy(buf, sl)
+	q.runInstruction(cmdQuadRead, iframeReadMemory)
+	q.readInto(buf, addr)
 	q.endTransfer()
 	q.enableCache()
 	return
@@ -177,25 +171,8 @@ func (q qspiTransport) writeCommand(cmd byte, data []byte) (err error) {
 		dataen = sam.QSPI_INSTRFRAME_DATAEN
 	}
 	q.disableAndClearCache()
-	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(iframeWriteCommand | dataen)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
-	var ptr uintptr = qspi_AHB_LO
-	for i := range data {
-		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), data[i])
-		ptr++
-	}
-	q.endTransfer()
-	q.enableCache()
-	return
-}
-
-func (q qspiTransport) eraseCommand(cmd byte, addr uint32) (err error) {
-	q.disableAndClearCache()
-	sam.QSPI.INSTRADDR.Set(addr)
-	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
-	sam.QSPI.INSTRFRAME.Set(iframeEraseCommand)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
+	q.runInstruction(cmd, iframeWriteCommand|dataen)
+	q.writeFrom(data, 0)
 	q.endTransfer()
 	q.enableCache()
 	return
@@ -206,17 +183,26 @@ func (q qspiTransport) writeMemory(addr uint32, data []byte) (err error) {
 		return ErrInvalidAddrRange
 	}
 	q.disableAndClearCache()
-	sam.QSPI.INSTRCTRL.Set(uint32(cmdQuadRead))
-	sam.QSPI.INSTRFRAME.Set(iframeWriteMemory)
-	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
-	var ptr = qspi_AHB_LO + uintptr(addr)
-	for i := range data {
-		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), data[i])
-		ptr++
-	}
+	q.runInstruction(cmdQuadPageProgram, iframeWriteMemory)
+	q.writeFrom(data, addr)
 	q.endTransfer()
 	q.enableCache()
 	return
+}
+
+func (q qspiTransport) eraseCommand(cmd byte, addr uint32) (err error) {
+	q.disableAndClearCache()
+	sam.QSPI.INSTRADDR.Set(addr)
+	q.runInstruction(cmd, iframeEraseCommand)
+	q.endTransfer()
+	q.enableCache()
+	return
+}
+
+func (q qspiTransport) runInstruction(cmd byte, iframe uint32) {
+	sam.QSPI.INSTRCTRL.Set(uint32(cmd))
+	sam.QSPI.INSTRFRAME.Set(iframe)
+	sam.QSPI.INSTRFRAME.Get() // dummy read for synchronization, as per datasheet
 }
 
 func (q qspiTransport) enableCache() {
@@ -235,4 +221,27 @@ func (q qspiTransport) endTransfer() {
 	for !sam.QSPI.INTFLAG.HasBits(sam.QSPI_INTFLAG_INSTREND) {
 	}
 	sam.QSPI.INTFLAG.Set(sam.QSPI_INTFLAG_INSTREND)
+}
+
+func (q qspiTransport) readInto(buf []byte, addr uint32) {
+	var ptr = qspi_AHB_LO + uintptr(addr)
+	for i := range buf {
+		buf[i] = volatile.LoadUint8((*uint8)(unsafe.Pointer(ptr)))
+		ptr++
+	}
+	/* // NB: for some reason this reads data that results from commands in
+	   // a different endianess than the loop above, but works fine for reading
+	   // from memory. The above loop seems to work fine in both cases oddly
+		ln := len(buf)
+		sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
+		copy(buf, sl)
+	*/
+}
+
+func (q qspiTransport) writeFrom(buf []byte, addr uint32) {
+	var ptr = qspi_AHB_LO + uintptr(addr)
+	for i := range buf {
+		volatile.StoreUint8((*uint8)(unsafe.Pointer(ptr)), buf[i])
+		ptr++
+	}
 }
