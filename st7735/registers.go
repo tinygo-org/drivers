@@ -46,6 +46,8 @@ const (
 	PWCTR6     = 0xFC
 	GMCTRP1    = 0xE0
 	GMCTRN1    = 0xE1
+	VSCRDEF    = 0x33
+	VSCRSADD   = 0x37
 
 	GREENTAB   Model = 0
 	MINI80x160 Model = 1

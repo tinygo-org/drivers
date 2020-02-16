@@ -51,6 +51,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/basic/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/scroll/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis3dh/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/lsm6ds3/main.go
@@ -99,7 +101,9 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/webclient/main.go
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812/main.go
+	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=digispark ./examples/ws2812
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=trinket-m0 ./examples/bme280/main.go
 	@md5sum ./build/test.hex

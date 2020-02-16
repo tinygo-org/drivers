@@ -112,7 +112,7 @@ func (d *Device) Reset() {
 	d.bus.WriteRegister(uint8(d.Address), CMD_RESET, []byte{0xB6})
 }
 
-// ReadTemperature returns the temperature in celsius milli degrees (ºC/1000)
+// ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (int32, error) {
 	data, err := d.readData()
 	if err != nil {

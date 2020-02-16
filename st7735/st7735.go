@@ -224,6 +224,27 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	d.Command(RAMWR)
 }
 
+// SetScrollWindow sets an area to scroll with fixed top and bottom parts of the display
+func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+	d.Command(VSCRDEF)
+	d.Tx([]uint8{
+		uint8(topFixedArea >> 8), uint8(topFixedArea),
+		uint8(d.height - topFixedArea - bottomFixedArea>>8), uint8(d.height - topFixedArea - bottomFixedArea),
+		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)},
+		false)
+}
+
+// SetScroll sets the vertical scroll address of the display.
+func (d *Device) SetScroll(line int16) {
+	d.Command(VSCRSADD)
+	d.Tx([]uint8{uint8(line >> 8), uint8(line)}, false)
+}
+
+// SpotScroll returns the display to its normal state
+func (d *Device) StopScroll() {
+	d.Command(NORON)
+}
+
 // FillRectangle fills a rectangle at a given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	k, i := d.Size()

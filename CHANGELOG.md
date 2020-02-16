@@ -1,3 +1,22 @@
+0.10.0
+---
+- **new devices**
+    - adt7410: Support for ADT7410 temperature sensor (#109)
+    - ili9341: ILI9341 TFT driver (#115)
+    - l293x: added support for h-bridge motor controller
+    - l9110x: add support for L9110x h-bridge motor driver
+    - resistive: Adding driver for four-wire resistive touchscreen (#118)
+- **enhancements**
+    - st7735: added scroll functionality to st7735
+    - st7735: remove default offsets
+    - st7789: remove default offsets
+    - ws2812: Added nrf52840 tag to ws2812
+    - ws2812: work-arounds to allow Digispark to control WS2812 LEDs
+- **docs**
+    - readme: update README to include list of all 44 drivers
+    - wifinina: update docs and add Dockerfile to build firmware
+    - wifinina: update docs and info on how to install WiFiNINA driver
+
 0.9.0
 ---
 - **new devices**

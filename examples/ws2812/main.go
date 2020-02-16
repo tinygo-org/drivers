@@ -1,8 +1,7 @@
-// Connects to an WS2812 RGB LED strip with 10 LEDS, such as
-// on an Adafruit Circuit Playground Express board.
+// Connects to an WS2812 RGB LED strip with 10 LEDS.
 //
-// Replace machine.NEOPIXELS in the code below to match the pin
-// that you are using, if you have a different board.
+// See either the others.go or digispark.go files in this directory
+// for the neopixels pin assignments.
 package main
 
 import (
@@ -13,12 +12,15 @@ import (
 	"tinygo.org/x/drivers/ws2812"
 )
 
+var leds [10]color.RGBA
+
 func main() {
-	neo := machine.NEOPIXELS
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	ws := ws2812.New(neo)
-	leds := make([]color.RGBA, 10)
 	rg := false
 
 	for {
@@ -33,7 +35,8 @@ func main() {
 			}
 		}
 
-		ws.WriteColors(leds)
+		ws.WriteColors(leds[:])
+		led.Set(rg)
 		time.Sleep(100 * time.Millisecond)
 	}
 }
