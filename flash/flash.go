@@ -53,9 +53,16 @@ func (sn SerialNumber) String() string {
 	return fmt.Sprintf("%8X", uint64(sn))
 }
 
+// Attrs represent the differences in hardware characteristics and capabilities
+// of various SPI flash memory devices.
 type Attrs struct {
+
+	// TotalSize is the number of bytes that the flash device can store
 	TotalSize uint32
-	StartUp   time.Duration
+
+	// StartUp is the duration of time between when the device is reset and when
+	// it is ready to operation
+	StartUp time.Duration
 
 	// Three response bytes to 0x9f JEDEC ID command.
 	JedecID
@@ -89,6 +96,10 @@ type Attrs struct {
 	SingleStatusByte bool
 }
 
+// Configure sets up the device and the underlying transport mechanism.  The
+// DeviceConfig argument allows the caller to specify an instance of the
+// DeviceIdentifier interface that, if provided, will be used to retrieve the
+// attributes of the device based on the JEDEC ID.
 func (dev *Device) Configure(config *DeviceConfig) (err error) {
 
 	dev.trans.configure(config)
@@ -305,6 +316,8 @@ func (dev *Device) ReadStatus2() (status byte, err error) {
 	return buf[0], err
 }
 
+// WaitUntilReady queries the status register until the device is ready for the
+// next operation.
 func (dev *Device) WaitUntilReady() error {
 	expire := time.Now().UnixNano() + int64(1*time.Second)
 	for s, err := dev.ReadStatus(); (s & 0x03) > 0; s, err = dev.ReadStatus() {

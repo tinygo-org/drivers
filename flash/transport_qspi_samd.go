@@ -113,9 +113,9 @@ func (q qspiTransport) configure(config *DeviceConfig) {
 	_ = q.setClockSpeed(4e6)
 
 	// configure the CTRLB register
-	sam.QSPI.CTRLB.Reg = sam.QSPI_CTRLB_MODE_MEMORY |
+	sam.QSPI.CTRLB.Set(sam.QSPI_CTRLB_MODE_MEMORY |
 		(sam.QSPI_CTRLB_DATALEN_8BITS << sam.QSPI_CTRLB_DATALEN_Pos) |
-		(sam.QSPI_CTRLB_CSMODE_LASTXFER << sam.QSPI_CTRLB_CSMODE_Pos)
+		(sam.QSPI_CTRLB_CSMODE_LASTXFER << sam.QSPI_CTRLB_CSMODE_Pos))
 
 	// enable the peripheral
 	sam.QSPI.CTRLA.SetBits(sam.QSPI_CTRLA_ENABLE)
@@ -127,11 +127,11 @@ func (q qspiTransport) supportQuadMode() bool {
 
 func (q qspiTransport) setClockSpeed(hz uint32) error {
 	// The clock speed for the QSPI peripheral is controlled by a divider, so
-	// we can't see the requested speed exactly. Instead we will increment the
+	// we can't set the requested speed exactly. Instead we will increment the
 	// divider until the speed is less than or equal to the speed requested.
 	for div, freq := uint32(1), machine.CPUFrequency(); div < 256; div++ {
 		if freq/div <= hz {
-			sam.QSPI.BAUD.Reg = div << sam.QSPI_BAUD_BAUD_Pos
+			sam.QSPI.BAUD.Set(div << sam.QSPI_BAUD_BAUD_Pos)
 			return nil
 		}
 	}
@@ -229,9 +229,9 @@ func (q qspiTransport) readInto(buf []byte, addr uint32) {
 		buf[i] = volatile.LoadUint8((*uint8)(unsafe.Pointer(ptr)))
 		ptr++
 	}
-	/* // NB: for some reason this reads data that results from commands in
-	   // a different endianess than the loop above, but works fine for reading
-	   // from memory. The above loop seems to work fine in both cases oddly
+	/* // NB(bcg): for some reason this reads data that results from commands in
+	   // a different byte order than the loop above, but works fine for reading
+	   // from memory. Oddly, the above loop seems to work fine in both cases.
 		ln := len(buf)
 		sl := (*[1 << 28]byte)(unsafe.Pointer(uintptr(qspi_AHB_LO + addr)))[:ln:ln]
 		copy(buf, sl)
