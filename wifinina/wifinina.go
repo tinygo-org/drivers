@@ -558,7 +558,7 @@ func (d *Device) ScanNetworks() (uint8, error) {
 }
 
 func (d *Device) StartScanNetworks() (uint8, error) {
-	return d.getUint8(d.req0(CmdStartServerTCP))
+	return d.getUint8(d.req0(CmdStartScanNetworks))
 }
 
 func (d *Device) getString(l uint8, err error) (string, error) {
