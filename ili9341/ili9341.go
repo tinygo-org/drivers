@@ -35,6 +35,7 @@ func (d *Device) Configure(config Config) {
 	}
 	d.width = config.Width
 	d.height = config.Height
+	d.rotation = config.Rotation
 
 	output := machine.PinConfig{machine.PinOutput}
 
@@ -112,6 +113,7 @@ func (d *Device) Configure(config Config) {
 		i += numArgs + 2
 	}
 
+	d.SetRotation(d.rotation)
 }
 
 // Size returns the current size of the display.
@@ -252,7 +254,7 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	//x += d.columnOffset
 	//y += d.rowOffset
 	d.sendCommand(CASET, []uint8{
-		uint8(x << 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1),
+		uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1),
 	})
 	d.sendCommand(PASET, []uint8{
 		uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1),
