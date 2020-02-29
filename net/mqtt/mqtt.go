@@ -77,9 +77,9 @@ func (c *mqttclient) Connect() Token {
 	}
 
 	c.mid = 1
-	c.inbound = make(chan packets.ControlPacket)
+	c.inbound = make(chan packets.ControlPacket, 10)
 	c.stop = make(chan struct{})
-	c.incomingPubChan = make(chan *packets.PublishPacket)
+	c.incomingPubChan = make(chan *packets.PublishPacket, 10)
 	c.msgRouter.matchAndDispatch(c.incomingPubChan, c.opts.Order, c)
 
 	// send the MQTT connect message
@@ -98,7 +98,7 @@ func (c *mqttclient) Connect() Token {
 	connectPkt.ClientIdentifier = c.opts.ClientID
 	connectPkt.ProtocolVersion = byte(c.opts.ProtocolVersion)
 	connectPkt.ProtocolName = "MQTT"
-	connectPkt.Keepalive = 30
+	connectPkt.Keepalive = 60
 
 	err = connectPkt.Write(c.conn)
 	if err != nil {
