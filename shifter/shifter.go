@@ -25,8 +25,9 @@ type Device struct {
 
 // ShiftPin is the implementation of the ShiftPin interface.
 type ShiftPin struct {
-	pin machine.Pin
-	d   *Device
+	pin     machine.Pin
+	d       *Device
+	pressed bool
 }
 
 // New returns a new thermistor driver given an ADC pin.
@@ -55,7 +56,7 @@ func (d *Device) GetShiftPin(input int) ShiftPin {
 	return ShiftPin{pin: machine.Pin(input), d: d}
 }
 
-// Read8Input reads the 8 inputs and return an uint8
+// Read8Input updates the internal pins' states and returns it as an uint8.
 func (d *Device) Read8Input() (uint8, error) {
 	if d.bits != EIGHT_BITS {
 		return 0, errors.New("wrong amount of registers")
@@ -63,7 +64,7 @@ func (d *Device) Read8Input() (uint8, error) {
 	return uint8(d.readInput(EIGHT_BITS)), nil
 }
 
-// Read16Input reads the 16 inputs and return an uint16
+// Read16Input updates the internal pins' states and returns it as an uint16.
 func (d *Device) Read16Input() (uint16, error) {
 	if d.bits != SIXTEEN_BITS {
 		return 0, errors.New("wrong amount of registers")
@@ -71,7 +72,7 @@ func (d *Device) Read16Input() (uint16, error) {
 	return uint16(d.readInput(SIXTEEN_BITS)), nil
 }
 
-// Read32Input reads the 32 inputs and return an uint32
+// Read32Input updates the internal pins' states and returns it as an uint32.
 func (d *Device) Read32Input() (uint32, error) {
 	if d.bits != THIRTYTWO_BITS {
 		return 0, errors.New("wrong amount of registers")
@@ -79,16 +80,18 @@ func (d *Device) Read32Input() (uint32, error) {
 	return d.readInput(THIRTYTWO_BITS), nil
 }
 
-// Get the current reading for a specific ShiftPin.
+// Get the pin's state for a specific ShiftPin.
+// Read{8|16|32}Input should be called before to update the state. Read{8|16|32}Input updates
+// all the pins, no need to call it for each pin individually.
 func (p ShiftPin) Get() bool {
-	return (p.d.readInput(p.d.bits) & (1 << int(p.pin))) > 0
+	return p.pressed
 }
 
 // Configure here just for interface compatibility.
 func (p ShiftPin) Configure() {
 }
 
-// readInput reads howMany bits from the shift register
+// readInput reads howMany bits from the shift register and updates the internal pins' states.
 func (d *Device) readInput(howMany NumberBit) uint32 {
 	d.latch.High()
 	var data uint32
@@ -96,6 +99,9 @@ func (d *Device) readInput(howMany NumberBit) uint32 {
 		d.clk.Low()
 		if d.out.Get() {
 			data |= 1 << i
+			d.Pins[i].pressed = true
+		} else {
+			d.Pins[i].pressed = false
 		}
 		d.clk.High()
 	}
