@@ -33,7 +33,7 @@ type DeviceConfiguration struct {
 	Latch, Clock, Out machine.Pin
 }
 
-// New returns a new shit output register device
+// New returns a new shift output register device
 func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
 	return &Device{
 		latch: Latch,
