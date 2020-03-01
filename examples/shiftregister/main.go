@@ -1,7 +1,6 @@
 package main
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers/shiftregister"
@@ -10,16 +9,20 @@ import (
 func main() {
 	d := shiftregister.New(
 		shiftregister.EIGHT_BITS,
-		machine.PA6, // D12 Pin latch connected to ST_CP of 74HC595 (12)
-		machine.PA7, // D11 Pin clock connected to SH_CP of 74HC595 (11)
-		machine.PB6, // D10 Pin data connected to DS of 74HC595 (14)
+		latch, // D12 Pin latch connected to ST_CP of 74HC595 (12)
+		clock, // D11 Pin clock connected to SH_CP of 74HC595 (11)
+		data,  // D10 Pin data connected to DS of 74HC595 (14)
 	)
 	d.Configure()
 
 	for {
-		d.WriteMask(0x55)
-		time.Sleep(100 * time.Millisecond)
-		d.WriteMask(0xAA)
-		time.Sleep(100 * time.Millisecond)
+		d.WriteMask(0x50)
+		time.Sleep(500 * time.Millisecond)
+		d.WriteMask(0xA0)
+		time.Sleep(500 * time.Millisecond)
+		d.WriteMask(0x05)
+		time.Sleep(500 * time.Millisecond)
+		d.WriteMask(0x0A)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
