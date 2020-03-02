@@ -47,14 +47,13 @@ func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
 func (d *Device) Configure() {
 	d.latch.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.out.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.out.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.latch.High()
 }
 
 // WriteMask applies mask's bits to register's outputs pin
 // mask's MSB set Q1, LSB set Q8 (for 8 bits mask)
 func (d *Device) WriteMask(mask uint32) {
-	d.out.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.latch.Low()
 	for i := 0; i < int(d.bits); i++ {
 		d.clock.Low()
