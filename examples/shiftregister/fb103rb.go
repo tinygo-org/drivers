@@ -1,4 +1,4 @@
-// +build nucleo-f103rb
+// +build nucleof103rb
 
 package main
 
