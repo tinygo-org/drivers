@@ -1,4 +1,4 @@
-// Package shiftregister is for 8bit shift output register using 3 GPIO pins
+// Package shiftregister is for 8bit shift output register using 3 GPIO pins like SN74ALS164A , SN74AHC594 , SN74AHC595, ...
 //
 // Tested with SN74HC595 with 8 outputs
 // Wiring:
