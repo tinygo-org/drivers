@@ -121,7 +121,7 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/l9110x/speed/main.go
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=nucleo-fb103rb ./examples/shiftregiser/main.go
+	tinygo build -size short -o ./build/test.hex -target=nucleo-f103rb ./examples/shiftregiser/main.go
 	@md5sum ./build/test.hex
 
 test: clean fmt-check smoke-test
