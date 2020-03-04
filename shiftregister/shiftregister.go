@@ -1,11 +1,4 @@
-// Package shiftregister is for 8bit shift output register using 3 GPIO pins like SN74ALS164A , SN74AHC594 , SN74AHC595, ...
-//
-// Tested with SN74HC595 with 8 outputs
-// Wiring:
-// 	 Latch connected to ST_CP of 74HC595 (12)
-//   Clock connected to SH_CP of 74HC595 (11)
-//   Out:  connected to DS of 74HC595 (14)
-// Datsheet https://www.ti.com/lit/ds/symlink/sn74hc595.pdf
+// Package shiftregister is for 8bit shift output register using 3 GPIO pins like SN74ALS164A, SN74AHC594, SN74AHC595, ...
 package shiftregister
 
 import (
