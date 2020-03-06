@@ -25,3 +25,8 @@ func NewButtons() Device {
 		bits:  EIGHT_BITS,
 	}
 }
+
+// ReadInput returns the latest input readings from the PyBadge.
+func (d *Device) ReadInput() (uint8, error) {
+	return d.Read8Input()
+}

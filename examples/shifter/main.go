@@ -13,7 +13,7 @@ func main() {
 
 	for {
 		// Update the pins state, to later be returned by .Get()
-		buttons.Read8Input()
+		buttons.ReadInput()
 
 		if buttons.Pins[shifter.BUTTON_LEFT].Get() {
 			println("Button LEFT pressed")
