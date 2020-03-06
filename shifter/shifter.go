@@ -30,7 +30,7 @@ type ShiftPin struct {
 	pressed bool
 }
 
-// New returns a new thermistor driver given an ADC pin.
+// New returns a new shifter driver given the correct pins.
 func New(numBits NumberBit, latch, clk, out machine.Pin) Device {
 	return Device{
 		latch: latch,
