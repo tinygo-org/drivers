@@ -59,10 +59,10 @@ var PICTURES = [4][8]byte{
 
 // Draw to the matix: an X, the play symbol, pause symbol, and stop symbol (square)
 func main() {
-	ma := &max7219.Device{machine.Pin(2), machine.Pin(3), machine.Pin(4), 1}
+	ma := &max7219.Device{machine.Pin(2), machine.Pin(3), machine.Pin(4)}
 	ma.Configure()
 	for _, pic := range PICTURES {
-		ma.WriteMatrix(&pic)
+		ma.WriteMatrix(pic)
 		time.Sleep(time.Second)
 	}
 }
