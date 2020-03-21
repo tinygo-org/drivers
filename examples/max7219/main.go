@@ -62,7 +62,7 @@ func main() {
 	ma := &max7219.Device{machine.Pin(2), machine.Pin(3), machine.Pin(4)}
 	ma.Configure()
 	for _, pic := range PICTURES {
-		ma.WriteMatrix(pic)
+		ma.WriteMatrix(&pic)
 		time.Sleep(time.Second)
 	}
 }

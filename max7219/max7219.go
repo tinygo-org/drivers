@@ -10,19 +10,25 @@ import (
 
 // Uses a 3-wire serial interface
 type Device struct {
-	Data  machine.Pin // DIN
-	Load  machine.Pin // Can also be labeled CS
-	Clock machine.Pin // CLK
+	Data     machine.Pin // DIN
+	Load     machine.Pin // Can also be labeled CS
+	Clock    machine.Pin // CLK
+	MaxInUse int         // How many MAX7219s are daisy-chained
 }
 
 // Initialize the pins for a MAX7219 device as output pins
-func New(pd machine.Pin, pl machine.Pin, pc machine.Pin) *Device {
+func New(pd machine.Pin, pl machine.Pin, pc machine.Pin, n ...int) *Device {
 
 	pl.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	pd.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	pc.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	dev := Device{Data: pd, Load: pl, Clock: pc}
+	numDevices := 1
+	if len(n) > 0 {
+		numDevices = n[0]
+	}
+
+	dev := Device{Data: pd, Load: pl, Clock: pc, MaxInUse: numDevices}
 
 	return &dev
 }
@@ -64,10 +70,53 @@ func (d Device) MaxSingle(row byte, col byte) {
 	d.Load.High()
 }
 
+// Write the bitstring to all cascaded-MAX7219 devices
+func (d Device) MaxAll(row byte, col byte) {
+	d.Load.Low() // start operation
+
+	for i := 1; i <= d.MaxInUse; i++ {
+		d.putByte(row)
+		d.putByte(col)
+	}
+
+	// finish operation
+	d.Load.Low()
+	d.Load.High()
+}
+
+// Send data to a single MAX in a cascaded setup
+func (d Device) MaxOne(m int, row byte, col byte) {
+	// m: device index
+	// row: row to address
+	// col: bytestring to write to row
+
+	d.Load.Low() // begin
+
+	// Send 2x NOP to each MAX7219
+	for c := d.MaxInUse; c > m; c-- {
+		d.putByte(0)
+		d.putByte(0)
+	}
+
+	// Send data
+	d.putByte(row)
+	d.putByte(col)
+
+	// 2x NOP again
+	for c := m - 1; c >= 1; c-- {
+		d.putByte(0)
+		d.putByte(0)
+	}
+
+	// Finish op
+	d.Load.Low()
+	d.Load.High()
+}
+
 // Write a full array of bitstrings to the matrix
 // Can be useful for visualizing output if each byte is written in full binary
-func (d Device) WriteMatrix(matrix [8]byte) {
-	for i, v := range matrix {
-		d.MaxSingle(byte(i), v)
+func (d Device) WriteMatrix(matrix *[8]byte) {
+	for i, v := range *matrix {
+		d.MaxSingle(byte(i+1), v)
 	}
 }
