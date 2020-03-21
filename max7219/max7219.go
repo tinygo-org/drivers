@@ -63,11 +63,3 @@ func (d Device) MaxSingle(row byte, col byte) {
 	d.Load.Low()
 	d.Load.High()
 }
-
-// Write a full array of bitstrings to the matrix
-// Can be useful for visualizing output if each byte is written in full binary
-func (d Device) WriteMatrix(matrix [8]byte) {
-	for i, v := range matrix {
-		d.MaxSingle(byte(i), v)
-	}
-}
