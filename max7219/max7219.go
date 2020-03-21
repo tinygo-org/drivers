@@ -5,7 +5,7 @@
 package max7219
 
 import (
-	"machine"
+	"github.com/tinygo-org/tinygo/src/machine"
 )
 
 // Uses a 3-wire serial interface
