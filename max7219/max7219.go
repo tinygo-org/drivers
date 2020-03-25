@@ -10,19 +10,25 @@ import (
 
 // Uses a 3-wire serial interface
 type Device struct {
-	Data  machine.Pin // DIN
-	Load  machine.Pin // Can also be labeled CS
-	Clock machine.Pin // CLK
+	Data     machine.Pin // DIN
+	Load     machine.Pin // Can also be labeled CS
+	Clock    machine.Pin // CLK
+	MaxInUse int         // Number of daisy chained MAX units
 }
 
 // Initialize the pins for a MAX7219 device as output pins
-func New(pd machine.Pin, pl machine.Pin, pc machine.Pin) *Device {
+func New(pd machine.Pin, pl machine.Pin, pc machine.Pin, n ...int) *Device {
 
 	pl.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	pd.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	pc.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	dev := Device{Data: pd, Load: pl, Clock: pc}
+	inUse := 1
+	if len(n) > 0 {
+		inUse = n[0]
+	}
+
+	dev := Device{Data: pd, Load: pl, Clock: pc, MaxInUse: inUse}
 
 	return &dev
 }
@@ -62,4 +68,32 @@ func (d Device) MaxSingle(row byte, col byte) {
 	d.putByte(col)
 	d.Load.Low()
 	d.Load.High()
+}
+
+func (d Device) MaxAll(row byte, col byte) {
+	d.Load.Low() // begin
+	for c := 1; c <= d.MaxInUse; c++ {
+		d.putByte(row)
+		d.putByte(col)
+	}
+	d.Load.Low()
+	d.Load.High()
+}
+
+// Address different MAX chips while having a couple cascaded
+func (d Device) MaxOne(index int, row byte, col byte) {
+	d.Load.Low()
+
+	for c := d.MaxInUse; c > index; c-- {
+		d.putByte(0) // NOP
+		d.putByte(0) // NOP
+	}
+
+	d.putByte(row)
+	d.putByte(col)
+
+	for c := index - 1; c >= 1; c-- {
+		d.putByte(0) // NOP
+		d.putByte(0) // NOP
+	}
 }
