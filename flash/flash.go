@@ -270,14 +270,14 @@ func (dev *Device) WriteEnable() error {
 }
 
 // EraseBlock erases a block of memory at the specified address
-func (dev *Device) EraseBlock(addr uint32) error {
+func (dev *Device) EraseBlock(blockNumber uint32) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
 	}
 	if err := dev.WriteEnable(); err != nil {
 		return err
 	}
-	return dev.trans.eraseCommand(cmdEraseBlock, addr*BlockSize)
+	return dev.trans.eraseCommand(cmdEraseBlock, blockNumber*BlockSize)
 }
 
 // EraseSector erases a sector of memory at the specified address
