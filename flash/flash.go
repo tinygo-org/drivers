@@ -1,7 +1,7 @@
 package flash
 
 import (
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -40,18 +40,8 @@ func (id JedecID) Uint32() uint32 {
 	return uint32(id.ManufID)<<16 | uint32(id.MemType)<<8 | uint32(id.Capacity)
 }
 
-// String implements the Stringer interface to print out the hex value of the ID
-func (id JedecID) String() string {
-	return fmt.Sprintf("%06X", id.Uint32())
-}
-
 // SerialNumber represents a serial number read from a flash memory device
 type SerialNumber uint64
-
-// String implements the Stringer interface to print out the hex value of the SN
-func (sn SerialNumber) String() string {
-	return fmt.Sprintf("%8X", uint64(sn))
-}
 
 // Attrs represent the differences in hardware characteristics and capabilities
 // of various SPI flash memory devices.
@@ -219,6 +209,7 @@ func (dev *Device) ReadJEDEC() (JedecID, error) {
 }
 
 // ReadSerialNumber reads the serial numbers from the connected device.
+// TODO: maybe check if byte order / endianess is correct, probably is not
 func (dev *Device) ReadSerialNumber() (SerialNumber, error) {
 	sn := make([]byte, 12)
 	if err := dev.trans.readCommand(0x4B, sn); err != nil {
@@ -229,20 +220,35 @@ func (dev *Device) ReadSerialNumber() (SerialNumber, error) {
 		uint64(sn[6])<<0x28 | uint64(sn[5])<<0x30 | uint64(sn[4])<<0x38), nil
 }
 
-// ReadBuffer fills the provided buffer with memory read from the device
-// starting at the provided address.
-func (dev *Device) ReadBuffer(addr uint32, buf []byte) error {
-	if err := dev.WaitUntilReady(); err != nil {
-		return err
+// Size returns the size of this memory, in bytes.
+func (dev *Device) Size() int64 {
+	if dev.attrs.TotalSize < 1 {
+		// in case a DeviceIdentifier function wasn't used, use the capacity
+		// specified in the JEDEC ID instead
+		return int64(dev.attrs.Capacity)
 	}
-	return dev.trans.readMemory(addr, buf)
+	return int64(dev.attrs.TotalSize)
 }
 
-// WriteBuffer writes data to the device, one page at a time, starting at the
-// provided address. This method assumes that the destination is already erased.
-func (dev *Device) WriteBuffer(addr uint32, buf []byte) (n int, err error) {
+// ReadAt satisfies the io.ReaderAt interface, and fills the provided buffer
+// with memory read from the device starting at the provided address.
+func (dev *Device) ReadAt(buf []byte, addr int64) (int, error) {
+	if err := dev.WaitUntilReady(); err != nil {
+		return 0, err
+	}
+	if err := dev.trans.readMemory(uint32(addr), buf); err != nil {
+		return 0, err
+	}
+	return len(buf), nil
+}
+
+// WriteAt satisfies the io.WriterAt interface and writes data to the device,
+// one page at a time, starting at the provided address. This method assumes
+// that the destination is already erased.
+func (dev *Device) WriteAt(buf []byte, addr int64) (n int, err error) {
 	remain := uint32(len(buf))
 	idx := uint32(0)
+	loc := uint32(addr)
 	for remain > 0 {
 		if err = dev.WaitUntilReady(); err != nil {
 			return
@@ -250,26 +256,55 @@ func (dev *Device) WriteBuffer(addr uint32, buf []byte) (n int, err error) {
 		if err = dev.WriteEnable(); err != nil {
 			return
 		}
-		leftOnPage := PageSize - (addr & (PageSize - 1))
+		leftOnPage := PageSize - (loc & (PageSize - 1))
 		toWrite := remain
 		if leftOnPage < remain {
 			toWrite = leftOnPage
 		}
-		if err = dev.trans.writeMemory(addr, buf[idx:idx+toWrite]); err != nil {
+		if err = dev.trans.writeMemory(loc, buf[idx:idx+toWrite]); err != nil {
 			return
 		}
 		idx += toWrite
-		addr += toWrite
+		loc += toWrite
 		remain -= toWrite
 	}
 	return len(buf) - int(remain), nil
+}
+
+// WriteBlockSize returns the block size in which data can be written to
+// memory. It can be used by a client to optimize writes, non-aligned writes
+// should always work correctly.
+// For SPI NOR flash this is the page size, usually/always 256.
+func (dev *Device) WriteBlockSize() int64 {
+	return PageSize
+}
+
+// EraseBlockSize returns the smallest erasable area on this particular chip
+// in bytes. This is used for the block size in EraseBlocks.
+// For SPI NOR flash this is the sector size, usually/always 4096.
+func (dev *Device) EraseBlockSize() int64 {
+	return SectorSize
+}
+
+// EraseBlocks erases the given number of blocks. An implementation may
+// transparently coalesce ranges of blocks into larger bundles if the chip
+// supports this. The start and len parameters are in block numbers, use
+// EraseBlockSize to map addresses to blocks.
+func (dev *Device) EraseBlocks(start, len int64) error {
+	// TODO: maybe combine sector erase operations into block erase operations
+	for i := start; i < start+len; i++ {
+		if err := dev.EraseSector(uint32(i)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (dev *Device) WriteEnable() error {
 	return dev.trans.runCommand(cmdWriteEnable)
 }
 
-// EraseBlock erases a block of memory at the specified address
+// EraseBlock erases a block of memory at the specified index
 func (dev *Device) EraseBlock(blockNumber uint32) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
@@ -280,19 +315,19 @@ func (dev *Device) EraseBlock(blockNumber uint32) error {
 	return dev.trans.eraseCommand(cmdEraseBlock, blockNumber*BlockSize)
 }
 
-// EraseSector erases a sector of memory at the specified address
-func (dev *Device) EraseSector(addr uint32) error {
+// EraseSector erases a sector of memory at the given index
+func (dev *Device) EraseSector(sectorNumber uint32) error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
 	}
 	if err := dev.WriteEnable(); err != nil {
 		return err
 	}
-	return dev.trans.eraseCommand(cmdEraseSector, addr*SectorSize)
+	return dev.trans.eraseCommand(cmdEraseSector, sectorNumber*SectorSize)
 }
 
 // EraseChip erases the entire flash memory chip
-func (dev *Device) EraseChip() error {
+func (dev *Device) EraseAll() error {
 	if err := dev.WaitUntilReady(); err != nil {
 		return err
 	}
@@ -324,9 +359,9 @@ func (dev *Device) WaitUntilReady() error {
 		if err != nil {
 			return err
 		}
-	}
-	if time.Now().UnixNano() > expire {
-		return fmt.Errorf("WaitUntilReady expired")
+		if time.Now().UnixNano() > expire {
+			return errors.New("WaitUntilReady expired")
+		}
 	}
 	return nil
 }

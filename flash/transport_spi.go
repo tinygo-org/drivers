@@ -46,6 +46,11 @@ func (tr *spiTransport) configure(config *DeviceConfig) {
 }
 
 func (tr *spiTransport) setClockSpeed(hz uint32) error {
+	// TODO: un-hardcode this max speed; it is probably a sensible
+	//       default maximum for atsamd and nrf at least
+	if hz > 24*1e6 {
+		hz = 24 * 1e6
+	}
 	tr.spi.Configure(machine.SPIConfig{
 		Frequency: hz,
 		MISO:      tr.miso,
