@@ -1,7 +1,6 @@
 package flash
 
 import (
-	"errors"
 	"time"
 )
 
@@ -131,16 +130,16 @@ func (dev *Device) Configure(config *DeviceConfig) (err error) {
 	}
 
 	// Wait for the reset - 30us by default
-	dur := int64(dev.attrs.StartUp)
-	if dur == 0 {
-		dur = int64(30 * time.Microsecond)
-	}
-	for stop := time.Now().UnixNano() + dur; stop > time.Now().UnixNano(); {
+	const delay = int64(30 * time.Microsecond)
+	for stop := time.Now().UnixNano() + delay; stop > time.Now().UnixNano(); {
 	}
 
 	// Speed up to max device frequency
 	if dev.attrs.MaxClockSpeedMHz > 0 {
-		dev.trans.setClockSpeed(uint32(dev.attrs.MaxClockSpeedMHz) * 1e6)
+		err := dev.trans.setClockSpeed(uint32(dev.attrs.MaxClockSpeedMHz) * 1e6)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Enable Quad Mode if available
@@ -360,7 +359,7 @@ func (dev *Device) WaitUntilReady() error {
 			return err
 		}
 		if time.Now().UnixNano() > expire {
-			return errors.New("WaitUntilReady expired")
+			return ErrWaitExpired
 		}
 	}
 	return nil
@@ -391,6 +390,7 @@ const (
 	_                          = iota
 	ErrInvalidClockSpeed Error = iota
 	ErrInvalidAddrRange
+	ErrWaitExpired
 )
 
 func (err Error) Error() string {
@@ -399,6 +399,8 @@ func (err Error) Error() string {
 		return "flash: invalid clock speed"
 	case ErrInvalidAddrRange:
 		return "flash: invalid address range"
+	case ErrWaitExpired:
+		return "flash: wait until ready expired"
 	default:
 		return "flash: unspecified error"
 	}
