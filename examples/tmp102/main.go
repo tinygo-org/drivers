@@ -14,13 +14,13 @@ func main() {
 	})
 
 	thermo := tmp102.New(machine.I2C0)
-	thermo.Configure(tmp102.Config{
-		Address: 0x48,
-		Unit:    tmp102.UNIT_CELSIUS,
-	})
+	thermo.Configure(tmp102.Config{})
 
 	for {
-		print(fmt.Sprintf("%.2f°C\r\n", thermo.ReadTemperature()))
+
+		temp, _ := thermo.ReadTemperature()
+
+		print(fmt.Sprintf("%.2f°C\r\n", float32(temp)/1000.0))
 
 		time.Sleep(time.Millisecond * 1000)
 	}
