@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 45 devices are supported.
+The following 46 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -101,6 +101,7 @@ The following 45 devices are supported.
 | [Waveshare 2.13" e-paper display](https://www.waveshare.com/w/upload/e/e6/2.13inch_e-Paper_Datasheet.pdf) | SPI |
 | [Waveshare 2.13" (B & C) e-paper display](https://www.waveshare.com/w/upload/d/d3/2.13inch-e-paper-b-Specification.pdf) | SPI |
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf) | GPIO |
+| [TMP102 I2C Temperature Sensor](https://download.mikroe.com/documents/datasheets/tmp102-data-sheet.pdf) | I2C |
 
 ## Contributing
 
