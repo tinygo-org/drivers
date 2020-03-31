@@ -130,9 +130,7 @@ func (dev *Device) Configure(config *DeviceConfig) (err error) {
 	}
 
 	// Wait for the reset - 30us by default
-	const delay = int64(30 * time.Microsecond)
-	for stop := time.Now().UnixNano() + delay; stop > time.Now().UnixNano(); {
-	}
+	time.Sleep(30 * time.Microsecond)
 
 	// Speed up to max device frequency
 	if dev.attrs.MaxClockSpeedMHz > 0 {
