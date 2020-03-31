@@ -177,7 +177,7 @@ func erase(argv []string) {
 			println("Sector erase error: " + err.Error() + "\r\n")
 		}
 	} else if argv[1] == "chip" {
-		if err = dev.EraseChip(); err != nil {
+		if err = dev.EraseAll(); err != nil {
 			println("Chip erase error: " + err.Error() + "\r\n")
 		}
 	} else {
@@ -196,7 +196,7 @@ func write(argv []string) {
 		return
 	}
 	buf := []byte(argv[2])
-	if _, err = dev.WriteBuffer(uint32(addr), buf); err != nil {
+	if _, err = dev.WriteAt(buf, int64(addr)); err != nil {
 		println("Write error: " + err.Error() + "\r\n")
 	}
 }
@@ -229,7 +229,7 @@ func xxd(argv []string) {
 		return
 	}
 	buf := store[0:size]
-	dev.ReadBuffer(uint32(addr), buf)
+	dev.ReadAt(buf, int64(addr))
 	xxdfprint(os.Stdout, uint32(addr), buf)
 }
 

@@ -39,6 +39,10 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/espstation/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/flash/console/spi
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/flash/console/qspi
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/i2c/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/uart/main.go
