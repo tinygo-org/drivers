@@ -1,3 +1,21 @@
+0.11.0
+---
+- **new devices**
+    - shiftregister: Support for various shift register chips (#135)
+- **enhancements**
+    - shifter: simplify API surface for PyBadge (#137)
+    - shifter: new API for shifter driver
+    - mqtt: use buffered channels for incoming messages to handle bursts
+    - ili9341: Adding scroll functionality (#121)
+- **bugfixes**
+    - wifinina: fix typo on StartScanNetworks
+    - ili9341: various bugfixes for display
+- **examples**
+    - semihosting: add example
+- **docs**
+    - readme: Use degree sign instead of ordinal
+    - all: fix celsius symbol in all code comments
+
 0.10.0
 ---
 - **new devices**
