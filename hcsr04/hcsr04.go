@@ -17,7 +17,7 @@ type Device struct {
 	echo    machine.Pin
 }
 
-// New returns a new ultrasonic driver given 2 pins numbers (not pin object)
+// New returns a new ultrasonic driver given 2 pins
 func New(trigger, echo machine.Pin) Device {
 	return Device{
 		trigger: trigger,

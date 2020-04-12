@@ -18,8 +18,7 @@ type DualDevice struct {
 	devices [2]Device
 }
 
-// New returns a new easystepper driver given 4 pins numbers (not pin object),
-// number of steps and rpm
+// New returns a new easystepper driver given 4 pins, number of steps and rpm
 func New(pin1, pin2, pin3, pin4 machine.Pin, steps int32, rpm int32) Device {
 	return Device{
 		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
@@ -34,8 +33,7 @@ func (d *Device) Configure() {
 	}
 }
 
-// NewDual returns a new dual easystepper driver given 8 pins numbers (not pin object),
-// number of steps and rpm
+// NewDual returns a new dual easystepper driver given 8 pins, number of steps and rpm
 func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 machine.Pin, steps int32, rpm int32) DualDevice {
 	var dual DualDevice
 	dual.devices[0] = Device{
