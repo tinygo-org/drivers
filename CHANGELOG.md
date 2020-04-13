@@ -1,3 +1,13 @@
+0.12.0
+---
+- **new devices**
+    - hcsr04: Added HC-SR04 ultrasonic distance sensor. (#143)
+    - spi/qspi: Low-level IO driver for serial flash memory via SPI and QSPI (#124)
+    - tmp102: TMP102 low-power digital temperature sensor (#141)
+    - amg88xx: AMG88xx thermal camera module
+- **bugfixes**
+    - mqtt: reduce use of goroutines in router to not start a new goroutine for each invocation of each callback
+
 0.11.0
 ---
 - **new devices**
