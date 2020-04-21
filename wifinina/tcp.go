@@ -76,7 +76,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	}
 
 	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
-	for t := newTimer(4 * time.Second); !t.Expired(); {
+	for now := time.Now(); time.Since(now) < 4*time.Second; {
 		connected, err := drv.IsConnected()
 		if err != nil {
 			return err
@@ -198,7 +198,7 @@ func (drv *Driver) stop() error {
 		return nil
 	}
 	drv.dev.StopClient(drv.sock)
-	for t := newTimer(5 * time.Second); !t.Expired(); {
+	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		st, _ := drv.status()
 		if st == TCPStateClosed {
 			break

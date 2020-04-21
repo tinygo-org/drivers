@@ -74,7 +74,7 @@ const (
 	CmdEnd   = 0xEE
 	CmdErr   = 0xEF
 
-	dummyData = 0xFF
+	//dummyData = 0xFF
 
 	CmdSetNet          = 0x10
 	CmdSetPassphrase   = 0x11
@@ -434,7 +434,7 @@ func (d *Device) GetMACAddress() (MACAddress, error) {
 
 func (d *Device) GetIP() (ip, subnet, gateway IPAddress, err error) {
 	sl := make([]string, 3)
-	if l, err := d.reqRspStr1(CmdGetIPAddr, dummyData, sl); err != nil {
+	if l, err := d.reqRspStr1(CmdGetIPAddr, 0xFF, sl); err != nil {
 		return "", "", "", err
 	} else if l != 3 {
 		return "", "", "", ErrUnexpectedLength
@@ -637,7 +637,7 @@ func (d *Device) req0(cmd uint8) (l uint8, err error) {
 
 // req1 sends a command to the device with a single dummy parameters of 0xFF
 func (d *Device) req1(cmd uint8) (l uint8, err error) {
-	return d.reqUint8(cmd, dummyData)
+	return d.reqUint8(cmd, 0xFF)
 }
 
 // reqUint8 sends a command to the device with a single uint8 parameter
@@ -852,7 +852,6 @@ func (d *Device) sendParam32(p uint32, isLastParam bool) (l int) {
 
 func (d *Device) addTransfer(b byte) {
 	d.cmdbuf.WriteByte(b)
-	//d.Transport.Transfer(b)
 }
 
 func (d *Device) addTx(buf []byte) {
@@ -867,8 +866,7 @@ func (d *Device) addPadding(l int) {
 		if _debug {
 			println("padding\r")
 		}
-		//d.Transport.Transfer(dummyData)
-		d.cmdbuf.WriteByte(dummyData)
+		d.cmdbuf.WriteByte(0xFF)
 	}
 	if _debug {
 		fmt.Printf("sending % 02X\r\n", d.cmdbuf.Bytes())
@@ -876,17 +874,6 @@ func (d *Device) addPadding(l int) {
 	d.Transport.Tx(d.cmdbuf.Bytes(), nil)
 	d.cmdbuf.Reset()
 
-}
-
-func (d *Device) checkStartCmd() (bool, error) {
-	check, err := d.waitSpiChar(CmdStart)
-	if err != nil {
-		return false, err
-	}
-	if !check {
-		return false, ErrCheckStartCmd
-	}
-	return true, nil
 }
 
 func (d *Device) waitForSlaveSelect() (err error) {
@@ -923,22 +910,6 @@ func (d *Device) spiSlaveDeselect() {
 		println("spiSlaveDeselect\r")
 	}
 	d.Transport.SetCS(true)
-}
-
-func (d *Device) waitSpiChar(wait byte) (bool, error) {
-	var timeout = 1000
-	var read byte
-	for first := true; first || (timeout > 0 && read != wait); timeout-- {
-		first = false
-		d.readParam(&read)
-		if read == CmdErr {
-			return false, ErrCmdErrorReceived
-		}
-	}
-	if _debug && read != wait {
-		fmt.Printf("read: %02X, wait: %02X\r\n", read, wait)
-	}
-	return read == wait, nil
 }
 
 func (d *Device) waitRspCmd(cmd uint8, np uint8) (l uint8, err error) {
@@ -1001,7 +972,7 @@ func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead uint8, err error) {
 	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
 		return
 	}
-	numRead, _ = d.Transport.Transfer(dummyData)
+	numRead, _ = d.Transport.Transfer(0xFF)
 	if numRead == 0 {
 		return 0, ErrNoParamsReturned
 	}
@@ -1033,6 +1004,20 @@ func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead uint8, err error) {
 	return
 }
 
+func (d *Device) checkStartCmd() (bool, error) {
+	var read byte
+	for now := time.Now(); time.Since(now) < 5*time.Millisecond; {
+		d.readParam(&read)
+		if read == CmdErr {
+			return false, ErrCmdErrorReceived
+		}
+		if read == CmdStart {
+			return true, nil
+		}
+	}
+	return false, ErrCheckStartCmd
+}
+
 func (d *Device) readAndCheckByte(check byte, read *byte) bool {
 	d.readParam(read)
 	return (*read == check)
@@ -1052,4 +1037,9 @@ func (d *Device) readParamLen16() (v uint16, err error) {
 func (d *Device) readParam(b *byte) (err error) {
 	*b, err = d.Transport.Transfer(0xFF)
 	return
+}
+
+func wait(d time.Duration) {
+	for now := time.Now(); time.Since(now) < d; {
+	}
 }

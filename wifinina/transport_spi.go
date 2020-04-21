@@ -26,7 +26,7 @@ func (d *SPITransport) Configure() {
 
 // TODO: eventually replace this with an interrupt
 func (d *SPITransport) GetACK(level bool, timeout time.Duration) bool {
-	for t := newTimer(timeout); !t.Expired(); {
+	for now := time.Now(); time.Since(now) < timeout; {
 		if d.ACK.Get() == level {
 			return true
 		}
