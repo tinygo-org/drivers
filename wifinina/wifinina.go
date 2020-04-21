@@ -7,11 +7,10 @@
 package wifinina // import "tinygo.org/x/drivers/wifinina"
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"time"
-
-	"machine"
 
 	"tinygo.org/x/drivers/net"
 )
@@ -258,35 +257,39 @@ type command struct {
 }
 
 type Device struct {
-	SPI   machine.SPI
-	CS    machine.Pin
-	ACK   machine.Pin
-	GPIO0 machine.Pin
-	RESET machine.Pin
+	Transport Transport
+	buf       [64]byte
+	cmdbuf    bytes.Buffer
+	ssids     [10]string
+}
 
-	buf   [64]byte
-	ssids [10]string
+type Transport interface {
+	Configure()
+
+	SetGPIO0(level bool)
+	SetReset(level bool)
+	SetCS(level bool)
+
+	GetACK(level bool, timeout time.Duration) bool
+
+	Transfer(b byte) (byte, error)
+	Tx(w []byte, r []byte) error
 }
 
 func (d *Device) Configure() {
-
 	net.UseDriver(d.NewDriver())
+	d.Transport.Configure()
 
-	d.CS.Configure(machine.PinConfig{machine.PinOutput})
-	d.ACK.Configure(machine.PinConfig{machine.PinInput})
-	d.RESET.Configure(machine.PinConfig{machine.PinOutput})
-	d.GPIO0.Configure(machine.PinConfig{machine.PinOutput})
+	d.Transport.SetGPIO0(true)
+	d.Transport.SetCS(true)
 
-	d.GPIO0.High()
-	d.CS.High()
-	d.RESET.Low()
-	time.Sleep(1 * time.Millisecond)
-	d.RESET.High()
+	d.Transport.SetReset(false)
 	time.Sleep(1 * time.Millisecond)
 
-	d.GPIO0.Low()
-	d.GPIO0.Configure(machine.PinConfig{machine.PinInput})
+	d.Transport.SetReset(true)
+	time.Sleep(1 * time.Millisecond)
 
+	d.Transport.SetGPIO0(false)
 }
 
 // ----------- client methods (should this be a separate struct?) ------------
@@ -690,7 +693,8 @@ func (d *Device) sendCmd0(cmd uint8) error {
 	if err := d.waitForSlaveSelect(); err != nil {
 		return err
 	}
-	d.sendCmd(cmd, 0)
+	l := d.sendCmd(cmd, 0)
+	d.addPadding(l)
 	return nil
 }
 
@@ -699,10 +703,11 @@ func (d *Device) sendCmdPadded1(cmd uint8, data uint8) error {
 	if err := d.waitForSlaveSelect(); err != nil {
 		return err
 	}
-	d.sendCmd(cmd, 1)
-	d.sendParam8(data, true)
-	d.SPI.Transfer(dummyData)
-	d.SPI.Transfer(dummyData)
+	l := d.sendCmd(cmd, 1)
+	l += d.sendParam8(data, true)
+	d.addPadding(l)
+	//l += d.Transport.Transfer(dummyData)
+	//d.Transport.Transfer(dummyData)
 	return nil
 }
 
@@ -744,11 +749,11 @@ func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 			CmdStart, cmd & ^(uint8(FlagReply)), numParam)
 	}
 	l = 3
-	d.SPI.Transfer(CmdStart)
-	d.SPI.Transfer(cmd & ^(uint8(FlagReply)))
-	d.SPI.Transfer(numParam)
+	d.addTransfer(CmdStart)
+	d.addTransfer(cmd & ^(uint8(FlagReply)))
+	d.addTransfer(numParam)
 	if numParam == 0 {
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 		if _debug {
 			fmt.Printf(" %02X", CmdEnd)
@@ -761,8 +766,8 @@ func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
 }
 
 func (d *Device) sendParamLen16(p uint16) (l int) {
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
+	d.addTransfer(uint8(p >> 8))
+	d.addTransfer(uint8(p & 0xFF))
 	if _debug {
 		fmt.Printf(" %02X %02X", uint8(p>>8), uint8(p&0xFF))
 	}
@@ -778,14 +783,14 @@ func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
 		if _debug {
 			fmt.Printf(" %02X", b)
 		}
-		d.SPI.Transfer(b)
+		d.addTransfer(b)
 		l += 1
 	}
 	if isLastParam {
 		if _debug {
 			fmt.Printf(" %02X", CmdEnd)
 		}
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 	}
 	if _debug {
@@ -796,10 +801,10 @@ func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
 
 func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
 	l = len(p)
-	d.SPI.Transfer(uint8(l))
-	d.SPI.Tx([]byte(p), nil)
+	d.addTransfer(uint8(l))
+	d.addTx([]byte(p))
 	if isLastParam {
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 	}
 	return
@@ -810,10 +815,10 @@ func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
 		println("sendParam8:", p, "lastParam:", isLastParam, "\r")
 	}
 	l = 2
-	d.SPI.Transfer(1)
-	d.SPI.Transfer(p)
+	d.addTransfer(1)
+	d.addTransfer(p)
 	if isLastParam {
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 	}
 	return
@@ -821,11 +826,11 @@ func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
 
 func (d *Device) sendParam16(p uint16, isLastParam bool) (l int) {
 	l = 3
-	d.SPI.Transfer(2)
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
+	d.addTransfer(2)
+	d.addTransfer(uint8(p >> 8))
+	d.addTransfer(uint8(p & 0xFF))
 	if isLastParam {
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 	}
 	return
@@ -833,16 +838,44 @@ func (d *Device) sendParam16(p uint16, isLastParam bool) (l int) {
 
 func (d *Device) sendParam32(p uint32, isLastParam bool) (l int) {
 	l = 5
-	d.SPI.Transfer(4)
-	d.SPI.Transfer(uint8(p >> 24))
-	d.SPI.Transfer(uint8(p >> 16))
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
+	d.addTransfer(4)
+	d.addTransfer(uint8(p >> 24))
+	d.addTransfer(uint8(p >> 16))
+	d.addTransfer(uint8(p >> 8))
+	d.addTransfer(uint8(p & 0xFF))
 	if isLastParam {
-		d.SPI.Transfer(CmdEnd)
+		d.addTransfer(CmdEnd)
 		l += 1
 	}
 	return
+}
+
+func (d *Device) addTransfer(b byte) {
+	d.cmdbuf.WriteByte(b)
+	//d.Transport.Transfer(b)
+}
+
+func (d *Device) addTx(buf []byte) {
+	d.cmdbuf.Write(buf)
+}
+
+func (d *Device) addPadding(l int) {
+	if _debug {
+		println("addPadding", l, "\r")
+	}
+	for i := (4 - (l % 4)) & 3; i > 0; i-- {
+		if _debug {
+			println("padding\r")
+		}
+		//d.Transport.Transfer(dummyData)
+		d.cmdbuf.WriteByte(dummyData)
+	}
+	if _debug {
+		fmt.Printf("sending % 02X\r\n", d.cmdbuf.Bytes())
+	}
+	d.Transport.Tx(d.cmdbuf.Bytes(), nil)
+	d.cmdbuf.Reset()
+
 }
 
 func (d *Device) checkStartCmd() (bool, error) {
@@ -868,10 +901,8 @@ func (d *Device) waitForSlaveReady() error {
 	if _debug {
 		println("waitForSlaveReady()\r")
 	}
-	for t := newTimer(10 * time.Second); !(d.ACK.Get() == false); {
-		if t.Expired() {
-			return ErrTimeoutSlaveReady
-		}
+	if ok := d.Transport.GetACK(false, 10*time.Second); !ok {
+		return ErrTimeoutSlaveReady
 	}
 	return nil
 }
@@ -880,20 +911,18 @@ func (d *Device) spiSlaveSelect() error {
 	if _debug {
 		println("spiSlaveSelect()\r")
 	}
-	d.CS.Low()
-	for t := newTimer(5 * time.Millisecond); !t.Expired(); {
-		if d.ACK.Get() {
-			return nil
-		}
+	d.Transport.SetCS(false)
+	if ok := d.Transport.GetACK(true, 5*time.Millisecond); !ok {
+		return ErrTimeoutSlaveSelect
 	}
-	return ErrTimeoutSlaveSelect
+	return nil
 }
 
 func (d *Device) spiSlaveDeselect() {
 	if _debug {
 		println("spiSlaveDeselect\r")
 	}
-	d.CS.High()
+	d.Transport.SetCS(true)
 }
 
 func (d *Device) waitSpiChar(wait byte) (bool, error) {
@@ -972,7 +1001,7 @@ func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead uint8, err error) {
 	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
 		return
 	}
-	numRead, _ = d.SPI.Transfer(dummyData)
+	numRead, _ = d.Transport.Transfer(dummyData)
 	if numRead == 0 {
 		return 0, ErrNoParamsReturned
 	}
@@ -1011,9 +1040,9 @@ func (d *Device) readAndCheckByte(check byte, read *byte) bool {
 
 // readParamLen16 reads 2 bytes from the SPI bus (MSB first), returning uint16
 func (d *Device) readParamLen16() (v uint16, err error) {
-	if b, err := d.SPI.Transfer(0xFF); err == nil {
+	if b, err := d.Transport.Transfer(0xFF); err == nil {
 		v |= uint16(b << 8)
-		if b, err = d.SPI.Transfer(0xFF); err == nil {
+		if b, err = d.Transport.Transfer(0xFF); err == nil {
 			v |= uint16(b)
 		}
 	}
@@ -1021,18 +1050,6 @@ func (d *Device) readParamLen16() (v uint16, err error) {
 }
 
 func (d *Device) readParam(b *byte) (err error) {
-	*b, err = d.SPI.Transfer(0xFF)
+	*b, err = d.Transport.Transfer(0xFF)
 	return
-}
-
-func (d *Device) addPadding(l int) {
-	if _debug {
-		println("addPadding", l, "\r")
-	}
-	for i := (4 - (l % 4)) & 3; i > 0; i-- {
-		if _debug {
-			println("padding\r")
-		}
-		d.SPI.Transfer(dummyData)
-	}
 }
