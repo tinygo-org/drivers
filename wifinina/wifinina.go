@@ -564,6 +564,21 @@ func (d *Device) StartScanNetworks() (uint8, error) {
 	return d.getUint8(d.req0(CmdStartScanNetworks))
 }
 
+func (d *Device) PinMode(pin uint8, mode uint8) error {
+	_, err := d.req2Uint8(CmdSetPinMode, pin, mode)
+	return err
+}
+
+func (d *Device) DigitalWrite(pin uint8, value uint8) error {
+	_, err := d.req2Uint8(CmdSetDigitalWrite, pin, value)
+	return err
+}
+
+func (d *Device) AnalogWrite(pin uint8, value uint8) error {
+	_, err := d.req2Uint8(CmdSetAnalogWrite, pin, value)
+	return err
+}
+
 // ------------- End of public device interface ----------------------------
 
 func (d *Device) getString(l uint8, err error) (string, error) {
@@ -652,6 +667,14 @@ func (d *Device) reqUint8(cmd uint8, data uint8) (l uint8, err error) {
 	return d.waitRspCmd1(cmd)
 }
 
+// req2Uint8 sends a command to the device with two uint8 parameters
+func (d *Device) req2Uint8(cmd, p1, p2 uint8) (l uint8, err error) {
+	if err := d.sendCmdPadded2(cmd, p1, p2); err != nil {
+		return 0, err
+	}
+	return d.waitRspCmd1(cmd)
+}
+
 // reqStr sends a command to the device with a single string parameter
 func (d *Device) reqStr(cmd uint8, p1 string) (uint8, error) {
 	if err := d.sendCmdStr(cmd, p1); err != nil {
@@ -712,8 +735,18 @@ func (d *Device) sendCmdPadded1(cmd uint8, data uint8) error {
 	l := d.sendCmd(cmd, 1)
 	l += d.sendParam8(data, true)
 	d.addPadding(l)
-	//l += d.Transport.Transfer(dummyData)
-	//d.Transport.Transfer(dummyData)
+	return nil
+}
+
+func (d *Device) sendCmdPadded2(cmd, data1, data2 uint8) error {
+	defer d.spiSlaveDeselect()
+	if err := d.waitForSlaveSelect(); err != nil {
+		return err
+	}
+	l := d.sendCmd(cmd, 1)
+	l += d.sendParam8(data1, false)
+	l += d.sendParam8(data2, true)
+	d.addPadding(l)
 	return nil
 }
 
