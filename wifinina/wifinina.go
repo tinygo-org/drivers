@@ -564,6 +564,8 @@ func (d *Device) StartScanNetworks() (uint8, error) {
 	return d.getUint8(d.req0(CmdStartScanNetworks))
 }
 
+// ------------- End of public device interface ----------------------------
+
 func (d *Device) getString(l uint8, err error) (string, error) {
 	if err != nil {
 		return "", err
@@ -627,6 +629,8 @@ func (d *Device) getMACAddress(l uint8, err error) (MACAddress, error) {
 	return MACAddress(binary.LittleEndian.Uint64(d.buf[0:8]) >> 16), err
 }
 
+// --------- end of methods for getting buffered response data --------------
+
 // req0 sends a command to the device with no request parameters
 func (d *Device) req0(cmd uint8) (l uint8, err error) {
 	if err := d.sendCmd0(cmd); err != nil {
@@ -688,6 +692,8 @@ func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (uint8, error) {
 	return d.waitRspStr(cmd, sl)
 }
 
+// --------- end of methods for sending command "requests" --------------
+
 func (d *Device) sendCmd0(cmd uint8) error {
 	defer d.spiSlaveDeselect()
 	if err := d.waitForSlaveSelect(); err != nil {
@@ -733,6 +739,8 @@ func (d *Device) sendCmdStr2(cmd uint8, p1 string, p2 string) (err error) {
 	d.addPadding(l)
 	return nil
 }
+
+// --------- end of methods for sending commands --------------
 
 func (d *Device) waitRspCmd1(cmd uint8) (l uint8, err error) {
 	defer d.spiSlaveDeselect()
