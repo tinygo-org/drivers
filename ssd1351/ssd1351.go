@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+var (
+	errDrawingOutOfBounds = errors.New("rectangle coordinates outside display area")
+	errBufferSizeMismatch = errors.New("buffer length does not match with rectangle size")
+)
+
 // Device wraps an SPI connection.
 type Device struct {
 	bus          machine.SPI
@@ -21,17 +26,20 @@ type Device struct {
 	rwPin        machine.Pin
 	width        int16
 	height       int16
+	rowOffset    int16
+	columnOffset int16
 	bufferLength int16
-	bufferData   []uint8
 }
 
 // Config is the configuration for the display
 type Config struct {
-	Width  int16
-	Height int16
+	Width        int16
+	Height       int16
+	RowOffset    int16
+	ColumnOffset int16
 }
 
-// New creates a new SSD1331 connection. The SPI wire must already be configured.
+// New creates a new SSD1351 connection. The SPI wire must already be configured.
 func New(bus machine.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
 	return Device{
 		bus:      bus,
@@ -45,25 +53,25 @@ func New(bus machine.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Devi
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
-	if cfg.Width != 0 {
-		d.width = cfg.Width
-	} else {
-		d.width = 128
+	if cfg.Width == 0 {
+		cfg.Width = 128
 	}
-	if cfg.Height != 0 {
-		d.height = cfg.Height
-	} else {
-		d.height = 128
+
+	if cfg.Height == 0 {
+		cfg.Height = 128
 	}
+
+	d.width = cfg.Width
+	d.height = cfg.Height
+	d.rowOffset = cfg.RowOffset
+	d.columnOffset = cfg.ColumnOffset
+
 	d.bufferLength = d.width
 	if d.height > d.width {
 		d.bufferLength = d.height
 	}
-	//d.bufferLength += d.bufferLength & 1
-	d.bufferData = make([]uint8, d.bufferLength*2)
-	print("config")
 
-	// configure pins
+	// configure GPIO pins
 	d.dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -141,89 +149,90 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	if x < 0 || y < 0 || x >= d.width || y >= d.height {
 		return
 	}
-	/*c565 := RGBATo565(c)
-	c1 := uint8(c565 >> 8)
-	c2 := uint8(c565)
-	index := y*d.width + 2*x
-	d.bufferData[index] = pixel{
-		Hword: c2,
-		Lword: c1,
-	}*/
-	//d.Tx(d.bufferData, false)
 	d.FillRectangle(x, y, 1, 1, c)
 }
 
-// setWindow prepares the screen to be modified at a given rectangle
+// setWindow prepares the screen memory to be modified at given coordinates
 func (d *Device) setWindow(x, y, w, h int16) {
+	x += d.columnOffset
+	y += d.rowOffset
 	d.Command(SET_COLUMN_ADDRESS)
-	d.Data(uint8(OLED_COL_OFFSET + x))
-	d.Data(uint8(OLED_COL_OFFSET + x + w - 1))
+	d.Tx([]byte{uint8(x), uint8(x + w - 1)}, false)
 	d.Command(SET_ROW_ADDRESS)
-	d.Data(uint8(OLED_ROW_OFFSET + y))
-	d.Data(uint8(OLED_ROW_OFFSET + y + h - 1))
+	d.Tx([]byte{uint8(y), uint8(y + h - 1)}, false)
 	d.Command(WRITE_RAM)
 }
 
-// FillRectangle fills a rectangle at a given coordinates with a color
+// FillRectangle fills a rectangle at given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
 		x >= d.width || (x+width) > d.width || y >= d.height || (y+height) > d.height {
-		return errors.New("rectangle coordinates outside display area")
+		return errDrawingOutOfBounds
 	}
 	d.setWindow(x, y, width, height)
 	c565 := RGBATo565(c)
 	c1 := uint8(c565 >> 8)
 	c2 := uint8(c565)
 
-	var i int16
-	for i = 0; i < d.bufferLength; i++ {
-		d.bufferData[i*2] = c1
-		d.bufferData[i*2+1] = c2
+	dim := int16(width * height)
+	if d.bufferLength < dim {
+		dim = d.bufferLength
 	}
-	i = width * height
-	for i > 0 {
-		if i >= d.bufferLength {
-			d.Tx(d.bufferData, false)
-		} else {
-			d.Tx(d.bufferData[:i*2], false)
-		}
-		i -= d.bufferLength
-	}
+	data := make([]uint8, dim*2)
 
+	for i := int16(0); i < dim; i++ {
+		data[i*2] = c1
+		data[i*2+1] = c2
+	}
+	dim = int16(width * height)
+	for dim > 0 {
+		if dim >= d.bufferLength {
+			d.Tx(data, false)
+		} else {
+			d.Tx(data[:dim*2], false)
+		}
+		dim -= d.bufferLength
+	}
 	return nil
 }
 
-// FillRectangleWithBuffer fills a rectangle at a given coordinates with a buffer
+// FillRectangleWithBuffer fills a rectangle at given coordinates with a buffer
 func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
 		x >= d.width || (x+width) > d.width || y >= d.height || (y+height) > d.height {
-		return errors.New("rectangle coordinates outside display area")
+		return errDrawingOutOfBounds
 	}
-	k := width * height
+	dim := int16(width * height)
 	l := int16(len(buffer))
-	if k != l {
-		return errors.New("buffer length does not match with rectangle size")
+	if dim != l {
+		return errBufferSizeMismatch
 	}
 
 	d.setWindow(x, y, width, height)
 
+	bl := dim
+	if d.bufferLength < dim {
+		bl = d.bufferLength
+	}
+	data := make([]uint8, bl*2)
+
 	offset := int16(0)
-	for k > 0 {
-		for i := int16(0); i < d.bufferLength; i++ {
+	for dim > 0 {
+		for i := int16(0); i < bl; i++ {
 			if offset+i < l {
 				c565 := RGBATo565(buffer[offset+i])
 				c1 := uint8(c565 >> 8)
 				c2 := uint8(c565)
-				d.bufferData[i*2] = c1
-				d.bufferData[i*2+1] = c2
+				data[i*2] = c1
+				data[i*2+1] = c2
 			}
 		}
-		if k >= d.bufferLength {
-			d.Tx(d.bufferData, false)
+		if dim >= d.bufferLength {
+			d.Tx(data, false)
 		} else {
-			d.Tx(d.bufferData[:k*2], false)
+			d.Tx(data[:dim*2], false)
 		}
-		k -= d.bufferLength
+		dim -= d.bufferLength
 		offset += d.bufferLength
 	}
 	return nil
@@ -253,9 +262,7 @@ func (d *Device) FillScreen(c color.RGBA) {
 // SetContrast sets the three contrast values (A, B & C)
 func (d *Device) SetContrast(contrastA, contrastB, contrastC uint8) {
 	d.Command(SET_CONTRAST)
-	d.Data(contrastA)
-	d.Data(contrastB)
-	d.Data(contrastC)
+	d.Tx([]byte{contrastA, contrastB, contrastC}, false)
 }
 
 // Command sends a command byte to the display
@@ -273,7 +280,6 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 	d.dcPin.Set(!isCommand)
 	d.csPin.Low()
 	d.bus.Tx(data, nil)
-	d.dcPin.High()
 	d.csPin.High()
 }
 

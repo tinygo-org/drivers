@@ -1,10 +1,5 @@
 package ssd1351
 
-const (
-	OLED_ROW_OFFSET = 0x00
-	OLED_COL_OFFSET = 0x10
-)
-
 // Commands
 const (
 	SET_COLUMN_ADDRESS          = 0x15
