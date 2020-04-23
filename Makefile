@@ -131,5 +131,7 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=nucleo-f103rb ./examples/shiftregister/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=hifive1b ./examples/ssd1351/main.go
+	@md5sum ./build/test.hex
 
 test: clean fmt-check smoke-test
