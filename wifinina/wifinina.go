@@ -7,7 +7,6 @@
 package wifinina // import "tinygo.org/x/drivers/wifinina"
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -242,25 +241,11 @@ func (err Error) Error() string {
 	return fmt.Sprintf("wifinina error: 0x%02X", uint8(err))
 }
 
-// Cmd Struct Message */
-// ._______________________________________________________________________.
-// | START CMD | C/R  | CMD  | N.PARAM | PARAM LEN | PARAM  | .. | END CMD |
-// |___________|______|______|_________|___________|________|____|_________|
-// |   8 bit   | 1bit | 7bit |  8bit   |   8bit    | nbytes | .. |   8bit  |
-// |___________|______|______|_________|___________|________|____|_________|
-//
-type command struct {
-	cmd       uint8
-	reply     bool
-	params    []int
-	paramData []byte
-}
-
 type Device struct {
 	Transport Transport
 	buf       [64]byte
-	cmdbuf    bytes.Buffer
 	ssids     [10]string
+	cmdbuf    Buffer
 }
 
 type Transport interface {
@@ -299,18 +284,17 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 		println("[StartClient] called StartClient()\r")
 		fmt.Printf("[StartClient] addr: % 02X, port: %d, sock: %d\r\n", addr, port, sock)
 	}
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	d.cmdbuf.StartCmd(CmdStartClientTCP)
+	d.cmdbuf.AddUint32(addr)
+	d.cmdbuf.AddUint16(port)
+	d.cmdbuf.AddByte(sock)
+	d.cmdbuf.AddByte(mode)
+	if err := d.txcmd(); err != nil {
 		return err
 	}
-	l := d.sendCmd(CmdStartClientTCP, 4)
-	l += d.sendParam32(addr, false)
-	l += d.sendParam16(port, false)
-	l += d.sendParam8(sock, false)
-	l += d.sendParam8(mode, true)
-	d.addPadding(l)
-	d.spiSlaveDeselect()
-	_, err := d.waitRspCmd1(CmdStartClientTCP)
+	r, err := d.waitRspCmd1(CmdStartClientTCP)
+	_ = r
+	//println("r:", r)
 	return err
 }
 
@@ -323,16 +307,37 @@ func (d *Device) GetClientState(sock uint8) (uint8, error) {
 }
 
 func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	d.cmdbuf.StartCmd(CmdSendDataTCP)
+	d.cmdbuf.AddByte(sock)
+	d.cmdbuf.AddData(buf)
+	if err := d.txcmd(); err != nil {
 		return 0, err
 	}
-	l := d.sendCmd(CmdSendDataTCP, 2)
-	l += d.sendParamBuf([]byte{sock}, false)
-	l += d.sendParamBuf(buf, true)
-	d.addPadding(l)
-	d.spiSlaveDeselect()
 	return d.getUint16(d.waitRspCmd1(CmdSendDataTCP))
+}
+
+// InsertDataBuf adds data to the buffer used for sending UDP data
+func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
+	d.cmdbuf.StartCmd(CmdInsertDataBuf)
+	d.cmdbuf.AddByte(sock)
+	d.cmdbuf.AddData(buf)
+	if err := d.txcmd(); err != nil {
+		return false, err
+	}
+	n, err := d.getUint8(d.waitRspCmd1(CmdInsertDataBuf))
+	return n == 1, err
+}
+
+// SendUDPData sends the data previously added to the UDP buffer
+func (d *Device) SendUDPData(sock uint8) (bool, error) {
+	d.cmdbuf.StartCmd(CmdSendDataUDP)
+	d.cmdbuf.AddByte(sock)
+	if err := d.txcmd(); err != nil {
+		return false, err
+	}
+	n, err := d.getUint8(d.waitRspCmd1(CmdSendDataUDP))
+	//println("n:", n)
+	return n == 1, err
 }
 
 func (d *Device) CheckDataSent(sock uint8) (bool, error) {
@@ -351,22 +356,15 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 }
 
 func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
-		return 0, err
-	}
 	p := uint16(len(buf))
-	l := d.sendCmd(CmdGetDatabufTCP, 2)
-	l += d.sendParamBuf([]byte{sock}, false)
-	l += d.sendParamBuf([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}, true)
-	d.addPadding(l)
-	d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	d.cmdbuf.StartCmd(CmdGetDatabufTCP)
+	d.cmdbuf.AddByte(sock)
+	//d.cmdbuf.AddUint16(p)
+	d.cmdbuf.AddData([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}) // TODO: is this the right byte order?
+	if err := d.txcmd(); err != nil {
 		return 0, err
 	}
 	n, err := d.waitRspBuf16(CmdGetDatabufTCP, buf)
-	d.spiSlaveDeselect()
 	return int(n), err
 }
 
@@ -648,7 +646,7 @@ func (d *Device) getMACAddress(l uint8, err error) (MACAddress, error) {
 
 // req0 sends a command to the device with no request parameters
 func (d *Device) req0(cmd uint8) (l uint8, err error) {
-	if err := d.sendCmd0(cmd); err != nil {
+	if err := d.sendCmdNoParams(cmd); err != nil {
 		return 0, err
 	}
 	return d.waitRspCmd1(cmd)
@@ -661,7 +659,7 @@ func (d *Device) req1(cmd uint8) (l uint8, err error) {
 
 // reqUint8 sends a command to the device with a single uint8 parameter
 func (d *Device) reqUint8(cmd uint8, data uint8) (l uint8, err error) {
-	if err := d.sendCmdPadded1(cmd, data); err != nil {
+	if err := d.sendCmdWithByteParam(cmd, data); err != nil {
 		return 0, err
 	}
 	return d.waitRspCmd1(cmd)
@@ -669,7 +667,7 @@ func (d *Device) reqUint8(cmd uint8, data uint8) (l uint8, err error) {
 
 // req2Uint8 sends a command to the device with two uint8 parameters
 func (d *Device) req2Uint8(cmd, p1, p2 uint8) (l uint8, err error) {
-	if err := d.sendCmdPadded2(cmd, p1, p2); err != nil {
+	if err := d.sendCmdWith2ByteParams(cmd, p1, p2); err != nil {
 		return 0, err
 	}
 	return d.waitRspCmd1(cmd)
@@ -677,7 +675,7 @@ func (d *Device) req2Uint8(cmd, p1, p2 uint8) (l uint8, err error) {
 
 // reqStr sends a command to the device with a single string parameter
 func (d *Device) reqStr(cmd uint8, p1 string) (uint8, error) {
-	if err := d.sendCmdStr(cmd, p1); err != nil {
+	if err := d.sendCmdWithStringParam(cmd, p1); err != nil {
 		return 0, err
 	}
 	return d.waitRspCmd1(cmd)
@@ -685,7 +683,7 @@ func (d *Device) reqStr(cmd uint8, p1 string) (uint8, error) {
 
 // reqStr sends a command to the device with 2 string parameters
 func (d *Device) reqStr2(cmd uint8, p1 string, p2 string) (uint8, error) {
-	if err := d.sendCmdStr2(cmd, p1, p2); err != nil {
+	if err := d.sendCmdWith2StringParams(cmd, p1, p2); err != nil {
 		return 0, err
 	}
 	return d.waitRspCmd1(cmd)
@@ -693,23 +691,15 @@ func (d *Device) reqStr2(cmd uint8, p1 string, p2 string) (uint8, error) {
 
 // reqStrRsp0 sends a command passing a string slice for the response
 func (d *Device) reqRspStr0(cmd uint8, sl []string) (l uint8, err error) {
-	if err := d.sendCmd0(cmd); err != nil {
+	if err := d.sendCmdNoParams(cmd); err != nil {
 		return 0, err
-	}
-	defer d.spiSlaveDeselect()
-	if err = d.waitForSlaveSelect(); err != nil {
-		return
 	}
 	return d.waitRspStr(cmd, sl)
 }
 
 // reqStrRsp1 sends a command with a uint8 param and a string slice for the response
 func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (uint8, error) {
-	if err := d.sendCmdPadded1(cmd, data); err != nil {
-		return 0, err
-	}
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	if err := d.sendCmdWithByteParam(cmd, data); err != nil {
 		return 0, err
 	}
 	return d.waitRspStr(cmd, sl)
@@ -717,225 +707,62 @@ func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (uint8, error) {
 
 // --------- end of methods for sending command "requests" --------------
 
-func (d *Device) sendCmd0(cmd uint8) error {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 0)
-	d.addPadding(l)
-	return nil
+func (d *Device) sendCmdNoParams(cmd uint8) error {
+	d.cmdbuf.StartCmd(cmd)
+	return d.txcmd()
 }
 
-func (d *Device) sendCmdPadded1(cmd uint8, data uint8) error {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 1)
-	l += d.sendParam8(data, true)
-	d.addPadding(l)
-	return nil
+func (d *Device) sendCmdWithByteParam(cmd uint8, data uint8) error {
+	d.cmdbuf.StartCmd(cmd)
+	d.cmdbuf.AddByte(data)
+	return d.txcmd()
 }
 
-func (d *Device) sendCmdPadded2(cmd, data1, data2 uint8) error {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 1)
-	l += d.sendParam8(data1, false)
-	l += d.sendParam8(data2, true)
-	d.addPadding(l)
-	return nil
+func (d *Device) sendCmdWith2ByteParams(cmd, data1, data2 uint8) error {
+	d.cmdbuf.StartCmd(cmd)
+	d.cmdbuf.AddByte(data1)
+	d.cmdbuf.AddByte(data2)
+	return d.txcmd()
 }
 
-func (d *Device) sendCmdStr(cmd uint8, p1 string) (err error) {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 1)
-	l += d.sendParamStr(p1, false)
-	d.addPadding(l)
-	return nil
+func (d *Device) sendCmdWithStringParam(cmd uint8, p1 string) (err error) {
+	d.cmdbuf.StartCmd(cmd)
+	d.cmdbuf.AddString(p1)
+	return d.txcmd()
 }
 
-func (d *Device) sendCmdStr2(cmd uint8, p1 string, p2 string) (err error) {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 2)
-	l += d.sendParamStr(p1, false)
-	l += d.sendParamStr(p2, true)
-	d.addPadding(l)
-	return nil
+func (d *Device) sendCmdWith2StringParams(cmd uint8, p1 string, p2 string) (err error) {
+	d.cmdbuf.StartCmd(cmd)
+	d.cmdbuf.AddString(p1)
+	d.cmdbuf.AddString(p2)
+	return d.txcmd()
 }
 
 // --------- end of methods for sending commands --------------
 
 func (d *Device) waitRspCmd1(cmd uint8) (l uint8, err error) {
-	defer d.spiSlaveDeselect()
-	if err = d.waitForSlaveSelect(); err != nil {
-		return
-	}
 	return d.waitRspCmd(cmd, 1)
 }
 
-func (d *Device) sendCmd(cmd uint8, numParam uint8) (l int) {
+func (d *Device) txcmd() error {
+	d.cmdbuf.EndCmd()
+	defer d.Transport.SetCS(true)
+	//if len(debug) > 0 && debug[0] {
+	//	PrintBuffer(&d.cmdbuf, os.Stdout)
+	//}
+	if err := d._waitForSlaveSelect(); err != nil {
+		return err
+	}
+	return d.Transport.Tx(d.cmdbuf.Bytes(), nil)
+}
+
+func (d *Device) _waitForSlaveSelect() (err error) {
 	if _debug {
-		fmt.Printf(
-			"sendCmd: %02X %02X %02X",
-			CmdStart, cmd & ^(uint8(FlagReply)), numParam)
-	}
-	l = 3
-	d.addTransfer(CmdStart)
-	d.addTransfer(cmd & ^(uint8(FlagReply)))
-	d.addTransfer(numParam)
-	if numParam == 0 {
-		d.addTransfer(CmdEnd)
-		l += 1
-		if _debug {
-			fmt.Printf(" %02X", CmdEnd)
-		}
-	}
-	if _debug {
-		fmt.Printf(" (%d)\r\n", l)
-	}
-	return
-}
-
-func (d *Device) sendParamLen16(p uint16) (l int) {
-	d.addTransfer(uint8(p >> 8))
-	d.addTransfer(uint8(p & 0xFF))
-	if _debug {
-		fmt.Printf(" %02X %02X", uint8(p>>8), uint8(p&0xFF))
-	}
-	return 2
-}
-
-func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
-	if _debug {
-		println("sendParamBuf:")
-	}
-	l += d.sendParamLen16(uint16(len(p)))
-	for _, b := range p {
-		if _debug {
-			fmt.Printf(" %02X", b)
-		}
-		d.addTransfer(b)
-		l += 1
-	}
-	if isLastParam {
-		if _debug {
-			fmt.Printf(" %02X", CmdEnd)
-		}
-		d.addTransfer(CmdEnd)
-		l += 1
-	}
-	if _debug {
-		fmt.Printf(" (%d) \r\n", l)
-	}
-	return
-}
-
-func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
-	l = len(p)
-	d.addTransfer(uint8(l))
-	d.addTx([]byte(p))
-	if isLastParam {
-		d.addTransfer(CmdEnd)
-		l += 1
-	}
-	return
-}
-
-func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
-	if _debug {
-		println("sendParam8:", p, "lastParam:", isLastParam, "\r")
-	}
-	l = 2
-	d.addTransfer(1)
-	d.addTransfer(p)
-	if isLastParam {
-		d.addTransfer(CmdEnd)
-		l += 1
-	}
-	return
-}
-
-func (d *Device) sendParam16(p uint16, isLastParam bool) (l int) {
-	l = 3
-	d.addTransfer(2)
-	d.addTransfer(uint8(p >> 8))
-	d.addTransfer(uint8(p & 0xFF))
-	if isLastParam {
-		d.addTransfer(CmdEnd)
-		l += 1
-	}
-	return
-}
-
-func (d *Device) sendParam32(p uint32, isLastParam bool) (l int) {
-	l = 5
-	d.addTransfer(4)
-	d.addTransfer(uint8(p >> 24))
-	d.addTransfer(uint8(p >> 16))
-	d.addTransfer(uint8(p >> 8))
-	d.addTransfer(uint8(p & 0xFF))
-	if isLastParam {
-		d.addTransfer(CmdEnd)
-		l += 1
-	}
-	return
-}
-
-func (d *Device) addTransfer(b byte) {
-	d.cmdbuf.WriteByte(b)
-}
-
-func (d *Device) addTx(buf []byte) {
-	d.cmdbuf.Write(buf)
-}
-
-func (d *Device) addPadding(l int) {
-	if _debug {
-		println("addPadding", l, "\r")
-	}
-	for i := (4 - (l % 4)) & 3; i > 0; i-- {
-		if _debug {
-			println("padding\r")
-		}
-		d.cmdbuf.WriteByte(0xFF)
-	}
-	if _debug {
-		fmt.Printf("sending % 02X\r\n", d.cmdbuf.Bytes())
-	}
-	d.Transport.Tx(d.cmdbuf.Bytes(), nil)
-	d.cmdbuf.Reset()
-
-}
-
-func (d *Device) waitForSlaveSelect() (err error) {
-	err = d.waitForSlaveReady()
-	if err == nil {
-		err = d.spiSlaveSelect()
-	}
-	return
-}
-
-func (d *Device) waitForSlaveReady() error {
-	if _debug {
-		println("waitForSlaveReady()\r")
+		println("wifinina: wait for slave ready\r")
 	}
 	if ok := d.Transport.GetACK(false, 10*time.Second); !ok {
 		return ErrTimeoutSlaveReady
 	}
-	return nil
-}
-
-func (d *Device) spiSlaveSelect() error {
 	if _debug {
 		println("spiSlaveSelect()\r")
 	}
@@ -943,19 +770,16 @@ func (d *Device) spiSlaveSelect() error {
 	if ok := d.Transport.GetACK(true, 5*time.Millisecond); !ok {
 		return ErrTimeoutSlaveSelect
 	}
-	return nil
-}
-
-func (d *Device) spiSlaveDeselect() {
-	if _debug {
-		println("spiSlaveDeselect\r")
-	}
-	d.Transport.SetCS(true)
+	return
 }
 
 func (d *Device) waitRspCmd(cmd uint8, np uint8) (l uint8, err error) {
 	if _debug {
 		println("waitRspCmd")
+	}
+	defer d.Transport.SetCS(true)
+	if err = d._waitForSlaveSelect(); err != nil {
+		return
 	}
 	var check bool
 	var data byte
@@ -981,6 +805,10 @@ func (d *Device) waitRspBuf16(cmd uint8, buf []byte) (l uint16, err error) {
 	if _debug {
 		println("waitRspBuf16")
 	}
+	defer d.Transport.SetCS(true)
+	if err = d._waitForSlaveSelect(); err != nil {
+		return
+	}
 	var check bool
 	var data byte
 	if check, err = d.checkStartCmd(); !check {
@@ -1004,6 +832,10 @@ func (d *Device) waitRspBuf16(cmd uint8, buf []byte) (l uint16, err error) {
 func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead uint8, err error) {
 	if _debug {
 		println("waitRspStr")
+	}
+	defer d.Transport.SetCS(true)
+	if err = d._waitForSlaveSelect(); err != nil {
+		return
 	}
 	var check bool
 	var data byte

@@ -19,6 +19,7 @@ func (d *Device) NewDriver() net.DeviceDriver {
 type Driver struct {
 	dev     *Device
 	sock    uint8
+	proto   uint8
 	readBuf readBuffer
 }
 
@@ -74,24 +75,31 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	if err := drv.dev.StartClient(ip, port, drv.sock, mode); err != nil {
 		return err
 	}
+	drv.proto = mode
 
-	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
-	for now := time.Now(); time.Since(now) < 4*time.Second; {
-		connected, err := drv.IsConnected()
-		if err != nil {
-			return err
+	if mode != ProtoModeUDP {
+		// FIXME: this 4 second timeout is simply mimicking the Arduino driver
+		for now := time.Now(); time.Since(now) < 4*time.Second; {
+			connected, err := drv.IsConnected()
+			if err != nil {
+				return err
+			}
+			if connected {
+				return nil
+			}
+			wait(1 * time.Millisecond)
 		}
-		if connected {
-			return nil
-		}
-		wait(1 * time.Millisecond)
+		return ErrConnectionTimeout
 	}
 
-	return ErrConnectionTimeout
+	return nil
 }
 
-func (drv *Driver) ConnectUDPSocket(addr, sport, lport string) error {
-	return ErrNotImplemented
+func (drv *Driver) ConnectUDPSocket(addr, portStr, lport string) error {
+	//println("addr", addr)
+	//println("port", portStr)
+	//println("listen", lport)
+	return drv.connectSocket(addr, portStr, ProtoModeUDP)
 }
 
 func (drv *Driver) DisconnectSocket() error {
@@ -114,17 +122,32 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, ErrNoData
 	}
-	written, err := drv.dev.SendData(b, drv.sock)
-	if err != nil {
-		return 0, err
+	if drv.proto == ProtoModeUDP {
+		println("sending UDP data:", string(b))
+		t1, err := drv.dev.InsertDataBuf(b, drv.sock)
+		if err != nil {
+			return 0, err
+		}
+		println("data inserted:", t1)
+		t, err := drv.dev.SendUDPData(drv.sock)
+		if err != nil {
+			return 0, err
+		}
+		println("data sent:", t)
+		return len(b), nil
+	} else {
+		written, err := drv.dev.SendData(b, drv.sock)
+		if err != nil {
+			return 0, err
+		}
+		if written == 0 {
+			return 0, ErrDataNotWritten
+		}
+		if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
+			return 0, ErrCheckDataError
+		}
+		return len(b), nil
 	}
-	if written == 0 {
-		return 0, ErrDataNotWritten
-	}
-	if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
-		return 0, ErrCheckDataError
-	}
-	return len(b), nil
 }
 
 func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
