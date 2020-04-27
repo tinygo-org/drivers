@@ -5,14 +5,14 @@ package ili9341
 import (
 	"machine"
 	"runtime/volatile"
+	"unsafe"
 )
 
 type parallelDriver struct {
 	d0 machine.Pin
 	wr machine.Pin
 
-	setPort *uint32
-	setMask uint32
+	setPort *uint8
 
 	clrPort *uint32
 	clrMask uint32
@@ -46,8 +46,12 @@ func (pd *parallelDriver) configure(config *Config) {
 	pd.wr.Configure(output)
 	pd.wr.High()
 
-	pd.setPort, _ = pd.d0.PortMaskSet()
-	pd.setMask = uint32(pd.d0) & 0x1f
+	// Calculates the address of the OUT register from the OUTSET register and obtains an address that allows 8-bit access.
+	//   OUT    : offset = 0x10
+	//   OUTSET : offset = 0x18
+	setPort, _ := pd.d0.PortMaskSet()
+	setMask := uint32(pd.d0) & 0x1f
+	pd.setPort = (*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(setPort)) - uintptr(8) + uintptr(setMask/8)))
 
 	pd.clrPort, _ = (pd.d0).PortMaskClear()
 	pd.clrMask = 0xFF << uint32(pd.d0)
@@ -58,8 +62,12 @@ func (pd *parallelDriver) configure(config *Config) {
 
 //go:inline
 func (pd *parallelDriver) write8(b byte) {
-	volatile.StoreUint32(pd.clrPort, pd.clrMask)
-	volatile.StoreUint32(pd.setPort, uint32(b)<<pd.setMask)
+	volatile.StoreUint8(pd.setPort, uint8(b))
+	pd.wrx()
+}
+
+//go:inline
+func (pd *parallelDriver) wrx() {
 	volatile.StoreUint32(pd.wrPortClr, pd.wrMaskClr)
 	volatile.StoreUint32(pd.wrPortSet, pd.wrMaskSet)
 }
