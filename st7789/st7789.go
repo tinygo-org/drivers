@@ -207,7 +207,7 @@ func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
 	if x0 > x1 {
 		x0, x1 = x1, x0
 	}
-	d.FillRectangle(x0, y, x1-x0+1, y, c)
+	d.FillRectangle(x0, y, x1-x0+1, 1, c)
 }
 
 // FillScreen fills the screen with a given color
