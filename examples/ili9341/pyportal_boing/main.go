@@ -25,15 +25,6 @@ const (
 )
 
 var (
-	display = ili9341.NewParallel(
-		machine.LCD_DATA0,
-		machine.TFT_WR,
-		machine.TFT_DC,
-		machine.TFT_CS,
-		machine.TFT_RESET,
-		machine.TFT_RD,
-	)
-
 	frameBuffer = [(graphics.BALLHEIGHT + 8) * (graphics.BALLWIDTH + 8)]uint16{}
 
 	startTime int64
@@ -56,7 +47,7 @@ var (
 func main() {
 
 	// configure backlight
-	machine.TFT_BACKLIGHT.Configure(machine.PinConfig{machine.PinOutput})
+	backlight.Configure(machine.PinConfig{machine.PinOutput})
 
 	// configure display
 	display.Configure(ili9341.Config{})
@@ -64,7 +55,7 @@ func main() {
 	width, height := display.Size()
 	println(width, height)
 
-	machine.TFT_BACKLIGHT.High()
+	backlight.High()
 
 	display.SetRotation(ili9341.Rotation270)
 	DrawBackground()
