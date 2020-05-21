@@ -3,6 +3,7 @@
 package ili9341
 
 import (
+	"device/sam"
 	"machine"
 )
 
@@ -30,37 +31,90 @@ func (pd *spiDriver) configure(config *Config) {
 }
 
 func (pd *spiDriver) write8(b byte) {
-	pd.bus.Tx([]byte{b}, nil)
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
+	for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+	}
+	pd.bus.Bus.DATA.Set(uint32(b))
+
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
+	}
 }
 
 func (pd *spiDriver) write8n(b byte, n int) {
-	for i := 0; i < n; i++ {
-		pd.write8(b)
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
+	for i, c := 0, n; i < c; i++ {
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(b))
+	}
+
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
 	}
 }
 
 func (pd *spiDriver) write8sl(b []byte) {
-	pd.bus.Tx(b, nil)
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
+	for i, c := 0, len(b); i < c; i++ {
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(b[i]))
+	}
+
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
+	}
 }
 
 func (pd *spiDriver) write16(data uint16) {
-	pd.bus.Transfer2((data << 8) | (data >> 8))
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
+	for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+	}
+	pd.bus.Bus.DATA.Set(uint32(uint8(data >> 8)))
+	for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+	}
+	pd.bus.Bus.DATA.Set(uint32(uint8(data)))
+
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
+	}
 }
 
 func (pd *spiDriver) write16n(data uint16, n int) {
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
 	for i := 0; i < n; i++ {
-		pd.write16(data)
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(uint8(data >> 8)))
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(uint8(data)))
+	}
+
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
 	}
 }
 
 func (pd *spiDriver) write16sl(data []uint16) {
-	for i, c := 0, len(data)-2; i < c; i += 2 {
-		d := uint32((data[i+1]<<8)|(data[i+1]>>8)) << 16
-		d |= uint32((data[i] << 8) | (data[i] >> 8))
-		pd.bus.Transfer4(d)
+	pd.bus.Bus.CTRLB.ClearBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+
+	for i, c := 0, len(data); i < c; i++ {
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(uint8(data[i] >> 8)))
+		for !pd.bus.Bus.INTFLAG.HasBits(sam.SERCOM_SPIS_INTFLAG_DRE) {
+		}
+		pd.bus.Bus.DATA.Set(uint32(uint8(data[i])))
 	}
 
-	for i, c := len(data)-2, len(data); i < c; i++ {
-		pd.bus.Transfer2((data[i] << 8) | (data[i] >> 8))
+	pd.bus.Bus.CTRLB.SetBits(sam.SERCOM_SPIS_CTRLB_RXEN)
+	for pd.bus.Bus.SYNCBUSY.HasBits(sam.SERCOM_SPIS_SYNCBUSY_CTRLB) {
 	}
 }
