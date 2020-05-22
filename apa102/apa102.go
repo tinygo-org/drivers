@@ -19,6 +19,8 @@ const (
 	GRB
 )
 
+var startFrame = []byte{0x00, 0x00, 0x00, 0x00}
+
 // Device wraps APA102 SPI LEDs.
 type Device struct {
 	bus   SPI
@@ -30,6 +32,7 @@ type Device struct {
 // SPI from the TinyGo "machine" package implements this already.
 type SPI interface {
 	Tx(w, r []byte) error
+	Transfer(b byte) (byte, error)
 }
 
 // New returns a new APA102 driver. Pass in a fully configured SPI bus.
@@ -51,22 +54,22 @@ func (d Device) WriteColors(cs []color.RGBA) (n int, err error) {
 	// write data
 	for _, c := range cs {
 		// brightness is scaled to 5 bit value
-		d.bus.Tx([]byte{0xe0 | (c.A >> 3)}, nil)
+		d.bus.Transfer(0xe0 | (c.A >> 3))
 
 		// set the colors
 		switch d.Order {
 		case BRG:
-			d.bus.Tx([]byte{c.B}, nil)
-			d.bus.Tx([]byte{c.R}, nil)
-			d.bus.Tx([]byte{c.G}, nil)
+			d.bus.Transfer(c.B)
+			d.bus.Transfer(c.R)
+			d.bus.Transfer(c.G)
 		case GRB:
-			d.bus.Tx([]byte{c.G}, nil)
-			d.bus.Tx([]byte{c.R}, nil)
-			d.bus.Tx([]byte{c.B}, nil)
+			d.bus.Transfer(c.G)
+			d.bus.Transfer(c.R)
+			d.bus.Transfer(c.B)
 		case BGR:
-			d.bus.Tx([]byte{c.B}, nil)
-			d.bus.Tx([]byte{c.G}, nil)
-			d.bus.Tx([]byte{c.R}, nil)
+			d.bus.Transfer(c.B)
+			d.bus.Transfer(c.G)
+			d.bus.Transfer(c.R)
 		}
 	}
 
@@ -86,7 +89,7 @@ func (d Device) Write(buf []byte) (n int, err error) {
 
 // startFrame sends the start bytes for a strand of LEDs.
 func (d Device) startFrame() {
-	d.bus.Tx([]byte{0x00, 0x00, 0x00, 0x00}, nil)
+	d.bus.Tx(startFrame, nil)
 }
 
 // endFrame sends the end frame marker with one extra bit per LED so
@@ -94,6 +97,6 @@ func (d Device) startFrame() {
 // See https://cpldcpu.wordpress.com/2014/11/30/understanding-the-apa102-superled/
 func (d Device) endFrame(count int) {
 	for i := 0; i < count/16; i++ {
-		d.bus.Tx([]byte{0xff}, nil)
+		d.bus.Transfer(0xff)
 	}
 }

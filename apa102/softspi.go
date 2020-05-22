@@ -41,8 +41,9 @@ func (s *bbSPI) delay() {
 	}
 }
 
-// Transfer is used to send a single byte.
-func (s *bbSPI) Transfer(b byte) {
+// Transfer matches signature of machine.SPI.Transfer() and is used to send a
+// single byte. The received data is ignored and no error will ever be returned.
+func (s *bbSPI) Transfer(b byte) (byte, error) {
 	for i := uint8(0); i < 8; i++ {
 
 		// half clock cycle high to start
@@ -63,6 +64,7 @@ func (s *bbSPI) Transfer(b byte) {
 
 		// for actual SPI would try to read the MISO value here
 		s.delay()
-
 	}
+
+	return 0, nil
 }
