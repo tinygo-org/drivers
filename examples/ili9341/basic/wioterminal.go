@@ -12,11 +12,11 @@ var (
 	display = ili9341.NewSpi(
 		machine.SPI3,
 		machine.LCD_DC,
-		machine.LCD_CS,
+		machine.LCD_SS_PIN,
 		machine.LCD_RESET,
 	)
 
-	backlight = machine.LCD_BACKLIGHT_CTR
+	backlight = machine.LCD_BACKLIGHT
 )
 
 func init() {
@@ -27,9 +27,9 @@ func init() {
 	machine.OUTPUT_CTR_3V3.Low()
 
 	machine.SPI3.Configure(machine.SPIConfig{
-		SCK:       machine.LCD_SCK,
-		MOSI:      machine.LCD_MOSI,
-		MISO:      machine.LCD_MISO,
+		SCK:       machine.LCD_SCK_PIN,
+		MOSI:      machine.LCD_MOSI_PIN,
+		MISO:      machine.LCD_MISO_PIN,
 		Frequency: 40000000,
 	})
 }
