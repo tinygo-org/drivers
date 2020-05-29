@@ -139,6 +139,7 @@ const (
 	ErrUnexpectedLength   Error = 0xE0
 	ErrNoParamsReturned   Error = 0xE1
 	ErrIncorrectSentinel  Error = 0xE2
+	ErrIncorrectReply     Error = 0xE3
 	ErrCmdErrorReceived   Error = 0xEF
 	ErrNotImplemented     Error = 0xF0
 	ErrUnknownHost        Error = 0xF1
@@ -232,7 +233,11 @@ func (addr IPAddress) AsUint32() uint32 {
 type MACAddress uint64
 
 func (addr MACAddress) String() string {
-	return fmt.Sprintf("%016X", uint64(addr))
+	return fmt.Sprintf(
+		"%02x:%02x:%02x:%02x:%02x:%02x",
+		byte(addr>>40), byte(addr>>32), byte(addr>>24),
+		byte(addr>>16), byte(addr>>8), byte(addr),
+	)
 }
 
 type Error uint8
@@ -243,9 +248,9 @@ func (err Error) Error() string {
 
 type Device struct {
 	Transport Transport
-	buf       [64]byte
-	ssids     [10]string
-	cmdbuf    Buffer
+	//buf       [64]byte
+	ssids  [10]string
+	cmdbuf Buffer
 }
 
 type Transport interface {
@@ -292,10 +297,10 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 	if err := d.txcmd(); err != nil {
 		return err
 	}
-	r, err := d.waitRspCmd1(CmdStartClientTCP)
-	_ = r
+	return nil
+	//_ = r
 	//println("r:", r)
-	return err
+	//return err
 }
 
 func (d *Device) GetSocket() (uint8, error) {
@@ -313,7 +318,7 @@ func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
 	if err := d.txcmd(); err != nil {
 		return 0, err
 	}
-	return d.getUint16(d.waitRspCmd1(CmdSendDataTCP))
+	return d.getUint16(nil)
 }
 
 // InsertDataBuf adds data to the buffer used for sending UDP data
@@ -324,7 +329,7 @@ func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
 	if err := d.txcmd(); err != nil {
 		return false, err
 	}
-	n, err := d.getUint8(d.waitRspCmd1(CmdInsertDataBuf))
+	n, err := d.getUint8(nil)
 	return n == 1, err
 }
 
@@ -335,7 +340,7 @@ func (d *Device) SendUDPData(sock uint8) (bool, error) {
 	if err := d.txcmd(); err != nil {
 		return false, err
 	}
-	n, err := d.getUint8(d.waitRspCmd1(CmdSendDataUDP))
+	n, err := d.getUint8(nil)
 	//println("n:", n)
 	return n == 1, err
 }
@@ -350,7 +355,8 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 		if sent > 0 {
 			return true, nil
 		}
-		wait(100 * time.Microsecond)
+		for now := time.Now(); time.Since(now) < 100*time.Microsecond; {
+		}
 	}
 	return false, lastErr
 }
@@ -364,8 +370,7 @@ func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 	if err := d.txcmd(); err != nil {
 		return 0, err
 	}
-	n, err := d.waitRspBuf16(CmdGetDatabufTCP, buf)
-	return int(n), err
+	return d.cmdbuf.GetBufferParam(0, buf)
 }
 
 func (d *Device) StopClient(sock uint8) error {
@@ -396,8 +401,7 @@ func (d *Device) StopClient(sock uint8) error {
 */
 
 func (d *Device) Disconnect() error {
-	_, err := d.req1(CmdDisconnect)
-	return err
+	return d.req1(CmdDisconnect)
 }
 
 func (d *Device) GetFwVersion() (string, error) {
@@ -509,18 +513,15 @@ func (d *Device) SetDebug(on bool) error {
 	if on {
 		v = 1
 	}
-	_, err := d.reqUint8(CmdSetDebug, v)
-	return err
+	return d.reqUint8(CmdSetDebug, v)
 }
 
 func (d *Device) SetNetwork(ssid string) error {
-	_, err := d.reqStr(CmdSetNet, ssid)
-	return err
+	return d.reqStr(CmdSetNet, ssid)
 }
 
 func (d *Device) SetPassphrase(ssid string, passphrase string) error {
-	_, err := d.reqStr2(CmdSetPassphrase, ssid, passphrase)
-	return err
+	return d.reqStr2(CmdSetPassphrase, ssid, passphrase)
 }
 
 func (d *Device) SetKey(ssid string, index uint8, key string) error {
@@ -528,13 +529,11 @@ func (d *Device) SetKey(ssid string, index uint8, key string) error {
 }
 
 func (d *Device) SetNetworkForAP(ssid string) error {
-	_, err := d.reqStr(CmdSetAPNet, ssid)
-	return err
+	return d.reqStr(CmdSetAPNet, ssid)
 }
 
 func (d *Device) SetPassphraseForAP(ssid string, passphrase string) error {
-	_, err := d.reqStr2(CmdSetAPPassphrase, ssid, passphrase)
-	return err
+	return d.reqStr2(CmdSetAPPassphrase, ssid, passphrase)
 }
 
 func (d *Device) SetIP(which uint8, ip uint32, gw uint32, subnet uint32) error {
@@ -550,11 +549,10 @@ func (d *Device) SetHostname(hostname string) error {
 }
 
 func (d *Device) SetPowerMode(mode uint8) error {
-	_, err := d.reqUint8(CmdSetPowerMode, mode)
-	return err
+	return d.reqUint8(CmdSetPowerMode, mode)
 }
 
-func (d *Device) ScanNetworks() (uint8, error) {
+func (d *Device) ScanNetworks() (int, error) {
 	return d.reqRspStr0(CmdScanNetworks, d.ssids[:])
 }
 
@@ -563,134 +561,123 @@ func (d *Device) StartScanNetworks() (uint8, error) {
 }
 
 func (d *Device) PinMode(pin uint8, mode uint8) error {
-	_, err := d.req2Uint8(CmdSetPinMode, pin, mode)
-	return err
+	return d.req2Uint8(CmdSetPinMode, pin, mode)
 }
 
 func (d *Device) DigitalWrite(pin uint8, value uint8) error {
-	_, err := d.req2Uint8(CmdSetDigitalWrite, pin, value)
-	return err
+	return d.req2Uint8(CmdSetDigitalWrite, pin, value)
 }
 
 func (d *Device) AnalogWrite(pin uint8, value uint8) error {
-	_, err := d.req2Uint8(CmdSetAnalogWrite, pin, value)
-	return err
+	return d.req2Uint8(CmdSetAnalogWrite, pin, value)
 }
 
 // ------------- End of public device interface ----------------------------
 
-func (d *Device) getString(l uint8, err error) (string, error) {
-	if err != nil {
-		return "", err
+func (d *Device) getString(e error) (s string, err error) {
+	if e != nil {
+		return "", e
 	}
-	return string(d.buf[0:l]), err
+	err = d.cmdbuf.GetStringParam(0, &s)
+	return
 }
 
-func (d *Device) getUint8(l uint8, err error) (uint8, error) {
-	if err != nil {
-		return 0, err
+func (d *Device) getUint8(e error) (b uint8, err error) {
+	if e != nil {
+		return 0, e
 	}
-	if l != 1 {
-		if _debug {
-			println("expected length 1, was actually", l, "\r")
-		}
-		return 0, ErrUnexpectedLength
-	}
-	return d.buf[0], err
+	err = d.cmdbuf.GetByteParam(0, &b)
+	return
 }
 
-func (d *Device) getUint16(l uint8, err error) (uint16, error) {
-	if err != nil {
-		return 0, err
+func (d *Device) getUint16(e error) (v uint16, err error) {
+	if e != nil {
+		return 0, e
 	}
-	if l != 2 {
-		if _debug {
-			println("expected length 2, was actually", l, "\r")
-		}
-		return 0, ErrUnexpectedLength
-	}
-	return binary.BigEndian.Uint16(d.buf[0:2]), err
+	err = d.cmdbuf.GetUint16Param(0, &v)
+	return
 }
 
-func (d *Device) getUint32(l uint8, err error) (uint32, error) {
-	if err != nil {
-		return 0, err
+func (d *Device) getUint32(e error) (v uint32, err error) {
+	if e != nil {
+		return 0, e
 	}
-	if l != 4 {
-		return 0, ErrUnexpectedLength
-	}
-	return binary.LittleEndian.Uint32(d.buf[0:4]), err
+	err = d.cmdbuf.GetUint32Param(0, &v)
+	return
 }
 
-func (d *Device) getInt32(l uint8, err error) (int32, error) {
-	i, err := d.getUint32(l, err)
+func (d *Device) getInt32(err error) (int32, error) {
+	i, err := d.getUint32(err)
 	return int32(i), err
 }
 
-func (d *Device) getFloat32(l uint8, err error) (float32, error) {
-	i, err := d.getUint32(l, err)
+func (d *Device) getFloat32(err error) (float32, error) {
+	i, err := d.getUint32(err)
 	return float32(i), err
 }
 
-func (d *Device) getMACAddress(l uint8, err error) (MACAddress, error) {
-	if err != nil {
-		return 0, err
+func (d *Device) getUint64(e error) (v uint64, err error) {
+	if e != nil {
+		return 0, e
 	}
-	if l != 6 {
-		return 0, ErrUnexpectedLength
-	}
-	return MACAddress(binary.LittleEndian.Uint64(d.buf[0:8]) >> 16), err
+	err = d.cmdbuf.GetUint64Param(0, &v)
+	return
+}
+
+func (d *Device) getMACAddress(err error) (MACAddress, error) {
+	i, err := d.getUint64(err)
+	return MACAddress(i >> 16), err
 }
 
 // --------- end of methods for getting buffered response data --------------
 
 // req0 sends a command to the device with no request parameters
-func (d *Device) req0(cmd uint8) (l uint8, err error) {
+func (d *Device) req0(cmd uint8) (err error) {
 	if err := d.sendCmdNoParams(cmd); err != nil {
-		return 0, err
+		return err
 	}
-	return d.waitRspCmd1(cmd)
+	return nil
 }
 
 // req1 sends a command to the device with a single dummy parameters of 0xFF
-func (d *Device) req1(cmd uint8) (l uint8, err error) {
+func (d *Device) req1(cmd uint8) (err error) {
 	return d.reqUint8(cmd, 0xFF)
 }
 
 // reqUint8 sends a command to the device with a single uint8 parameter
-func (d *Device) reqUint8(cmd uint8, data uint8) (l uint8, err error) {
+func (d *Device) reqUint8(cmd uint8, data uint8) (err error) {
 	if err := d.sendCmdWithByteParam(cmd, data); err != nil {
-		return 0, err
+		return err
 	}
-	return d.waitRspCmd1(cmd)
+	return nil
 }
 
 // req2Uint8 sends a command to the device with two uint8 parameters
-func (d *Device) req2Uint8(cmd, p1, p2 uint8) (l uint8, err error) {
+func (d *Device) req2Uint8(cmd, p1, p2 uint8) (err error) {
 	if err := d.sendCmdWith2ByteParams(cmd, p1, p2); err != nil {
-		return 0, err
+		return err
 	}
-	return d.waitRspCmd1(cmd)
+	return nil
 }
 
 // reqStr sends a command to the device with a single string parameter
-func (d *Device) reqStr(cmd uint8, p1 string) (uint8, error) {
+func (d *Device) reqStr(cmd uint8, p1 string) error {
 	if err := d.sendCmdWithStringParam(cmd, p1); err != nil {
-		return 0, err
+		return err
 	}
-	return d.waitRspCmd1(cmd)
+	return nil
 }
 
 // reqStr sends a command to the device with 2 string parameters
-func (d *Device) reqStr2(cmd uint8, p1 string, p2 string) (uint8, error) {
+func (d *Device) reqStr2(cmd uint8, p1 string, p2 string) error {
 	if err := d.sendCmdWith2StringParams(cmd, p1, p2); err != nil {
-		return 0, err
+		return err
 	}
-	return d.waitRspCmd1(cmd)
+	return nil
 }
 
 // reqStrRsp0 sends a command passing a string slice for the response
-func (d *Device) reqRspStr0(cmd uint8, sl []string) (l uint8, err error) {
+func (d *Device) reqRspStr0(cmd uint8, sl []string) (numRead int, err error) {
 	if err := d.sendCmdNoParams(cmd); err != nil {
 		return 0, err
 	}
@@ -698,7 +685,7 @@ func (d *Device) reqRspStr0(cmd uint8, sl []string) (l uint8, err error) {
 }
 
 // reqStrRsp1 sends a command with a uint8 param and a string slice for the response
-func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (uint8, error) {
+func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (int, error) {
 	if err := d.sendCmdWithByteParam(cmd, data); err != nil {
 		return 0, err
 	}
@@ -740,176 +727,77 @@ func (d *Device) sendCmdWith2StringParams(cmd uint8, p1 string, p2 string) (err 
 
 // --------- end of methods for sending commands --------------
 
-func (d *Device) waitRspCmd1(cmd uint8) (l uint8, err error) {
-	return d.waitRspCmd(cmd, 1)
-}
-
 func (d *Device) txcmd() error {
+
+	// save off the command so that we can compare it to the one on the reply
+	cmd := d.cmdbuf.Command()
+
+	// add the end command byte after the parameters
 	d.cmdbuf.EndCmd()
+
+	// de-select the chip after we're done
 	defer d.Transport.SetCS(true)
-	//if len(debug) > 0 && debug[0] {
-	//	PrintBuffer(&d.cmdbuf, os.Stdout)
-	//}
+
+	// wait until the chip is ready to accept our packet
 	if err := d._waitForSlaveSelect(); err != nil {
 		return err
 	}
-	return d.Transport.Tx(d.cmdbuf.Bytes(), nil)
+
+	// transfer the packet
+	if err := d.Transport.Tx(d.cmdbuf.Bytes(), nil); err != nil {
+		return err
+	}
+
+	// de-select the chip
+	d.Transport.SetCS(true)
+
+	// parse out the response packet
+	if err := d._waitForSlaveSelect(); err != nil {
+		return err
+	}
+	if err := d.cmdbuf.ReadReply(d.Transport, cmd); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *Device) _waitForSlaveSelect() (err error) {
 	if _debug {
 		println("wifinina: wait for slave ready\r")
 	}
+	// the chip should have already been de-selected, so we'll wait until ready
 	if ok := d.Transport.GetACK(false, 10*time.Second); !ok {
 		return ErrTimeoutSlaveReady
 	}
 	if _debug {
 		println("spiSlaveSelect()\r")
 	}
+	// it is ready, so select the chip
 	d.Transport.SetCS(false)
+
+	// now that the chip is selected, wait until ACK is high to proceed
 	if ok := d.Transport.GetACK(true, 5*time.Millisecond); !ok {
 		return ErrTimeoutSlaveSelect
 	}
+
 	return
 }
 
-func (d *Device) waitRspCmd(cmd uint8, np uint8) (l uint8, err error) {
-	if _debug {
-		println("waitRspCmd")
-	}
-	defer d.Transport.SetCS(true)
-	if err = d._waitForSlaveSelect(); err != nil {
-		return
-	}
-	var check bool
-	var data byte
-	if check, err = d.checkStartCmd(); !check {
-		return
-	}
-	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
-		return
-	}
-	if check = d.readAndCheckByte(np, &data); check {
-		d.readParam(&l)
-		for i := uint8(0); i < l; i++ {
-			d.readParam(&d.buf[i])
-		}
-	}
-	if !d.readAndCheckByte(CmdEnd, &data) {
-		err = ErrIncorrectSentinel
-	}
-	return
-}
-
-func (d *Device) waitRspBuf16(cmd uint8, buf []byte) (l uint16, err error) {
-	if _debug {
-		println("waitRspBuf16")
-	}
-	defer d.Transport.SetCS(true)
-	if err = d._waitForSlaveSelect(); err != nil {
-		return
-	}
-	var check bool
-	var data byte
-	if check, err = d.checkStartCmd(); !check {
-		return
-	}
-	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
-		return
-	}
-	if check = d.readAndCheckByte(1, &data); check {
-		l, _ = d.readParamLen16()
-		for i := uint16(0); i < l; i++ {
-			d.readParam(&buf[i])
-		}
-	}
-	if !d.readAndCheckByte(CmdEnd, &data) {
-		err = ErrIncorrectSentinel
-	}
-	return
-}
-
-func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead uint8, err error) {
-	if _debug {
-		println("waitRspStr")
-	}
-	defer d.Transport.SetCS(true)
-	if err = d._waitForSlaveSelect(); err != nil {
-		return
-	}
-	var check bool
-	var data byte
-	if check, err = d.checkStartCmd(); !check {
-		return
-	}
-	if check = d.readAndCheckByte(cmd|FlagReply, &data); !check {
-		return
-	}
-	numRead, _ = d.Transport.Transfer(0xFF)
-	if numRead == 0 {
+func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead int, err error) {
+	n := int(d.cmdbuf.NumParams())
+	if n == 0 {
 		return 0, ErrNoParamsReturned
 	}
-	maxNumRead := uint8(len(sl))
-	for j, l := uint8(0), uint8(0); j < numRead; j++ {
-		d.readParam(&l)
-		for i := uint8(0); i < l; i++ {
-			d.readParam(&d.buf[i])
-		}
-		if j < maxNumRead {
-			sl[j] = string(d.buf[0:l])
-			if _debug {
-				fmt.Printf("str %d (%d) - %08X\r\n", j, l, []byte(sl[j]))
-			}
+	if n > len(sl) {
+		return 0, fmt.Errorf("too many params returned for slice with length %d: %d", len(sl), n)
+	}
+	for i := 0; i < n; i++ {
+		if err := d.cmdbuf.GetStringParam(i, &sl[i]); err != nil {
+			return 0, fmt.Errorf("error reading string param %d: %w", i, err)
 		}
 	}
-	for j := numRead; j < maxNumRead; j++ {
-		if _debug {
-			println("str", j, "\"\"\r")
-		}
-		sl[j] = ""
-	}
-	if !d.readAndCheckByte(CmdEnd, &data) {
-		err = ErrIncorrectSentinel
-	}
-	if numRead > maxNumRead {
-		numRead = maxNumRead
-	}
-	return
-}
-
-func (d *Device) checkStartCmd() (bool, error) {
-	var read byte
-	for now := time.Now(); time.Since(now) < 5*time.Millisecond; {
-		d.readParam(&read)
-		if read == CmdErr {
-			return false, ErrCmdErrorReceived
-		}
-		if read == CmdStart {
-			return true, nil
-		}
-	}
-	return false, ErrCheckStartCmd
-}
-
-func (d *Device) readAndCheckByte(check byte, read *byte) bool {
-	d.readParam(read)
-	return (*read == check)
-}
-
-// readParamLen16 reads 2 bytes from the SPI bus (MSB first), returning uint16
-func (d *Device) readParamLen16() (v uint16, err error) {
-	if b, err := d.Transport.Transfer(0xFF); err == nil {
-		v |= uint16(b << 8)
-		if b, err = d.Transport.Transfer(0xFF); err == nil {
-			v |= uint16(b)
-		}
-	}
-	return
-}
-
-func (d *Device) readParam(b *byte) (err error) {
-	*b, err = d.Transport.Transfer(0xFF)
-	return
+	return n, nil
 }
 
 func wait(d time.Duration) {

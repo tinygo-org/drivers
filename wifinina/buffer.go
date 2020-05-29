@@ -2,7 +2,10 @@ package wifinina
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"time"
 )
 
 // Cmd Struct Message */
@@ -19,12 +22,14 @@ const (
 	defaultCapacity = 4096
 )
 
+// Buffer wraps a byte slice that is allocated for creating and/or parsing
+// wifinina command/reply messages (which have the same format as each other).
+// It is NOT safe for concurrent use.
 type Buffer struct {
-	//bytes.Buffer
 	// buf is the internal storage for the buffer; its capacity is pre-determined
 	// and allocated when the Buffer is created
-	buf []byte // contents are the bytes buf[off : len(buf)]
-	off int    // read at &buf[off], write at &buf[len(buf)]
+	buf []byte // contents are the bytes buf[off : len(buf)] (from bytes.Buffer)
+	//off int    // read at &buf[off], write at &buf[len(buf)] (from bytes.Buffer)
 }
 
 var ErrBufferFull = errors.New("buffer is full")
@@ -38,8 +43,8 @@ func NewBuffer(capacity int) *Buffer {
 	}
 }
 
-// StartCmd resets the buffer to be a request buffer, adds the StartCmd, the
-// command/reply flag, and the command byte, and sets the nparams byte to 0.
+// StartCmd resets the buffer to be a request buffer, adds the StartCmd byte,
+// the command/reply flag, the command byte, and sets the nparams byte to 0.
 func (b *Buffer) StartCmd(cmd uint8) *Buffer {
 	b.reset()
 	b.append(CmdStart, cmd & ^(uint8(FlagReply)), 0)
@@ -89,7 +94,7 @@ func (b *Buffer) AddUint32(p uint32) {
 	b.buf[nParamsPos]++
 }
 
-// EndCmd denotes that the last param has been added to buffer; this will set
+// EndCmd denotes that the last param has been added to buffer; this will
 // append the CmdEnd byte and adds necessary padding
 func (b *Buffer) EndCmd() {
 	padding := (4 - ((len(b.buf) + 1) % 4)) & 3
@@ -117,15 +122,18 @@ func (b *Buffer) NumParams() uint8 {
 }
 
 // ParamLenSize returns the number of bytes used in a wifinina message to send
-// the length of a parameter. For most commands, 1; for data commands, 2
+// the length of a parameter. For most commands, 1; for data commands, can be 2
 func (b *Buffer) ParamLenSize() uint8 {
 	if b.IsDataCommand() {
-		return 2
-	} else {
-		return 1
+		cmd, rep := b.Command(), b.IsReply()
+		if (rep && cmd == CmdGetDatabufTCP) || (!rep && cmd != CmdGetDatabufTCP) {
+			return 2
+		}
 	}
+	return 1
 }
 
+// paramLen adds the length of the next parameter to the buffer
 func (b *Buffer) paramLen(l int) {
 	if b.IsDataCommand() {
 		b.append(byte(l>>8), byte(l&0xFF))
@@ -134,6 +142,7 @@ func (b *Buffer) paramLen(l int) {
 	}
 }
 
+// Len returns the length of the buffer in bytes
 func (b *Buffer) Len() int {
 	return len(b.buf)
 }
@@ -146,10 +155,250 @@ func (b *Buffer) Bytes() []byte {
 	return b.buf
 }
 
+type ByteTransferer interface {
+	Transfer(b byte) (byte, error)
+}
+
+// ParseReply switches the buffer from being a request buffer to a reply buffer
+// and attempts to parse the entire reply from the given byte source.  If the
+// checkCmd argument is a non-zero value, it will be compared to the command
+// byte in the reply and if they do not match ErrIncorrectReply is returned.
+func (b *Buffer) ReadReply(r ByteTransferer, checkCmd byte) (err error) {
+	b.reset()
+
+	// first we will loop until we either get CmdStart or CmdErr from the reader
+	// which would suggest that the reply is starting
+	// TODO: should this timeout be parameterized or configurable?
+	// TODO: does any extra info come with CmdErr?
+	var read byte
+	for now := time.Now(); time.Since(now) < 5*time.Millisecond; {
+		if read, err = r.Transfer(0xFF); err != nil {
+			return err
+		}
+		if read == CmdErr {
+			return ErrCmdErrorReceived
+		}
+		if read == CmdStart {
+			b.add(read)
+			break
+		}
+	}
+	if read != CmdStart {
+		return ErrCheckStartCmd
+	}
+
+	// check to ensure next byte is the command byte with the reply flag set
+	if read, err = r.Transfer(0xFF); err != nil {
+		return err
+	}
+	if checkCmd != 0 {
+		if read != (FlagReply | checkCmd) {
+			return ErrIncorrectReply
+		}
+	}
+	b.add(read)
+
+	// next byte should be the number of parameters
+	if read, err = r.Transfer(0xFF); err != nil {
+		return err
+	}
+	b.add(read)
+
+	// depending on whether or not this is a data command, the parameter length
+	// will either be 8 bits or 16 bits, respectively
+	var readParamLen func(r ByteTransferer) (uint16, error)
+	if b.Command() == CmdGetDatabufTCP {
+		println("data command; num params:", read)
+		readParamLen = b.read16
+	} else {
+		readParamLen = b.read8
+	}
+
+	// loop over the parameters and read them into the buffer
+	for i, numParams, pLen := 0, int(read), uint16(0); i < numParams; i++ {
+		// read in the parameter based in the given parameter length
+		pLen, err = readParamLen(r)
+		if err != nil {
+			return err
+		}
+		for j := uint16(0); j < pLen; j++ {
+			if read, err = r.Transfer(0xFF); err != nil {
+				return err
+			}
+			b.add(read)
+		}
+	}
+
+	// check to ensure next byte is the end command byte
+	if read, err = r.Transfer(0xFF); err != nil {
+		return err
+	}
+	b.add(read)
+	if read != CmdEnd {
+		return ErrIncorrectSentinel
+	}
+
+	return nil
+}
+
+func (b *Buffer) GetByteParam(n int, v *byte) error {
+	if sl, err := b.paramSlice(n); err != nil {
+		return err
+	} else {
+		if len(sl) != 1 {
+			if _debug {
+				println("expected length 1, was actually", len(sl), "\r")
+				_ = PrintBuffer(b, os.Stdout)
+			}
+			return ErrUnexpectedLength
+		}
+		*v = sl[0]
+		return nil
+	}
+}
+
+func (b *Buffer) GetUint16Param(n int, v *uint16) error {
+	if sl, err := b.paramSlice(n); err != nil {
+		return err
+	} else {
+		if len(sl) != 2 {
+			if _debug {
+				println("expected length 2, was actually", len(sl), "\r")
+				_ = PrintBuffer(b, os.Stdout)
+			}
+			return ErrUnexpectedLength
+		}
+		// little endian?
+		*v = (uint16(sl[1]) << 8) | (uint16(sl[0]))
+		return nil
+	}
+}
+
+func (b *Buffer) GetUint32Param(n int, v *uint32) error {
+	if sl, err := b.paramSlice(n); err != nil {
+		return err
+	} else {
+		if len(sl) != 4 {
+			if _debug {
+				println("expected length 4, was actually", len(sl), "\r")
+				_ = PrintBuffer(b, os.Stdout)
+			}
+			return ErrUnexpectedLength
+		}
+		// little endian???
+		*v = (uint32(sl[3]) << 24) | (uint32(sl[2]) << 16) | (uint32(sl[1]) << 8) | (uint32(sl[0]))
+		return nil
+	}
+}
+
+func (b *Buffer) GetUint64Param(n int, v *uint64) error {
+	if sl, err := b.paramSlice(n); err != nil {
+		return err
+	} else {
+		if len(sl) != 6 {
+			if _debug {
+				println("expected length 6, was actually", len(sl), "\r")
+			}
+			return ErrUnexpectedLength
+		}
+		// little endian???
+		*v = //(uint64(sl[7]) << 56) | (uint64(sl[6]) << 48) |
+			(uint64(sl[5]) << 56) | (uint64(sl[4]) << 48) | (uint64(sl[3]) << 40) |
+				(uint64(sl[2]) << 32) | (uint64(sl[1]) << 24) | (uint64(sl[0]) << 16)
+		return nil
+	}
+}
+
+func (b *Buffer) GetStringParam(n int, v *string) error {
+	if sl, err := b.paramSlice(n); err != nil {
+		return err
+	} else {
+		*v = string(sl)
+		return nil
+	}
+}
+
+func (b *Buffer) GetBufferParam(n int, v []byte) (int, error) {
+	if sl, err := b.paramSlice(n); err != nil {
+		return 0, err
+	} else {
+		return copy(v, sl), nil
+	}
+}
+
+func (b *Buffer) paramSlice(n int) ([]byte, error) {
+	if np := int(b.NumParams()); n >= np {
+		return nil, fmt.Errorf("n %d is greater than number of params %d", n, np)
+	}
+	var pLenSize = int(b.ParamLenSize())
+	var pos = 3
+	var sl = b.buf
+	for i := 0; i < int(b.NumParams()); i++ {
+		pLen := int(sl[pos])
+		if pLenSize == 2 {
+			pLen = (pLen << 8) | int(sl[pos+1])
+		}
+		if i == n {
+			return sl[pos+pLenSize : pos+pLenSize+pLen], nil
+		}
+		//pslice := sl[pos+pLenSize : pos+pLenSize+pLen]
+		//fmt.Fprintf(w, "    Parameter %d (pos %d, length %d): %v\n", i, pos+pLenSize, pLen, pslice)
+		pos += pLenSize + pLen
+	}
+	return nil, ErrIncorrectReply
+	/*
+		index := 2
+		isData := b.IsDataCommand()
+		println("start:", index, "length:", b.buf[index])
+		for i := 0; i < n; i++ {
+			if isData {
+				index += int((uint16(b.buf[index])<<8)|(uint16(b.buf[index+1]))) + 2
+			} else {
+				index += int(b.buf[index]) + 1
+			}
+			println("index:", index, "length:", b.buf[index])
+		}
+		if isData {
+			l := int((uint16(b.buf[index]) << 8) | (uint16(b.buf[index+1])))
+			return b.buf[index+2 : index+2+l], nil
+		} else {
+			l := int(b.buf[index+1])
+			return b.buf[index+2 : index+2+l], nil
+		}
+
+	*/
+}
+
+// reads 2 bytes, adds them to the buffer, and returns them as a uint16
+// this function is used in ReadReply to read 16-bit parameter length values
+func (b *Buffer) read16(r ByteTransferer) (v uint16, err error) {
+	var bite byte
+	if bite, err = r.Transfer(0xFF); err == nil {
+		v |= uint16(bite) << 8
+		b.add(bite)
+		if bite, err = r.Transfer(0xFF); err == nil {
+			v |= uint16(bite)
+			b.add(bite)
+		}
+	}
+	return
+}
+
+// reads 1 byte, adds it to the buffer, and returns it as a uint16
+// this function is used in ReadReply to read 8-bit parameter length values
+func (b *Buffer) read8(r ByteTransferer) (v uint16, err error) {
+	var bite byte
+	if bite, err = r.Transfer(0xFF); err == nil {
+		v = uint16(bite)
+		b.add(bite)
+	}
+	return
+}
+
 // resets the buffer's internal storage making it ready to buffer a new command
 func (b *Buffer) reset() {
 	b.buf = b.buf[:0]
-	b.off = 0
+	//b.off = 0
 	//b.err = nil
 }
 
