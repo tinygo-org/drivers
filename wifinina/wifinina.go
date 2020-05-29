@@ -284,6 +284,21 @@ func (d *Device) Configure() {
 
 // ----------- client methods (should this be a separate struct?) ------------
 
+func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
+	if _debug {
+		println("[StartServer] called StartServer()\r")
+		fmt.Printf("[StartServer] port: %d, sock: %d, mode: %d\r\n", port, sock, mode)
+	}
+	d.cmdbuf.StartCmd(CmdStartServerTCP)
+	d.cmdbuf.AddUint16(port)
+	d.cmdbuf.AddByte(sock)
+	d.cmdbuf.AddByte(mode)
+	if err := d.txcmd(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) error {
 	if _debug {
 		println("[StartClient] called StartClient()\r")
@@ -298,9 +313,6 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 		return err
 	}
 	return nil
-	//_ = r
-	//println("r:", r)
-	//return err
 }
 
 func (d *Device) GetSocket() (uint8, error) {
