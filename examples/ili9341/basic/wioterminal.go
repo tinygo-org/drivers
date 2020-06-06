@@ -20,12 +20,6 @@ var (
 )
 
 func init() {
-	machine.OUTPUT_CTR_5V.Configure(machine.PinConfig{machine.PinOutput})
-	machine.OUTPUT_CTR_3V3.Configure(machine.PinConfig{machine.PinOutput})
-
-	machine.OUTPUT_CTR_5V.High()
-	machine.OUTPUT_CTR_3V3.Low()
-
 	machine.SPI3.Configure(machine.SPIConfig{
 		SCK:       machine.LCD_SCK_PIN,
 		MOSI:      machine.LCD_MOSI_PIN,
