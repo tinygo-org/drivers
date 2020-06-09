@@ -9,10 +9,6 @@ import (
 
 type spiDriver struct {
 	bus machine.SPI
-	dc  machine.Pin
-	rst machine.Pin
-	cs  machine.Pin
-	rd  machine.Pin
 }
 
 func NewSpi(bus machine.SPI, dc, cs, rst machine.Pin) *Device {
