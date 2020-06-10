@@ -248,9 +248,8 @@ func (err Error) Error() string {
 
 type Device struct {
 	Transport Transport
-	//buf       [64]byte
-	ssids  [10]string
-	cmdbuf Buffer
+	ssids     [10]string
+	cmdbuf    Buffer
 }
 
 type Transport interface {
@@ -376,7 +375,7 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 	p := uint16(len(buf))
 	d.cmdbuf.StartCmd(CmdGetDatabufTCP)
-	d.cmdbuf.AddByte(sock)
+	d.cmdbuf.AddUint16(uint16(sock))
 	//d.cmdbuf.AddUint16(p)
 	d.cmdbuf.AddData([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}) // TODO: is this the right byte order?
 	if err := d.txcmd(); err != nil {
@@ -394,6 +393,10 @@ func (d *Device) StopClient(sock uint8) error {
 }
 
 // ---------- /client methods (should this be a separate struct?) ------------
+
+func (d *Device) AvailableData(sock uint8) (dataSize uint16, err error) {
+	return d.getUint16(d.reqUint8(CmdAvailDataTCP, sock))
+}
 
 /*
 	static bool startServer(uint16_t port, uint8_t sock);
@@ -447,8 +450,11 @@ func (d *Device) GetMACAddress() (MACAddress, error) {
 }
 
 func (d *Device) GetIP() (ip, subnet, gateway IPAddress, err error) {
-	sl := make([]string, 3)
-	if l, err := d.reqRspStr1(CmdGetIPAddr, 0xFF, sl); err != nil {
+	sl := []string{"", "", ""}
+	if err := d.sendCmdWithByteParam(CmdGetIPAddr, 0xFF); err != nil {
+		return "", "", "", err
+	}
+	if l, err := d.waitRspStr(sl); err != nil {
 		return "", "", "", err
 	} else if l != 3 {
 		return "", "", "", ErrUnexpectedLength
@@ -565,7 +571,10 @@ func (d *Device) SetPowerMode(mode uint8) error {
 }
 
 func (d *Device) ScanNetworks() (int, error) {
-	return d.reqRspStr0(CmdScanNetworks, d.ssids[:])
+	if err := d.sendCmdNoParams(CmdScanNetworks); err != nil {
+		return 0, err
+	}
+	return d.waitRspStr(d.ssids[:])
 }
 
 func (d *Device) StartScanNetworks() (uint8, error) {
@@ -688,22 +697,6 @@ func (d *Device) reqStr2(cmd uint8, p1 string, p2 string) error {
 	return nil
 }
 
-// reqStrRsp0 sends a command passing a string slice for the response
-func (d *Device) reqRspStr0(cmd uint8, sl []string) (numRead int, err error) {
-	if err := d.sendCmdNoParams(cmd); err != nil {
-		return 0, err
-	}
-	return d.waitRspStr(cmd, sl)
-}
-
-// reqStrRsp1 sends a command with a uint8 param and a string slice for the response
-func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (int, error) {
-	if err := d.sendCmdWithByteParam(cmd, data); err != nil {
-		return 0, err
-	}
-	return d.waitRspStr(cmd, sl)
-}
-
 // --------- end of methods for sending command "requests" --------------
 
 func (d *Device) sendCmdNoParams(cmd uint8) error {
@@ -796,7 +789,7 @@ func (d *Device) _waitForSlaveSelect() (err error) {
 	return
 }
 
-func (d *Device) waitRspStr(cmd uint8, sl []string) (numRead int, err error) {
+func (d *Device) waitRspStr(sl []string) (numRead int, err error) {
 	n := int(d.cmdbuf.NumParams())
 	if n == 0 {
 		return 0, ErrNoParamsReturned

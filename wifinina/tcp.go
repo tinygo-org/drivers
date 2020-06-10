@@ -123,17 +123,12 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 		return 0, ErrNoData
 	}
 	if drv.proto == ProtoModeUDP {
-		println("sending UDP data:", string(b))
-		t1, err := drv.dev.InsertDataBuf(b, drv.sock)
-		if err != nil {
+		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
 			return 0, err
 		}
-		println("data inserted:", t1)
-		t, err := drv.dev.SendUDPData(drv.sock)
-		if err != nil {
+		if _, err := drv.dev.SendUDPData(drv.sock); err != nil {
 			return 0, err
 		}
-		println("data sent:", t)
 		return len(b), nil
 	} else {
 		written, err := drv.dev.SendData(b, drv.sock)
@@ -153,7 +148,6 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 	avail, err := drv.available()
 	if err != nil {
-		println("ReadSocket error: " + err.Error())
 		return 0, err
 	}
 	if avail == 0 {
