@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+func NewSPI(spi machine.SPI, cs, ack, gpio0, reset machine.Pin) *Device {
+	return &Device{
+		Transport: &SPITransport{
+			SPI:   spi,
+			CS:    cs,
+			ACK:   ack,
+			GPIO0: gpio0,
+			RESET: reset,
+		},
+	}
+}
+
 type SPITransport struct {
 	SPI   machine.SPI
 	CS    machine.Pin
@@ -18,10 +30,10 @@ type SPITransport struct {
 var _ Transport = (*SPITransport)(nil)
 
 func (d *SPITransport) Configure() {
-	d.CS.Configure(machine.PinConfig{machine.PinOutput})
-	d.ACK.Configure(machine.PinConfig{machine.PinInput})
-	d.RESET.Configure(machine.PinConfig{machine.PinOutput})
-	d.GPIO0.Configure(machine.PinConfig{machine.PinOutput})
+	d.CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.ACK.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.RESET.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinOutput})
 }
 
 // TODO: eventually replace this with an interrupt
