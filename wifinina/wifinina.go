@@ -14,8 +14,6 @@ import (
 	"tinygo.org/x/drivers/net"
 )
 
-const _debug = false
-
 const (
 	MaxSockets  = 4
 	MaxNetworks = 10
@@ -24,9 +22,6 @@ const (
 	MaxLengthSSID   = 32
 	MaxLengthWPAKey = 63
 	MaxLengthWEPKey = 13
-
-	LengthMacAddress = 6
-	LengthIPV4       = 4
 
 	WlFailure = -1
 	WlSuccess = 1
@@ -62,18 +57,9 @@ const (
 		#define NA_STATE -1
 	*/
 
-	FlagCmd   = 0
-	FlagReply = 1 << 7
-	FlagData  = 0x40
-
-	NinaCmdPos      = 1
-	NinaParamLenPos = 2
-
 	CmdStart = 0xE0
 	CmdEnd   = 0xEE
 	CmdErr   = 0xEF
-
-	//dummyData = 0xFF
 
 	CmdSetNet          = 0x10
 	CmdSetPassphrase   = 0x11
@@ -284,10 +270,6 @@ func (d *Device) Configure() {
 // ----------- client methods (should this be a separate struct?) ------------
 
 func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
-	if _debug {
-		println("[StartServer] called StartServer()\r")
-		fmt.Printf("[StartServer] port: %d, sock: %d, mode: %d\r\n", port, sock, mode)
-	}
 	d.cmdbuf.StartCmd(CmdStartServerTCP)
 	d.cmdbuf.AddUint16(port)
 	d.cmdbuf.AddByte(sock)
@@ -299,10 +281,6 @@ func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
 }
 
 func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) error {
-	if _debug {
-		println("[StartClient] called StartClient()\r")
-		fmt.Printf("[StartClient] addr: % 02X, port: %d, sock: %d\r\n", addr, port, sock)
-	}
 	d.cmdbuf.StartCmd(CmdStartClientTCP)
 	d.cmdbuf.AddUint32(addr)
 	d.cmdbuf.AddUint16(port)
@@ -352,7 +330,6 @@ func (d *Device) SendUDPData(sock uint8) (bool, error) {
 		return false, err
 	}
 	n, err := d.getUint8(nil)
-	//println("n:", n)
 	return n == 1, err
 }
 
@@ -376,8 +353,7 @@ func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 	p := uint16(len(buf))
 	d.cmdbuf.StartCmd(CmdGetDatabufTCP)
 	d.cmdbuf.AddUint16(uint16(sock))
-	//d.cmdbuf.AddUint16(p)
-	d.cmdbuf.AddData([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}) // TODO: is this the right byte order?
+	d.cmdbuf.AddData([]byte{uint8(p & 0x00FF), uint8((p) >> 8)})
 	if err := d.txcmd(); err != nil {
 		return 0, err
 	}
@@ -385,9 +361,6 @@ func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 }
 
 func (d *Device) StopClient(sock uint8) error {
-	if _debug {
-		println("[StopClient] called StopClient()\r")
-	}
 	_, err := d.getUint8(d.reqUint8(CmdStopClientTCP, sock))
 	return err
 }
@@ -581,14 +554,23 @@ func (d *Device) StartScanNetworks() (uint8, error) {
 	return d.getUint8(d.req0(CmdStartScanNetworks))
 }
 
+// PinMode can be used to set the mode of a GPIO pin on the device; please note
+// that this command does not exist in the Arduino version of nina-fw, it is
+// specific to the Adafruit fork used for their "Airlift" branded boards.
 func (d *Device) PinMode(pin uint8, mode uint8) error {
 	return d.req2Uint8(CmdSetPinMode, pin, mode)
 }
 
+// DigitalWrite can be used to set the state of a GPIO pin on the device; please
+// note that this command does not exist in the Arduino version of nina-fw, it
+// is specific to the Adafruit fork used for their "Airlift" branded boards.
 func (d *Device) DigitalWrite(pin uint8, value uint8) error {
 	return d.req2Uint8(CmdSetDigitalWrite, pin, value)
 }
 
+// AnalogWrite can be used to set the PWM of a GPIO pin on the device; please
+// note that this command does not exist in the Arduino version of nina-fw, it
+// is specific to the Adafruit fork used for their "Airlift" branded boards.
 func (d *Device) AnalogWrite(pin uint8, value uint8) error {
 	return d.req2Uint8(CmdSetAnalogWrite, pin, value)
 }
@@ -768,24 +750,16 @@ func (d *Device) txcmd() error {
 }
 
 func (d *Device) _waitForSlaveSelect() (err error) {
-	if _debug {
-		println("wifinina: wait for slave ready\r")
-	}
 	// the chip should have already been de-selected, so we'll wait until ready
 	if ok := d.Transport.GetACK(false, 10*time.Second); !ok {
 		return ErrTimeoutSlaveReady
 	}
-	if _debug {
-		println("spiSlaveSelect()\r")
-	}
 	// it is ready, so select the chip
 	d.Transport.SetCS(false)
-
 	// now that the chip is selected, wait until ACK is high to proceed
 	if ok := d.Transport.GetACK(true, 5*time.Millisecond); !ok {
 		return ErrTimeoutSlaveSelect
 	}
-
 	return
 }
 

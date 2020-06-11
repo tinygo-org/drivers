@@ -4,32 +4,35 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"time"
-)
-
-// Cmd Struct Message */
-// ._______________________________________________________________________.
-// | START CMD | C/R  . CMD  | N.PARAM | PARAM LEN | PARAM  | .. | END CMD |
-// |___________|_____________|_________|___________|________|____|_________|
-// |   8 bit   | 1bit . 7bit |  8bit   | 8/16* bit | nbytes | .. |   8bit  |
-// |___________|_____________|_________|___________|________|____|_________|
-// * for most commands, the param len is 1 bytes; for data commands, it is 2
-
-const (
-	nParamsPos = 2
-
-	defaultCapacity = 4096
 )
 
 // Buffer wraps a byte slice that is allocated for creating and/or parsing
 // wifinina command/reply messages (which have the same format as each other).
 // It is NOT safe for concurrent use.
+//
+// Cmd Struct Message
+// ._______________________________________________________________________.
+// | START CMD | C/R  . CMD  | N.PARAM | PARAM LEN | PARAM  | .. | END CMD |
+// |___________|_____________|_________|___________|________|____|_________|
+// |   8 bit   | 1bit . 7bit |  8bit   | 8/16* bit | nbytes | .. |   8bit  |
+// |___________|_____________|_________|___________|________|____|_________|
+// for most commands, the param len is 1 bytes; for data commands, it is 2
+//
 type Buffer struct {
 	// buf is the internal storage for the buffer; its capacity is pre-determined
 	// and allocated when the Buffer is created
 	buf []byte
 }
+
+const (
+	nParamsPos = 2
+
+	defaultCapacity = 2048
+
+	flagReply = 1 << 7
+	flagData  = 0x40
+)
 
 var ErrBufferFull = errors.New("buffer is full")
 
@@ -46,7 +49,7 @@ func NewBuffer(capacity int) *Buffer {
 // the command/reply flag, the command byte, and sets the nparams byte to 0.
 func (b *Buffer) StartCmd(cmd uint8) *Buffer {
 	b.reset()
-	b.append(CmdStart, cmd & ^(uint8(FlagReply)), 0)
+	b.append(CmdStart, cmd & ^(uint8(flagReply)), 0)
 	return b
 }
 
@@ -101,7 +104,7 @@ func (b *Buffer) Command() byte {
 
 // IsDataCommand checks if this is a data command that takes buffers as params
 func (b *Buffer) IsDataCommand() bool {
-	return (b.buf[1] & 0x70) == 0x40
+	return (b.buf[1] & 0x70) == flagData
 }
 
 // IsReply returns whether or not the reply flag is set
@@ -185,7 +188,7 @@ func (b *Buffer) ReadReply(r ByteTransferer, checkCmd byte) (err error) {
 		return err
 	}
 	if checkCmd != 0 {
-		if read != (FlagReply | checkCmd) {
+		if read != (flagReply | checkCmd) {
 			return ErrIncorrectReply
 		}
 	}
@@ -238,10 +241,12 @@ func (b *Buffer) GetByteParam(n int, v *byte) error {
 		return err
 	} else {
 		if len(sl) != 1 {
-			if _debug {
-				println("expected length 1, was actually", len(sl), "\r")
-				_ = PrintBuffer(b, os.Stdout)
-			}
+			/*
+				if _debug {
+					println("expected length 1, was actually", len(sl), "\r")
+					_ = PrintBuffer(b, os.Stdout)
+				}
+			*/
 			return ErrUnexpectedLength
 		}
 		*v = sl[0]
@@ -254,10 +259,12 @@ func (b *Buffer) GetUint16Param(n int, v *uint16) error {
 		return err
 	} else {
 		if len(sl) != 2 {
-			if _debug {
-				println("expected length 2, was actually", len(sl), "\r")
-				_ = PrintBuffer(b, os.Stdout)
-			}
+			/*
+				if _debug {
+					println("expected length 2, was actually", len(sl), "\r")
+					_ = PrintBuffer(b, os.Stdout)
+				}
+			*/
 			return ErrUnexpectedLength
 		}
 		*v = (uint16(sl[1]) << 8) | (uint16(sl[0]))
@@ -270,10 +277,12 @@ func (b *Buffer) GetUint32Param(n int, v *uint32) error {
 		return err
 	} else {
 		if len(sl) != 4 {
-			if _debug {
-				println("expected length 4, was actually", len(sl), "\r")
-				_ = PrintBuffer(b, os.Stdout)
-			}
+			/*
+				if _debug {
+					println("expected length 4, was actually", len(sl), "\r")
+					_ = PrintBuffer(b, os.Stdout)
+				}
+			*/
 			return ErrUnexpectedLength
 		}
 		*v = (uint32(sl[3]) << 24) | (uint32(sl[2]) << 16) |
@@ -287,9 +296,11 @@ func (b *Buffer) GetUint64Param(n int, v *uint64) error {
 		return err
 	} else {
 		if len(sl) != 6 {
-			if _debug {
-				println("expected length 6, was actually", len(sl), "\r")
-			}
+			/*
+				if _debug {
+					println("expected length 6, was actually", len(sl), "\r")
+				}
+			*/
 			return ErrUnexpectedLength
 		}
 		*v = (uint64(sl[5]) << 56) | (uint64(sl[4]) << 48) | (uint64(sl[3]) << 40) |
