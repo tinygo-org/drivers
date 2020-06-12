@@ -22,8 +22,6 @@ const ntpHost = "129.6.15.29"
 
 const NTP_PACKET_SIZE = 48
 
-// these are the default pins for the Arduino Nano33 IoT.
-// change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
@@ -43,7 +41,7 @@ var (
 
 func main() {
 
-	// Init esp8266/esp32
+	// Init esp32
 	// Configure SPI for 8Mhz, Mode 0, MSB First
 	machine.NINA_SPI.Configure(machine.SPIConfig{
 		Frequency: 8 * 1e6,
@@ -60,8 +58,6 @@ func main() {
 	ip := net.ParseIP(ntpHost)
 	raddr := &net.UDPAddr{IP: ip, Port: 123}
 	laddr := &net.UDPAddr{Port: 2390}
-
-	println("Dialing UDP connection...")
 	conn, _ := net.DialUDP("udp", laddr, raddr)
 
 	for {
@@ -70,12 +66,11 @@ func main() {
 		t, err := getCurrentTime(conn)
 		if err != nil {
 			message("Error getting current time: %v", err)
-			continue
+		} else {
+			message("Current time: %v", t)
 		}
-		message("Current time: %v", t)
-
 		// don't fetch more often that this, otherwise NIST might get pist
-		time.Sleep(10000 * time.Millisecond)
+		time.Sleep(5000 * time.Millisecond)
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
@@ -85,42 +80,11 @@ func main() {
 }
 
 func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
-
-	sendNTPpacket := func() error {
-		for i := range b {
-			b[i] = 0
-		}
-		b[0] = 0b11100011 // LI, Version, Mode
-		b[1] = 0          // Stratum, or type of clock
-		b[2] = 6          // Polling Interval
-		b[3] = 0xEC       // Peer Clock Precision
-		// 8 bytes of zero for Root Delay & Root Dispersion
-		b[12] = 49
-		b[13] = 0x4E
-		b[14] = 49
-		b[15] = 52
-		if _, err := conn.Write(b); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	parseNTPpacket := func() time.Time {
-		// the timestamp starts at byte 40 of the received packet and is four bytes,
-		// this is NTP time (seconds since Jan 1 1900):
-		t := uint32(b[40])<<24 | uint32(b[41])<<16 | uint32(b[42])<<8 | uint32(b[43])
-
-		const seventyYears = 2208988800
-		return time.Unix(int64(t-seventyYears), 0)
-	}
-
-	if err := sendNTPpacket(); err != nil {
+	if err := sendNTPpacket(conn); err != nil {
 		return time.Time{}, err
 	}
-
-	time.Sleep(1 * time.Second)
-
 	clearBuffer()
+	time.Sleep(1 * time.Second)
 	if n, err := conn.Read(b); err != nil {
 		return time.Time{}, fmt.Errorf("error reading UDP packet: %w", err)
 	} else if n != NTP_PACKET_SIZE {
@@ -128,12 +92,32 @@ func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
 			return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
 		}
 	}
-	if err := conn.Close(); err != nil {
-		return time.Time{}, fmt.Errorf("error closing connection: %v", err)
-	}
-
 	return parseNTPpacket(), nil
+}
 
+func sendNTPpacket(conn *net.UDPSerialConn) error {
+	clearBuffer()
+	b[0] = 0b11100011 // LI, Version, Mode
+	b[1] = 0          // Stratum, or type of clock
+	b[2] = 6          // Polling Interval
+	b[3] = 0xEC       // Peer Clock Precision
+	// 8 bytes of zero for Root Delay & Root Dispersion
+	b[12] = 49
+	b[13] = 0x4E
+	b[14] = 49
+	b[15] = 52
+	if _, err := conn.Write(b); err != nil {
+		return err
+	}
+	return nil
+}
+
+func parseNTPpacket() time.Time {
+	// the timestamp starts at byte 40 of the received packet and is four bytes,
+	// this is NTP time (seconds since Jan 1 1900):
+	t := uint32(b[40])<<24 | uint32(b[41])<<16 | uint32(b[42])<<8 | uint32(b[43])
+	const seventyYears = 2208988800
+	return time.Unix(int64(t-seventyYears), 0)
 }
 
 func clearBuffer() {
@@ -164,11 +148,4 @@ func connectToAP() {
 
 func message(format string, args ...interface{}) {
 	println(fmt.Sprintf(format, args...), "\r")
-}
-
-func failMessage(msg string) {
-	for {
-		println(msg)
-		time.Sleep(1 * time.Second)
-	}
 }
