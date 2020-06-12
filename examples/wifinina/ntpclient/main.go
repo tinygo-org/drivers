@@ -4,13 +4,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"machine"
+	"runtime"
 	"time"
 
-	"tinygo.org/x/drivers/wifinina"
-
 	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/wifinina"
 )
 
 // access point info
@@ -62,15 +63,18 @@ func main() {
 
 	for {
 		// send data
-		println("Requesting current time...")
+		println("Requesting NTP time...")
 		t, err := getCurrentTime(conn)
 		if err != nil {
 			message("Error getting current time: %v", err)
 		} else {
-			message("Current time: %v", t)
+			message("NTP time: %v", t)
 		}
-		// don't fetch more often that this, otherwise NIST might get pist
-		time.Sleep(5000 * time.Millisecond)
+		runtime.AdjustTimeOffset(-1 * int64(time.Since(t)))
+		for i := 0; i < 10; i++ {
+			message("Current time: %v", time.Now())
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...
@@ -84,15 +88,20 @@ func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
 		return time.Time{}, err
 	}
 	clearBuffer()
-	time.Sleep(1 * time.Second)
-	if n, err := conn.Read(b); err != nil {
-		return time.Time{}, fmt.Errorf("error reading UDP packet: %w", err)
-	} else if n != NTP_PACKET_SIZE {
-		if n != NTP_PACKET_SIZE {
-			return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
+	for now := time.Now(); time.Since(now) < time.Second; {
+		time.Sleep(5 * time.Millisecond)
+		if n, err := conn.Read(b); err != nil {
+			return time.Time{}, fmt.Errorf("error reading UDP packet: %w", err)
+		} else if n == 0 {
+			continue // no packet received yet
+		} else if n != NTP_PACKET_SIZE {
+			if n != NTP_PACKET_SIZE {
+				return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
+			}
 		}
+		return parseNTPpacket(), nil
 	}
-	return parseNTPpacket(), nil
+	return time.Time{}, errors.New("no packet received after 1 second")
 }
 
 func sendNTPpacket(conn *net.UDPSerialConn) error {
