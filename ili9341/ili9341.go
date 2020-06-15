@@ -281,15 +281,15 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 	d.dc.Low()
 	d.driver.write8(cmd)
 	d.dc.High()
-	for _, b := range data {
-		d.driver.write8(b)
-	}
+	d.driver.write8sl(data)
 	d.endWrite()
 }
 
 type driver interface {
 	configure(config *Config)
 	write8(b byte)
+	write8n(b byte, n int)
+	write8sl(b []byte)
 	write16(data uint16)
 	write16n(data uint16, n int)
 	write16sl(data []uint16)

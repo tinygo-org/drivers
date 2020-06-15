@@ -57,9 +57,11 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hub75/main.go
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/basic/main.go
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/basic
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/scroll/main.go
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/pyportal_boing
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/scroll
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis3dh/main.go
 	@md5sum ./build/test.hex

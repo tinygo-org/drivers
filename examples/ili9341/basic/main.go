@@ -9,15 +9,6 @@ import (
 )
 
 var (
-	display = ili9341.NewParallel(
-		machine.LCD_DATA0,
-		machine.TFT_WR,
-		machine.TFT_DC,
-		machine.TFT_CS,
-		machine.TFT_RESET,
-		machine.TFT_RD,
-	)
-
 	black = color.RGBA{0, 0, 0, 255}
 	white = color.RGBA{255, 255, 255, 255}
 	red   = color.RGBA{255, 0, 0, 255}
@@ -27,13 +18,13 @@ var (
 
 func main() {
 
-	machine.TFT_BACKLIGHT.Configure(machine.PinConfig{machine.PinOutput})
+	backlight.Configure(machine.PinConfig{machine.PinOutput})
 
 	display.Configure(ili9341.Config{})
 	width, height := display.Size()
 
 	display.FillScreen(black)
-	machine.TFT_BACKLIGHT.High()
+	backlight.High()
 
 	display.FillRectangle(0, 0, width/2, height/2, white)
 	display.FillRectangle(width/2, 0, width/2, height/2, red)

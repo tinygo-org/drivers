@@ -73,6 +73,20 @@ func (pd *parallelDriver) wrx() {
 }
 
 //go:inline
+func (pd *parallelDriver) write8n(b byte, n int) {
+	for i := 0; i < n; i++ {
+		pd.write8(b)
+	}
+}
+
+//go:inline
+func (pd *parallelDriver) write8sl(b []byte) {
+	for i := 0; i < len(b); i++ {
+		pd.write8(b[i])
+	}
+}
+
+//go:inline
 func (pd *parallelDriver) write16(data uint16) {
 	pd.write8(byte(data >> 8))
 	pd.write8(byte(data))
