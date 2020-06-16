@@ -18,7 +18,7 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPSerialConn, error) {
 	listenport := strconv.Itoa(laddr.Port)
 
 	// disconnect any old socket
-	ActiveDevice.DisconnectSocket()
+	//ActiveDevice.DisconnectSocket()
 
 	// connect new socket
 	err := ActiveDevice.ConnectUDPSocket(addr, sendport, listenport)
@@ -130,6 +130,15 @@ func NewTCPSerialConn(c SerialConn, laddr, raddr *TCPAddr) *TCPSerialConn {
 func (c *SerialConn) Read(b []byte) (n int, err error) {
 	// read only the data that has been received via "+IPD" socket
 	return c.Adaptor.ReadSocket(b)
+}
+
+// Write writes data to the connection.
+// TODO: implement the full method functionality for timeouts.
+// Write can be made to time out and return an Error with Timeout() == true
+// after a fixed time limit; see SetDeadline and SetWriteDeadline.
+func (c *UDPSerialConn) Write(b []byte) (n int, err error) {
+	n, err = c.Adaptor.Write(b)
+	return n, err
 }
 
 // Write writes data to the connection.

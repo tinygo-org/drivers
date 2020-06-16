@@ -19,6 +19,9 @@ func (d *Device) NewDriver() net.DeviceDriver {
 type Driver struct {
 	dev     *Device
 	sock    uint8
+	proto   uint8
+	ip      uint32
+	port    uint16
 	readBuf readBuffer
 }
 
@@ -30,7 +33,10 @@ type readBuffer struct {
 
 func (drv *Driver) GetDNS(domain string) (string, error) {
 	ipAddr, err := drv.dev.GetHostByName(domain)
-	return ipAddr.String(), err
+	if err != nil {
+		return "", err
+	}
+	return ipAddr.String(), nil
 }
 
 func (drv *Driver) ConnectTCPSocket(addr, portStr string) error {
@@ -48,7 +54,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	if err != nil {
 		return fmt.Errorf("could not convert port to uint16: %s", err.Error())
 	}
-	port := uint16(p64)
+	drv.port = uint16(p64)
 
 	// look up the hostname if necessary; if an IP address was specified, the
 	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
@@ -56,7 +62,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	if err != nil {
 		return err
 	}
-	ip := ipAddr.AsUint32()
+	drv.ip = ipAddr.AsUint32()
 
 	// check to see if socket is already set; if so, stop it
 	if drv.sock != NoSocketAvail {
@@ -70,28 +76,84 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 		return err
 	}
 
+	if mode == ProtoModeUDP {
+		if err := drv.dev.StartServer(drv.port, drv.sock, mode); err != nil {
+			return err
+		}
+	}
+
 	// attempt to start the client
-	if err := drv.dev.StartClient(ip, port, drv.sock, mode); err != nil {
+	drv.proto = mode
+	if mode != ProtoModeUDP {
+		if err := drv.dev.StartClient(drv.ip, drv.port, drv.sock, drv.proto); err != nil {
+			return err
+		}
+		// FIXME: this 4 second timeout is simply mimicking the Arduino driver
+		for now := time.Now(); time.Since(now) < 4*time.Second; {
+			connected, err := drv.IsConnected()
+			if err != nil {
+				return err
+			}
+			if connected {
+				return nil
+			}
+			wait(1 * time.Millisecond)
+		}
+		return ErrConnectionTimeout
+	}
+
+	return nil
+}
+
+func convertPort(portStr string) (uint16, error) {
+	p64, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("could not convert port to uint16: %w", err)
+	}
+	return uint16(p64), nil
+}
+
+func (drv *Driver) ConnectUDPSocket(addr, portStr, lportStr string) (err error) {
+
+	// convert remote port to uint16
+	if drv.port, err = convertPort(portStr); err != nil {
 		return err
 	}
 
-	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
-	for t := newTimer(4 * time.Second); !t.Expired(); {
-		connected, err := drv.IsConnected()
-		if err != nil {
-			return err
-		}
-		if connected {
-			return nil
-		}
-		wait(1 * time.Millisecond)
+	// convert local port to uint16
+	var lport uint16
+	if lport, err = convertPort(lportStr); err != nil {
+		return err
 	}
 
-	return ErrConnectionTimeout
-}
+	// look up the hostname if necessary; if an IP address was specified, the
+	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
+	ipAddr, err := drv.dev.GetHostByName(addr)
+	if err != nil {
+		return err
+	}
+	drv.ip = ipAddr.AsUint32()
 
-func (drv *Driver) ConnectUDPSocket(addr, sport, lport string) error {
-	return ErrNotImplemented
+	// check to see if socket is already set; if so, stop it
+	// TODO: we can probably have more than one socket at once right?
+	if drv.sock != NoSocketAvail {
+		if err := drv.stop(); err != nil {
+			return err
+		}
+	}
+
+	// get a socket from the device
+	if drv.sock, err = drv.dev.GetSocket(); err != nil {
+		return err
+	}
+
+	// start listening for UDP packets on the local port
+	drv.proto = ProtoModeUDP
+	if err := drv.dev.StartServer(lport, drv.sock, drv.proto); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (drv *Driver) DisconnectSocket() error {
@@ -114,23 +176,35 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, ErrNoData
 	}
-	written, err := drv.dev.SendData(b, drv.sock)
-	if err != nil {
-		return 0, err
+	if drv.proto == ProtoModeUDP {
+		if err := drv.dev.StartClient(drv.ip, drv.port, drv.sock, drv.proto); err != nil {
+			return 0, err
+		}
+		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
+			return 0, err
+		}
+		if _, err := drv.dev.SendUDPData(drv.sock); err != nil {
+			return 0, err
+		}
+		return len(b), nil
+	} else {
+		written, err := drv.dev.SendData(b, drv.sock)
+		if err != nil {
+			return 0, err
+		}
+		if written == 0 {
+			return 0, ErrDataNotWritten
+		}
+		if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
+			return 0, ErrCheckDataError
+		}
+		return len(b), nil
 	}
-	if written == 0 {
-		return 0, ErrDataNotWritten
-	}
-	if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
-		return 0, ErrCheckDataError
-	}
-	return len(b), nil
 }
 
 func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 	avail, err := drv.available()
 	if err != nil {
-		println("ReadSocket error: " + err.Error())
 		return 0, err
 	}
 	if avail == 0 {
@@ -198,7 +272,7 @@ func (drv *Driver) stop() error {
 		return nil
 	}
 	drv.dev.StopClient(drv.sock)
-	for t := newTimer(5 * time.Second); !t.Expired(); {
+	for now := time.Now(); time.Since(now) < 5*time.Second; {
 		st, _ := drv.status()
 		if st == TCPStateClosed {
 			break
