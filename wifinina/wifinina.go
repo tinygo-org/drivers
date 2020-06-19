@@ -375,6 +375,50 @@ func (d *Device) StopClient(sock uint8) error {
 	return err
 }
 
+func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return err
+	}
+	l := d.sendCmd(CmdStartServerTCP, 3)
+	l += d.sendParam16(port, false)
+	l += d.sendParam8(sock, false)
+	l += d.sendParam8(mode, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	_, err := d.waitRspCmd1(CmdStartClientTCP)
+	return err
+}
+
+// InsertDataBuf adds data to the buffer used for sending UDP data
+func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return false, err
+	}
+	l := d.sendCmd(CmdInsertDataBuf, 2)
+	l += d.sendParamBuf([]byte{sock}, false)
+	l += d.sendParamBuf(buf, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	n, err := d.getUint8(d.waitRspCmd1(CmdInsertDataBuf))
+	return n == 1, err
+}
+
+// SendUDPData sends the data previously added to the UDP buffer
+func (d *Device) SendUDPData(sock uint8) (bool, error) {
+	if err := d.waitForSlaveSelect(); err != nil {
+		d.spiSlaveDeselect()
+		return false, err
+	}
+	l := d.sendCmd(CmdSendDataUDP, 1)
+	l += d.sendParam8(sock, true)
+	d.addPadding(l)
+	d.spiSlaveDeselect()
+	n, err := d.getUint8(d.waitRspCmd1(CmdSendDataUDP))
+	return n == 1, err
+}
+
 // ---------- /client methods (should this be a separate struct?) ------------
 
 /*
