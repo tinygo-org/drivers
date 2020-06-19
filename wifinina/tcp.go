@@ -20,6 +20,10 @@ type Driver struct {
 	dev     *Device
 	sock    uint8
 	readBuf readBuffer
+
+	proto uint8
+	ip    uint32
+	port  uint16
 }
 
 type readBuffer struct {
@@ -42,6 +46,8 @@ func (drv *Driver) ConnectSSLSocket(addr, portStr string) error {
 }
 
 func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
+
+	drv.proto, drv.ip, drv.port = mode, 0, 0
 
 	// convert port to uint16
 	p64, err := strconv.ParseUint(portStr, 10, 16)
@@ -90,8 +96,56 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	return ErrConnectionTimeout
 }
 
-func (drv *Driver) ConnectUDPSocket(addr, sport, lport string) error {
-	return ErrNotImplemented
+func convertPort(portStr string) (uint16, error) {
+	p64, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("could not convert port to uint16: %w", err)
+	}
+	return uint16(p64), nil
+}
+
+func (drv *Driver) ConnectUDPSocket(addr, portStr, lportStr string) (err error) {
+
+	drv.proto, drv.ip, drv.port = ProtoModeUDP, 0, 0
+
+	// convert remote port to uint16
+	if drv.port, err = convertPort(portStr); err != nil {
+		return err
+	}
+
+	// convert local port to uint16
+	var lport uint16
+	if lport, err = convertPort(lportStr); err != nil {
+		return err
+	}
+
+	// look up the hostname if necessary; if an IP address was specified, the
+	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
+	ipAddr, err := drv.dev.GetHostByName(addr)
+	if err != nil {
+		return err
+	}
+	drv.ip = ipAddr.AsUint32()
+
+	// check to see if socket is already set; if so, stop it
+	// TODO: we can probably have more than one socket at once right?
+	if drv.sock != NoSocketAvail {
+		if err := drv.stop(); err != nil {
+			return err
+		}
+	}
+
+	// get a socket from the device
+	if drv.sock, err = drv.dev.GetSocket(); err != nil {
+		return err
+	}
+
+	// start listening for UDP packets on the local port
+	if err := drv.dev.StartServer(lport, drv.sock, drv.proto); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (drv *Driver) DisconnectSocket() error {
@@ -114,16 +168,31 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, ErrNoData
 	}
-	written, err := drv.dev.SendData(b, drv.sock)
-	if err != nil {
-		return 0, err
+	if drv.proto == ProtoModeUDP {
+		if err := drv.dev.StartClient(drv.ip, drv.port, drv.sock, drv.proto); err != nil {
+			return 0, fmt.Errorf("error in startClient: %w", err)
+		}
+		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
+			return 0, fmt.Errorf("error in insertDataBuf: %w", err)
+		}
+		if _, err := drv.dev.SendUDPData(drv.sock); err != nil {
+			return 0, fmt.Errorf("error in sendUDPData: %w", err)
+		}
+		return len(b), nil
+	} else {
+		written, err := drv.dev.SendData(b, drv.sock)
+		if err != nil {
+			return 0, err
+		}
+		if written == 0 {
+			return 0, ErrDataNotWritten
+		}
+		if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
+			return 0, ErrCheckDataError
+		}
+		return len(b), nil
 	}
-	if written == 0 {
-		return 0, ErrDataNotWritten
-	}
-	if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
-		return 0, ErrCheckDataError
-	}
+
 	return len(b), nil
 }
 
