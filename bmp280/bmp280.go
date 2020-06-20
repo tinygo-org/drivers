@@ -97,6 +97,7 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 		return
 	}
 
+	// Datasheet: 3.11.2 Trimming parameter readout
 	d.cali.t1 = readUintLE(data[0], data[1])
 	d.cali.t2 = readIntLE(data[2], data[3])
 	d.cali.t3 = readIntLE(data[4], data[5])
@@ -126,7 +127,7 @@ func (d *Device) PrintCali() {
 	println("P6:", d.cali.p6)
 	println("P7:", d.cali.p7)
 	println("P8:", d.cali.p8)
-	println("P9:", d.cali.p9)
+	println("P9:", d.cali.p9, "\n")
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
@@ -138,12 +139,17 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 
 	rawTemp := convert3Bytes(data[0], data[1], data[2])
 
+	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
+	// Temperature compensation
 	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
 	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
 		int32(d.cali.t3) >> 14
 
-	t_fine := var1 + var2
-	temperature = (t_fine*5 + 128) >> 8
+	tFine := var1 + var2
+
+	// Convert from degrees to milli degrees by multiplying by 10.
+	// Will output 30250 milli degrees celsius for 30.25 degrees celsius
+	temperature = 10 * ((tFine*5 + 128) >> 8)
 	return
 }
 
@@ -157,17 +163,19 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 
 	rawTemp := convert3Bytes(data[3], data[4], data[5])
 
-	// Calculate t_fine (temperature), used for the Pressure compensation
+	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
+	// Calculate tFine (temperature), used for the Pressure compensation
 	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
 	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
 		int32(d.cali.t3) >> 14
 
-	t_fine := var1 + var2
+	tFine := var1 + var2
 
 	rawPres := convert3Bytes(data[0], data[1], data[2])
 
+	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
 	// Pressure compensation
-	var1 = (t_fine >> 1) - 64000
+	var1 = (tFine >> 1) - 64000
 	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * int32(d.cali.p6)
 	var2 = var2 + ((var1 * int32(d.cali.p5)) << 1)
 	var2 = (var2 >> 2) + (int32(d.cali.p4) << 16)
@@ -186,10 +194,10 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 		p = (p / uint32(var1)) * 2
 	}
 
-	var1 = (int32(d.cali.p9) * int32((((p >> 3) * (p >> 3)) >> 13))) >> 12
-	var2 = (int32((p >> 2)) * int32(d.cali.p8)) >> 13
+	var1 = (int32(d.cali.p9) * int32(((p>>3)*(p>>3))>>13)) >> 12
+	var2 = (int32(p>>2) * int32(d.cali.p8)) >> 13
 
-	return int32(p) + ((var1 + var2 + int32(d.cali.p7)) >> 4), nil
+	return 1000 * (int32(p) + ((var1 + var2 + int32(d.cali.p7)) >> 4)), nil
 }
 
 // readData reads n number of bytes of the specified register
@@ -211,11 +219,6 @@ func (d *Device) readData(register int, n int) ([]byte, error) {
 	data := make([]byte, n)
 	err := d.bus.ReadRegister(uint8(d.Address), uint8(register), data[:])
 	return data, err
-}
-
-// convert2Bytes converts two bytes to int32
-func convert2Bytes(msb byte, lsb byte) int32 {
-	return int32(readUint(msb, lsb))
 }
 
 // convert3Bytes converts three bytes to int32

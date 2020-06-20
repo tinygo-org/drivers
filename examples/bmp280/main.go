@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"machine"
 	"time"
 	"tinygo.org/x/drivers/bmp280"
@@ -28,22 +29,15 @@ func main() {
 		if err != nil {
 			println("Error reading temperature")
 		}
-
-		print("Temperature: ")
-		println(t)
-
 		// Temperature in degrees Celsius
-		//fmt.Printf("Temperature: %.2f\n", float32(t)/100)
+		fmt.Printf("Temperature: %.2f °C\n", float32(t)/1000)
 
 		p, err := sensor.ReadPressure()
 		if err != nil {
 			println("Error reading pressure")
 		}
-		print("Pressure: ")
-		println(p, "\n")
-
 		// Pressure in hectoPascal
-		//fmt.Printf("Pressure: %.2f\n", float32(p)/100)
+		fmt.Printf("Pressure: %.2f hPa\n", float32(p)/100000)
 
 		time.Sleep(5 * time.Second)
 	}
