@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 49 devices are supported.
+The following 50 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -66,6 +66,7 @@ The following 49 devices are supported.
 | [BlinkM RGB LED](http://thingm.com/fileadmin/thingm/downloads/BlinkM_datasheet.pdf) | I2C |
 | [BME280 humidity/pressure sensor](https://cdn-shop.adafruit.com/datasheets/BST-BME280_DS001-10.pdf) | I2C |
 | [BMP180 barometer](https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf) | I2C |
+| [BMP280 temperature/barometer](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf) | I2C |
 | [Buzzer](https://en.wikipedia.org/wiki/Buzzer#Piezoelectric) | GPIO |
 | [DS1307 real time clock](https://datasheets.maximintegrated.com/en/ds/DS1307.pdf) | I2C |
 | [DS3231 real time clock](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf) | I2C |
