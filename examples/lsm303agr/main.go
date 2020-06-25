@@ -25,6 +25,19 @@ func main() {
 	}
     
     accel_mag.Configure(lsm303agr.Configuration{}) //default settings
+	
+    /*
+    // see drivers/lsm303agr/registers.go for more configuration options:
+    
+    accel_mag.Configure(lsm303agr.Configuration{
+        AccelPowerMode: lsm303agr.ACCEL_POWER_NORMAL,
+        AccelRange: lsm303agr.ACCEL_RANGE_2G,
+        AccelDataRate: lsm303agr.ACCEL_DATARATE_100HZ,
+	MagPowerMode: lsm303agr.MAG_POWER_NORMAL,
+	MagSystemMode: lsm303agr.MAG_SYSTEM_CONTINUOUS,
+	MagDataRate: lsm303agr.MAG_DATARATE_10HZ,
+    })
+    */
     
     for {
         
