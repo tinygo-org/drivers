@@ -18,13 +18,26 @@ func main() {
 
 	accel_mag.Configure(lsm303agr.Configuration{}) //default settings
 
+	/*
+		    // see drivers/lsm303agr/registers.go for more configuration options:
+
+		    accel_mag.Configure(lsm303agr.Configuration{
+		        AccelPowerMode: lsm303agr.ACCEL_POWER_NORMAL,
+		        AccelRange: lsm303agr.ACCEL_RANGE_2G,
+		        AccelDataRate: lsm303agr.ACCEL_DATARATE_100HZ,
+			    MagPowerMode: lsm303agr.MAG_POWER_NORMAL,
+			    MagSystemMode: lsm303agr.MAG_SYSTEM_CONTINUOUS,
+			    MagDataRate: lsm303agr.MAG_DATARATE_10HZ,
+		    })
+	*/
+
 	for {
 
-		accel_x, accel_y, accel_z := accel_mag.ReadAcceleration() // acceleration of all axis (1000+ = 1g)
-		pitch, roll := accel_mag.ReadPitchRoll() // pitch and roll degrees
-		mag_x, mag_y, mag_z := accel_mag.ReadMagneticField() // magnetic field level of all axis
-		heading := accel_mag.ReadCompassHeading() // compass heading (-180~180, may not be accurate)
-		temp := accel_mag.ReadTemperature() // temperature in Celsius
+		accel_x, accel_y, accel_z := accel_mag.ReadAcceleration()
+		pitch, roll := accel_mag.ReadPitchRoll()
+		mag_x, mag_y, mag_z := accel_mag.ReadMagneticField()
+		heading := accel_mag.ReadCompassHeading()
+		temp := accel_mag.ReadTemperature()
 
 		println("ACCEL_X:", accel_x, " ACCEL_Y:", accel_y, " ACCEL_Z:", accel_z)
 		println("MAG_X:", mag_x, " MAG_Y:", mag_y, " MAG_Z:", mag_z)
