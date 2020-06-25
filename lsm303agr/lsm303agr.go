@@ -103,8 +103,8 @@ func (d *Device) Configure(cfg Configuration) {
 
 }
 
-/* read raw acceleration data from all axis, 1000+ = 1g */
-func (d *Device) ReadAcceleration() (x int16, y int16, z int16) {
+/* read raw acceleration data (in ug/microgram) from all axis */
+func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 
 	data1, data2, data3, data4, data5, data6 := []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}
 	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_X_H_A, data1)
@@ -126,26 +126,25 @@ func (d *Device) ReadAcceleration() (x int16, y int16, z int16) {
 		range_factor = 12 // the readings in 16G are a bit off
 	}
 
-	x = int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4 * range_factor
-	y = int16((uint16(data3[0])<<8 | uint16(data4[0]))) >> 4 * range_factor
-	z = int16((uint16(data5[0])<<8 | uint16(data6[0]))) >> 4 * range_factor
+	x = int32(int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4 * range_factor) * 1000
+	y = int32(int16((uint16(data3[0])<<8 | uint16(data4[0]))) >> 4 * range_factor) * 1000
+	z = int32(int16((uint16(data5[0])<<8 | uint16(data6[0]))) >> 4 * range_factor) * 1000
 	return
 }
 
 /* read pitch/roll degrees */
-func (d *Device) ReadPitchRoll() (pitch float32, roll float32) {
+func (d *Device) ReadPitchRoll() (pitch int32, roll int32) {
 
 	x, y, z := d.ReadAcceleration()
 	xf, yf, zf := float64(x), float64(y), float64(z)
-
-	pitch = float32(math.Round(math.Atan2(yf, math.Sqrt(math.Pow(xf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
-	roll = float32(math.Round(math.Atan2(xf, math.Sqrt(math.Pow(yf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
+	pitch = int32(math.Round(math.Atan2(yf, math.Sqrt(math.Pow(xf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
+	roll = int32(math.Round(math.Atan2(xf, math.Sqrt(math.Pow(yf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
 	return
 
 }
 
-/* read magnetic field level from all axis */
-func (d *Device) ReadMagneticField() (x int16, y int16, z int16) {
+/* read magnetic field level (in milligauss) from all axis */
+func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 
 	if d.MagSystemMode == MAG_SYSTEM_SINGLE {
 		cmd := []byte{0}
@@ -161,36 +160,36 @@ func (d *Device) ReadMagneticField() (x int16, y int16, z int16) {
 	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Z_H_M, data5)
 	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Z_L_M, data6)
 
-	x = int16((uint16(data1[0])<<8 | uint16(data2[0])))
-	y = int16((uint16(data3[0])<<8 | uint16(data4[0])))
-	z = int16((uint16(data5[0])<<8 | uint16(data6[0])))
+	x = int32(int16((uint16(data1[0])<<8 | uint16(data2[0]))))
+	y = int32(int16((uint16(data3[0])<<8 | uint16(data4[0]))))
+	z = int32(int16((uint16(data5[0])<<8 | uint16(data6[0]))))
 	return
 }
 
 /* read compass heading, -179~180 degrees (may not be accurate) */
-func (d *Device) ReadCompassHeading() (heading float32) {
+func (d *Device) ReadCompassHeading() (heading int32) {
 
 	x, y, _ := d.ReadMagneticField()
 	xf, yf := float64(x), float64(y)
-	heading = float32((180 / math.Pi) * math.Atan2(yf, xf))
+	heading = int32(float32((180 / math.Pi) * math.Atan2(yf, xf)))
 	return
 }
 
 /* read temperature offset */
-func (d *Device) ReadTemperatureOffset() (t int16) {
+func (d *Device) ReadTemperatureOffset() (t int32) {
 
 	data1, data2 := []byte{0}, []byte{0}
 	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_H_A, data1)
 	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L_A, data2)
-
-	t = int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4
+	t = int32(int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4)
 	return
 }
 
 /* read temperature in Celsius */
-func (d *Device) ReadTemperature() (c float32) {
+func (d *Device) ReadTemperature() (c int32, e error) {
 
 	t := d.ReadTemperatureOffset()
-	c = float32(25) + float32(t/8)
+	c = int32((float32(25) + float32(t)/8) * 1000)
+	e = nil
 	return
 }
