@@ -1,8 +1,9 @@
 /*
 Package lsm303agr implements a driver for the LSM303AGR, 
- a 3 axis accelerometer/magnetic sensor which is included on BBC micro:bits v1.5.
+ a 3 axis accelerometer/magnetic sensor included onboard BBC micro:bits v1.5.
 
 Datasheet: https://www.st.com/resource/en/datasheet/lsm303agr.pdf
+micro:bit versions: https://tech.microbit.org/hardware/i2c/
 */
 
 package lsm303agr // import "tinygo.org/x/drivers/lsm303agr"
@@ -163,7 +164,7 @@ func (d *Device) ReadMagneticField() (x int16, y int16, z int16) {
     return
 }
 
-/* read compass heading, -179~180 degrees (may not be accurate) */
+/* read compass heading, -180~180 degrees (may not be accurate) */
 func (d *Device) ReadCompassHeading() (heading float32) {
 
     x, y, _ := d.ReadMagneticField()
