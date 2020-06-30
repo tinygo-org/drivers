@@ -103,7 +103,7 @@ func (d *Device) Configure(cfg Configuration) {
 
 }
 
-/* read raw acceleration data (in ug/microgram) from all axis */
+/* read raw acceleration data (in ug or microgram) from all axis */
 func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 
 	data1, data2, data3, data4, data5, data6 := []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}
@@ -126,19 +126,19 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 		range_factor = 12 // the readings in 16G are a bit off
 	}
 
-	x = int32(int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4 * range_factor) * 1000
-	y = int32(int16((uint16(data3[0])<<8 | uint16(data4[0]))) >> 4 * range_factor) * 1000
-	z = int32(int16((uint16(data5[0])<<8 | uint16(data6[0]))) >> 4 * range_factor) * 1000
+	x = int32(int16((uint16(data1[0])<<8|uint16(data2[0])))>>4*range_factor) * 1000
+	y = int32(int16((uint16(data3[0])<<8|uint16(data4[0])))>>4*range_factor) * 1000
+	z = int32(int16((uint16(data5[0])<<8|uint16(data6[0])))>>4*range_factor) * 1000
 	return
 }
 
-/* read pitch/roll degrees */
+/* read pitch and roll angles (in micro-degrees) */
 func (d *Device) ReadPitchRoll() (pitch int32, roll int32) {
 
 	x, y, z := d.ReadAcceleration()
 	xf, yf, zf := float64(x), float64(y), float64(z)
-	pitch = int32(math.Round(math.Atan2(yf, math.Sqrt(math.Pow(xf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
-	roll = int32(math.Round(math.Atan2(xf, math.Sqrt(math.Pow(yf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100)
+	pitch = int32((math.Round(math.Atan2(yf, math.Sqrt(math.Pow(xf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100) * 1000000)
+	roll = int32((math.Round(math.Atan2(xf, math.Sqrt(math.Pow(yf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100) * 1000000)
 	return
 
 }
@@ -166,12 +166,12 @@ func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 	return
 }
 
-/* read compass heading, -179~180 degrees (may not be accurate) */
-func (d *Device) ReadCompassHeading() (heading int32) {
+/* read compass heading (in micro-degrees; direction may be off) */
+func (d *Device) ReadCompass() (h int32) {
 
 	x, y, _ := d.ReadMagneticField()
 	xf, yf := float64(x), float64(y)
-	heading = int32(float32((180 / math.Pi) * math.Atan2(yf, xf)))
+	h = int32(float32((180/math.Pi)*math.Atan2(yf, xf)) * 1000000)
 	return
 }
 
@@ -185,7 +185,7 @@ func (d *Device) ReadTemperatureOffset() (t int32) {
 	return
 }
 
-/* read temperature in Celsius */
+/* read temperature in Celsius (* 1000) */
 func (d *Device) ReadTemperature() (c int32, e error) {
 
 	t := d.ReadTemperatureOffset()
