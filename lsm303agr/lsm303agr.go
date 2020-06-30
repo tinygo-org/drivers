@@ -126,9 +126,9 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 		range_factor = 12 // the readings in 16G are a bit off
 	}
 
-	x = int32(int16((uint16(data1[0])<<8|uint16(data2[0])))>>4*range_factor) * 1000
-	y = int32(int16((uint16(data3[0])<<8|uint16(data4[0])))>>4*range_factor) * 1000
-	z = int32(int16((uint16(data5[0])<<8|uint16(data6[0])))>>4*range_factor) * 1000
+	x = int32(int32(int16((uint16(data1[0])<<8|uint16(data2[0])))>>4*range_factor) * 1000000 / 1024)
+	y = int32(int32(int16((uint16(data3[0])<<8|uint16(data4[0])))>>4*range_factor) * 1000000 / 1024)
+	z = int32(int32(int16((uint16(data5[0])<<8|uint16(data6[0])))>>4*range_factor) * 1000000 / 1024)
 	return
 }
 
