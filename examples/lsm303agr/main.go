@@ -23,17 +23,17 @@ func main() {
 		accel_x, accel_y, accel_z := accel_mag.ReadAcceleration()
 		pitch, roll := accel_mag.ReadPitchRoll()
 		mag_x, mag_y, mag_z := accel_mag.ReadMagneticField()
-		heading := accel_mag.ReadCompassHeading()
+		heading := accel_mag.ReadCompass()
 		temp, _ := accel_mag.ReadTemperature()
 
 		println("ACCEL_X:", accel_x, " ACCEL_Y:", accel_y, " ACCEL_Z:", accel_z)
 		println("MAG_X:", mag_x, " MAG_Y:", mag_y, " MAG_Z:", mag_z)
 		println("Pitch:", pitch, " Roll:", roll)
 		println("Heading:", heading)
-		println("Temperature:", temp)
+		println("Temperature:", temp/1000)
 		println("\n")
 
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 100)
 	}
 
 }
