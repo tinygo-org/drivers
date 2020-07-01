@@ -35,6 +35,18 @@ func (d *Device) Configure(cfg Config) {
 	d.address = cfg.Address
 }
 
+// Connected checks if the config register can be read and that the configuration is correct.
+func (d *Device) Connected() bool {
+	configData := make([]byte, 2)
+	err := d.bus.ReadRegister(d.address, RegConfiguration, configData)
+	// Check the reset configuration values.
+	if err != nil || configData[0] != 0x60 || configData[1] != 0xA0 {
+		return false
+	}
+	return true
+
+}
+
 // Reads the temperature from the sensor and returns it in celsius milli degrees (°C/1000).
 func (d *Device) ReadTemperature() (temperature int32, err error) {
 
