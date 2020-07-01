@@ -1,14 +1,12 @@
-/* Registers for package lsm303agr */
-
 package lsm303agr
 
 const (
 
-	/* device addresses */
+	// Constants/addresses used for I2C.
 	ACCEL_ADDRESS = 0x19
 	MAG_ADDRESS   = 0x1E
 
-	/* accelerometer registers */
+	// accelerometer registers.
 	ACCEL_WHO_AM_I    = 0x0F
 	ACCEL_CTRL_REG1_A = 0x20
 	ACCEL_CTRL_REG4_A = 0x23
@@ -19,7 +17,7 @@ const (
 	ACCEL_OUT_Z_L_A   = 0x2C
 	ACCEL_OUT_Z_H_A   = 0x2D
 
-	/* magnetic sensor registers */
+	// magnetic sensor registers.
 	MAG_WHO_AM_I  = 0x4F
 	MAG_MR_REG_M  = 0x60
 	MAG_OUT_X_L_M = 0x68
@@ -29,22 +27,22 @@ const (
 	MAG_OUT_Z_L_M = 0x6C
 	MAG_OUT_Z_H_M = 0x6D
 
-	/* temperature sensor registers */
+	// temperature sensor registers.
 	TEMP_CFG_REG_A = 0x1F
 	OUT_TEMP_L_A   = 0x0C
 	OUT_TEMP_H_A   = 0x0D
 
-	/* accelerometer power mode */
+	// accelerometer power mode.
 	ACCEL_POWER_NORMAL = 0x00 // default
 	ACCEL_POWER_LOW    = 0x08
 
-	/* accelerometer range */
+	// accelerometer range.
 	ACCEL_RANGE_2G  = 0x00 // default
 	ACCEL_RANGE_4G  = 0x01
 	ACCEL_RANGE_8G  = 0x02
 	ACCEL_RANGE_16G = 0x03
 
-	/* accelerometer data rate */
+	// accelerometer data rate.
 	ACCEL_DATARATE_1HZ    = 0x01
 	ACCEL_DATARATE_10HZ   = 0x02
 	ACCEL_DATARATE_25HZ   = 0x03
@@ -54,15 +52,15 @@ const (
 	ACCEL_DATARATE_400HZ  = 0x07
 	ACCEL_DATARATE_1344HZ = 0x09 // 5376Hz in low-power mode
 
-	/* magnetic sensor power mode */
+	// magnetic sensor power mode.
 	MAG_POWER_NORMAL = 0x00 // default
 	MAG_POWER_LOW    = 0x01
 
-	/* magnetic sensor operate mode */
+	// magnetic sensor operate mode.
 	MAG_SYSTEM_CONTINUOUS = 0x00 // default
 	MAG_SYSTEM_SINGLE     = 0x01
 
-	/* magnetic sensor data rate */
+	// magnetic sensor data rate
 	MAG_DATARATE_10HZ  = 0x00 // default
 	MAG_DATARATE_20HZ  = 0x01
 	MAG_DATARATE_50HZ  = 0x02
