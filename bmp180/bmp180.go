@@ -8,7 +8,6 @@ package bmp180 // import "tinygo.org/x/drivers/bmp180"
 
 import (
 	"time"
-
 	"machine"
 )
 
