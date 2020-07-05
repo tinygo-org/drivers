@@ -133,7 +133,7 @@ func (d *Device) rawTemp() (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int32(uint16(data[0])<<8 + uint16(data[1])), nil
+	return int32(uint16(data[0])<<8 | uint16(data[1])), nil
 }
 
 // calculateB5 calculates intermediate value B5 as per page 15 of datasheet
