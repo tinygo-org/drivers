@@ -125,7 +125,7 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 }
 
 // rawTemp returns the sensor's raw values of the temperature
-func (d *Device) rawTemp() (int16, error) {
+func (d *Device) rawTemp() (int32, error) {
 	d.bus.WriteRegister(uint8(d.Address), REG_CTRL, []byte{CMD_TEMP})
 	time.Sleep(5 * time.Millisecond)
 	data := make([]byte, 2)
@@ -133,12 +133,12 @@ func (d *Device) rawTemp() (int16, error) {
 	if err != nil {
 		return 0, err
 	}
-	return readInt(data[0], data[1]), nil
+	return int32(uint16(data[0])<<8 | uint16(data[1])), nil
 }
 
 // calculateB5 calculates intermediate value B5 as per page 15 of datasheet
-func (d *Device) calculateB5(rawTemp int16) int32 {
-	x1 := (int32(rawTemp) - int32(d.calibrationCoefficients.ac6)) * int32(d.calibrationCoefficients.ac5) >> 15
+func (d *Device) calculateB5(rawTemp int32) int32 {
+	x1 := (rawTemp - int32(d.calibrationCoefficients.ac6)) * int32(d.calibrationCoefficients.ac5) >> 15
 	x2 := int32(d.calibrationCoefficients.mc) << 11 / (x1 + int32(d.calibrationCoefficients.md))
 	return x1 + x2
 }
