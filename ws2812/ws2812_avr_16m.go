@@ -1,4 +1,4 @@
-// +build arduino
+// +build atmega328p
 
 package ws2812
 
