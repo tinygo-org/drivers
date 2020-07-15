@@ -22,8 +22,8 @@ var (
 func init() {
 	machine.SPI3.Configure(machine.SPIConfig{
 		SCK:       machine.LCD_SCK_PIN,
-		MOSI:      machine.LCD_MOSI_PIN,
-		MISO:      machine.LCD_MISO_PIN,
+		SDO:       machine.LCD_SDO_PIN,
+		SDI:       machine.LCD_SDI_PIN,
 		Frequency: 40000000,
 	})
 }

@@ -16,24 +16,24 @@ type transport interface {
 
 // NewSPI returns a pointer to a flash device that uses a SPI peripheral to
 // communicate with a serial memory chip.
-func NewSPI(spi *machine.SPI, mosi, miso, sck, cs machine.Pin) *Device {
+func NewSPI(spi *machine.SPI, sdo, sdi, sck, cs machine.Pin) *Device {
 	return &Device{
 		trans: &spiTransport{
-			spi:  spi,
-			mosi: mosi,
-			miso: miso,
-			sck:  sck,
-			ss:   cs,
+			spi: spi,
+			sdo: sdo,
+			sdi: sdi,
+			sck: sck,
+			ss:  cs,
 		},
 	}
 }
 
 type spiTransport struct {
-	spi  *machine.SPI
-	mosi machine.Pin
-	miso machine.Pin
-	sck  machine.Pin
-	ss   machine.Pin
+	spi *machine.SPI
+	sdo machine.Pin
+	sdi machine.Pin
+	sck machine.Pin
+	ss  machine.Pin
 }
 
 func (tr *spiTransport) configure(config *DeviceConfig) {
@@ -53,8 +53,8 @@ func (tr *spiTransport) setClockSpeed(hz uint32) error {
 	}
 	tr.spi.Configure(machine.SPIConfig{
 		Frequency: hz,
-		MISO:      tr.miso,
-		MOSI:      tr.mosi,
+		SDI:       tr.sdi,
+		SDO:       tr.sdo,
 		SCK:       tr.sck,
 		LSBFirst:  false,
 		Mode:      0,

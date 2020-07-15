@@ -62,8 +62,8 @@ func main() {
 	// Configure SPI for 8Mhz, Mode 0, MSB First
 	spi.Configure(machine.SPIConfig{
 		Frequency: 8 * 1e6,
-		MOSI:      machine.NINA_MOSI,
-		MISO:      machine.NINA_MISO,
+		SDO:       machine.NINA_SDO,
+		SDI:       machine.NINA_SDI,
 		SCK:       machine.NINA_SCK,
 	})
 
