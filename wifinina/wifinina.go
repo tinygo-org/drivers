@@ -134,23 +134,23 @@ const (
 	CmdSetDigitalWrite = 0x51
 	CmdSetAnalogWrite  = 0x52
 
-	ErrTimeoutSlaveReady  Error = 0x01
-	ErrTimeoutSlaveSelect Error = 0x02
-	ErrCheckStartCmd      Error = 0x03
-	ErrWaitRsp            Error = 0x04
-	ErrUnexpectedLength   Error = 0xE0
-	ErrNoParamsReturned   Error = 0xE1
-	ErrIncorrectSentinel  Error = 0xE2
-	ErrCmdErrorReceived   Error = 0xEF
-	ErrNotImplemented     Error = 0xF0
-	ErrUnknownHost        Error = 0xF1
-	ErrSocketAlreadySet   Error = 0xF2
-	ErrConnectionTimeout  Error = 0xF3
-	ErrNoData             Error = 0xF4
-	ErrDataNotWritten     Error = 0xF5
-	ErrCheckDataError     Error = 0xF6
-	ErrBufferTooSmall     Error = 0xF7
-	ErrNoSocketAvail      Error = 0xFF
+	ErrTimeoutChipReady  Error = 0x01
+	ErrTimeoutChipSelect Error = 0x02
+	ErrCheckStartCmd     Error = 0x03
+	ErrWaitRsp           Error = 0x04
+	ErrUnexpectedLength  Error = 0xE0
+	ErrNoParamsReturned  Error = 0xE1
+	ErrIncorrectSentinel Error = 0xE2
+	ErrCmdErrorReceived  Error = 0xEF
+	ErrNotImplemented    Error = 0xF0
+	ErrUnknownHost       Error = 0xF1
+	ErrSocketAlreadySet  Error = 0xF2
+	ErrConnectionTimeout Error = 0xF3
+	ErrNoData            Error = 0xF4
+	ErrDataNotWritten    Error = 0xF5
+	ErrCheckDataError    Error = 0xF6
+	ErrBufferTooSmall    Error = 0xF7
+	ErrNoSocketAvail     Error = 0xFF
 
 	NoSocketAvail uint8 = 0xFF
 )
@@ -296,8 +296,8 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 		println("[StartClient] called StartClient()\r")
 		fmt.Printf("[StartClient] addr: % 02X, port: %d, sock: %d\r\n", addr, port, sock)
 	}
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return err
 	}
 	l := d.sendCmd(CmdStartClientTCP, 4)
@@ -306,7 +306,7 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 	l += d.sendParam8(sock, false)
 	l += d.sendParam8(mode, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	_, err := d.waitRspCmd1(CmdStartClientTCP)
 	return err
 }
@@ -320,15 +320,15 @@ func (d *Device) GetClientState(sock uint8) (uint8, error) {
 }
 
 func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return 0, err
 	}
 	l := d.sendCmd(CmdSendDataTCP, 2)
 	l += d.sendParamBuf([]byte{sock}, false)
 	l += d.sendParamBuf(buf, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	return d.getUint16(d.waitRspCmd1(CmdSendDataTCP))
 }
 
@@ -348,8 +348,8 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 }
 
 func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return 0, err
 	}
 	p := uint16(len(buf))
@@ -357,13 +357,13 @@ func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 	l += d.sendParamBuf([]byte{sock}, false)
 	l += d.sendParamBuf([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return 0, err
 	}
 	n, err := d.waitRspBuf16(CmdGetDatabufTCP, buf)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	return int(n), err
 }
 
@@ -376,8 +376,8 @@ func (d *Device) StopClient(sock uint8) error {
 }
 
 func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return err
 	}
 	l := d.sendCmd(CmdStartServerTCP, 3)
@@ -385,36 +385,36 @@ func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
 	l += d.sendParam8(sock, false)
 	l += d.sendParam8(mode, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	_, err := d.waitRspCmd1(CmdStartClientTCP)
 	return err
 }
 
 // InsertDataBuf adds data to the buffer used for sending UDP data
 func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return false, err
 	}
 	l := d.sendCmd(CmdInsertDataBuf, 2)
 	l += d.sendParamBuf([]byte{sock}, false)
 	l += d.sendParamBuf(buf, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	n, err := d.getUint8(d.waitRspCmd1(CmdInsertDataBuf))
 	return n == 1, err
 }
 
 // SendUDPData sends the data previously added to the UDP buffer
 func (d *Device) SendUDPData(sock uint8) (bool, error) {
-	if err := d.waitForSlaveSelect(); err != nil {
-		d.spiSlaveDeselect()
+	if err := d.waitForChipSelect(); err != nil {
+		d.spiChipDeselect()
 		return false, err
 	}
 	l := d.sendCmd(CmdSendDataUDP, 1)
 	l += d.sendParam8(sock, true)
 	d.addPadding(l)
-	d.spiSlaveDeselect()
+	d.spiChipDeselect()
 	n, err := d.getUint8(d.waitRspCmd1(CmdSendDataUDP))
 	return n == 1, err
 }
@@ -710,8 +710,8 @@ func (d *Device) reqRspStr0(cmd uint8, sl []string) (l uint8, err error) {
 	if err := d.sendCmd0(cmd); err != nil {
 		return 0, err
 	}
-	defer d.spiSlaveDeselect()
-	if err = d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err = d.waitForChipSelect(); err != nil {
 		return
 	}
 	return d.waitRspStr(cmd, sl)
@@ -722,16 +722,16 @@ func (d *Device) reqRspStr1(cmd uint8, data uint8, sl []string) (uint8, error) {
 	if err := d.sendCmdPadded1(cmd, data); err != nil {
 		return 0, err
 	}
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
 		return 0, err
 	}
 	return d.waitRspStr(cmd, sl)
 }
 
 func (d *Device) sendCmd0(cmd uint8) error {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
 		return err
 	}
 	d.sendCmd(cmd, 0)
@@ -739,8 +739,8 @@ func (d *Device) sendCmd0(cmd uint8) error {
 }
 
 func (d *Device) sendCmdPadded1(cmd uint8, data uint8) error {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
 		return err
 	}
 	d.sendCmd(cmd, 1)
@@ -751,8 +751,8 @@ func (d *Device) sendCmdPadded1(cmd uint8, data uint8) error {
 }
 
 func (d *Device) sendCmdStr(cmd uint8, p1 string) (err error) {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
 		return err
 	}
 	l := d.sendCmd(cmd, 1)
@@ -762,8 +762,8 @@ func (d *Device) sendCmdStr(cmd uint8, p1 string) (err error) {
 }
 
 func (d *Device) sendCmdStr2(cmd uint8, p1 string, p2 string) (err error) {
-	defer d.spiSlaveDeselect()
-	if err := d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err := d.waitForChipSelect(); err != nil {
 		return err
 	}
 	l := d.sendCmd(cmd, 2)
@@ -774,8 +774,8 @@ func (d *Device) sendCmdStr2(cmd uint8, p1 string, p2 string) (err error) {
 }
 
 func (d *Device) waitRspCmd1(cmd uint8) (l uint8, err error) {
-	defer d.spiSlaveDeselect()
-	if err = d.waitForSlaveSelect(); err != nil {
+	defer d.spiChipDeselect()
+	if err = d.waitForChipSelect(); err != nil {
 		return
 	}
 	return d.waitRspCmd(cmd, 1)
@@ -900,29 +900,29 @@ func (d *Device) checkStartCmd() (bool, error) {
 	return true, nil
 }
 
-func (d *Device) waitForSlaveSelect() (err error) {
-	err = d.waitForSlaveReady()
+func (d *Device) waitForChipSelect() (err error) {
+	err = d.waitForChipReady()
 	if err == nil {
-		err = d.spiSlaveSelect()
+		err = d.spiChipSelect()
 	}
 	return
 }
 
-func (d *Device) waitForSlaveReady() error {
+func (d *Device) waitForChipReady() error {
 	if _debug {
-		println("waitForSlaveReady()\r")
+		println("waitForChipReady()\r")
 	}
 	for t := newTimer(10 * time.Second); !(d.ACK.Get() == false); {
 		if t.Expired() {
-			return ErrTimeoutSlaveReady
+			return ErrTimeoutChipReady
 		}
 	}
 	return nil
 }
 
-func (d *Device) spiSlaveSelect() error {
+func (d *Device) spiChipSelect() error {
 	if _debug {
-		println("spiSlaveSelect()\r")
+		println("spiChipSelect()\r")
 	}
 	d.CS.Low()
 	for t := newTimer(5 * time.Millisecond); !t.Expired(); {
@@ -930,12 +930,12 @@ func (d *Device) spiSlaveSelect() error {
 			return nil
 		}
 	}
-	return ErrTimeoutSlaveSelect
+	return ErrTimeoutChipSelect
 }
 
-func (d *Device) spiSlaveDeselect() {
+func (d *Device) spiChipDeselect() {
 	if _debug {
-		println("spiSlaveDeselect\r")
+		println("spiChipDeselect\r")
 	}
 	d.CS.High()
 }

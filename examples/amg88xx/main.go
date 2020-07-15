@@ -13,8 +13,8 @@ func main() {
 
 	machine.SPI1.Configure(machine.SPIConfig{
 		SCK:       machine.SPI1_SCK_PIN,
-		MOSI:      machine.SPI1_MOSI_PIN,
-		MISO:      machine.SPI1_MISO_PIN,
+		SDO:       machine.SPI1_SDO_PIN,
+		SDI:       machine.SPI1_SDI_PIN,
 		Frequency: 8000000,
 	})
 	machine.I2C0.Configure(machine.I2CConfig{SCL: machine.SCL_PIN, SDA: machine.SDA_PIN})

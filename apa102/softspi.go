@@ -9,16 +9,16 @@ import "machine"
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
 	SCK   machine.Pin
-	MOSI  machine.Pin
+	SDO   machine.Pin
 	Delay uint32
 }
 
-// Configure sets up the SCK and MOSI pins as outputs and sets them low
+// Configure sets up the SCK and SDO pins as outputs and sets them low
 func (s *bbSPI) Configure() {
 	s.SCK.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	s.MOSI.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	s.SDO.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	s.SCK.Low()
-	s.MOSI.Low()
+	s.SDO.Low()
 	if s.Delay == 0 {
 		s.Delay = 1
 	}
@@ -50,11 +50,11 @@ func (s *bbSPI) Transfer(b byte) (byte, error) {
 		s.SCK.High()
 		s.delay()
 
-		// write the value to MOSI (MSB first)
+		// write the value to SDO (MSB first)
 		if b&(1<<(7-i)) == 0 {
-			s.MOSI.Low()
+			s.SDO.Low()
 		} else {
-			s.MOSI.High()
+			s.SDO.High()
 		}
 		s.delay()
 
@@ -62,7 +62,7 @@ func (s *bbSPI) Transfer(b byte) (byte, error) {
 		s.SCK.Low()
 		s.delay()
 
-		// for actual SPI would try to read the MISO value here
+		// for actual SPI would try to read the SDI value here
 		s.delay()
 	}
 

@@ -91,11 +91,11 @@ const (
 	EXT_SENS_DATA_22 = 0x5F
 	EXT_SENS_DATA_23 = 0x60
 
-	// I2C slave data out
-	I2C_SLV0_DO      = 0x63
-	I2C_SLV1_DO      = 0x64
-	I2C_SLV2_DO      = 0x65
-	I2C_SLV3_DO      = 0x66
+	// I2C peripheral data out
+	I2C_PER0_DO      = 0x63
+	I2C_PER1_DO      = 0x64
+	I2C_PER2_DO      = 0x65
+	I2C_PER3_DO      = 0x66
 	I2C_MST_DELAY_CT = 0x67
 
 	SIGNAL_PATH_RES = 0x68 // Signal path reset

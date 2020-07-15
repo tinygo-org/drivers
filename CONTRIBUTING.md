@@ -20,7 +20,7 @@ Please first open a Github issue. We want to help, and also make sure that there
 
 ## How to use our Github repository
 
-The `master` branch of this repo will always have the latest released version of the TinyGo drivers. All of the active development work for the next release will take place in the `dev` branch. The TinyGo drivers will use semantic versioning and will create a tag/release for each release.
+The `release` branch of this repo will always have the latest released version of the TinyGo drivers. All of the active development work for the next release will take place in the `dev` branch. The TinyGo drivers will use semantic versioning and will create a tag/release for each release.
 
 Here is how to contribute back some code or documentation:
 
