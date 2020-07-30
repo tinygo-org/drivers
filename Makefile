@@ -25,6 +25,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/blinkm/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmi160/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp180/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp280/main.go
