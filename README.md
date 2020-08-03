@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 50 devices are supported.
+The following 51 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -75,7 +75,7 @@ The following 50 devices are supported.
 | [ESP8266/ESP32 AT Command set for WiFi/TCP/UDP](https://github.com/espressif/esp32-at) | UART |
 | [GPS module](https://www.u-blox.com/en/product/neo-6-series) | I2C/UART |
 | [HC-SR04 Ultrasonic distance sensor](https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf) | GPIO |
-| [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO |
+| [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO/I2C |
 | [HUB75 RGB led matrix](https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf) | SPI |
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
@@ -96,6 +96,7 @@ The following 50 devices are supported.
 | [SPI NOR Flash Memory](https://en.wikipedia.org/wiki/Flash_memory#NOR_flash) | SPI/QSPI |
 | [SSD1306 OLED display](https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf) | I2C / SPI |
 | [SSD1331 TFT color display](https://www.crystalfontz.com/controllers/SolomonSystech/SSD1331/381/) | SPI |
+| [SSD1351 OLED display](https://download.mikroe.com/documents/datasheets/ssd1351-revision-1.3.pdf) | SPI |
 | [ST7735 TFT color display](https://www.crystalfontz.com/controllers/Sitronix/ST7735R/319/) | SPI |
 | [ST7789 TFT color display](https://cdn-shop.adafruit.com/product-files/3787/3787_tft_QT154H2201__________20190228182902.pdf) | SPI |
 | [Stepper motor "Easystepper" controller](https://en.wikipedia.org/wiki/Stepper_motor) | GPIO |
@@ -106,7 +107,6 @@ The following 50 devices are supported.
 | [Waveshare 2.13" (B & C) e-paper display](https://www.waveshare.com/w/upload/d/d3/2.13inch-e-paper-b-Specification.pdf) | SPI |
 | [Waveshare 2.13" e-paper display](https://www.waveshare.com/w/upload/e/e6/2.13inch_e-Paper_Datasheet.pdf) | SPI |
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf) | GPIO |
-| [SSD1351 OLED display](https://download.mikroe.com/documents/datasheets/ssd1351-revision-1.3.pdf) | SPI |
 
 ## Contributing
 
