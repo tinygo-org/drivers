@@ -19,6 +19,9 @@ type Device struct {
 	rotation Rotation
 	driver   driver
 
+	x0, x1 int16 // cached address window; prevents useless/expensive
+	y0, y1 int16 // syscalls to PASET, CASET, and RAMWR
+
 	dc  machine.Pin
 	cs  machine.Pin
 	rst machine.Pin
@@ -36,6 +39,10 @@ func (d *Device) Configure(config Config) {
 	d.width = config.Width
 	d.height = config.Height
 	d.rotation = config.Rotation
+
+	// try to pick an initial cache miss for one of the points
+	d.x0, d.x1 = -(d.width + 1), d.x0
+	d.y0, d.y1 = -(d.height + 1), d.y0
 
 	output := machine.PinConfig{machine.PinOutput}
 
@@ -253,13 +260,26 @@ func (d *Device) StopScroll() {
 func (d *Device) setWindow(x, y, w, h int16) {
 	//x += d.columnOffset
 	//y += d.rowOffset
-	d.sendCommand(CASET, []uint8{
-		uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1),
-	})
-	d.sendCommand(PASET, []uint8{
-		uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1),
-	})
-	d.sendCommand(RAMWR, nil)
+	wr := false
+	x1 := x + w - 1
+	if x != d.x0 || x1 != d.x1 {
+		wr = true
+		d.sendCommand(CASET, []uint8{
+			uint8(x >> 8), uint8(x), uint8(x1 >> 8), uint8(x1),
+		})
+		d.x0, d.x1 = x, x1
+	}
+	y1 := y + h - 1
+	if y != d.y0 || y1 != d.y1 {
+		wr = true
+		d.sendCommand(PASET, []uint8{
+			uint8(y >> 8), uint8(y), uint8(y1 >> 8), uint8(y1),
+		})
+		d.y0, d.y1 = y, y1
+	}
+	if wr {
+		d.sendCommand(RAMWR, nil)
+	}
 }
 
 //go:inline
