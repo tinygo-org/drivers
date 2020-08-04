@@ -1,3 +1,34 @@
+0.13.0
+---
+- **new devices**
+    - bmi160: add initial support
+    - bmp280: added support for the Bosch BMP280 temperature and pressure sensor. (#158)
+    - lsm303agr: add lsm303agr (#162)
+    - ssd1351: add SSD1351 OLED display driver (#146)
+- **enhancements**
+    - hd44780: add Hd44780i2c driver (#173)
+    - ili9341
+        - add ILI9341 TFT driver (SPI) for ATSAMD2x (#174)
+        - cache address window to prevent sending unnecessary commands (#171)
+        - ILI9341 TFT driver (SPI) (#153)
+        - improve performance of ILI9341 on ATSAMD5X
+    - ST77xx: fix DrawFastHLine for ST77xx, SSD1331 and SSD1351 DrawFastHLine uses FillRectangle(x,y,width,height,c), so height must be 1 to draw a horizontal line
+    - tmp102: add Connected func to check for device
+    - wifinina: added UDP support
+    - ws2812: update ws2812_avr_16m.go
+- **bugfixes**
+    - apa102: avoid creating garbage
+    - bmp180: fix temperature type conversion
+- **core**
+    - all
+        - added custom import path (#161)
+        - changeover to eliminate all direct use of master/slave terminology
+    - build: try vendor in working directory to match expected module path
+    - ci: support Go modules
+    - modules: update go version and dependency
+- **docs**
+    - docs: reorder to correct alpha and adjust count of supported drivers
+
 0.12.0
 ---
 - **new devices**
