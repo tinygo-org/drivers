@@ -253,22 +253,21 @@ func (d *Device) SetRotation(rotation Rotation) {
 	madctl := uint8(0)
 	switch rotation % 4 {
 	case 0:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_RGB
+		madctl = MADCTL_MX | MADCTL_MY
 		d.rowOffset = d.rowOffsetCfg
 		d.columnOffset = d.columnOffsetCfg
 		break
 	case 1:
-		madctl = MADCTL_MY | MADCTL_MV | MADCTL_RGB
+		madctl = MADCTL_MY | MADCTL_MV
 		d.rowOffset = d.columnOffsetCfg
 		d.columnOffset = d.rowOffsetCfg
 		break
 	case 2:
-                madctl = MADCTL_RGB
 		d.rowOffset = 0
 		d.columnOffset = 0
 		break
 	case 3:
-		madctl = MADCTL_MX | MADCTL_MV | MADCTL_RGB
+		madctl = MADCTL_MX | MADCTL_MV
 		d.rowOffset = 0
 		d.columnOffset = 0
 		break
