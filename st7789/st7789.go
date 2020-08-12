@@ -19,6 +19,7 @@ type Device struct {
 	bus             machine.SPI
 	dcPin           machine.Pin
 	resetPin        machine.Pin
+	csPin           machine.Pin
 	blPin           machine.Pin
 	width           int16
 	height          int16
@@ -41,14 +42,16 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus machine.SPI, resetPin, dcPin, blPin machine.Pin) Device {
+func New(bus machine.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin,
 		resetPin: resetPin,
+		csPin:    csPin,
 		blPin:    blPin,
 	}
 }
@@ -65,6 +68,7 @@ func (d *Device) Configure(cfg Config) {
 	} else {
 		d.height = 240
 	}
+
 	d.rotation = cfg.Rotation
 	d.rowOffsetCfg = cfg.RowOffset
 	d.columnOffsetCfg = cfg.ColumnOffset
@@ -77,28 +81,50 @@ func (d *Device) Configure(cfg Config) {
 
 	// reset the device
 	d.resetPin.High()
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	d.resetPin.Low()
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	d.resetPin.High()
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+
 
 	// Common initialization
-	d.Command(SWRESET)
+	d.Command(SWRESET)                      // Soft reset
 	time.Sleep(150 * time.Millisecond)
-	d.Command(SLPOUT)
+
+	d.Command(SLPOUT)                       // Exit sleep mode
 	time.Sleep(500 * time.Millisecond)
-	d.Command(COLMOD)
-	d.Data(0x55)
+
+	d.Command(COLMOD)                       // Set color mode
+	d.Data(0x55)                            //   16-bit color
+	time.Sleep(10 * time.Millisecond)
+
+	d.Command(MADCTL)                       // Memory orientation
+	d.Data(0x08)                            //   row/col bottom to top refresh
+
+	d.Command(CASET)                        // Column addr range set
+	d.Data(0x00)
+	d.Data(0x00)                            //   xstart (0) 2 bytes
+	d.Data(240 >> 8)
+	d.Data(240 & 0xFF)                      //   xend (240) 2 bytes
+
+	d.Command(RASET)                        // Row addr range set
+	d.Data(0x00)
+	d.Data(0x00)                            //   ystart (0) 2 bytes
+	d.Data(320 >> 8)
+	d.Data(320 & 0xFF)                      //   yend (320) 2 bytes
+
+	d.Command(INVON)                        // Inversion ON
+	time.Sleep(10 * time.Millisecond)
+
+	d.Command(NORON)                        // Normal mode ON
+	time.Sleep(10 * time.Millisecond)
+
+	d.Command(DISPON)                       // Screen ON
 	time.Sleep(10 * time.Millisecond)
 
 	d.SetRotation(d.rotation)
-	d.InvertColors(true)
-
-	d.Command(NORON)
-	time.Sleep(10 * time.Millisecond)
-	d.Command(DISPON)
-	time.Sleep(500 * time.Millisecond)
 
 	d.blPin.High()
 }
@@ -123,11 +149,13 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	x += d.columnOffset
 	y += d.rowOffset
 	d.Tx([]uint8{CASET}, true)
-	d.Tx([]uint8{uint8(x << 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)}, false)
+	d.Tx([]uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)}, false)
 	d.Tx([]uint8{RASET}, true)
 	d.Tx([]uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)}, false)
 	d.Command(RAMWR)
 }
+
+
 
 // FillRectangle fills a rectangle at a given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
@@ -157,6 +185,7 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	}
 	return nil
 }
+
 
 // FillRectangle fills a rectangle at a given coordinates with a buffer
 func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
@@ -248,7 +277,6 @@ func (d *Device) SetRotation(rotation Rotation) {
 	}
 	d.Command(MADCTL)
 	d.Data(madctl)
-
 }
 
 // Command sends a command to the display

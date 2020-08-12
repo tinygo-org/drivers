@@ -13,7 +13,7 @@ func main() {
 		Frequency: 8000000,
 		Mode:      3,
 	})
-	display := st7789.New(machine.SPI0, machine.P6, machine.P7, machine.P8)
+	display := st7789.New(machine.SPI0, machine.P6, machine.P7, machine.P8, machine.P9)
 	display.Configure(st7789.Config{Rotation: st7789.NO_ROTATION})
 
 	width, height := display.Size()

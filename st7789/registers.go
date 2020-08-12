@@ -43,6 +43,7 @@ const (
 	PWCTR4     = 0xC3
 	PWCTR5     = 0xC4
 	VMCTR1     = 0xC5
+	FRCTRL2    = 0xC6
 	PWCTR6     = 0xFC
 	GMCTRP1    = 0xE0
 	GMCTRN1    = 0xE1
