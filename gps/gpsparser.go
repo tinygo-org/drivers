@@ -15,10 +15,11 @@ var (
 	errUnknownNMEASentence = errors.New("unknown NMEA sentence type")
 )
 
+// Parser for GPS NMEA sentences.
 type Parser struct {
 }
 
-// fix is a GPS location fix
+// Fix is a GPS location fix
 type Fix struct {
 	Valid      bool
 	Time       time.Time
@@ -28,6 +29,7 @@ type Fix struct {
 	Satellites int16
 }
 
+// NewParser returns a GPS NMEA Parser.
 func NewParser() Parser {
 	return Parser{}
 }
@@ -46,7 +48,7 @@ func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
 		fix.Satellites = findSatellites(ggaFields)
 		fix.Longitude = findLongitude(ggaFields)
 		fix.Latitude = findLatitude(ggaFields)
-		//fix.Time = findTime(ggaFields) // TODO: fix time
+		fix.Time = findTime(ggaFields)
 		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
 	case "RMC":
 		err = errRMCNotSupportedYet
@@ -66,13 +68,12 @@ func findTime(ggaFields []string) time.Time {
 	if len(ggaFields) < 1 || len(ggaFields[1]) < 6 {
 		return time.Time{}
 	}
-	ts := strings.Builder{}
-	ts.WriteString(ggaFields[1][0:2])
-	ts.WriteString(":")
-	ts.WriteString(ggaFields[1][2:4])
-	ts.WriteString(":")
-	ts.WriteString(ggaFields[1][4:6])
-	var t, _ = time.Parse("15:04:05", ts.String())
+
+	h, _ := strconv.ParseInt(ggaFields[1][0:2], 10, 8)
+	m, _ := strconv.ParseInt(ggaFields[1][2:4], 10, 8)
+	s, _ := strconv.ParseInt(ggaFields[1][4:6], 10, 8)
+	ms, _ := strconv.ParseInt(ggaFields[1][7:10], 10, 16)
+	t := time.Date(0, 0, 0, int(h), int(m), int(s), int(ms), time.UTC)
 
 	return t
 }
