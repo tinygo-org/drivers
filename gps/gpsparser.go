@@ -9,10 +9,9 @@ import (
 
 var (
 	errEmptyNMEASentence   = errors.New("cannot parse empty NMEA sentence")
-	errRMCNotSupportedYet  = errors.New("RMC NMEA sentence not yet supported")
-	errGSANotSupportedYet  = errors.New("GSA NMEA sentence not yet supported")
-	errGSVNotSupportedYet  = errors.New("GSV NMEA sentence not yet supported")
-	errUnknownNMEASentence = errors.New("unknown NMEA sentence type")
+	errUnknownNMEASentence = errors.New("unsupported NMEA sentence type")
+	errInvalidGGASentence  = errors.New("invalid GGA NMEA sentence")
+	errInvalidRMCSentence  = errors.New("invalid RMC NMEA sentence")
 )
 
 // Parser for GPS NMEA sentences.
@@ -21,11 +20,22 @@ type Parser struct {
 
 // Fix is a GPS location fix
 type Fix struct {
-	Valid      bool
-	Time       time.Time
-	Latitude   float32
-	Longitude  float32
-	Altitude   int32
+	// Valid if the fix was valid.
+	Valid bool
+
+	// Time that the fix was taken, in UTC time.
+	Time time.Time
+
+	// Latitude is the decimal latitude. Negative numbers indicate S.
+	Latitude float32
+
+	// Longitude is the decimal longitude. Negative numbers indicate E.
+	Longitude float32
+
+	// Altitude is only returned for GGA sentences.
+	Altitude int32
+
+	// Satellites is the number of visible satellites, but is only returned for GGA sentences.
 	Satellites int16
 }
 
@@ -43,61 +53,71 @@ func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
 	typ := sentence[3:6]
 	switch typ {
 	case "GGA":
-		var ggaFields = strings.Split(sentence, ",")
-		fix.Altitude = findAltitude(ggaFields)
-		fix.Satellites = findSatellites(ggaFields)
-		fix.Longitude = findLongitude(ggaFields)
-		fix.Latitude = findLatitude(ggaFields)
-		fix.Time = findTime(ggaFields)
+		fields := strings.Split(sentence, ",")
+		if len(fields) != 15 {
+			err = errInvalidGGASentence
+			return
+		}
+
+		fix.Altitude = findAltitude(fields[9])
+		fix.Satellites = findSatellites(fields[7])
+		fix.Longitude = findLongitude(fields[4], fields[5])
+		fix.Latitude = findLatitude(fields[2], fields[3])
+		fix.Time = findTime(fields[1])
 		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
 	case "RMC":
-		err = errRMCNotSupportedYet
-	case "GSA":
-		err = errGSANotSupportedYet
-	case "GSV":
-		err = errGSVNotSupportedYet
+		fields := strings.Split(sentence, ",")
+		if len(fields) != 13 {
+			err = errInvalidRMCSentence
+			return
+		}
+
+		fix.Longitude = findLongitude(fields[5], fields[6])
+		fix.Latitude = findLatitude(fields[3], fields[4])
+		fix.Time = findTime(fields[1])
+		fix.Valid = (len(fields[2]) > 0 && fields[2][0:1] == "A")
 	default:
 		err = errUnknownNMEASentence
 	}
 	return
 }
 
-// findTime returns the time from a GGA sentence:
+// findTime returns the time from an NMEA sentence:
 // $--GGA,hhmmss.ss,,,,,,,,,,,,,*xx
-func findTime(ggaFields []string) time.Time {
-	if len(ggaFields) < 1 || len(ggaFields[1]) < 6 {
+func findTime(val string) time.Time {
+	if len(val) < 6 {
 		return time.Time{}
 	}
 
-	h, _ := strconv.ParseInt(ggaFields[1][0:2], 10, 8)
-	m, _ := strconv.ParseInt(ggaFields[1][2:4], 10, 8)
-	s, _ := strconv.ParseInt(ggaFields[1][4:6], 10, 8)
-	ms, _ := strconv.ParseInt(ggaFields[1][7:10], 10, 16)
+	h, _ := strconv.ParseInt(val[0:2], 10, 8)
+	m, _ := strconv.ParseInt(val[2:4], 10, 8)
+	s, _ := strconv.ParseInt(val[4:6], 10, 8)
+	ms, _ := strconv.ParseInt(val[7:10], 10, 16)
 	t := time.Date(0, 0, 0, int(h), int(m), int(s), int(ms), time.UTC)
 
 	return t
 }
 
-// findAltitude returns the altitude from a GGA sentence:
+// findAltitude returns the altitude from an NMEA sentence:
 // $--GGA,,,,,,,,,25.8,,,,,*63
-func findAltitude(ggaFields []string) int32 {
-	if len(ggaFields) > 8 && len(ggaFields[9]) > 0 {
-		var v, _ = strconv.ParseFloat(ggaFields[9], 32)
+func findAltitude(val string) int32 {
+	if len(val) > 0 {
+		var v, _ = strconv.ParseFloat(val, 32)
 		return int32(v)
 	}
 	return -99999
 }
 
-// findLatitude returns the Latitude from a GGA sentence:
+// findLatitude returns the Latitude from an NMEA sentence:
 // $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
-func findLatitude(ggaFields []string) float32 {
-	if len(ggaFields) > 2 && len(ggaFields[2]) > 8 {
-		var dd = ggaFields[2][0:2]
-		var mm = ggaFields[2][2:]
+func findLatitude(val, hemi string) float32 {
+	if len(val) > 8 {
+		var dd = val[0:2]
+		var mm = val[2:]
 		var d, _ = strconv.ParseFloat(dd, 32)
 		var m, _ = strconv.ParseFloat(mm, 32)
 		var v = float32(d + (m / 60))
-		if ggaFields[3] == "S" {
+		if hemi == "S" {
 			v *= -1
 		}
 		return v
@@ -105,16 +125,16 @@ func findLatitude(ggaFields []string) float32 {
 	return 0.0
 }
 
-// findLatitude returns the longitude from a GGA sentence:
+// findLatitude returns the longitude from an NMEA sentence:
 // $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
-func findLongitude(ggaFields []string) float32 {
-	if len(ggaFields) > 4 && len(ggaFields[4]) > 8 {
-		var ddd = ggaFields[4][0:3]
-		var mm = ggaFields[4][3:]
+func findLongitude(val, hemi string) float32 {
+	if len(val) > 8 {
+		var ddd = val[0:3]
+		var mm = val[3:]
 		var d, _ = strconv.ParseFloat(ddd, 32)
 		var m, _ = strconv.ParseFloat(mm, 32)
 		var v = float32(d + (m / 60))
-		if ggaFields[5] == "W" {
+		if hemi == "W" {
 			v *= -1
 		}
 		return v
@@ -122,11 +142,11 @@ func findLongitude(ggaFields []string) float32 {
 	return 0.0
 }
 
-// findSatellites returns the satellites from a GGA sentence:
+// findSatellites returns the satellites from an NMEA sentence:
 // $--GGA,,,,,,,nn,,,,,,,*hh
-func findSatellites(ggaFields []string) (n int16) {
-	if len(ggaFields) > 6 && len(ggaFields[7]) > 0 {
-		var nn = ggaFields[7]
+func findSatellites(val string) (n int16) {
+	if len(val) > 0 {
+		var nn = val
 		var v, _ = strconv.ParseInt(nn, 10, 32)
 		n = int16(v)
 		return n

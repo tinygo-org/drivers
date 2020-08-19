@@ -31,7 +31,7 @@ func main() {
 			print(fix.Latitude)
 			print(", long=")
 			print(fix.Longitude)
-			print(", altitude:=", fix.Altitude)
+			print(", altitude=", fix.Altitude)
 			print(", satellites=", fix.Satellites)
 			println()
 		} else {
