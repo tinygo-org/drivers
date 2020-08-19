@@ -1,13 +1,21 @@
 package gps
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 )
 
-type GPSParser struct {
-	gpsDevice GPSDevice
+var (
+	errEmptyNMEASentence   = errors.New("cannot parse empty NMEA sentence")
+	errRMCNotSupportedYet  = errors.New("RMC NMEA sentence not yet supported")
+	errGSANotSupportedYet  = errors.New("GSA NMEA sentence not yet supported")
+	errGSVNotSupportedYet  = errors.New("GSV NMEA sentence not yet supported")
+	errUnknownNMEASentence = errors.New("unknown NMEA sentence type")
+)
+
+type Parser struct {
 }
 
 // fix is a GPS location fix
@@ -20,34 +28,36 @@ type Fix struct {
 	Satellites int16
 }
 
-func Parser(gpsDevice GPSDevice) GPSParser {
-	return GPSParser{
-		gpsDevice: gpsDevice,
-	}
+func NewParser() Parser {
+	return Parser{}
 }
 
-// NextFix returns the next GPS location Fix from the GPS device
-func (parser *GPSParser) NextFix() (fix Fix) {
-	var ggaSentence = nextGGA(parser.gpsDevice)
-	var ggaFields = strings.Split(ggaSentence, ",")
-	fix.Altitude = findAltitude(ggaFields)
-	fix.Satellites = findSatellites(ggaFields)
-	fix.Longitude = findLongitude(ggaFields)
-	fix.Latitude = findLatitude(ggaFields)
-	fix.Time = findTime(ggaFields)
-	fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
-	return fix
-}
-
-// nextGGA returns the next GGA type sentence from the GPS device
-// $--GGA,,,,,,,,,,,,,,*hh
-func nextGGA(gpsDevice GPSDevice) (sentence string) {
-	for {
-		sentence = gpsDevice.NextSentence()
-		if sentence[3:6] == "GGA" {
-			return sentence
-		}
+// Parse parses a NMEA sentence looking for fix info.
+func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
+	if sentence == "" {
+		err = errEmptyNMEASentence
+		return
 	}
+	typ := sentence[3:6]
+	switch typ {
+	case "GGA":
+		var ggaFields = strings.Split(sentence, ",")
+		fix.Altitude = findAltitude(ggaFields)
+		fix.Satellites = findSatellites(ggaFields)
+		fix.Longitude = findLongitude(ggaFields)
+		fix.Latitude = findLatitude(ggaFields)
+		//fix.Time = findTime(ggaFields) // TODO: fix time
+		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
+	case "RMC":
+		err = errRMCNotSupportedYet
+	case "GSA":
+		err = errGSANotSupportedYet
+	case "GSV":
+		err = errGSVNotSupportedYet
+	default:
+		err = errUnknownNMEASentence
+	}
+	return
 }
 
 // findTime returns the time from a GGA sentence:

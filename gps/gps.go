@@ -3,9 +3,15 @@ package gps // import "tinygo.org/x/drivers/gps"
 
 import (
 	"encoding/hex"
+	"errors"
 	"machine"
 	"strings"
 	"time"
+)
+
+var (
+	errInvalidNMEASentenceLength = errors.New("invalid NMEA sentence length")
+	errInvalidNMEAChecksum       = errors.New("invalid NMEA sentence checksum")
 )
 
 // Device wraps a connection to a GPS device.
@@ -39,13 +45,13 @@ func NewI2C(bus *machine.I2C) GPSDevice {
 	}
 }
 
-// ReadNextSentence returns the next valid NMEA sentence from the GPS device.
-func (gps *GPSDevice) NextSentence() (sentence string) {
+// NextSentence returns the next valid NMEA sentence from the GPS device.
+func (gps *GPSDevice) NextSentence() (sentence string, err error) {
 	sentence = gps.readNextSentence()
-	for !validSentence(sentence) {
-		sentence = gps.readNextSentence()
+	if err = validSentence(sentence); err != nil {
+		return "", err
 	}
-	return sentence
+	return sentence, nil
 }
 
 // readNextSentence returns the next sentence from the GPS device.
@@ -119,14 +125,18 @@ func (gps *GPSDevice) WriteBytes(bytes []byte) {
 }
 
 // validSentence checks if a sentence has been received uncorrupted
-func validSentence(sentence string) bool {
+func validSentence(sentence string) error {
 	if len(sentence) < 4 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
-		return false
+		return errInvalidNMEASentenceLength
 	}
 	var cs byte = 0
 	for i := 1; i < len(sentence)-3; i++ {
 		cs ^= sentence[i]
 	}
 	checksum := hex.EncodeToString([]byte{cs})
-	return (checksum[0] == sentence[len(sentence)-2]) && (checksum[1] == sentence[len(sentence)-1])
+	if (checksum[0] != sentence[len(sentence)-2]) || (checksum[1] != sentence[len(sentence)-1]) {
+		return errInvalidNMEAChecksum
+	}
+
+	return nil
 }
