@@ -15,7 +15,7 @@ var (
 )
 
 // Device wraps a connection to a GPS device.
-type GPSDevice struct {
+type Device struct {
 	buffer   []byte
 	bufIdx   int
 	sentence strings.Builder
@@ -25,8 +25,8 @@ type GPSDevice struct {
 }
 
 // NewUART creates a new UART GPS connection. The UART must already be configured.
-func NewUART(uart *machine.UART) GPSDevice {
-	return GPSDevice{
+func NewUART(uart *machine.UART) Device {
+	return Device{
 		uart:     uart,
 		buffer:   make([]byte, bufferSize),
 		bufIdx:   bufferSize,
@@ -35,8 +35,8 @@ func NewUART(uart *machine.UART) GPSDevice {
 }
 
 // NewI2C creates a new I2C GPS connection.
-func NewI2C(bus *machine.I2C) GPSDevice {
-	return GPSDevice{
+func NewI2C(bus *machine.I2C) Device {
+	return Device{
 		bus:      bus,
 		address:  I2C_ADDRESS,
 		buffer:   make([]byte, bufferSize),
@@ -46,7 +46,7 @@ func NewI2C(bus *machine.I2C) GPSDevice {
 }
 
 // NextSentence returns the next valid NMEA sentence from the GPS device.
-func (gps *GPSDevice) NextSentence() (sentence string, err error) {
+func (gps *Device) NextSentence() (sentence string, err error) {
 	sentence = gps.readNextSentence()
 	if err = validSentence(sentence); err != nil {
 		return "", err
@@ -55,7 +55,7 @@ func (gps *GPSDevice) NextSentence() (sentence string, err error) {
 }
 
 // readNextSentence returns the next sentence from the GPS device.
-func (gps *GPSDevice) readNextSentence() (sentence string) {
+func (gps *Device) readNextSentence() (sentence string) {
 	gps.sentence.Reset()
 	var b byte = ' '
 
@@ -75,7 +75,7 @@ func (gps *GPSDevice) readNextSentence() (sentence string) {
 	return sentence
 }
 
-func (gps *GPSDevice) readNextByte() (b byte) {
+func (gps *Device) readNextByte() (b byte) {
 	gps.bufIdx += 1
 	if gps.bufIdx >= bufferSize {
 		gps.fillBuffer()
@@ -83,7 +83,7 @@ func (gps *GPSDevice) readNextByte() (b byte) {
 	return gps.buffer[gps.bufIdx]
 }
 
-func (gps *GPSDevice) fillBuffer() {
+func (gps *Device) fillBuffer() {
 	if gps.uart != nil {
 		gps.uartFillBuffer()
 	} else {
@@ -91,7 +91,7 @@ func (gps *GPSDevice) fillBuffer() {
 	}
 }
 
-func (gps *GPSDevice) uartFillBuffer() {
+func (gps *Device) uartFillBuffer() {
 	for gps.uart.Buffered() < bufferSize {
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -99,7 +99,7 @@ func (gps *GPSDevice) uartFillBuffer() {
 	gps.bufIdx = 0
 }
 
-func (gps *GPSDevice) i2cFillBuffer() {
+func (gps *Device) i2cFillBuffer() {
 	for gps.available() < bufferSize {
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -108,7 +108,7 @@ func (gps *GPSDevice) i2cFillBuffer() {
 }
 
 // Available returns how many bytes of GPS data are currently available.
-func (gps *GPSDevice) available() (available int) {
+func (gps *Device) available() (available int) {
 	var lengthBytes [2]byte
 	gps.bus.Tx(gps.address, []byte{BYTES_AVAIL_REG}, lengthBytes[0:2])
 	available = int(lengthBytes[0])*256 + int(lengthBytes[1])
@@ -116,7 +116,7 @@ func (gps *GPSDevice) available() (available int) {
 }
 
 // WriteBytes sends data/commands to the GPS device
-func (gps *GPSDevice) WriteBytes(bytes []byte) {
+func (gps *Device) WriteBytes(bytes []byte) {
 	if gps.uart != nil {
 		gps.uart.Write(bytes)
 	} else {
