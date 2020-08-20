@@ -13,5 +13,5 @@ const (
 )
 
 const (
-	bufferSize = 32
+	bufferSize = 100
 )

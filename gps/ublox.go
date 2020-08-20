@@ -24,25 +24,25 @@ var cfg_gnss_cmd = [...]byte{
 	0x01, 0x01, 0x06, 0x08, 0x0E, 0x00, 0x00, 0x00,
 	0x01, 0x01, 0xFC, 0x11}
 
-func FlightMode(gpsDevice GPSDevice) (err error) {
-	err = sendCommand(gpsDevice, flight_mode_cmd[:])
+func FlightMode(d Device) (err error) {
+	err = sendCommand(d, flight_mode_cmd[:])
 	return err
 }
 
-func SetCfgGNSS(gpsDevice GPSDevice) (err error) {
-	err = sendCommand(gpsDevice, cfg_gnss_cmd[:])
+func SetCfgGNSS(d Device) (err error) {
+	err = sendCommand(d, cfg_gnss_cmd[:])
 	return err
 }
 
-func sendCommand(gpsDevice GPSDevice, command []byte) (err error) {
-	gpsDevice.WriteBytes(command)
+func sendCommand(d Device, command []byte) (err error) {
+	d.WriteBytes(command)
 	start := time.Now()
 	for time.Now().Sub(start) < 1000 {
-		if gpsDevice.readNextByte() == '\n' {
-			if gpsDevice.readNextByte() == 0xB5 {
-				gpsDevice.readNextByte()
-				if gpsDevice.readNextByte() == 0x05 {
-					if gpsDevice.readNextByte() == 0x01 {
+		if d.readNextByte() == '\n' {
+			if d.readNextByte() == 0xB5 {
+				d.readNextByte()
+				if d.readNextByte() == 0x05 {
+					if d.readNextByte() == 0x01 {
 						return
 					}
 				}
