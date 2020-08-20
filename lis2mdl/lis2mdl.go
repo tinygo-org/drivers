@@ -1,0 +1,119 @@
+// Package lis2mdl implements a driver for the LIS2MDL,
+// a magnetic sensor which is included on BBC micro:bit v1.5.
+//
+// Datasheet: https://www.st.com/resource/en/datasheet/lsm303agr.pdf
+//
+package lis2mdl // import "tinygo.org/x/drivers/lis2mdl"
+
+import (
+	"machine"
+	"math"
+	"time"
+)
+
+// Device wraps an I2C connection to a LIS2MDL device.
+type Device struct {
+	bus        machine.I2C
+	Address    uint8
+	PowerMode  uint8
+	SystemMode uint8
+	DataRate   uint8
+}
+
+// Configuration for LIS2MDL device.
+type Configuration struct {
+	PowerMode  uint8
+	SystemMode uint8
+	DataRate   uint8
+}
+
+// New creates a new LIS2MDL connection. The I2C bus must already be
+// configured.
+//
+// This function only creates the Device object, it does not touch the device.
+func New(bus machine.I2C) Device {
+	return Device{bus: bus, Address: MAG_ADDRESS}
+}
+
+// Connected returns whether LIS2MDL sensor has been found.
+func (d *Device) Connected() bool {
+	data := []byte{0}
+	d.bus.ReadRegister(uint8(d.Address), MAG_WHO_AM_I, data)
+	return data[0] == 0x40
+}
+
+// Configure sets up the LIS2MDL device for communication.
+func (d *Device) Configure(cfg Configuration) {
+	if cfg.PowerMode != 0 {
+		d.PowerMode = cfg.PowerMode
+	} else {
+		d.PowerMode = MAG_POWER_NORMAL
+	}
+
+	if cfg.DataRate != 0 {
+		d.DataRate = cfg.DataRate
+	} else {
+		d.DataRate = MAG_DATARATE_100HZ
+	}
+
+	if cfg.SystemMode != 0 {
+		d.SystemMode = cfg.SystemMode
+	} else {
+		d.SystemMode = MAG_SYSTEM_CONTINUOUS
+	}
+
+	cmd := []byte{0}
+
+	// reset
+	cmd[0] = byte(1 << 5)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	time.Sleep(100 * time.Millisecond)
+
+	// reboot
+	cmd[0] = byte(1 << 6)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	time.Sleep(100 * time.Millisecond)
+
+	// bdu
+	cmd[0] = byte(1 << 4)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_C, cmd)
+
+	// Temperature compensation is on for magnetic sensor (0x80)
+	cmd[0] = byte(0x80)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+
+	// speed
+	cmd[0] = byte(0x80 | d.DataRate)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+}
+
+// ReadMagneticField reads the current magnetic field from the device and returns
+// it in mG (milligauss). 1 mG = 0.1 µT (microtesla).
+func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
+	data := make([]byte, 6)
+	d.bus.ReadRegister(uint8(d.Address), MAG_OUT_X_L_M, data)
+
+	x = int32(int16((uint16(data[0]) << 8) | uint16(data[1])))
+	y = int32(int16((uint16(data[2]) << 8) | uint16(data[3])))
+	z = int32(int16((uint16(data[4]) << 8) | uint16(data[5])))
+
+	return
+}
+
+// ReadCompass reads the current compass heading from the device and returns
+// it in degrees. When the z axis is pointing straight to Earth and
+// the y axis is pointing to North, the heading would be zero.
+//
+// However, the heading may be off due to electronic compasses would be effected
+// by strong magnetic fields and require constant calibration.
+func (d *Device) ReadCompass() (h int32) {
+	x, y, _ := d.ReadMagneticField()
+	xf, yf := float64(x)*0.15, float64(y)*0.15
+
+	rh := (math.Atan2(yf, xf) * 180) / math.Pi
+	if rh < 0 {
+		rh = 360 + rh
+	}
+
+	return int32(rh)
+}

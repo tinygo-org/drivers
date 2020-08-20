@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 51 devices are supported.
+The following 52 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -80,6 +80,7 @@ The following 51 devices are supported.
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
 | [L9110x motor driver](https://www.elecrow.com/download/datasheet-l9110.pdf) | GPIO/PWM |
+| [LIS2MDL magnetometer](https://www.st.com/resource/en/datasheet/lis2mdl.pdf) | I2C |
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf) | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
