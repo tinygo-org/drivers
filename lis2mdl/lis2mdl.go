@@ -90,6 +90,12 @@ func (d *Device) Configure(cfg Configuration) {
 // ReadMagneticField reads the current magnetic field from the device and returns
 // it in mG (milligauss). 1 mG = 0.1 µT (microtesla).
 func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
+	// turn back on read mode, even though it is supposed to be continuous?
+	cmd := []byte{0}
+	cmd[0] = byte(0x80 | d.PowerMode<<4 | d.DataRate<<2 | d.SystemMode)
+	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	time.Sleep(10 * time.Millisecond)
+
 	data := make([]byte, 6)
 	d.bus.ReadRegister(uint8(d.Address), MAG_OUT_X_L_M, data)
 
