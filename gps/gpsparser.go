@@ -37,6 +37,12 @@ type Fix struct {
 
 	// Satellites is the number of visible satellites, but is only returned for GGA sentences.
 	Satellites int16
+
+	// Speed based on reported movement. Only returned for RMC sentences.
+	Speed float32
+
+	// Heading based on reported movement. Only returned for RMC sentences.
+	Heading float32
 }
 
 // NewParser returns a GPS NMEA Parser.
@@ -75,6 +81,8 @@ func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
 		fix.Longitude = findLongitude(fields[5], fields[6])
 		fix.Latitude = findLatitude(fields[3], fields[4])
 		fix.Time = findTime(fields[1])
+		fix.Speed = findSpeed(fields[7])
+		fix.Heading = findHeading(fields[8])
 		fix.Valid = (len(fields[2]) > 0 && fields[2][0:1] == "A")
 	default:
 		err = errUnknownNMEASentence
@@ -150,6 +158,24 @@ func findSatellites(val string) (n int16) {
 		var v, _ = strconv.ParseInt(nn, 10, 32)
 		n = int16(v)
 		return n
+	}
+	return 0
+}
+
+// findSpeed returns the speed from an RMC NMEA sentence.
+func findSpeed(val string) float32 {
+	if len(val) > 0 {
+		var v, _ = strconv.ParseFloat(val, 32)
+		return float32(v)
+	}
+	return 0
+}
+
+// findHeading returns the speed from an RMC NMEA sentence.
+func findHeading(val string) float32 {
+	if len(val) > 0 {
+		var v, _ = strconv.ParseFloat(val, 32)
+		return float32(v)
 	}
 	return 0
 }

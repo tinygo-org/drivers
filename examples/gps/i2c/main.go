@@ -33,6 +33,14 @@ func main() {
 			print(fix.Longitude)
 			print(", altitude=", fix.Altitude)
 			print(", satellites=", fix.Satellites)
+			if fix.Speed != 0 {
+				print(", speed=")
+				print(fix.Speed)
+			}
+			if fix.Heading != 0 {
+				print(", heading=")
+				print(fix.Heading)
+			}
 			println()
 		} else {
 			println("No fix")
