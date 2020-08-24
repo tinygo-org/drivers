@@ -102,6 +102,26 @@ func TestDevicesSetPinsMask(t *testing.T) {
 	c.Assert(pins, qt.DeepEquals, PinSlice{0b01010011_10101101, 0b01010010_10101100})
 }
 
+func TestDevicesTogglePins(t *testing.T) {
+	c := qt.New(t)
+	bus := newBus(c)
+	bus.addDevice(0x20)
+	bus.addDevice(0x21)
+	devs, err := NewI2CDevices(bus, 0x20, 0x21)
+	c.Assert(err, qt.IsNil)
+
+	mask := make(PinSlice, 2)
+	mask.High(0)
+	mask.High(16)
+
+	err = devs.TogglePins(mask)
+	c.Assert(err, qt.IsNil)
+	pins := make(PinSlice, 2)
+	err = devs.GetPins(pins)
+	c.Assert(err, qt.IsNil)
+	c.Assert(pins, qt.DeepEquals, PinSlice{0b00000000_00000001, 0b00000000_00000001})
+}
+
 func TestDevicesSetGetModes(t *testing.T) {
 	c := qt.New(t)
 	bus := newBus(c)
@@ -163,4 +183,6 @@ func TestPinSlice(t *testing.T) {
 	c.Assert(pins.Get(16), qt.Equals, false)
 	pins.High(16)
 	c.Assert(pins.Get(16), qt.Equals, true)
+	pins.Toggle(16)
+	c.Assert(pins.Get(16), qt.Equals, false)
 }

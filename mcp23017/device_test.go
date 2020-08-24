@@ -50,6 +50,25 @@ func TestSetPins(t *testing.T) {
 	c.Assert(pins, qt.Equals, Pins(0b01010000_00011010))
 }
 
+func TestTogglePins(t *testing.T) {
+	c := qt.New(t)
+	bus := newBus(c)
+	fdev := bus.addDevice(0x20)
+	fdev.Registers[rGPIO] = 0b00001111
+	fdev.Registers[rGPIO|portB] = 0b11110000
+	dev, err := NewI2C(bus, 0x20)
+	c.Assert(err, qt.IsNil)
+	pins, err := dev.GetPins()
+	c.Assert(err, qt.IsNil)
+	c.Assert(pins, qt.Equals, Pins(0b11110000_00001111))
+
+	err = dev.TogglePins(0b10101010_01010101)
+	c.Assert(err, qt.IsNil)
+	pins, err = dev.GetPins()
+	c.Assert(err, qt.IsNil)
+	c.Assert(pins, qt.Equals, Pins(0b01011010_01011010))
+}
+
 func TestSetGetModes(t *testing.T) {
 	c := qt.New(t)
 	bus := newBus(c)
@@ -104,6 +123,24 @@ func TestPinSetGet(t *testing.T) {
 	c.Assert(err, qt.Equals, nil)
 	c.Assert(fdev.Registers[rGPIO], qt.Equals, uint8(0b10))
 	err = pin.Low()
+	c.Assert(err, qt.Equals, nil)
+	c.Assert(fdev.Registers[rGPIO], qt.Equals, uint8(0))
+}
+
+func TestPinToggle(t *testing.T) {
+	c := qt.New(t)
+	bus := newBus(c)
+	fdev := bus.addDevice(0x20)
+	dev, err := NewI2C(bus, 0x20)
+	c.Assert(err, qt.IsNil)
+	pin := dev.Pin(1)
+	v, err := pin.Get()
+	c.Assert(err, qt.Equals, nil)
+	c.Assert(v, qt.Equals, false)
+	err = pin.Toggle()
+	c.Assert(err, qt.Equals, nil)
+	c.Assert(fdev.Registers[rGPIO], qt.Equals, uint8(0b10))
+	err = pin.Toggle()
 	c.Assert(err, qt.Equals, nil)
 	c.Assert(fdev.Registers[rGPIO], qt.Equals, uint8(0))
 }

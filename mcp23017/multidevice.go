@@ -117,6 +117,22 @@ func (devs Devices) SetPins(pins, mask PinSlice) error {
 	return nil
 }
 
+// TogglePins inverts the values on all pins for
+// which mask is high.
+func (devs Devices) TogglePins(mask PinSlice) error {
+	defaultMask := mask.extra()
+	for i, dev := range devs {
+		devMask := defaultMask
+		if i < len(mask) {
+			devMask = mask[i]
+		}
+		if err := dev.TogglePins(devMask); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PinSlice represents an arbitrary nunber of pins, each element corresponding
 // to the pins for one device. The value of the highest numbered pin in the
 // slice is extended to all other pins beyond the end of the slice.
@@ -152,6 +168,11 @@ func (pins PinSlice) High(pin int) {
 // High is short for p.Set(pin, false).
 func (pins PinSlice) Low(pin int) {
 	pins[pin/PinCount].Low(pin % PinCount)
+}
+
+// Toggle inverts the value of the given pin.
+func (pins PinSlice) Toggle(pin int) {
+	pins[pin/PinCount].Toggle(pin % PinCount)
 }
 
 // Ensure checks that pins has enough space to store
