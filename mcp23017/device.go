@@ -154,6 +154,15 @@ func (d *Device) SetPins(pins, mask Pins) error {
 	return nil
 }
 
+// TogglePins inverts the values on all pins for
+// which mask is high.
+func (d *Device) TogglePins(mask Pins) error {
+	if mask == 0 {
+		return nil
+	}
+	return d.SetPins(^d.pins, mask)
+}
+
 // Pin returns a Pin representing the given pin number (from 0 to 15).
 // Pin numbers from 0 to 7 represent port A pins 0 to 7.
 // Pin numbers from 8 to 15 represent port B pins 0 to 7.
@@ -295,6 +304,11 @@ func (p Pin) Low() error {
 	return p.Set(false)
 }
 
+// Toggle inverts the value output on the pin.
+func (p Pin) Toggle() error {
+	return p.dev.TogglePins(p.mask)
+}
+
 // Get returns the current value of the given pin.
 func (p Pin) Get() (bool, error) {
 	// TODO this reads 2 registers when we could read just one.
@@ -355,6 +369,11 @@ func (p *Pins) High(pin int) {
 // Low is short for p.Set(pin, false).
 func (p *Pins) Low(pin int) {
 	*p &^= pinMask(pin)
+}
+
+// Toggle inverts the value of the given pin.
+func (p *Pins) Toggle(pin int) {
+	*p ^= pinMask(pin)
 }
 
 func pinMask(pin int) Pins {
