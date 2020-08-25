@@ -119,6 +119,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd4in2/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/ntpclient/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/udpstation/main.go
