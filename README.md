@@ -1,6 +1,6 @@
 # TinyGo Drivers
 
-[![GoDoc](https://godoc.org/tinygo.org/x/drivers?status.svg)](https://godoc.org/tinygo.org/x/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
+[![PkgGoDev](https://pkg.go.dev/badge/tinygo.org/x/drivers)](https://pkg.go.dev/tinygo.org/x/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
 
 
 This package provides a collection of hardware drivers for devices that can be used together with [TinyGo](https://tinygo.org).
@@ -80,6 +80,7 @@ The following 53 devices are supported.
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
 | [L9110x motor driver](https://www.elecrow.com/download/datasheet-l9110.pdf) | GPIO/PWM |
+| [LIS2MDL magnetometer](https://www.st.com/resource/en/datasheet/lis2mdl.pdf) | I2C |
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf) | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
