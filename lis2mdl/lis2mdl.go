@@ -1,7 +1,7 @@
 // Package lis2mdl implements a driver for the LIS2MDL,
 // a magnetic sensor which is included on BBC micro:bit v1.5.
 //
-// Datasheet: https://www.st.com/resource/en/datasheet/lsm303agr.pdf
+// Datasheet: https://www.st.com/resource/en/datasheet/lis2mdl.pdf
 //
 package lis2mdl // import "tinygo.org/x/drivers/lis2mdl"
 
@@ -33,13 +33,13 @@ type Configuration struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) Device {
-	return Device{bus: bus, Address: MAG_ADDRESS}
+	return Device{bus: bus, Address: ADDRESS}
 }
 
 // Connected returns whether LIS2MDL sensor has been found.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), MAG_WHO_AM_I, data)
+	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x40
 }
 
@@ -48,44 +48,44 @@ func (d *Device) Configure(cfg Configuration) {
 	if cfg.PowerMode != 0 {
 		d.PowerMode = cfg.PowerMode
 	} else {
-		d.PowerMode = MAG_POWER_NORMAL
+		d.PowerMode = POWER_NORMAL
 	}
 
 	if cfg.DataRate != 0 {
 		d.DataRate = cfg.DataRate
 	} else {
-		d.DataRate = MAG_DATARATE_100HZ
+		d.DataRate = DATARATE_100HZ
 	}
 
 	if cfg.SystemMode != 0 {
 		d.SystemMode = cfg.SystemMode
 	} else {
-		d.SystemMode = MAG_SYSTEM_CONTINUOUS
+		d.SystemMode = SYSTEM_CONTINUOUS
 	}
 
 	cmd := []byte{0}
 
 	// reset
 	cmd[0] = byte(1 << 5)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(100 * time.Millisecond)
 
 	// reboot
 	cmd[0] = byte(1 << 6)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(100 * time.Millisecond)
 
 	// bdu
 	cmd[0] = byte(1 << 4)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_C, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_C, cmd)
 
 	// Temperature compensation is on for magnetic sensor (0x80)
 	cmd[0] = byte(0x80)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
 
 	// speed
 	cmd[0] = byte(0x80 | d.DataRate)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
 }
 
 // ReadMagneticField reads the current magnetic field from the device and returns
@@ -94,11 +94,11 @@ func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 	// turn back on read mode, even though it is supposed to be continuous?
 	cmd := []byte{0}
 	cmd[0] = byte(0x80 | d.PowerMode<<4 | d.DataRate<<2 | d.SystemMode)
-	d.bus.WriteRegister(uint8(d.Address), MAG_MR_CFG_REG_A, cmd)
+	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(10 * time.Millisecond)
 
 	data := make([]byte, 6)
-	d.bus.ReadRegister(uint8(d.Address), MAG_OUT_X_L_M, data)
+	d.bus.ReadRegister(uint8(d.Address), OUTX_L_REG, data)
 
 	x = int32(int16((uint16(data[0]) << 8) | uint16(data[1])))
 	y = int32(int16((uint16(data[2]) << 8) | uint16(data[3])))
