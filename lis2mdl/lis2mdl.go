@@ -6,14 +6,15 @@
 package lis2mdl // import "tinygo.org/x/drivers/lis2mdl"
 
 import (
-	"machine"
 	"math"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a LIS2MDL device.
 type Device struct {
-	bus        machine.I2C
+	bus        drivers.I2C
 	Address    uint8
 	PowerMode  uint8
 	SystemMode uint8
@@ -31,7 +32,7 @@ type Configuration struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus: bus, Address: MAG_ADDRESS}
 }
 
