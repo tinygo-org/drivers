@@ -10,7 +10,7 @@ import (
 
 var (
 	i2c    = &machine.I2C0
-	sensor = adt7410.New(i2c, 0)
+	sensor = adt7410.New(i2c)
 )
 
 func main() {
