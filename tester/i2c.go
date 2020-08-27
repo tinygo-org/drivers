@@ -31,7 +31,7 @@ func (bus *I2CBus) WriteRegister(addr uint8, r uint8, buf []byte) error {
 }
 
 // Tx implements I2C.Tx.
-func (bus *I2CBus) Tx(addr uint16, input, output []byte) error {
+func (bus *I2CBus) Tx(addr uint16, w, r []byte) error {
 	// TODO: implement this
 	return nil
 }
