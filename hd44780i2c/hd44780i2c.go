@@ -7,13 +7,14 @@ package hd44780i2c
 
 import (
 	"errors"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a HD44780 I2C LCD with related data.
 type Device struct {
-	bus             machine.I2C
+	bus             drivers.I2C
 	addr            uint8
 	width           uint8
 	height          uint8
@@ -41,7 +42,7 @@ type Config struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C, addr uint8) Device {
+func New(bus drivers.I2C, addr uint8) Device {
 	if addr == 0 {
 		addr = 0x27
 	}

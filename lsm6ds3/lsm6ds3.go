@@ -5,9 +5,7 @@
 //
 package lsm6ds3 // import "tinygo.org/x/drivers/lsm6ds3"
 
-import (
-	"machine"
-)
+import "tinygo.org/x/drivers"
 
 type AccelRange uint8
 type AccelSampleRate uint8
@@ -18,7 +16,7 @@ type GyroSampleRate uint8
 
 // Device wraps an I2C connection to a LSM6DS3 device.
 type Device struct {
-	bus             machine.I2C
+	bus             drivers.I2C
 	Address         uint16
 	accelRange      AccelRange
 	accelSampleRate AccelSampleRate
@@ -44,7 +42,7 @@ type Configuration struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus: bus, Address: Address}
 }
 

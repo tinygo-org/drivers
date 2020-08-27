@@ -7,13 +7,14 @@
 package sht3x // import "tinygo.org/x/drivers/sht3x"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a SHT31 device.
 type Device struct {
-	bus     machine.I2C
+	bus     drivers.I2C
 	Address uint16
 }
 
@@ -22,7 +23,7 @@ type Device struct {
 //
 // This function only creates the Device object, it does not initialize the device.
 // You must call Configure() first in order to use the device itself.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: AddressA,

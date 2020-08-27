@@ -5,15 +5,16 @@
 package ds3231 // import "tinygo.org/x/drivers/ds3231"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Mode uint8
 
 // Device wraps an I2C connection to a DS3231 device.
 type Device struct {
-	bus     machine.I2C
+	bus     drivers.I2C
 	Address uint16
 }
 
@@ -21,7 +22,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: Address,

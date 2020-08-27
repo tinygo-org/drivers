@@ -6,13 +6,14 @@
 package lsm303agr // import "tinygo.org/x/drivers/lsm303agr"
 
 import (
-	"machine"
 	"math"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a LSM303AGR device.
 type Device struct {
-	bus            machine.I2C
+	bus            drivers.I2C
 	AccelAddress   uint8
 	MagAddress     uint8
 	AccelPowerMode uint8
@@ -37,7 +38,7 @@ type Configuration struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus: bus, AccelAddress: ACCEL_ADDRESS, MagAddress: MAG_ADDRESS}
 }
 

@@ -10,8 +10,9 @@
 package vl53l1x // import "tinygo.org/x/drivers/vl53l1x"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type DistanceMode uint8
@@ -35,7 +36,7 @@ type resultBuffer struct {
 
 // Device wraps an I2C connection to a VL53L1X device.
 type Device struct {
-	bus                machine.I2C
+	bus                drivers.I2C
 	Address            uint16
 	mode               DistanceMode
 	timeout            uint32
@@ -52,7 +53,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: Address,

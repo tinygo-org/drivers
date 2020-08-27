@@ -9,18 +9,18 @@ import (
 	"errors"
 	"time"
 
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a DS1307 device.
 type Device struct {
-	bus         machine.I2C
+	bus         drivers.I2C
 	Address     uint8
 	AddressSRAM uint8
 }
 
 // New creates a new DS1307 connection. I2C bus must be already configured.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus: bus,
 		Address:     uint8(I2CAddress),
 		AddressSRAM: SRAMBeginAddres,

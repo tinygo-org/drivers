@@ -9,7 +9,7 @@ package bmp180 // import "tinygo.org/x/drivers/bmp180"
 import (
 	"time"
 
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 // OversamplingMode is the oversampling ratio of the pressure measurement.
@@ -32,7 +32,7 @@ type calibrationCoefficients struct {
 
 // Device wraps an I2C connection to a BMP180 device.
 type Device struct {
-	bus                     machine.I2C
+	bus                     drivers.I2C
 	Address                 uint16
 	mode                    OversamplingMode
 	calibrationCoefficients calibrationCoefficients
@@ -43,7 +43,7 @@ type Device struct {
 //
 // This function only creates the Device object, it does not initialize the device.
 // You must call Configure() first in order to use the device itself.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: Address,
