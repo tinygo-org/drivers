@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an SPI connection.
@@ -30,7 +32,7 @@ type Config struct {
 }
 
 type I2CBus struct {
-	wire    machine.I2C
+	wire    drivers.I2C
 	Address uint16
 }
 
@@ -50,7 +52,7 @@ type Buser interface {
 type VccMode uint8
 
 // NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
-func NewI2C(bus machine.I2C) Device {
+func NewI2C(bus drivers.I2C) Device {
 	return Device{
 		bus: &I2CBus{
 			wire:    bus,

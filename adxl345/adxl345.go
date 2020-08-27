@@ -6,9 +6,7 @@
 //
 package adxl345 // import "tinygo.org/x/drivers/adxl345"
 
-import (
-	"machine"
-)
+import "tinygo.org/x/drivers"
 
 type Range uint8
 type Rate uint8
@@ -40,7 +38,7 @@ type bwRate struct {
 
 // Device wraps an I2C connection to a ADXL345 device.
 type Device struct {
-	bus        machine.I2C
+	bus        drivers.I2C
 	Address    uint16
 	powerCtl   powerCtl
 	dataFormat dataFormat
@@ -52,7 +50,7 @@ type Device struct {
 //
 // This function only creates the Device object, it does not init the device.
 // To do that you must call the Configure() method on the Device before using it.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus: bus,
 		powerCtl: powerCtl{

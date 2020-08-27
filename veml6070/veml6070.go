@@ -11,12 +11,12 @@ package veml6070 // import "tinygo.org/x/drivers/veml6070"
 import (
 	"time"
 
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a VEML6070 device.
 type Device struct {
-	bus         machine.I2C
+	bus         drivers.I2C
 	AddressLow  uint16
 	AddressHigh uint16
 	RSET        uint32
@@ -28,7 +28,7 @@ type Device struct {
 //
 // This function only creates the Device object, it does not initialize the device.
 // You must call Configure() first in order to use the device itself.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:         bus,
 		AddressLow:  ADDR_L,
@@ -119,7 +119,7 @@ func (d *Device) enable() error {
 
 func (d *Device) readData(address uint16) (byte, error) {
 	data := []byte{0}
-	err := machine.I2C0.Tx(address, []byte{}, data)
+	err := d.bus.Tx(address, []byte{}, data)
 	return data[0], err
 }
 

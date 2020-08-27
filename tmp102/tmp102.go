@@ -4,13 +4,11 @@
 
 package tmp102 // import "tinygo.org/x/drivers/tmp102"
 
-import (
-	"machine"
-)
+import "tinygo.org/x/drivers"
 
 // Device holds the already configured I2C bus and the address of the sensor.
 type Device struct {
-	bus     machine.I2C
+	bus     drivers.I2C
 	address uint8
 }
 
@@ -20,7 +18,7 @@ type Config struct {
 }
 
 // New creates a new TMP102 connection. The I2C bus must already be configured.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus: bus,
 	}

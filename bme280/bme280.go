@@ -7,8 +7,9 @@
 package bme280
 
 import (
-	"machine"
 	"math"
+
+	"tinygo.org/x/drivers"
 )
 
 // calibrationCoefficients reads at startup and stores the calibration coefficients
@@ -35,7 +36,7 @@ type calibrationCoefficients struct {
 
 // Device wraps an I2C connection to a BME280 device.
 type Device struct {
-	bus                     machine.I2C
+	bus                     drivers.I2C
 	Address                 uint16
 	calibrationCoefficients calibrationCoefficients
 }
@@ -44,7 +45,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: Address,

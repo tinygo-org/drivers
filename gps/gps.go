@@ -7,6 +7,8 @@ import (
 	"machine"
 	"strings"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 var (
@@ -20,7 +22,7 @@ type Device struct {
 	bufIdx   int
 	sentence strings.Builder
 	uart     *machine.UART
-	bus      *machine.I2C
+	bus      drivers.I2C
 	address  uint16
 }
 
@@ -35,7 +37,7 @@ func NewUART(uart *machine.UART) Device {
 }
 
 // NewI2C creates a new I2C GPS connection.
-func NewI2C(bus *machine.I2C) Device {
+func NewI2C(bus drivers.I2C) Device {
 	return Device{
 		bus:      bus,
 		address:  I2C_ADDRESS,

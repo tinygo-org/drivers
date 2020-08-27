@@ -1,8 +1,9 @@
 package adt7410 // import "tinygo.org/x/drivers/adt7410"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Error uint8
@@ -21,7 +22,7 @@ func (e Error) Error() string {
 }
 
 type Device struct {
-	bus  *machine.I2C
+	bus  drivers.I2C
 	buf  []byte
 	addr uint8
 }
@@ -31,7 +32,7 @@ type Device struct {
 // can be set using by connecting to the A1 and A0 pins to VDD or GND (for a
 // total of up to 4 devices on a I2C bus).  Also note that 10k pullups are
 // recommended for the SDA and SCL lines.
-func New(i2c *machine.I2C, addressBits uint8) *Device {
+func New(i2c drivers.I2C, addressBits uint8) *Device {
 	return &Device{
 		bus:  i2c,
 		buf:  make([]byte, 2),

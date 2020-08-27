@@ -5,13 +5,14 @@
 package amg88xx // import "tinygo.org/x/drivers/amg88xx"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps an I2C connection to a AMG88xx device.
 type Device struct {
-	bus             machine.I2C
+	bus             drivers.I2C
 	Address         uint16
 	data            []uint8
 	interruptMode   InterruptMode
@@ -27,7 +28,7 @@ type Config struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: AddressHigh,

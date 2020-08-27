@@ -5,13 +5,11 @@
 //
 package mag3110 // import "tinygo.org/x/drivers/mag3110"
 
-import (
-	"machine"
-)
+import "tinygo.org/x/drivers"
 
 // Device wraps an I2C connection to a MAG3110 device.
 type Device struct {
-	bus     machine.I2C
+	bus     drivers.I2C
 	Address uint16
 }
 
@@ -19,7 +17,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus, Address}
 }
 

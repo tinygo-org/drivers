@@ -8,7 +8,7 @@ package bh1750 // import "tinygo.org/x/drivers/bh1750"
 import (
 	"time"
 
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 // SamplingMode is the sampling's resolution of the measurement
@@ -16,7 +16,7 @@ type SamplingMode byte
 
 // Device wraps an I2C connection to a bh1750 device.
 type Device struct {
-	bus     machine.I2C
+	bus     drivers.I2C
 	Address uint16
 	mode    SamplingMode
 }
@@ -25,7 +25,7 @@ type Device struct {
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus machine.I2C) Device {
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
 		Address: Address,
