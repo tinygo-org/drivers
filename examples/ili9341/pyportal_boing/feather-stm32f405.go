@@ -10,14 +10,17 @@ import (
 
 var (
 	csPin   = machine.D12
-	dcPin   = machine.D11
+	dcPin   = machine.D10
 	display = ili9341.NewSpi(
 		machine.SPI0,
 		dcPin,
 		csPin,
-		machine.D8,
+		machine.D8, // if wired to 3.3, pick an unused pin
 	)
 
+	// ILI9341's LED pin. set this to an unused pin (but not NoPin!) if
+	// wired via resistor straight to 3.3V. the boing example tries to
+	// set this pin and will panic if NoPin is used.
 	backlight = machine.D9
 )
 
