@@ -11,7 +11,7 @@ type spiDriver struct {
 	bus machine.SPI
 }
 
-func NewSpi(bus machine.SPI, dc, cs, rst machine.Pin) *Device {
+func NewSPI(bus machine.SPI, dc, cs, rst machine.Pin) *Device {
 	return &Device{
 		dc:  dc,
 		cs:  cs,
