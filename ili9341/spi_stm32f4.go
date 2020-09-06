@@ -41,7 +41,7 @@ func (pd *spiDriver) write8n(b byte, n int) {
 		pd.bus.Bus.CR1.SetBits(stm32.SPI_CR1_SPE)
 	}
 
-	for i := 0; i < n-1; i++ {
+	for i := 0; i < n; i++ {
 		pd.setWord(b, i == 0, i+1 == n)
 	}
 
