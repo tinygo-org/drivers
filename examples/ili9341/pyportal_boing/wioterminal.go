@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	display = ili9341.NewSpi(
+	display = ili9341.NewSPI(
 		machine.SPI3,
 		machine.LCD_DC,
 		machine.LCD_SS_PIN,
