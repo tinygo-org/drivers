@@ -1,3 +1,35 @@
+0.14.0
+---
+- **new devices**
+    - lis2mdl: add LIS2MDL magnetometer (#187)
+    - waveshare: add Waveshare 4.2in B/W e-paper driver (#183)
+- **enhancements**
+    - adt7410: add connection test and for that matter connection method
+    - gps
+        - add speed and heading to fix, as parsed from RMC NMEA sentence
+        - improvements and bugfixes (#186)
+    - ili9341
+        - add support for setting framerate, vsync pause, and reading scanline data.
+        - renamed NewSpi() to NewSPI() in accordance with Go naming conventions
+    - ws2812
+        - add support for ESP8266
+        - add support for ESP32
+- **bugfixes**
+    - ili9341
+        - rix setWindow bug, add CS pin for Clue compatibility. (#180)
+        - bugfix for RAMWR bug
+    - lis2mdl: turn on read mode on every read, to ensure that magnetometer data is updated
+- **core**
+    - i2c
+        - switch all i2c drivers definitions to use i2c bus interface type instead of machine package concrete type
+        - correct interface definition for I2C Tx function
+- **testing**
+    - fix smoke-test unless avr-gcc installed
+    - add very basic mock structs for testing i2c devices, based on work done by @rogpeppe
+    - improve API surface and implement one more test function in lis2mdl driver
+- **docs**
+    - replace README badge for godocs with pkgdocs
+
 0.13.0
 ---
 - **new devices**
