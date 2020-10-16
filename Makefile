@@ -132,6 +132,8 @@ smoke-test:
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
 	@md5sum ./build/test.hex
 ifneq ($(AVR), 0)
+	tinygo build -size short -o ./build/test.hex -target=arduino   ./examples/ws2812
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=digispark ./examples/ws2812
 	@md5sum ./build/test.hex
 endif

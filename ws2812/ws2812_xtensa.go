@@ -4,12 +4,9 @@ package ws2812
 
 import (
 	"device"
-	"errors"
 	"machine"
 	"unsafe"
 )
-
-var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
 
 func (d Device) WriteByte(c byte) error {
 	portSet, maskSet := d.Pin.PortMaskSet()
