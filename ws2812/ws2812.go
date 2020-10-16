@@ -2,9 +2,12 @@
 package ws2812 // import "tinygo.org/x/drivers/ws2812"
 
 import (
+	"errors"
 	"image/color"
 	"machine"
 )
+
+var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
 
 // Device wraps a pin object for an easy driver interface.
 type Device struct {
