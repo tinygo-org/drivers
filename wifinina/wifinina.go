@@ -269,7 +269,7 @@ type Device struct {
 	ssids [10]string
 }
 
-// New returns a new Wiifinina driver.
+// New returns a new Wifinina driver.
 func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device {
 	return &Device{
 		SPI:   bus,
