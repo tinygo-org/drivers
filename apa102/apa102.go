@@ -29,14 +29,6 @@ type Device struct {
 	Order int
 }
 
-// The SPI interface specifies the minimum functionality that a bus
-// implementation needs to provide for use by the APA102 driver.  Hardware
-// SPI from the TinyGo "machine" package implements this already.
-// type SPI interface {
-// 	Tx(w, r []byte) error
-// 	Transfer(b byte) (byte, error)
-// }
-
 // New returns a new APA102 driver. Pass in a fully configured SPI bus.
 func New(b drivers.SPI) Device {
 	return Device{bus: b, Order: BGR}
