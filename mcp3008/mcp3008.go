@@ -7,11 +7,13 @@ package mcp3008 // import "tinygo.org/x/drivers/mcp3008"
 import (
 	"errors"
 	"machine"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps MCP3008 SPI ADC.
 type Device struct {
-	bus machine.SPI
+	bus drivers.SPI
 	cs  machine.Pin
 	tx  []byte
 	rx  []byte
@@ -32,7 +34,7 @@ type ADCPin struct {
 }
 
 // New returns a new MCP3008 driver. Pass in a fully configured SPI bus.
-func New(b machine.SPI, csPin machine.Pin) *Device {
+func New(b drivers.SPI, csPin machine.Pin) *Device {
 	d := &Device{bus: b,
 		cs: csPin,
 		tx: make([]byte, 3),

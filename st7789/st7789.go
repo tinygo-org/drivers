@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"errors"
+
+	"tinygo.org/x/drivers"
 )
 
 type Rotation uint8
@@ -20,7 +22,7 @@ type FrameRate uint8
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus             machine.SPI
+	bus             drivers.SPI
 	dcPin           machine.Pin
 	resetPin        machine.Pin
 	csPin           machine.Pin
@@ -50,7 +52,7 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus machine.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -275,7 +277,6 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	}
 	return nil
 }
-
 
 // FillRectangle fills a rectangle at a given coordinates with a buffer
 func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {

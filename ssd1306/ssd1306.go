@@ -37,7 +37,7 @@ type I2CBus struct {
 }
 
 type SPIBus struct {
-	wire     machine.SPI
+	wire     drivers.SPI
 	dcPin    machine.Pin
 	resetPin machine.Pin
 	csPin    machine.Pin
@@ -62,7 +62,7 @@ func NewI2C(bus drivers.I2C) Device {
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus machine.SPI, dcPin, resetPin, csPin machine.Pin) Device {
+func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})

@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
@@ -21,7 +23,7 @@ type Config struct {
 }
 
 type Device struct {
-	bus               machine.SPI
+	bus               drivers.SPI
 	a                 machine.Pin
 	b                 machine.Pin
 	c                 machine.Pin
@@ -52,7 +54,7 @@ type Device struct {
 }
 
 // New returns a new HUB75 driver. Pass in a fully configured SPI bus.
-func New(b machine.SPI, latPin, oePin, aPin, bPin, cPin, dPin machine.Pin) Device {
+func New(b drivers.SPI, latPin, oePin, aPin, bPin, cPin, dPin machine.Pin) Device {
 	aPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	bPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	cPin.Configure(machine.PinConfig{Mode: machine.PinOutput})

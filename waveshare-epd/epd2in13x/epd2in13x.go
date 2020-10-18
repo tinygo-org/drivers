@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
@@ -18,7 +20,7 @@ type Config struct {
 }
 
 type Device struct {
-	bus          machine.SPI
+	bus          drivers.SPI
 	cs           machine.Pin
 	dc           machine.Pin
 	rst          machine.Pin
@@ -32,7 +34,7 @@ type Device struct {
 type Color uint8
 
 // New returns a new epd2in13x driver. Pass in a fully configured SPI bus.
-func New(bus machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
+func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})

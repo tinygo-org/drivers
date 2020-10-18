@@ -9,6 +9,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus          machine.SPI
+	bus          drivers.SPI
 	dcPin        machine.Pin
 	resetPin     machine.Pin
 	csPin        machine.Pin
@@ -40,7 +42,7 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus machine.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin,

@@ -13,6 +13,7 @@ import (
 
 	"machine"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/net"
 )
 
@@ -258,7 +259,7 @@ type command struct {
 }
 
 type Device struct {
-	SPI   machine.SPI
+	SPI   drivers.SPI
 	CS    machine.Pin
 	ACK   machine.Pin
 	GPIO0 machine.Pin
@@ -266,6 +267,17 @@ type Device struct {
 
 	buf   [64]byte
 	ssids [10]string
+}
+
+// New returns a new Wiifinina driver.
+func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device {
+	return &Device{
+		SPI:   bus,
+		CS:    csPin,
+		ACK:   ackPin,
+		GPIO0: gpio0Pin,
+		RESET: resetPin,
+	}
 }
 
 func (d *Device) Configure() {
