@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"errors"
+
+	"tinygo.org/x/drivers"
 )
 
 type Model uint8
@@ -17,7 +19,7 @@ type Rotation uint8
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus          machine.SPI
+	bus          drivers.SPI
 	dcPin        machine.Pin
 	resetPin     machine.Pin
 	csPin        machine.Pin
@@ -44,7 +46,7 @@ type Config struct {
 }
 
 // New creates a new ST7735 connection. The SPI wire must already be configured.
-func New(bus machine.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})

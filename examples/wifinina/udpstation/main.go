@@ -22,19 +22,9 @@ const pass = ""
 // IP address of the server aka "hub". Replace with your own info.
 const hubIP = ""
 
-// these are the default pins for the Arduino Nano33 IoT.
-// change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-
 	// this is the ESP chip that has the WIFININA firmware flashed on it
-	// these are the default pins for the Arduino Nano33 IoT.
-	adaptor = &wifinina.Device{
-		SPI:   machine.NINA_SPI,
-		CS:    machine.NINA_CS,
-		ACK:   machine.NINA_ACK,
-		GPIO0: machine.NINA_GPIO0,
-		RESET: machine.NINA_RESETN,
-	}
+	adaptor *wifinina.Device
 )
 
 func main() {
@@ -47,6 +37,14 @@ func main() {
 		SDI:       machine.NINA_SDI,
 		SCK:       machine.NINA_SCK,
 	})
+
+	// these are the default pins for the Arduino Nano33 IoT.
+	// change these to connect to a different UART or pins for the ESP8266/ESP32
+	adaptor = wifinina.New(machine.NINA_SPI,
+		machine.NINA_CS,
+		machine.NINA_ACK,
+		machine.NINA_GPIO0,
+		machine.NINA_RESETN)
 	adaptor.Configure()
 
 	// connect to access point

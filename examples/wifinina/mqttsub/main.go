@@ -40,15 +40,7 @@ var (
 	spi  = machine.NINA_SPI
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
-	adaptor = &wifinina.Device{
-		SPI:   spi,
-		CS:    machine.NINA_CS,
-		ACK:   machine.NINA_ACK,
-		GPIO0: machine.NINA_GPIO0,
-		RESET: machine.NINA_RESETN,
-	}
-
-	console = machine.UART0
+	adaptor *wifinina.Device
 
 	cl      mqtt.Client
 	topicTx = "tinygo/tx"
@@ -75,6 +67,11 @@ func main() {
 	})
 
 	// Init esp8266/esp32
+	adaptor = wifinina.New(spi,
+		machine.NINA_CS,
+		machine.NINA_ACK,
+		machine.NINA_GPIO0,
+		machine.NINA_RESETN)
 	adaptor.Configure()
 
 	connectToAP()

@@ -1,8 +1,11 @@
 package bmi160
 
-import "machine"
+import (
+	"machine"
+	"time"
 
-import "time"
+	"tinygo.org/x/drivers"
+)
 
 // DeviceSPI is the SPI interface to a BMI160 accelerometer/gyroscope. There is
 // also an I2C interface, but it is not yet supported.
@@ -11,13 +14,13 @@ type DeviceSPI struct {
 	CSB machine.Pin
 
 	// SPI bus (requires chip select to be usable).
-	Bus machine.SPI
+	Bus drivers.SPI
 }
 
 // NewSPI returns a new device driver. The pin and SPI interface are not
 // touched, provide a fully configured SPI object and call Configure to start
 // using this device.
-func NewSPI(csb machine.Pin, spi machine.SPI) *DeviceSPI {
+func NewSPI(csb machine.Pin, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
 		CSB: csb, // chip select
 		Bus: spi,

@@ -24,20 +24,9 @@ const ntpHost = "129.6.15.29"
 const NTP_PACKET_SIZE = 48
 
 var (
-
 	// this is the ESP chip that has the WIFININA firmware flashed on it
-	// these are the default pins for the Arduino Nano33 IoT.
-	adaptor = wifinina.Device{
-		SPI:   machine.NINA_SPI,
-		CS:    machine.NINA_CS,
-		ACK:   machine.NINA_ACK,
-		GPIO0: machine.NINA_GPIO0,
-		RESET: machine.NINA_RESETN,
-	}
-
-	b = make([]byte, NTP_PACKET_SIZE)
-
-	console = machine.UART0
+	adaptor *wifinina.Device
+	b       = make([]byte, NTP_PACKET_SIZE)
 )
 
 func main() {
@@ -50,6 +39,14 @@ func main() {
 		SDI:       machine.NINA_SDI,
 		SCK:       machine.NINA_SCK,
 	})
+
+	// these are the default pins for the Arduino Nano33 IoT.
+	adaptor = wifinina.New(machine.NINA_SPI,
+		machine.NINA_CS,
+		machine.NINA_ACK,
+		machine.NINA_GPIO0,
+		machine.NINA_RESETN)
+
 	adaptor.Configure()
 
 	// connect to access point
