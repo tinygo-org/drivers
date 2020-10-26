@@ -300,7 +300,9 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 	d.dc.Low()
 	d.driver.write8(cmd)
 	d.dc.High()
-	d.driver.write8sl(data)
+	if data != nil && len(data) > 0 {
+		d.driver.write8sl(data)
+	}
 	d.endWrite()
 }
 
