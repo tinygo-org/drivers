@@ -4,15 +4,17 @@ package ili9341
 
 import (
 	"machine"
+
+	"tinygo.org/x/drivers"
 )
 
 type spiDriver struct {
-	bus machine.SPI
+	bus drivers.SPI
 }
 
 var txBuf [2]uint8
 
-func NewSPI(bus machine.SPI, dc, cs, rst machine.Pin) *Device {
+func NewSPI(bus drivers.SPI, dc, cs, rst machine.Pin) *Device {
 	return &Device{
 		dc:  dc,
 		cs:  cs,
