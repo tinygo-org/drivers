@@ -1,22 +1,5 @@
 package stusb4500
 
-type pdMsgType uint8
-
-const (
-	pdData pdMsgType = iota
-	pdCtrl
-)
-
-type pdMsg struct {
-	t pdMsgType // message type
-	v uint8     // message value
-}
-
-type pdIrq struct {
-	a regStatusAlert // parsed alert register
-	b uint8          // alert register bits
-}
-
 const (
 	// Control Message Types
 	ctrlMsgReserved1       = 0x00

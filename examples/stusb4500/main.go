@@ -61,26 +61,26 @@ func main() {
 
 	// configure the GPIO pins connected to the LED and external button
 	ledPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	buttonPin.Configure(machine.PinConfig{Mode: machine.PinInputPullUp})
+	buttonPin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	buttonPin.SetInterrupt(machine.PinFalling,
 		func(machine.Pin) { isButtonPressed = true })
 
-	println("-- initializing STUSB4500 on I2C1")
+	println("-- initializing STUSB4500 on I2C0")
 
 	// configure the I2C interface
-	machine.I2C1.Configure(machine.I2CConfig{
+	machine.I2C0.Configure(machine.I2CConfig{
 		Frequency: machine.TWI_FREQ_400KHZ,
-		SDA:       machine.I2C1_SDA_PIN,
-		SCL:       machine.I2C1_SCL_PIN,
+		SDA:       machine.SDA_PIN,
+		SCL:       machine.SCL_PIN,
 	})
 
 	// configure the auxiliary STUSB4500 pins
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	alertPin.Configure(machine.PinConfig{Mode: machine.PinInputPullUp})
-	attachPin.Configure(machine.PinConfig{Mode: machine.PinInputPullUp})
+	alertPin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	attachPin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 
 	// create and initialize the STUSB4500 device connection
-	usbpd = stusb4500.New(machine.I2C1).Configure(conf.Configuration{
+	usbpd = stusb4500.New(machine.I2C0).Configure(conf.Configuration{
 		// register the GPIO pins for auxiliary connections
 		ResetPin:  resetPin,
 		AlertPin:  alertPin,
