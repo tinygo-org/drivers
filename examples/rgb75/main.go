@@ -35,7 +35,14 @@ func main() {
 	}
 
 	disp.Resume()
-	disp.SetPixel(20, 20, color.RGBA{0xFF, 0, 0, 0xFF})
 	for {
+		for y := int16(0); y < 32; y++ {
+			for x := int16(0); x < 64; x++ {
+				disp.SetPixel(x, y, color.RGBA{0, 0xFF, 0, 0xFF})
+				time.Sleep(10 * time.Millisecond)
+				disp.SetPixel(x, y, color.RGBA{0xFF, 0x00, 0, 0xFF})
+			}
+		}
+		disp.ClearDisplay()
 	}
 }

@@ -32,9 +32,9 @@ var (
 const (
 	DefaultWidth      = 64 // (pixels) default total width of matrix chain
 	DefaultHeight     = 32 // (pixels) default total height of matrix chain
-	DefaultColorDepth = 8  // (bits) default color depth of each R,G,B component
+	DefaultColorDepth = 4  // (bits) default color depth of each R,G,B component
 
-	rowPeriod = 300
+	bitPeriod = 2000 // base period, doubles with each bitplane index increment
 )
 
 // Config holds the configuration settings for a Device.
@@ -61,7 +61,7 @@ type Device struct {
 	row []machine.Pin  // slice of all row address pins
 	buf [][]color.RGBA // panel framebuffer
 	pos rowPlane       // current row/bitplane of ISR
-	val int            // current timer position
+	val uint32         // current timer position
 }
 
 type (
@@ -73,10 +73,10 @@ type (
 	dataPins struct{ up, lo rgbPins }
 	// rowPlane holds the current rows and bitplane of the row-scan state machine.
 	rowPlane struct {
-		frame         int // frame index
-		yPr, yUp, yLo int // previous-upper, upper, and lower row index
-		bit           int // bitplane index
-		bcm           int // timer period for current bitplane index
+		frame         int    // frame index
+		yPr, yUp, yLo int    // previous-upper, upper, and lower row index
+		bit           int    // bitplane index
+		cyc           uint32 // timer period for current bitplane index
 	}
 )
 
@@ -235,7 +235,7 @@ func (d *Device) ClearDisplay() {
 
 // Resume starts or restarts updating the display.
 func (d *Device) Resume() {
-	d.hub.ResumeTimer(d.val, d.pos.bcm)
+	d.hub.ResumeTimer(d.val, d.pos.cyc)
 }
 
 // Pause stops updating the display. Use Resume to restart updates.
@@ -275,10 +275,10 @@ func (d *Device) initialize() error {
 	d.pos = rowPlane{
 		frame: 0,
 		yPr:   1, // invalid row to force selectRow to set address lines
-		yUp:   0,
-		yLo:   d.cfg.numAddrRows,
-		bit:   0,
-		bcm:   rowPeriod,
+		yUp:   d.cfg.numAddrRows,
+		yLo:   d.cfg.Height,
+		bit:   int(d.cfg.ColorDepth),
+		cyc:   bitPeriod,
 	}
 	d.ClearDisplay()
 	d.hub.InitTimer(d.handleRow)
@@ -305,6 +305,7 @@ func (d *Device) rgbBit(x, y, n int) (r, g, b bool) {
 func (d *Device) handleRow() {
 
 	d.hub.PauseTimer()
+	d.hub.ResumeTimer(0, d.pos.cyc)
 
 	// disable output while we modify the LED output (column) drivers, and open
 	// the LED output (column) latch with data that was transmitted to the shift
@@ -315,16 +316,15 @@ func (d *Device) handleRow() {
 	//      duration as previously illuminated (binary code modulation)
 	d.oen.High()
 	d.lat.High()
-	d.lat.Low()
 
 	// stop the row select timer, switch rows if we have incremented to a new row,
 	// and then re-enable the row select timer.
 	d.selectRow(d.pos.yUp)
+	d.increment()
 
 	// close the latch before clocking out the next row of data, and enable output
+	d.lat.Low()
 	d.oen.Low()
-
-	d.hub.ResumeTimer(0, d.pos.bcm)
 
 	// pulse color data to the next pair of rows while we wait for the timer
 	for x := 0; x < d.cfg.Width; x++ {
@@ -334,6 +334,7 @@ func (d *Device) handleRow() {
 		r1, g1, b1 := d.rgbBit(x, d.pos.yUp, d.pos.bit) // get upper row
 		r2, g2, b2 := d.rgbBit(x, d.pos.yLo, d.pos.bit) // get lower row
 
+		// check if we can set both RGB data and CLK at the same time.
 		if d.cfg.clkDataPort {
 			// set/clear all 6 data lines and CLK with a single register write.
 			d.hub.ClkRgb(r1, g1, b1, r2, g2, b2)
@@ -351,17 +352,16 @@ func (d *Device) handleRow() {
 			d.hub.SetRgbMask(0)
 		}
 	}
-	d.increment()
 }
 
 // increment updates the active row and bitplane indices by one.
 func (d *Device) increment() {
 	d.pos.bit++    // increment bitplane index
-	d.pos.bcm *= 2 // double timer period
+	d.pos.cyc *= 2 // double timer period
 	// check for bitplane index rollover
 	if d.pos.bit >= int(d.cfg.ColorDepth) {
 		d.pos.bit = 0         // reset bitplane index
-		d.pos.bcm = rowPeriod // reset timer period
+		d.pos.cyc = bitPeriod // reset timer period
 		d.pos.yUp++           // update upper row index
 		d.pos.yLo++           // update lower row index
 		// check for upper/lower row index rollover

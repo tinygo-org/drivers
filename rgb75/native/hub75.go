@@ -44,12 +44,19 @@ type Hub75 interface {
 	// SetRgb sets/clears each of the 6 RGB data pins.
 	SetRgb(bool, bool, bool, bool, bool, bool) // R1, G1, B1, R2, G2, B2
 
+	// SetRgbMask sets/clears each of the 6 RGB data pins from the given bitmask.
+	SetRgbMask(uint32)
+
 	// ClkRgb sets CLK, sets/clears each of the 6 RGB data pins, then clears CLK.
+	// Note that this method is only permitted when RGB data pins and CLK pin are
+	// all on the same GPIO port.
 	ClkRgb(bool, bool, bool, bool, bool, bool) // R1, G1, B1, R2, G2, B2
 
-	// SetRgbMask sets/clears each of the 6 RGB data pins (and optionally CLK pin)
-	// from the given bitmask.
-	SetRgbMask(uint32)
+	// ClkRgbMask sets CLK, sets/clears each of the 6 RGB data pins from the given
+	// bitmask, then clears CLK.
+	// Note that this method is only permitted when RGB data pins and CLK pin are
+	// all on the same GPIO port.
+	ClkRgbMask(uint32)
 
 	// SetRow sets the active pair of data rows with the given index.
 	SetRow(int)
@@ -69,11 +76,11 @@ type Hub75 interface {
 	// ResumeTimer resumes the timer service, with given current value, that
 	// signals row data transmission for HUB75 by raising interrupts with given
 	// periodicity.
-	ResumeTimer(int, int)
+	ResumeTimer(uint32, uint32)
 
 	// PauseTimer pauses the timer service that signals row data transmission for
 	// HUB75 and returns the current value of the timer.
-	PauseTimer() int
+	PauseTimer() uint32
 }
 
 // hub75 is a singleton, for implementing interface type Hub75, and is realized

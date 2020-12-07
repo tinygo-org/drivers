@@ -25,18 +25,18 @@ type interruptTimer struct {
 	ok bool
 	bc *volatile.Register32
 	cm uint32
-	tc *sam.TC_COUNT16_Type
+	tc *sam.TC_COUNT32_Type
 }
 
 var rowTimer interruptTimer
 
 // timer holds a reference, IRQ, bus clock (with mask), and GCLK ID for each
-// SAMD51 general-purpose timer/counter (TC) peripheral in 16-bit counter mode.
+// SAMD51 general-purpose timer/counter (TC) peripheral in 32-bit counter mode.
 //
-// For HUB75, we use the 16-bit counter mode (TC_COUNT16_Type) instead of the
-// 8-bit (TC_COUNT8_Type) or 32-bit (TC_COUNT32_Type) modes; the latter mode is
-// actually just implemented as two 16-bit counters, where TC[n] 32-bit would
-// use both TC[n] and TC[n+1] (e.g., TC2 32-bit requires both TC2 and TC3).
+// For HUB75, we use the 32-bit counter mode (TC_COUNT32_Type) instead of the
+// 8-bit (TC_COUNT8_Type) or 16-bit (TC_COUNT16_Type) modes; the 32-bit mode is
+// actually implemented as two 16-bit counters, where TC[n] 32-bit would use
+// both TC[n] and TC[n+1] (e.g., TC2 32-bit requires both TC2 and TC3).
 func init() {
 	timer := []interruptTimer{
 		{
@@ -44,42 +44,42 @@ func init() {
 			ok: false,
 			bc: &sam.MCLK.APBAMASK,
 			cm: sam.MCLK_APBAMASK_TC0_,
-			tc: sam.TC0_COUNT16,
+			tc: sam.TC0_COUNT32,
 		},
 		{
 			id: sam.PCHCTRL_GCLK_TC1,
 			ok: false,
 			bc: &sam.MCLK.APBAMASK,
 			cm: sam.MCLK_APBAMASK_TC1_,
-			tc: sam.TC1_COUNT16,
+			tc: sam.TC1_COUNT32,
 		},
 		{
 			id: sam.PCHCTRL_GCLK_TC2,
 			ok: false,
 			bc: &sam.MCLK.APBBMASK,
 			cm: sam.MCLK_APBBMASK_TC2_,
-			tc: sam.TC2_COUNT16,
+			tc: sam.TC2_COUNT32,
 		},
 		{
 			id: sam.PCHCTRL_GCLK_TC3,
 			ok: false,
 			bc: &sam.MCLK.APBBMASK,
 			cm: sam.MCLK_APBBMASK_TC3_,
-			tc: sam.TC3_COUNT16,
+			tc: sam.TC3_COUNT32,
 		},
 		{
 			id: sam.PCHCTRL_GCLK_TC4,
 			ok: false,
 			bc: &sam.MCLK.APBCMASK,
 			cm: sam.MCLK_APBCMASK_TC4_,
-			tc: sam.TC4_COUNT16,
+			tc: sam.TC4_COUNT32,
 		},
 		{
 			id: sam.PCHCTRL_GCLK_TC5,
 			ok: false,
 			bc: &sam.MCLK.APBCMASK,
 			cm: sam.MCLK_APBCMASK_TC5_,
-			tc: sam.TC5_COUNT16,
+			tc: sam.TC5_COUNT32,
 		},
 	}
 
@@ -152,7 +152,16 @@ func (hub *hub75) SetRgb(r1, g1, b1, r2, g2, b2 bool) {
 	hub.SetRgbMask(data)
 }
 
+// SetRgbMask sets/clears each of the 6 RGB data pins from the given bitmask.
+func (hub *hub75) SetRgbMask(data uint32) {
+	// replace the first 6 bits in PORT register OUT with the corresponding bits
+	// from the given data, updating R1,G1,B1,R2,G2,B2 all simultaneously
+	sam.PORT.GROUP[hub.groupRGB].OUT.ReplaceBits(data, hub.maskRGB, 0)
+}
+
 // ClkRgb sets CLK, sets/clears each of the 6 RGB data pins, then clears CLK.
+// Note that this method is only permitted when RGB data pins and CLK pin are
+// all on the same GPIO port.
 func (hub *hub75) ClkRgb(r1, g1, b1, r2, g2, b2 bool) {
 	var data uint32
 	if r1 {
@@ -173,15 +182,18 @@ func (hub *hub75) ClkRgb(r1, g1, b1, r2, g2, b2 bool) {
 	if b2 {
 		data |= hub.maskB2
 	}
-	hub.SetRgbMask(hub.maskCLK | data)
-	sam.PORT.GROUP[hub.groupRGB].OUTCLR.Set(hub.maskRGB)
+	hub.ClkRgbMask(data)
 }
 
-// SetRgbMask sets/clears each of the 6 RGB data pins from the given bitmask.
-func (hub *hub75) SetRgbMask(data uint32) {
-	// replace the first 6 bits in PORT register OUT with the corresponding bits
-	// from the given data, updating R1,G1,B1,R2,G2,B2 all simultaneously
-	sam.PORT.GROUP[hub.groupRGB].OUT.ReplaceBits(data, hub.maskRGB, 0)
+// ClkRgbMask sets CLK, sets/clears each of the 6 RGB data pins from the given
+// bitmask, then clears CLK.
+// Note that this method is only permitted when RGB data pins and CLK pin are
+// all on the same GPIO port.
+func (hub *hub75) ClkRgbMask(data uint32) {
+	data &= hub.maskRGB
+	sam.PORT.GROUP[hub.groupRGB].OUTTGL.Set(hub.maskCLK | data)
+	sam.PORT.GROUP[hub.groupRGB].OUTTGL.Set(hub.maskCLK)
+	sam.PORT.GROUP[hub.groupRGB].OUTTGL.Set(data)
 }
 
 // SetRow sets the active pair of data rows with the given index.
@@ -302,41 +314,41 @@ func (hub *hub75) InitTimer(handle func()) {
 	} // wait for it to enable
 
 	// disable timer before configuring
-	rowTimer.tc.CTRLA.ClearBits(sam.TC_COUNT16_CTRLA_ENABLE)
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_ENABLE) {
+	rowTimer.tc.CTRLA.ClearBits(sam.TC_COUNT32_CTRLA_ENABLE)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_ENABLE) {
 	} // wait for it to disable
 
 	// // reset timer to default settings
-	// rowTimer.tc.CTRLA.Set(sam.TC_COUNT16_CTRLA_SWRST)
-	// for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_SWRST) {
+	// rowTimer.tc.CTRLA.Set(sam.TC_COUNT32_CTRLA_SWRST)
+	// for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_SWRST) {
 	// } // wait for it to reset
 
 	// enable the TC bus clock
 	rowTimer.bc.SetBits(rowTimer.cm)
 
-	// use 16-bit counter mode, DIV1 prescalar (1:1)
+	// use 32-bit counter mode, DIV1 prescalar (1:1)
 	mode, pdiv :=
-		uint32(sam.TC_COUNT16_CTRLA_MODE_COUNT16<<
-			sam.TC_COUNT16_CTRLA_MODE_Pos)&
-			sam.TC_COUNT16_CTRLA_MODE_Msk,
-		uint32(sam.TC_COUNT16_CTRLA_PRESCALER_DIV1<<
-			sam.TC_COUNT16_CTRLA_PRESCALER_Pos)&
-			sam.TC_COUNT16_CTRLA_PRESCALER_Msk
+		uint32(sam.TC_COUNT32_CTRLA_MODE_COUNT32<<
+			sam.TC_COUNT32_CTRLA_MODE_Pos)&
+			sam.TC_COUNT32_CTRLA_MODE_Msk,
+		uint32(sam.TC_COUNT32_CTRLA_PRESCALER_DIV1<<
+			sam.TC_COUNT32_CTRLA_PRESCALER_Pos)&
+			sam.TC_COUNT32_CTRLA_PRESCALER_Msk
 	rowTimer.tc.CTRLA.SetBits(mode | pdiv)
 
 	// use match frequency (MFRQ) mode
-	rowTimer.tc.WAVE.Set((sam.TC_COUNT16_WAVE_WAVEGEN_MFRQ <<
-		sam.TC_COUNT16_WAVE_WAVEGEN_Pos) &
-		sam.TC_COUNT16_WAVE_WAVEGEN_Msk)
+	rowTimer.tc.WAVE.Set((sam.TC_COUNT32_WAVE_WAVEGEN_MFRQ <<
+		sam.TC_COUNT32_WAVE_WAVEGEN_Pos) &
+		sam.TC_COUNT32_WAVE_WAVEGEN_Msk)
 
 	// use up-counter
-	rowTimer.tc.CTRLBCLR.Set(sam.TC_COUNT16_CTRLBCLR_DIR)
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_CTRLB) {
+	rowTimer.tc.CTRLBCLR.Set(sam.TC_COUNT32_CTRLBCLR_DIR)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_CTRLB) {
 	}
 
 	// interrupt on overflow
-	rowTimer.tc.INTENSET.Set(sam.TC_COUNT16_INTENSET_OVF)
-	rowTimer.tc.INTFLAG.Set(sam.TC_COUNT16_INTFLAG_OVF) // clear all pending
+	rowTimer.tc.INTENSET.Set(sam.TC_COUNT32_INTENSET_OVF)
+	rowTimer.tc.INTFLAG.Set(sam.TC_COUNT32_INTFLAG_OVF) // clear all pending
 
 	// install interrupt handler
 	in := interrupt.New(TC_ROW_IRQ, handleTimer)
@@ -346,41 +358,29 @@ func (hub *hub75) InitTimer(handle func()) {
 
 // ResumeTimer resumes the timer service, with given current value, that signals
 // row data transmission for HUB75 by raising interrupts with given periodicity.
-func (hub *hub75) ResumeTimer(value, period int) {
+func (hub *hub75) ResumeTimer(value, period uint32) {
 
 	// don't do anything if we already resumed
 	if rowTimer.ok {
 		return
 	}
 
-	// clamp given current value to range of uint16
-	if value < 0 {
-		value = 0
-	} else if value > 0xFFFF {
-		value = 0xFFFF
-	}
 	// reset the current counter value
-	rowTimer.tc.COUNT.Set(uint16(value))
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_COUNT) {
+	rowTimer.tc.COUNT.Set(value)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_COUNT) {
 	} // wait for counter sync
 
-	// clamp given period to range of uint16
-	if period < 0 {
-		period = 0 // TBD: a period of 0 probably doesn't make sense, is invalid?
-	} else if period > 0xFFFF {
-		period = 0xFFFF
-	}
 	// set the given period. note that if period is less than current counter
 	// value, the counter will continue counting up until it has overflowed the
-	// 16-bit storage, and then has to count back up to overflow period before it
+	// 32-bit storage, and then has to count back up to overflow period before it
 	// will raise the next interrupt.
-	rowTimer.tc.CC[0].Set(uint16(period))
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_CC0) {
+	rowTimer.tc.CC[0].Set(period)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_CC0) {
 	} // wait for period sync
 
 	// enable the counter
-	rowTimer.tc.CTRLA.Set(sam.TC_COUNT16_CTRLA_ENABLE)
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_ENABLE) {
+	rowTimer.tc.CTRLA.Set(sam.TC_COUNT32_CTRLA_ENABLE)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_ENABLE) {
 	} // wait for it to enable
 
 	rowTimer.ok = true // timer has resumed
@@ -388,29 +388,29 @@ func (hub *hub75) ResumeTimer(value, period int) {
 
 // PauseTimer pauses the timer service that signals row data transmission for
 // HUB75 and returns the current value of the timer.
-func (hub *hub75) PauseTimer() int {
+func (hub *hub75) PauseTimer() uint32 {
 
 	// don't do anything if we are already paused
 	if !rowTimer.ok {
-		return -1
+		return 0
 	}
 
 	// request a synchronized read
-	rowTimer.tc.CTRLBSET.Set((sam.TC_COUNT16_CTRLBSET_CMD_READSYNC <<
-		sam.TC_COUNT16_CTRLBSET_CMD_Pos) &
-		sam.TC_COUNT16_CTRLBSET_CMD_Msk)
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_CTRLB) {
+	rowTimer.tc.CTRLBSET.Set((sam.TC_COUNT32_CTRLBSET_CMD_READSYNC <<
+		sam.TC_COUNT32_CTRLBSET_CMD_Pos) &
+		sam.TC_COUNT32_CTRLBSET_CMD_Msk)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_CTRLB) {
 	} // wait for command sync
 	val := rowTimer.tc.COUNT.Get() // now safe to read
 
 	// disable the counter
-	rowTimer.tc.CTRLA.ClearBits(sam.TC_COUNT16_CTRLA_ENABLE)
-	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT16_SYNCBUSY_STATUS) {
+	rowTimer.tc.CTRLA.ClearBits(sam.TC_COUNT32_CTRLA_ENABLE)
+	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_STATUS) {
 	} // wait for it to disable
 
 	rowTimer.ok = false // timer is now paused
 
-	return int(val)
+	return val
 }
 
 // handleTimer is a wrapper interrupt service routine (ISR) that simply calls
@@ -420,6 +420,6 @@ func (hub *hub75) PauseTimer() int {
 // can't use the argument to InitTimer as handler and must use this indirection
 // as a constant handler.
 func handleTimer(interrupt.Interrupt) {
-	rowTimer.tc.INTFLAG.Set(sam.TC_COUNT16_INTFLAG_OVF) // clear interrupt
+	rowTimer.tc.INTFLAG.Set(sam.TC_COUNT32_INTFLAG_OVF) // clear interrupt
 	HUB75.handleRow()
 }
