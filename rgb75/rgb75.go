@@ -19,6 +19,8 @@ import (
 	"errors"
 	"image/color"
 	"machine"
+
+	"tinygo.org/x/drivers/rgb75/native"
 )
 
 var (
@@ -32,7 +34,7 @@ const (
 	DefaultHeight     = 32 // (pixels) default total height of matrix chain
 	DefaultColorDepth = 8  // (bits) default color depth of each R,G,B component
 
-	rowPeriod = 9600
+	rowPeriod = 300
 )
 
 // Config holds the configuration settings for a Device.
@@ -42,6 +44,7 @@ type Config struct {
 	ColorDepth uint8 // (bits) color depth of each R,G,B component
 
 	oneAddrPort bool // all address pins are on a single GPIO port
+	clkDataPort bool // RGB and CLK pins are all on a single GPIO port
 	numAddrRows int  // number of addressable rows
 	maxHeight   int  // (pixels) maximum height given number of row address pins
 }
@@ -50,7 +53,7 @@ type Config struct {
 // panels (HUB75).
 type Device struct {
 	cfg Config         // configuration settings
-	hub machine.Hub75  // HUB75 connection
+	hub native.Hub75   // HUB75 connection
 	oen machine.Pin    // output enable pin (active low)
 	lat machine.Pin    // RGB data latch pin
 	clk machine.Pin    // RGB clock pin
@@ -73,6 +76,7 @@ type (
 		frame         int // frame index
 		yPr, yUp, yLo int // previous-upper, upper, and lower row index
 		bit           int // bitplane index
+		bcm           int // timer period for current bitplane index
 	}
 )
 
@@ -93,7 +97,8 @@ type (
 // There is no GPIO port restriction for the row address control pins (they can
 // be spread among different GPIO ports), but performance is improved when they
 // are all on the same port.
-func New(hub machine.Hub75, oen, lat, clk machine.Pin, rgb [6]machine.Pin, row []machine.Pin) *Device {
+func New(oen, lat, clk machine.Pin, rgb [6]machine.Pin, row []machine.Pin) *Device {
+	native.HUB75.SetPins(rgb, clk, row...)
 	return &Device{
 		cfg: Config{
 			Width:      DefaultWidth,
@@ -103,7 +108,7 @@ func New(hub machine.Hub75, oen, lat, clk machine.Pin, rgb [6]machine.Pin, row [
 			// cannot refer to any rows higher than we have address lines available.
 			maxHeight: 1 << (len(row) + 1),
 		},
-		hub: hub,
+		hub: native.HUB75,
 		oen: oen,
 		lat: lat,
 		clk: clk,
@@ -170,6 +175,12 @@ func (d *Device) Configure(cfg Config) error {
 		return ErrInvalidDataPins
 	}
 
+	// decide if CLK and RGB data lines are all on the same GPIO port, which helps
+	// further increase efficiency when writing RGB data to the shift registers.
+	// we verified above that all RGB data lines are on the same port, so we need
+	// to compare CLK to only one of those pins (any one is fine).
+	d.cfg.clkDataPort, _ = d.hub.GetPinGroupAlignment(d.rgb.up.r, d.clk)
+
 	// configure all of our Device pins for GPIO output
 	d.oen.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.lat.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -198,7 +209,7 @@ func (d *Device) Size() (x, y int16) {
 	return int16(d.cfg.Width), int16(d.cfg.Height)
 }
 
-// SetPizel modifies the internal buffer.
+// SetPixel modifies the internal buffer.
 func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 	if y >= 0 && int(y) < len(d.buf) {
 		if x >= 0 && int(x) < len(d.buf[y]) {
@@ -217,29 +228,14 @@ func (d *Device) Display() error {
 func (d *Device) ClearDisplay() {
 	for y := range d.buf {
 		for x := range d.buf[y] {
-			switch {
-			case x == 0:
-				d.buf[y][x] = color.RGBA{R: 0x00, G: 0x00, B: 0xFF, A: 0xFF}
-			case x == 1:
-				d.buf[y][x] = color.RGBA{R: 0x00, G: 0xFF, B: 0x00, A: 0xFF}
-			case x == 2:
-				d.buf[y][x] = color.RGBA{R: 0xFF, G: 0x00, B: 0x00, A: 0xFF}
-			case x == 32:
-				d.buf[y][x] = color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
-			case x == 61:
-				d.buf[y][x] = color.RGBA{R: 0x00, G: 0x00, B: 0xFF, A: 0xFF}
-			case x == 62:
-				d.buf[y][x] = color.RGBA{R: 0x00, G: 0xF, B: 0x00, A: 0xFF}
-			case x == 63:
-				d.buf[y][x] = color.RGBA{R: 0xFF, G: 0x00, B: 0x00, A: 0xFF}
-			}
+			d.buf[y][x] = color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x00}
 		}
 	}
 }
 
 // Resume starts or restarts updating the display.
 func (d *Device) Resume() {
-	d.hub.ResumeTimer(d.val, rowPeriod)
+	d.hub.ResumeTimer(d.val, d.pos.bcm)
 }
 
 // Pause stops updating the display. Use Resume to restart updates.
@@ -269,8 +265,8 @@ func (d *Device) initialize() error {
 	// entire width of the matrix chain and latching their content. Simply leave
 	// all RGB data lines low (see above) during this time.
 	for i := 0; i < d.cfg.Width; i++ {
-		d.hub.HoldClkHigh()
-		d.hub.HoldClkLow()
+		d.clk.High()
+		d.clk.Low()
 	}
 	d.lat.High()
 	d.lat.Low()
@@ -282,10 +278,9 @@ func (d *Device) initialize() error {
 		yUp:   0,
 		yLo:   d.cfg.numAddrRows,
 		bit:   0,
+		bcm:   rowPeriod,
 	}
-
 	d.ClearDisplay()
-
 	d.hub.InitTimer(d.handleRow)
 
 	return nil
@@ -309,36 +304,66 @@ func (d *Device) rgbBit(x, y, n int) (r, g, b bool) {
 // timer, which handles row address selection and row data transmission.
 func (d *Device) handleRow() {
 
-	// disable output while we load the data that was clocked into shift registers
-	// at the end of previous interrupt. this data being loaded could be a new row
-	// or it could be simply the next "bitplane" (i.e., next BCM phase) of the
-	// same row currently illuminated (see receiver d's pos.bit).
-	d.illuminate(false)
-	d.latch()                        // load the LED column drivers
-	tv := d.hub.PauseTimer()         // stop the interrupt timer
-	d.selectRow(d.pos.yUp)           // configure row address select lines
-	d.hub.ResumeTimer(tv, rowPeriod) // restart the timer
-	d.illuminate(false)              // enable output
+	d.hub.PauseTimer()
+
+	// disable output while we modify the LED output (column) drivers, and open
+	// the LED output (column) latch with data that was transmitted to the shift
+	// registers during previous interrupt. this data could be either:
+	//   a) new row; i.e., illuminating the next pair of rows different from
+	//      previously illuminated pair of rows (initial bitplane)
+	//   b) new bitplane; i.e., illuminating the same pair of rows for twice the
+	//      duration as previously illuminated (binary code modulation)
+	d.oen.High()
+	d.lat.High()
+	d.lat.Low()
+
+	// stop the row select timer, switch rows if we have incremented to a new row,
+	// and then re-enable the row select timer.
+	d.selectRow(d.pos.yUp)
+
+	// close the latch before clocking out the next row of data, and enable output
+	d.oen.Low()
+
+	d.hub.ResumeTimer(0, d.pos.bcm)
 
 	// pulse color data to the next pair of rows while we wait for the timer
 	for x := 0; x < d.cfg.Width; x++ {
+		// for the current rows (d.pos.yUp/yLo) and current bitplane (d.pos.bit),
+		// grab the corresponding bit in each R,G,B color component of the pixel in
+		// column x.
 		r1, g1, b1 := d.rgbBit(x, d.pos.yUp, d.pos.bit) // get upper row
 		r2, g2, b2 := d.rgbBit(x, d.pos.yLo, d.pos.bit) // get lower row
-		d.hub.SetRgb(r1, g1, b1, r2, g2, b2)            // set all 6 data lines
-		d.pulse()                                       // clock out 1 bit
-		d.hub.SetRgbMask(0)
+
+		if d.cfg.clkDataPort {
+			// set/clear all 6 data lines and CLK with a single register write.
+			d.hub.ClkRgb(r1, g1, b1, r2, g2, b2)
+		} else {
+			// set/clear all 6 data lines with a single register write
+			d.hub.SetRgb(r1, g1, b1, r2, g2, b2)
+
+			// clock out one bit of data for the two current pixels in our active
+			// bitplane (d.pos.bit): (x1,y1)=(x,d.pos.yUp), (x2,y2)=(x,d.pos.yLo)
+			d.clk.High()
+			d.clk.Low()
+
+			// reset all 6 data lines (after data has been clocked out) with a single
+			// register write.
+			d.hub.SetRgbMask(0)
+		}
 	}
 	d.increment()
 }
 
 // increment updates the active row and bitplane indices by one.
 func (d *Device) increment() {
-	d.pos.bit++ // increment bitplane index
+	d.pos.bit++    // increment bitplane index
+	d.pos.bcm *= 2 // double timer period
 	// check for bitplane index rollover
 	if d.pos.bit >= int(d.cfg.ColorDepth) {
-		d.pos.bit = 0 // reset bitplane index
-		d.pos.yUp++   // update upper row index
-		d.pos.yLo++   // update lower row index
+		d.pos.bit = 0         // reset bitplane index
+		d.pos.bcm = rowPeriod // reset timer period
+		d.pos.yUp++           // update upper row index
+		d.pos.yLo++           // update lower row index
 		// check for upper/lower row index rollover
 		if d.pos.yUp >= d.cfg.numAddrRows {
 			d.pos.yUp = 0                 // reset upper row index
@@ -356,24 +381,20 @@ func (d *Device) increment() {
 // height = 32px), providing row=3 is equivalent to row=19, as either one of
 // these arguments will drive both of these rows.
 func (d *Device) selectRow(row int) {
-
 	// don't do anything if given row index exceeds total matrix height
 	if row >= d.cfg.Height {
 		return
 	}
-
 	// if given index refers to a row in the lower-half of the matrix, translate
 	// to its corresponding row index in the upper-half.
 	if row >= d.cfg.numAddrRows {
 		row -= d.cfg.numAddrRows
 	}
-
 	// don't do anything if the row index is the same as previously selected
 	if row == d.pos.yPr {
 		return
 	}
 	d.pos.yPr = row // update previous row selection
-
 	// check if all address control lines are on the same GPIO port
 	if d.cfg.oneAddrPort {
 		// perform the address change with a single register write
@@ -385,28 +406,4 @@ func (d *Device) selectRow(row int) {
 			d.row[i].Set(row&(1<<i) != 0)
 		}
 	}
-}
-
-// illuminate asserts or de-asserts the output enable (OE) control line, which
-// disables or enables all LEDs, respectively.
-func (d *Device) illuminate(ill bool) {
-	if ill {
-		d.oen.Low()
-	} else {
-		d.oen.High()
-	}
-}
-
-// latch toggles the latch/strobe (LAT/STR) control line, which pushes current
-// data in all shift registers to their LED output drivers.
-func (d *Device) latch() {
-	d.hub.HoldLatHigh()
-	d.hub.HoldLatLow()
-}
-
-// pulse toggles the clock (CLK) control line for sufficient time to signal the
-// transmission of a single bit of data.
-func (d *Device) pulse() {
-	d.hub.HoldClkHigh()
-	d.hub.HoldClkLow()
 }
