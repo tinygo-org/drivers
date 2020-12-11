@@ -34,7 +34,7 @@ const (
 	DefaultHeight     = 32 // (pixels) default total height of matrix chain
 	DefaultColorDepth = 4  // (bits) default color depth of each R,G,B component
 
-	bitPeriod = 2000 // base period, doubles with each bitplane index increment
+	bitPeriod = 1800 // timer period at bitplane index 0
 )
 
 // Config holds the configuration settings for a Device.
@@ -76,7 +76,7 @@ type (
 		frame         int    // frame index
 		yPr, yUp, yLo int    // previous-upper, upper, and lower row index
 		bit           int    // bitplane index
-		cyc           uint32 // timer period for current bitplane index
+		per           uint32 // timer period for current bitplane index
 	}
 )
 
@@ -235,7 +235,7 @@ func (d *Device) ClearDisplay() {
 
 // Resume starts or restarts updating the display.
 func (d *Device) Resume() {
-	d.hub.ResumeTimer(d.val, d.pos.cyc)
+	d.hub.ResumeTimer(d.val, d.pos.per)
 }
 
 // Pause stops updating the display. Use Resume to restart updates.
@@ -278,7 +278,7 @@ func (d *Device) initialize() error {
 		yUp:   d.cfg.numAddrRows,
 		yLo:   d.cfg.Height,
 		bit:   int(d.cfg.ColorDepth),
-		cyc:   bitPeriod,
+		per:   bitPeriod,
 	}
 	d.ClearDisplay()
 	d.hub.InitTimer(d.handleRow)
@@ -305,7 +305,7 @@ func (d *Device) rgbBit(x, y, n int) (r, g, b bool) {
 func (d *Device) handleRow() {
 
 	d.hub.PauseTimer()
-	d.hub.ResumeTimer(0, d.pos.cyc)
+	d.hub.ResumeTimer(0, d.pos.per)
 
 	// disable output while we modify the LED output (column) drivers, and open
 	// the LED output (column) latch with data that was transmitted to the shift
@@ -357,11 +357,11 @@ func (d *Device) handleRow() {
 // increment updates the active row and bitplane indices by one.
 func (d *Device) increment() {
 	d.pos.bit++    // increment bitplane index
-	d.pos.cyc *= 2 // double timer period
+	d.pos.per *= 2 // double timer period
 	// check for bitplane index rollover
 	if d.pos.bit >= int(d.cfg.ColorDepth) {
 		d.pos.bit = 0         // reset bitplane index
-		d.pos.cyc = bitPeriod // reset timer period
+		d.pos.per = bitPeriod // reset timer period
 		d.pos.yUp++           // update upper row index
 		d.pos.yLo++           // update lower row index
 		// check for upper/lower row index rollover
