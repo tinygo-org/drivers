@@ -2,13 +2,12 @@ package flash
 
 import (
 	"machine"
-
-	"tinygo.org/x/drivers"
 )
 
 type transport interface {
 	configure(config *DeviceConfig)
 	supportQuadMode() bool
+	setClockSpeed(hz uint32) (err error)
 	runCommand(cmd byte) (err error)
 	readCommand(cmd byte, rsp []byte) (err error)
 	writeCommand(cmd byte, data []byte) (err error)
@@ -19,7 +18,7 @@ type transport interface {
 
 // NewSPI returns a pointer to a flash device that uses a SPI peripheral to
 // communicate with a serial memory chip.
-func NewSPI(spi drivers.SPI, sdo, sdi, sck, cs machine.Pin) *Device {
+func NewSPI(spi *machine.SPI, sdo, sdi, sck, cs machine.Pin) *Device {
 	return &Device{
 		trans: &spiTransport{
 			spi: spi,
@@ -32,7 +31,7 @@ func NewSPI(spi drivers.SPI, sdo, sdi, sck, cs machine.Pin) *Device {
 }
 
 type spiTransport struct {
-	spi drivers.SPI
+	spi *machine.SPI
 	sdo machine.Pin
 	sdi machine.Pin
 	sck machine.Pin
@@ -40,9 +39,29 @@ type spiTransport struct {
 }
 
 func (tr *spiTransport) configure(config *DeviceConfig) {
+	// Configure spi bus
+	tr.setClockSpeed(5000000)
+
 	// Configure chip select pin
 	tr.ss.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tr.ss.High()
+}
+
+func (tr *spiTransport) setClockSpeed(hz uint32) error {
+	// TODO: un-hardcode this max speed; it is probably a sensible
+	//       default maximum for atsamd and nrf at least
+	if hz > 24*1e6 {
+		hz = 24 * 1e6
+	}
+	tr.spi.Configure(machine.SPIConfig{
+		Frequency: hz,
+		SDI:       tr.sdi,
+		SDO:       tr.sdo,
+		SCK:       tr.sck,
+		LSBFirst:  false,
+		Mode:      0,
+	})
+	return nil
 }
 
 func (tr *spiTransport) supportQuadMode() bool {
