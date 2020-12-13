@@ -13,5 +13,8 @@ jobs:
           name: "Enforce Go Formatted Code"
           command: make fmt-check
       - run:
+          name: "Run unit tests"
+          command: make unit-test
+      - run:
           name: "Run build and smoke tests"
           command: make smoke-test

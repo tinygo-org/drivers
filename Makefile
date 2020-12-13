@@ -158,4 +158,13 @@ endif
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis2mdl/main.go
 	@md5sum ./build/test.hex
 
-test: clean fmt-check smoke-test
+DRIVERS = $(wildcard */)
+NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
+		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
+		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x
+TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
+
+unit-test:
+	@go test -v $(addprefix ./,$(TESTS)) 
+
+test: clean fmt-check unit-test smoke-test
