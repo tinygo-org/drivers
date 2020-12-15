@@ -7,7 +7,6 @@ package ssd1351 // import "tinygo.org/x/drivers/ssd1351"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -21,11 +20,11 @@ var (
 // Device wraps an SPI connection.
 type Device struct {
 	bus          drivers.SPI
-	dcPin        machine.Pin
-	resetPin     machine.Pin
-	csPin        machine.Pin
-	enPin        machine.Pin
-	rwPin        machine.Pin
+	dcPin        drivers.Pin
+	resetPin     drivers.Pin
+	csPin        drivers.Pin
+	enPin        drivers.Pin
+	rwPin        drivers.Pin
 	width        int16
 	height       int16
 	rowOffset    int16
@@ -42,7 +41,7 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin drivers.Pin) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin,
@@ -72,13 +71,6 @@ func (d *Device) Configure(cfg Config) {
 	if d.height > d.width {
 		d.bufferLength = d.height
 	}
-
-	// configure GPIO pins
-	d.dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.enPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rwPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	// reset the device
 	d.resetPin.High()

@@ -7,7 +7,6 @@ package hub75 // import "tinygo.org/x/drivers/hub75"
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -24,12 +23,12 @@ type Config struct {
 
 type Device struct {
 	bus               drivers.SPI
-	a                 machine.Pin
-	b                 machine.Pin
-	c                 machine.Pin
-	d                 machine.Pin
-	oe                machine.Pin
-	lat               machine.Pin
+	a                 drivers.Pin
+	b                 drivers.Pin
+	c                 drivers.Pin
+	d                 drivers.Pin
+	oe                drivers.Pin
+	lat               drivers.Pin
 	width             int16
 	height            int16
 	brightness        uint8
@@ -53,15 +52,9 @@ type Device struct {
 	displayColor      uint16
 }
 
-// New returns a new HUB75 driver. Pass in a fully configured SPI bus.
-func New(b drivers.SPI, latPin, oePin, aPin, bPin, cPin, dPin machine.Pin) Device {
-	aPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	bPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	oePin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	latPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
+// New returns a new HUB75 driver. Pass in a fully configured SPI bus, and
+// all pins configured as output.
+func New(b drivers.SPI, latPin, oePin, aPin, bPin, cPin, dPin drivers.Pin) Device {
 	return Device{
 		bus: b,
 		a:   aPin,

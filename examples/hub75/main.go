@@ -18,7 +18,21 @@ func main() {
 		Mode:      0},
 	)
 
-	display = hub75.New(machine.SPI0, 11, 12, 6, 10, 18, 20)
+	p11 := machine.Pin(11)
+	p12 := machine.Pin(12)
+	p6 := machine.Pin(6)
+	p10 := machine.Pin(10)
+	p18 := machine.Pin(18)
+	p20 := machine.Pin(20)
+
+	p11.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	p12.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	p6.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	p10.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	p18.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	p20.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
+	display = hub75.New(machine.SPI0, p11, p12, p6, p10, p18, p20)
 	display.Configure(hub75.Config{
 		Width:      64,
 		Height:     32,

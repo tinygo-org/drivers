@@ -1,9 +1,7 @@
 // Package shiftregister is for 8bit shift output register using 3 GPIO pins like SN74ALS164A, SN74AHC594, SN74AHC595, ...
 package shiftregister
 
-import (
-	"machine"
-)
+import "tinygo.org/x/drivers"
 
 type NumberBit int8
 
@@ -16,7 +14,7 @@ const (
 
 // Device holds pin number
 type Device struct {
-	latch, clock, out machine.Pin // IC wiring
+	latch, clock, out drivers.Pin // IC wiring
 	bits              NumberBit   // Pin number
 	mask              uint32      // keep all pins state
 }
@@ -28,8 +26,9 @@ type ShiftPin struct {
 	d    *Device // Reference to the register
 }
 
-// New returns a new shift output register device
-func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
+// New returns a new shift output register device.
+// You must configure all pins as output before calling.
+func New(Bits NumberBit, Latch, Clock, Out drivers.Pin) *Device {
 	return &Device{
 		latch: Latch,
 		clock: Clock,
@@ -40,9 +39,6 @@ func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
 
 // Configure set hardware configuration
 func (d *Device) Configure() {
-	d.latch.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.out.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.latch.High()
 }
 

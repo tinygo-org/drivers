@@ -3,20 +3,20 @@
 package buzzer // import "tinygo.org/x/drivers/buzzer"
 
 import (
-	"machine"
-
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device wraps a GPIO connection to a buzzer.
 type Device struct {
-	pin  machine.Pin
+	pin  drivers.Pin
 	High bool
 	BPM  float64
 }
 
 // New returns a new buzzer driver given which pin to use
-func New(pin machine.Pin) Device {
+func New(pin drivers.Pin) Device {
 	return Device{
 		pin:  pin,
 		High: false,

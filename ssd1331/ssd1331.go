@@ -6,7 +6,6 @@ package ssd1331 // import "tinygo.org/x/drivers/ssd1331"
 
 import (
 	"image/color"
-	"machine"
 
 	"errors"
 	"time"
@@ -20,9 +19,9 @@ type Rotation uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus         drivers.SPI
-	dcPin       machine.Pin
-	resetPin    machine.Pin
-	csPin       machine.Pin
+	dcPin       drivers.Pin
+	resetPin    drivers.Pin
+	csPin       drivers.Pin
 	width       int16
 	height      int16
 	batchLength int16
@@ -37,10 +36,7 @@ type Config struct {
 }
 
 // New creates a new SSD1331 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin machine.Pin) Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func New(bus drivers.SPI, resetPin, dcPin, csPin drivers.Pin) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin,

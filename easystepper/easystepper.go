@@ -2,13 +2,14 @@
 package easystepper // import "tinygo.org/x/drivers/easystepper"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device holds the pins and the delay between steps
 type Device struct {
-	pins       [4]machine.Pin
+	pins       [4]drivers.Pin
 	stepDelay  int32
 	stepNumber uint8
 }
@@ -19,29 +20,26 @@ type DualDevice struct {
 }
 
 // New returns a new easystepper driver given 4 pins, number of steps and rpm
-func New(pin1, pin2, pin3, pin4 machine.Pin, steps int32, rpm int32) Device {
+func New(pin1, pin2, pin3, pin4 drivers.Pin, steps int32, rpm int32) Device {
 	return Device{
-		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
+		pins:      [4]drivers.Pin{pin1, pin2, pin3, pin4},
 		stepDelay: 60000000 / (steps * rpm),
 	}
 }
 
-// Configure configures the pins of the Device
+// Configure does not do much. Pins must already be configured as output.
 func (d *Device) Configure() {
-	for _, pin := range d.pins {
-		pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	}
 }
 
 // NewDual returns a new dual easystepper driver given 8 pins, number of steps and rpm
-func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 machine.Pin, steps int32, rpm int32) DualDevice {
+func NewDual(pin1, pin2, pin3, pin4, pin5, pin6, pin7, pin8 drivers.Pin, steps int32, rpm int32) DualDevice {
 	var dual DualDevice
 	dual.devices[0] = Device{
-		pins:      [4]machine.Pin{pin1, pin2, pin3, pin4},
+		pins:      [4]drivers.Pin{pin1, pin2, pin3, pin4},
 		stepDelay: 60000000 / (steps * rpm),
 	}
 	dual.devices[1] = Device{
-		pins:      [4]machine.Pin{pin5, pin6, pin7, pin8},
+		pins:      [4]drivers.Pin{pin5, pin6, pin7, pin8},
 		stepDelay: 60000000 / (steps * rpm),
 	}
 	return dual

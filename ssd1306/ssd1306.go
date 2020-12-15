@@ -7,7 +7,6 @@ package ssd1306 // import "tinygo.org/x/drivers/ssd1306"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -38,9 +37,9 @@ type I2CBus struct {
 
 type SPIBus struct {
 	wire     drivers.SPI
-	dcPin    machine.Pin
-	resetPin machine.Pin
-	csPin    machine.Pin
+	dcPin    drivers.Pin
+	resetPin drivers.Pin
+	csPin    drivers.Pin
 }
 
 type Buser interface {
@@ -62,10 +61,7 @@ func NewI2C(bus drivers.I2C) Device {
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin drivers.Pin) Device {
 	return Device{
 		bus: &SPIBus{
 			wire:     bus,

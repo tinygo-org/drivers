@@ -10,7 +10,6 @@ package epd4in2
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -25,10 +24,10 @@ type Config struct {
 
 type Device struct {
 	bus          drivers.SPI
-	cs           machine.Pin
-	dc           machine.Pin
-	rst          machine.Pin
-	busy         machine.Pin
+	cs           drivers.Pin
+	dc           drivers.Pin
+	rst          drivers.Pin
+	busy         drivers.Pin
 	logicalWidth int16
 	width        int16
 	height       int16
@@ -40,11 +39,7 @@ type Device struct {
 type Rotation uint8
 
 // New returns a new epd4in2 driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	busyPin.Configure(machine.PinConfig{Mode: machine.PinInput})
+func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin drivers.Pin) Device {
 	return Device{
 		bus:  bus,
 		cs:   csPin,

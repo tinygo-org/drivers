@@ -161,12 +161,11 @@ endif
 	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
-NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
-		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
-		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x
+NOTESTS = build examples flash semihosting pcd8544 microphone mcp3008 gps microbitmatrix \
+		ws2812 thermistor ili9341 wifinina shifter hd44780 espat l9110x bmi160 l293x touch
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:
-	@go test -v $(addprefix ./,$(TESTS)) 
+	@go test -v $(addprefix ./,$(TESTS)) ./waveshare-epd/... 
 
 test: clean fmt-check unit-test smoke-test
