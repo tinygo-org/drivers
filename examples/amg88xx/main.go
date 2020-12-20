@@ -19,6 +19,11 @@ func main() {
 	})
 	machine.I2C0.Configure(machine.I2CConfig{SCL: machine.SCL_PIN, SDA: machine.SDA_PIN})
 
+	machine.TFT_RST.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.TFT_DC.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.TFT_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.TFT_LITE.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	display := st7735.New(machine.SPI1, machine.TFT_RST, machine.TFT_DC, machine.TFT_CS, machine.TFT_LITE)
 	display.Configure(st7735.Config{
 		Rotation: st7735.ROTATION_90,

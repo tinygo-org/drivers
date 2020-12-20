@@ -9,6 +9,12 @@ import (
 )
 
 func main() {
+	machine.D18.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.D17.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.D16.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.D4.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.D19.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	machine.SPI1.Configure(machine.SPIConfig{
 		Frequency: 2000000,
 	})

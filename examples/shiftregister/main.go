@@ -8,6 +8,10 @@ import (
 )
 
 func main() {
+	machine.PA6.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.PA7.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.PB6.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	d := shiftregister.New(
 		shiftregister.EIGHT_BITS,
 		machine.PA6, // D12 Pin latch connected to ST_CP of 74HC595 (12)
