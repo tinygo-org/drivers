@@ -101,6 +101,7 @@ The following 64 devices are supported.
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf) | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf) | GPIO |
 | [Semihosting](https://wiki.segger.com/Semihosting) | Debug |
+| [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all) | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\)) | GPIO |
 | [Shift registers (SIPO)](https://en.wikipedia.org/wiki/Shift_register#Serial-in_parallel-out_(SIPO)) | GPIO |
 | [SHT3x Digital Humidity Sensor](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/0_Datasheets/Humidity/Sensirion_Humidity_Sensors_SHT3x_Datasheet_digital.pdf) | I2C |
