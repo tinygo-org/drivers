@@ -42,8 +42,8 @@ func (d *Device) SetTime(t time.Time) error {
 	return err
 }
 
-// Time returns the time and date
-func (d *Device) Time() (time.Time, error) {
+// ReadTime returns the date and time
+func (d *Device) ReadTime() (time.Time, error) {
 	data := make([]byte, 8)
 	err := d.bus.ReadRegister(d.Address, uint8(TimeDate), data)
 	if err != nil {
