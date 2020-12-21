@@ -13,7 +13,7 @@ func main() {
 	rtc.SetTime(time.Date(2019, 5, 15, 20, 34, 12, 0, time.UTC))
 
 	for {
-		t, err := rtc.Time()
+		t, err := rtc.ReadTime()
 		if err != nil {
 			println("Error reading date:", err)
 			break
