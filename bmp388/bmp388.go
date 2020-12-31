@@ -1,7 +1,7 @@
 package bmp388
 
 import (
-	"time"
+	"math"
 
 	"tinygo.org/x/drivers"
 )
@@ -18,227 +18,142 @@ type Standby uint
 // Filter unwanted changes in measurement caused by external (environmental) or internal changes (IC).
 type Filter uint
 
-// Device wraps an I2C connection to a BMP280 device.
 type Device struct {
-	bus         drivers.I2C
-	Address     uint16
-	cali        calibrationCoefficients
-	Temperature Oversampling
-	Pressure    Oversampling
-	Mode        Mode
-	Standby     Standby
-	Filter      Filter
+	bus      drivers.I2C
+	Address  uint8
+	cali     calibrationCoefficients
+	refPress float32
 }
 
 type calibrationCoefficients struct {
 	// Temperature compensation
-	t1 uint16
-	t2 int16
-	t3 int16
+	t1 float32
+	t2 float32
+	t3 float32
 
 	// Pressure compensation
-	p1 uint16
-	p2 int16
-	p3 int16
-	p4 int16
-	p5 int16
-	p6 int16
-	p7 int16
-	p8 int16
-	p9 int16
+	p1  float32
+	p2  float32
+	p3  float32
+	p4  float32
+	p5  float32
+	p6  float32
+	p7  float32
+	p8  float32
+	p9  float32
+	p10 float32
+	p11 float32
 }
 
-// New creates a new BMP280 connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the Device object, it does not initialize the device.
-// You must call Configure() first in order to use the device itself.
-func New(bus drivers.I2C) Device {
+func New(bus drivers.I2C, refPress float32) Device {
 	return Device{
-		bus:     bus,
-		Address: Address,
+		bus:      bus,
+		Address:  Address,
+		refPress: refPress,
 	}
 }
 
-// Connected returns whether a BMP280 has been found.
-// It does a "who am I" request and checks the response.
-func (d *Device) Connected() bool {
-	data := make([]byte, 1)
-	d.bus.ReadRegister(uint8(d.Address), REG_ID, data)
-	return data[0] == CHIP_ID
+// Configure can enable settings on the BMP388 and reads the calibration coefficients. The coefficients are converted to
+// their floating point counterparts from the equations given in the datasheet
+func (d *Device) Configure() error {
+	buffer := make([]byte, 21)
+
+	err := d.bus.ReadRegister(uint8(d.Address), REG_CALI, buffer)
+	if err != nil {
+		return err
+	}
+
+	t1 := uint16(buffer[1])<<8 | uint16(buffer[0])
+	t2 := uint16(buffer[3])<<8 | uint16(buffer[2])
+	t3 := int8(buffer[4])
+
+	p1 := int16(buffer[6])<<8 | int16(buffer[5])
+	p2 := int16(buffer[8])<<8 | int16(buffer[7])
+	p3 := int8(buffer[9])
+	p4 := int8(buffer[10])
+	p5 := uint16(buffer[12])<<8 | uint16(buffer[11])
+	p6 := uint16(buffer[14])<<8 | uint16(buffer[13])
+	p7 := int8(buffer[15])
+	p8 := int8(buffer[16])
+	p9 := int16(buffer[18])<<8 | int16(buffer[17])
+	p10 := int8(buffer[19])
+	p11 := int8(buffer[20])
+
+	d.cali.t1 = float32(t1) * float32(1<<8)
+	d.cali.t2 = float32(t2) / float32(1<<30)
+	d.cali.t3 = float32(t3) / float32(1<<48)
+
+	d.cali.p1 = (float32(p1) - float32(1<<14)) / float32(1<<20)
+	d.cali.p2 = (float32(p2) - float32(1<<14)) / float32(1<<29)
+	d.cali.p3 = float32(p3) / float32(1<<32)
+	d.cali.p4 = float32(p4) / float32(1<<37)
+	d.cali.p5 = float32(p5) * float32(1<<3)
+	d.cali.p6 = float32(p6) / float32(1<<6)
+	d.cali.p7 = float32(p7) / float32(1<<8)
+	d.cali.p8 = float32(p8) / float32(1<<15)
+	d.cali.p9 = float32(p9) / float32(1<<48)
+	d.cali.p10 = float32(p10) / float32(1<<48)
+	d.cali.p11 = float32(p11) / float32(1<<65)
+
+	return nil
 }
 
-// Reset preforms complete power-on-reset procedure.
-// It is required to call Configure afterwards.
-func (d *Device) Reset() {
-	d.bus.WriteRegister(uint8(d.Address), REG_RESET, []byte{CMD_RESET})
-}
+// ReadTemperature returns the temperature in celsius
+func (d *Device) ReadTemperature() (temp float32, err error) {
+	buffer := make([]byte, 3)
 
-// Configure sets up the device for communication and
-// read the calibration coefficients.
-func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pres Oversampling, mode Mode) {
-	d.Standby = standby
-	d.Filter = filter
-	d.Temperature = temp
-	d.Pressure = pres
-	d.Mode = mode
-
-	//  Write the configuration (standby, filter, spi 3 wire)
-	config := uint(d.Standby<<5) | uint(d.Filter<<2) | 0x00
-	d.bus.WriteRegister(uint8(d.Address), REG_CONFIG, []byte{byte(config)})
-
-	// Write the control (temperature oversampling, pressure oversampling,
-	config = uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
-
-	// Read Calibration data
-	data := make([]byte, 24)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CALI, data)
+	err = d.bus.ReadRegister(d.Address, REG_TEMP, buffer)
 	if err != nil {
 		return
 	}
 
-	// Datasheet: 3.11.2 Trimming parameter readout
-	d.cali.t1 = readUintLE(data[0], data[1])
-	d.cali.t2 = readIntLE(data[2], data[3])
-	d.cali.t3 = readIntLE(data[4], data[5])
+	rawTemp := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
 
-	d.cali.p1 = readUintLE(data[6], data[7])
-	d.cali.p2 = readIntLE(data[8], data[9])
-	d.cali.p3 = readIntLE(data[10], data[11])
-	d.cali.p4 = readIntLE(data[12], data[13])
-	d.cali.p5 = readIntLE(data[14], data[15])
-	d.cali.p6 = readIntLE(data[16], data[17])
-	d.cali.p7 = readIntLE(data[18], data[19])
-	d.cali.p8 = readIntLE(data[20], data[21])
-	d.cali.p9 = readIntLE(data[22], data[23])
+	partial1 := rawTemp - d.cali.t1
+	partial2 := partial1 * d.cali.t2
+	temp = partial2 + (partial1*partial1)*d.cali.t3
+	return temp, nil
 }
 
-// PrintCali prints the Calibration information.
-func (d *Device) PrintCali() {
-	println("T1:", d.cali.t1)
-	println("T2:", d.cali.t2)
-	println("T3:", d.cali.t3)
-
-	println("P1:", d.cali.p1)
-	println("P2:", d.cali.p2)
-	println("P3:", d.cali.p3)
-	println("P4:", d.cali.p4)
-	println("P5:", d.cali.p5)
-	println("P6:", d.cali.p6)
-	println("P7:", d.cali.p7)
-	println("P8:", d.cali.p8)
-	println("P9:", d.cali.p9, "\n")
-}
-
-// ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
-func (d *Device) ReadTemperature() (temperature int32, err error) {
-	data, err := d.readData(REG_TEMP, 3)
+// ReadPressure returns the pressure in pascals
+func (d *Device) ReadPressure() (press float32, err error) {
+	buffer := make([]byte, 3)
+	err = d.bus.ReadRegister(d.Address, REG_PRESS, buffer)
 	if err != nil {
 		return
 	}
-
-	rawTemp := convert3Bytes(data[0], data[1], data[2])
-
-	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Temperature compensation
-	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
-	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
-		int32(d.cali.t3) >> 14
-
-	tFine := var1 + var2
-
-	// Convert from degrees to milli degrees by multiplying by 10.
-	// Will output 30250 milli degrees celsius for 30.25 degrees celsius
-	temperature = 10 * ((tFine*5 + 128) >> 8)
-	return
-}
-
-// ReadPressure returns the pressure in milli pascals (mPa).
-func (d *Device) ReadPressure() (pressure int32, err error) {
-	// First 3 bytes are Pressure, last 3 bytes are Temperature
-	data, err := d.readData(REG_PRES, 6)
+	temp, err := d.ReadTemperature()
 	if err != nil {
 		return
 	}
+	rawPress := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
 
-	rawTemp := convert3Bytes(data[3], data[4], data[5])
+	partial1 := d.cali.p6 * temp
+	partial2 := d.cali.p7 * (temp * temp)
+	partial3 := d.cali.p8 * (temp * temp * temp)
+	partialOut1 := d.cali.p5 + partial1 + partial2 + partial3
 
-	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Calculate tFine (temperature), used for the Pressure compensation
-	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
-	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
-		int32(d.cali.t3) >> 14
+	partial1 = d.cali.p2 * temp
+	partial2 = d.cali.p3 * (temp * temp)
+	partial3 = d.cali.p4 * (temp * temp * temp)
+	partialOut2 := rawPress * (d.cali.p1 + partial1 + partial2 + partial3)
 
-	tFine := var1 + var2
+	partial1 = rawPress * rawPress
+	partial2 = d.cali.p9 + d.cali.p10*temp
+	partial3 = partial1 * partial2
+	partialOut3 := partial3 + (rawPress*rawPress*rawPress)*d.cali.p11
+	press = partialOut1 + partialOut2 + partialOut3
 
-	rawPres := convert3Bytes(data[0], data[1], data[2])
+	return press, nil
+}
 
-	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Pressure compensation
-	var1 = (tFine >> 1) - 64000
-	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * int32(d.cali.p6)
-	var2 = var2 + ((var1 * int32(d.cali.p5)) << 1)
-	var2 = (var2 >> 2) + (int32(d.cali.p4) << 16)
-	var1 = (((int32(d.cali.p3) * (((var1 >> 2) * (var1 >> 2)) >> 13)) >> 3) +
-		((int32(d.cali.p2) * var1) >> 1)) >> 18
-	var1 = ((32768 + var1) * int32(d.cali.p1)) >> 15
-
-	if var1 == 0 {
-		return 0, nil
+// ReadAltitude predicts the altitude above sea level in meters, by using the reference pressure in the bmp388 struct
+func (d *Device) ReadAltitude() (alt float32, err error) {
+	press, err := d.ReadPressure()
+	temp, err := d.ReadTemperature()
+	if err != nil {
+		return
 	}
-
-	p := uint32(((1048576 - rawPres) - (var2 >> 12)) * 3125)
-	if p < 0x80000000 {
-		p = (p << 1) / uint32(var1)
-	} else {
-		p = (p / uint32(var1)) * 2
-	}
-
-	var1 = (int32(d.cali.p9) * int32(((p>>3)*(p>>3))>>13)) >> 12
-	var2 = (int32(p>>2) * int32(d.cali.p8)) >> 13
-
-	return 1000 * (int32(p) + ((var1 + var2 + int32(d.cali.p7)) >> 4)), nil
-}
-
-// readData reads n number of bytes of the specified register
-func (d *Device) readData(register int, n int) ([]byte, error) {
-	// If not in normal mode, set the mode to FORCED mode, to prevent incorrect measurements
-	// After the measurement in FORCED mode, the sensor will return to SLEEP mode
-	if d.Mode != MODE_NORMAL {
-		config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(MODE_FORCED)
-		d.bus.WriteRegister(uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
-	}
-
-	// Check STATUS register, wait if data is not available yet
-	status := make([]byte, 1)
-	for d.bus.ReadRegister(uint8(d.Address), uint8(REG_STATUS), status[0:]); status[0] != 4 && status[0] != 0; d.bus.ReadRegister(uint8(d.Address), uint8(REG_STATUS), status[0:]) {
-		time.Sleep(time.Millisecond)
-	}
-
-	// Read the requested register
-	data := make([]byte, n)
-	err := d.bus.ReadRegister(uint8(d.Address), uint8(register), data[:])
-	return data, err
-}
-
-// convert3Bytes converts three bytes to int32
-func convert3Bytes(msb byte, b1 byte, lsb byte) int32 {
-	return int32(((((uint32(msb) << 8) | uint32(b1)) << 8) | uint32(lsb)) >> 4)
-}
-
-// readUint converts two bytes to uint16
-func readUint(msb byte, lsb byte) uint16 {
-	return (uint16(msb) << 8) | uint16(lsb)
-}
-
-// readUintLE converts two little endian bytes to uint16
-func readUintLE(msb byte, lsb byte) uint16 {
-	temp := readUint(msb, lsb)
-	return (temp >> 8) | (temp << 8)
-}
-
-// readIntLE converts two little endian bytes to int16
-func readIntLE(msb byte, lsb byte) int16 {
-	return int16(readUintLE(msb, lsb))
+	alt = (float32(math.Pow(float64(d.refPress)/float64(press), (1/5.257))-1) * (temp + 273.15)) / 0.0065
+	return alt, nil
 }
