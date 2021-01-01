@@ -1,28 +1,23 @@
 package bmp388
 
 import (
+	"fmt"
 	"math"
+	"time"
 
 	"tinygo.org/x/drivers"
 )
 
-// OversamplingMode is the oversampling ratio of the temperature or pressure measurement.
-type Oversampling uint
-
-// Mode is the Power Mode.
-type Mode uint
-
-// Standby is the inactive period between the reads when the sensor is in normal power mode.
-type Standby uint
-
-// Filter unwanted changes in measurement caused by external (environmental) or internal changes (IC).
-type Filter uint
+type Oversampling byte
+type Mode byte
 
 type Device struct {
-	bus      drivers.I2C
-	Address  uint8
-	cali     calibrationCoefficients
-	refPress float32
+	bus         drivers.I2C
+	Address     uint8
+	cali        calibrationCoefficients
+	Pressure    Oversampling
+	Temperature Oversampling
+	Mode        Mode
 }
 
 type calibrationCoefficients struct {
@@ -45,22 +40,35 @@ type calibrationCoefficients struct {
 	p11 float32
 }
 
-func New(bus drivers.I2C, refPress float32) Device {
+// New returns a bmp388 struct with the default I2C address. Configure must also be called after instanting
+func New(bus drivers.I2C) Device {
 	return Device{
-		bus:      bus,
-		Address:  Address,
-		refPress: refPress,
+		bus:     bus,
+		Address: ADDRESS,
 	}
 }
 
-// Configure can enable settings on the BMP388 and reads the calibration coefficients. The coefficients are converted to
-// their floating point counterparts from the equations given in the datasheet
-func (d *Device) Configure() error {
-	buffer := make([]byte, 21)
+// Configure can enable settings on the BMP388 and reads the calibration coefficients
+func (d *Device) Configure(pressure Oversampling, temperature Oversampling, mode Mode) (err error) {
+	d.Pressure = pressure
+	d.Temperature = temperature
+	d.Mode = mode
 
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CALI, buffer)
-	if err != nil {
-		return err
+	// Turning on the pressure and temperature sensors and setting the measurement mode to normal
+	if err = d.bus.WriteRegister(d.Address, REG_PWR_CTRL, []byte{PWR_PRESS | PWR_TEMP | byte(mode)}); err != nil {
+		return
+	}
+
+	// Configure the oversampling settings
+	if err = d.bus.WriteRegister(d.Address, REG_OSR, []byte{byte((temperature << 3) | pressure)}); err != nil {
+		return
+	}
+
+	// Reading the builtin calibration coefficients and parsing them per the datasheet. The compensation formula given
+	// in the datasheet is implemented in floating point
+	buffer := make([]byte, 21)
+	if err = d.bus.ReadRegister(uint8(d.Address), REG_CALI, buffer); err != nil {
+		return
 	}
 
 	t1 := uint16(buffer[1])<<8 | uint16(buffer[0])
@@ -102,13 +110,18 @@ func (d *Device) Configure() error {
 func (d *Device) ReadTemperature() (temp float32, err error) {
 	buffer := make([]byte, 3)
 
-	err = d.bus.ReadRegister(d.Address, REG_TEMP, buffer)
-	if err != nil {
-		return
+	// wait until temperature data is ready
+	for d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]); (buffer[0] & DRDY_TEMP) == 0; d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]) {
+		time.Sleep(time.Millisecond)
+	}
+
+	if err = d.bus.ReadRegister(d.Address, REG_TEMP, buffer); err != nil {
+		return 0, fmt.Errorf("[%v] failed to read temperature data", err)
 	}
 
 	rawTemp := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
 
+	// eqns are from the compensation formula in the datasheet
 	partial1 := rawTemp - d.cali.t1
 	partial2 := partial1 * d.cali.t2
 	temp = partial2 + (partial1*partial1)*d.cali.t3
@@ -118,14 +131,20 @@ func (d *Device) ReadTemperature() (temp float32, err error) {
 // ReadPressure returns the pressure in pascals
 func (d *Device) ReadPressure() (press float32, err error) {
 	buffer := make([]byte, 3)
-	err = d.bus.ReadRegister(d.Address, REG_PRESS, buffer)
-	if err != nil {
-		return
+
+	// wait until pressure data is ready
+	for d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]); (buffer[0] & DRDY_PRESS) == 0; d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]) {
+		time.Sleep(time.Millisecond)
 	}
+	if err = d.bus.ReadRegister(d.Address, REG_PRESS, buffer); err != nil {
+		return 0, fmt.Errorf("[%v] failed to read pressure data", err)
+	}
+
 	temp, err := d.ReadTemperature()
 	if err != nil {
 		return
 	}
+
 	rawPress := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
 
 	partial1 := d.cali.p6 * temp
@@ -147,13 +166,39 @@ func (d *Device) ReadPressure() (press float32, err error) {
 	return press, nil
 }
 
-// ReadAltitude predicts the altitude above sea level in meters, by using the reference pressure in the bmp388 struct
-func (d *Device) ReadAltitude() (alt float32, err error) {
+// ReadAltitude estimates the altitude above sea level in meters. The equation is only valid below 11 km. refPress is
+// the local SEA LEVEL pressure, not the actual pressure.
+func (d *Device) ReadAltitude(refPress float32) (alt float32, err error) {
 	press, err := d.ReadPressure()
 	temp, err := d.ReadTemperature()
 	if err != nil {
 		return
 	}
-	alt = (float32(math.Pow(float64(d.refPress)/float64(press), (1/5.257))-1) * (temp + 273.15)) / 0.0065
+
+	// This equation is only valid below 11 km
+	alt = (float32(math.Pow(float64(refPress)/float64(press), (1/5.257))-1) * (temp + 273.15)) / 0.0065
 	return alt, nil
+}
+
+// SoftReset commands the BMP388 to trigger a reset of all user configuration settings
+func (d *Device) SoftReset() error {
+	err := d.bus.WriteRegister(d.Address, REG_CMD, []byte{SOFT_RESET, 0xB0})
+	if err != nil {
+		return fmt.Errorf("[%v] failed to perform a soft reset", err)
+	}
+	return nil
+}
+
+// Connected tries to reach the bmp388 and check its chip id register. Returns true if it was able to successfully
+// communicate over i2c and returns the correct value
+func (d *Device) Connected() bool {
+	buffer := make([]byte, 1)
+	err := d.bus.ReadRegister(d.Address, REG_CHIP_ID, buffer)
+	return err == nil && buffer[0] == CHIP_ID // returns true if i2c comm was good and response equals 0x50
+}
+
+func (d *Device) configurationError() bool {
+	buffer := make([]byte, 1)
+	err := d.bus.ReadRegister(d.Address, REG_ERR, buffer)
+	return err == nil && (buffer[0]&0x04) != 0
 }
