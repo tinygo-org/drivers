@@ -1,23 +1,30 @@
 package bmp388
 
 import (
-	"fmt"
+	"errors"
 	"math"
-	"time"
 
 	"tinygo.org/x/drivers"
 )
 
 type Oversampling byte
 type Mode byte
+type OutputDataRate byte
+type FilterCoefficient byte
 
-type Device struct {
-	bus         drivers.I2C
-	Address     uint8
-	cali        calibrationCoefficients
+type BMP388Config struct {
 	Pressure    Oversampling
 	Temperature Oversampling
 	Mode        Mode
+	ODR         OutputDataRate
+	IIR         FilterCoefficient
+}
+
+type Device struct {
+	bus     drivers.I2C
+	Address uint8
+	cali    calibrationCoefficients
+	Config  BMP388Config
 }
 
 type calibrationCoefficients struct {
@@ -49,26 +56,35 @@ func New(bus drivers.I2C) Device {
 }
 
 // Configure can enable settings on the BMP388 and reads the calibration coefficients
-func (d *Device) Configure(pressure Oversampling, temperature Oversampling, mode Mode) (err error) {
-	d.Pressure = pressure
-	d.Temperature = temperature
-	d.Mode = mode
+func (d *Device) Configure(config BMP388Config) (err error) {
+	d.Config = config
 
-	// Turning on the pressure and temperature sensors and setting the measurement mode to normal
-	if err = d.bus.WriteRegister(d.Address, REG_PWR_CTRL, []byte{PWR_PRESS | PWR_TEMP | byte(mode)}); err != nil {
-		return
+	if d.Config == (BMP388Config{}) {
+		d.Config.Mode = NORMAL
 	}
 
-	// Configure the oversampling settings
-	if err = d.bus.WriteRegister(d.Address, REG_OSR, []byte{byte((temperature << 3) | pressure)}); err != nil {
-		return
+	// Turning on the pressure and temperature sensors and setting the measurement mode
+	err = d.writeRegister(REG_PWR_CTRL, PWR_PRESS|PWR_TEMP|byte(d.Config.Mode))
+
+	// Configure the oversampling, output data rate, and iir filter coefficient settings
+	err = d.writeRegister(REG_OSR, byte(d.Config.Pressure|d.Config.Temperature<<3))
+	err = d.writeRegister(REG_ODR, byte(d.Config.ODR))
+	err = d.writeRegister(REG_IIR, byte(d.Config.IIR<<1))
+
+	if err != nil {
+		return errors.New("bmp388: failed to configure sensor, check connection")
+	}
+
+	// Check if there is a problem with the given configuration
+	if d.configurationError() {
+		return errors.New("bmp388: there is a problem with the configuration, try reducing ODR")
 	}
 
 	// Reading the builtin calibration coefficients and parsing them per the datasheet. The compensation formula given
 	// in the datasheet is implemented in floating point
-	buffer := make([]byte, 21)
-	if err = d.bus.ReadRegister(uint8(d.Address), REG_CALI, buffer); err != nil {
-		return
+	buffer, err := d.readRegister(REG_CALI, 21)
+	if err != nil {
+		return errors.New("bmp388: failed to read calibration coefficient register")
 	}
 
 	t1 := uint16(buffer[1])<<8 | uint16(buffer[0])
@@ -106,20 +122,32 @@ func (d *Device) Configure(pressure Oversampling, temperature Oversampling, mode
 	return nil
 }
 
+func (d *Device) readSensorData(register byte) (data float32, err error) {
+
+	// put the sensor back into forced mode to get a reading, the sensor goes back to sleep after taking one read in
+	// forced mode
+	if d.Config.Mode != NORMAL {
+		err = d.SetMode(FORCED)
+		if err != nil {
+			return
+		}
+	}
+
+	bytes, err := d.readRegister(register, 3)
+	if err != nil {
+		return
+	}
+	data = (float32)(int32(bytes[2])<<16 | int32(bytes[1])<<8 | int32(bytes[0]))
+	return
+}
+
 // ReadTemperature returns the temperature in celsius
 func (d *Device) ReadTemperature() (temp float32, err error) {
-	buffer := make([]byte, 3)
 
-	// wait until temperature data is ready
-	for d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]); (buffer[0] & DRDY_TEMP) == 0; d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]) {
-		time.Sleep(time.Millisecond)
+	rawTemp, err := d.readSensorData(REG_TEMP)
+	if err != nil {
+		return
 	}
-
-	if err = d.bus.ReadRegister(d.Address, REG_TEMP, buffer); err != nil {
-		return 0, fmt.Errorf("[%v] failed to read temperature data", err)
-	}
-
-	rawTemp := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
 
 	// eqns are from the compensation formula in the datasheet
 	partial1 := rawTemp - d.cali.t1
@@ -130,22 +158,15 @@ func (d *Device) ReadTemperature() (temp float32, err error) {
 
 // ReadPressure returns the pressure in pascals
 func (d *Device) ReadPressure() (press float32, err error) {
-	buffer := make([]byte, 3)
-
-	// wait until pressure data is ready
-	for d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]); (buffer[0] & DRDY_PRESS) == 0; d.bus.ReadRegister(d.Address, REG_STAT, buffer[0:1]) {
-		time.Sleep(time.Millisecond)
-	}
-	if err = d.bus.ReadRegister(d.Address, REG_PRESS, buffer); err != nil {
-		return 0, fmt.Errorf("[%v] failed to read pressure data", err)
-	}
 
 	temp, err := d.ReadTemperature()
 	if err != nil {
 		return
 	}
-
-	rawPress := (float32)(int32(buffer[2])<<16 | int32(buffer[1])<<8 | int32(buffer[0]))
+	rawPress, err := d.readSensorData(REG_PRESS)
+	if err != nil {
+		return
+	}
 
 	partial1 := d.cali.p6 * temp
 	partial2 := d.cali.p7 * (temp * temp)
@@ -167,7 +188,7 @@ func (d *Device) ReadPressure() (press float32, err error) {
 }
 
 // ReadAltitude estimates the altitude above sea level in meters. The equation is only valid below 11 km. refPress is
-// the local SEA LEVEL pressure, not the actual pressure.
+// the LOCAL SEA LEVEL pressure, not the actual pressure.
 func (d *Device) ReadAltitude(refPress float32) (alt float32, err error) {
 	press, err := d.ReadPressure()
 	temp, err := d.ReadTemperature()
@@ -180,11 +201,11 @@ func (d *Device) ReadAltitude(refPress float32) (alt float32, err error) {
 	return alt, nil
 }
 
-// SoftReset commands the BMP388 to trigger a reset of all user configuration settings
+// SoftReset commands the BMP388 to reset of all user configuration settings
 func (d *Device) SoftReset() error {
-	err := d.bus.WriteRegister(d.Address, REG_CMD, []byte{SOFT_RESET, 0xB0})
+	err := d.writeRegister(REG_CMD, SOFT_RESET)
 	if err != nil {
-		return fmt.Errorf("[%v] failed to perform a soft reset", err)
+		return errors.New("bmp388: failed to perform a soft reset")
 	}
 	return nil
 }
@@ -192,13 +213,29 @@ func (d *Device) SoftReset() error {
 // Connected tries to reach the bmp388 and check its chip id register. Returns true if it was able to successfully
 // communicate over i2c and returns the correct value
 func (d *Device) Connected() bool {
-	buffer := make([]byte, 1)
-	err := d.bus.ReadRegister(d.Address, REG_CHIP_ID, buffer)
-	return err == nil && buffer[0] == CHIP_ID // returns true if i2c comm was good and response equals 0x50
+	data, err := d.readRegister(REG_CHIP_ID, 1)
+	return err == nil && data[0] == CHIP_ID // returns true if i2c comm was good and response equals 0x50
 }
 
+// ConfigurationError checks the register error for the configuration error bit. The bit is cleared on read by the bmp.
 func (d *Device) configurationError() bool {
-	buffer := make([]byte, 1)
-	err := d.bus.ReadRegister(d.Address, REG_ERR, buffer)
-	return err == nil && (buffer[0]&0x04) != 0
+	data, err := d.readRegister(REG_ERR, 1)
+	return err == nil && (data[0]&0x04) != 0
+}
+
+// SetMode changes the run mode of the sensor, NORMAL is the one to use for most cases. Use FORCED if you plan to take
+// measurements infrequently and want to conserve power. SLEEP will of course put the sensor to sleep
+func (d *Device) SetMode(mode Mode) error {
+	d.Config.Mode = mode
+	return d.writeRegister(REG_PWR_CTRL, PWR_PRESS|PWR_TEMP|byte(d.Config.Mode))
+}
+
+func (d *Device) readRegister(register byte, len int) (data []byte, err error) {
+	data = make([]byte, len)
+	err = d.bus.ReadRegister(d.Address, register, data)
+	return
+}
+
+func (d *Device) writeRegister(register byte, data byte) error {
+	return d.bus.WriteRegister(d.Address, register, []byte{data})
 }
