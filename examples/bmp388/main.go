@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"machine"
-	"strconv"
 	"time"
 
 	"tinygo.org/x/drivers/bmp388"
@@ -24,11 +24,12 @@ func main() {
 	// (ODR) will likely have to be decreased. Configure() will return an error if there's a problem with the
 	// configuration settings - keep decreasing the ODR and cycling the power to the sensor until it is happy.
 	err := sensor.Configure(bmp388.BMP388Config{
-		Pressure:    bmp388.SAMPLING_8X,
-		Temperature: bmp388.SAMPLING_2X,
-		ODR:         bmp388.ODR_25,
-		IIR:         bmp388.COEF_0,
-		Mode:        bmp388.NORMAL,
+		Pressure:         bmp388.SAMPLING_8X,
+		Temperature:      bmp388.SAMPLING_2X,
+		ODR:              bmp388.ODR_25,
+		IIR:              bmp388.COEF_0,
+		Mode:             bmp388.NORMAL,
+		SeaLevelPressure: 10186257, // in centipascals
 	})
 
 	// This is also fine
@@ -39,18 +40,17 @@ func main() {
 	}
 
 	for {
-		temp, err := sensor.ReadTemperature()     // returns the temperature in celsius
-		press, err := sensor.ReadPressure()       // returns the pressure in pascals
-		alt, err := sensor.ReadAltitude(101083.7) // estimates the altitude in meters given the local sea level pressure
+		temp, err := sensor.ReadTemperature() // returns the temperature in centicelsius
+		press, err := sensor.ReadPressure()   // returns the pressure in centipascals
+		alt, err := sensor.ReadAltitude()     // estimates the altitude in centimeters given the local sea level pressure
 
 		if err != nil {
 			println(err)
 		}
 
-		// using fmt.Printf causes a stack overflow on my microcontroller, please forgive this
-		output := strconv.FormatFloat(float64(press), 'f', 2, 32) + " Pa   " + strconv.FormatFloat(float64(temp),
-			'f', 2, 32) + " C   " + strconv.FormatFloat(float64(alt), 'f', 2, 32) + " m"
-		println(output)
-		time.Sleep(100 * time.Millisecond)
+		fmt.Printf("Temperature: %d cC\r\n", temp)
+		fmt.Printf("Pressure:    %d cPa\r\n", press)
+		fmt.Printf("Altitude:    %d cm\r\n\n", alt)
+		time.Sleep(time.Second)
 	}
 }
