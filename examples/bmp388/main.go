@@ -24,12 +24,11 @@ func main() {
 	// (ODR) will likely have to be decreased. Configure() will return an error if there's a problem with the
 	// configuration settings - keep decreasing the ODR and cycling the power to the sensor until it is happy.
 	err := sensor.Configure(bmp388.BMP388Config{
-		Pressure:         bmp388.Sampling8X,
-		Temperature:      bmp388.Sampling2X,
-		ODR:              bmp388.Odr25,
-		IIR:              bmp388.Coeff0,
-		Mode:             bmp388.Normal,
-		SeaLevelPressure: 10186257, // in centipascals
+		Pressure:    bmp388.Sampling8X,
+		Temperature: bmp388.Sampling2X,
+		ODR:         bmp388.Odr25,
+		IIR:         bmp388.Coeff0,
+		Mode:        bmp388.Normal,
 	})
 
 	// This is also fine
@@ -42,7 +41,6 @@ func main() {
 	for {
 		temp, err := sensor.ReadTemperature() // returns the temperature in centicelsius
 		press, err := sensor.ReadPressure()   // returns the pressure in centipascals
-		alt, err := sensor.ReadAltitude()     // estimates the altitude in centimeters given the local sea level pressure
 
 		if err != nil {
 			println(err)
@@ -50,7 +48,6 @@ func main() {
 
 		fmt.Printf("Temperature: %d cC\r\n", temp)
 		fmt.Printf("Pressure:    %d cPa\r\n", press)
-		fmt.Printf("Altitude:    %d cm\r\n\n", alt)
 		time.Sleep(time.Second)
 	}
 }

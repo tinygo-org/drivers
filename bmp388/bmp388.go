@@ -2,7 +2,6 @@ package bmp388
 
 import (
 	"errors"
-	"math"
 
 	"tinygo.org/x/drivers"
 )
@@ -13,12 +12,11 @@ type OutputDataRate byte
 type FilterCoefficient byte
 
 type BMP388Config struct {
-	Pressure         Oversampling
-	Temperature      Oversampling
-	Mode             Mode
-	ODR              OutputDataRate
-	IIR              FilterCoefficient
-	SeaLevelPressure int32 // sea level pressure in centipascals
+	Pressure    Oversampling
+	Temperature Oversampling
+	Mode        Mode
+	ODR         OutputDataRate
+	IIR         FilterCoefficient
 }
 
 type Device struct {
@@ -65,10 +63,6 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 
 	if d.Config == (BMP388Config{}) {
 		d.Config.Mode = Normal
-	}
-
-	if d.Config.SeaLevelPressure == 0 {
-		d.Config.SeaLevelPressure = 10132500 // standard sea level pressure in cPa
 	}
 
 	// Turning on the pressure and temperature sensors and setting the measurement mode
@@ -174,17 +168,6 @@ func (d *Device) ReadPressure() (int32, error) {
 	partialData4 = (offset / 4) + partialData1 + partialData5 + partialData3
 	compPress := ((uint64(partialData4) * 25) / uint64(1099511627776))
 	return int32(compPress), nil
-}
-
-// ReadAltitude estimates the altitude above sea level in centimeters.
-func (d *Device) ReadAltitude() (alt int32, err error) {
-	press, err := d.ReadPressure()
-	if err != nil {
-		return
-	}
-	// pulled from bme280 driver, modified a bit to return altitude in centimeters
-	alt = int32(4433000.0 * (1.0 - math.Pow(float64(press)/float64(d.Config.SeaLevelPressure), 0.1903)))
-	return
 }
 
 // SoftReset commands the BMP388 to reset of all user configuration settings
