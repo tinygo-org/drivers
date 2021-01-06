@@ -24,11 +24,11 @@ func main() {
 	// (ODR) will likely have to be decreased. Configure() will return an error if there's a problem with the
 	// configuration settings - keep decreasing the ODR and cycling the power to the sensor until it is happy.
 	err := sensor.Configure(bmp388.BMP388Config{
-		Pressure:         bmp388.SAMPLING_8X,
-		Temperature:      bmp388.SAMPLING_2X,
-		ODR:              bmp388.ODR_25,
-		IIR:              bmp388.COEF_0,
-		Mode:             bmp388.NORMAL,
+		Pressure:         bmp388.Sampling8X,
+		Temperature:      bmp388.Sampling2X,
+		ODR:              bmp388.Odr25,
+		IIR:              bmp388.Coeff0,
+		Mode:             bmp388.Normal,
 		SeaLevelPressure: 10186257, // in centipascals
 	})
 

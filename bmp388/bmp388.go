@@ -55,7 +55,7 @@ type calibrationCoefficients struct {
 func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
-		Address: ADDRESS,
+		Address: Address,
 	}
 }
 
@@ -64,7 +64,7 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 	d.Config = config
 
 	if d.Config == (BMP388Config{}) {
-		d.Config.Mode = NORMAL
+		d.Config.Mode = Normal
 	}
 
 	if d.Config.SeaLevelPressure == 0 {
@@ -72,12 +72,12 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 	}
 
 	// Turning on the pressure and temperature sensors and setting the measurement mode
-	err = d.writeRegister(REG_PWR_CTRL, PWR_PRESS|PWR_TEMP|byte(d.Config.Mode))
+	err = d.writeRegister(RegPwrCtrl, PwrPress|PwrTemp|byte(d.Config.Mode))
 
 	// Configure the oversampling, output data rate, and iir filter coefficient settings
-	err = d.writeRegister(REG_OSR, byte(d.Config.Pressure|d.Config.Temperature<<3))
-	err = d.writeRegister(REG_ODR, byte(d.Config.ODR))
-	err = d.writeRegister(REG_IIR, byte(d.Config.IIR<<1))
+	err = d.writeRegister(RegOSR, byte(d.Config.Pressure|d.Config.Temperature<<3))
+	err = d.writeRegister(RegODR, byte(d.Config.ODR))
+	err = d.writeRegister(RegIIR, byte(d.Config.IIR<<1))
 
 	if err != nil {
 		return errors.New("bmp388: failed to configure sensor, check connection")
@@ -90,7 +90,7 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 
 	// Reading the builtin calibration coefficients and parsing them per the datasheet. The compensation formula given
 	// in the datasheet is implemented in floating point
-	buffer, err := d.readRegister(REG_CALI, 21)
+	buffer, err := d.readRegister(RegCali, 21)
 	if err != nil {
 		return errors.New("bmp388: failed to read calibration coefficient register")
 	}
@@ -117,7 +117,7 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 // ReadTemperature returns the temperature in centicelsius, i.e 2426 / 100 = 24.26 C
 func (d *Device) ReadTemperature() (int32, error) {
 
-	rawTemp, err := d.readSensorData(REG_TEMP)
+	rawTemp, err := d.readSensorData(RegTemp)
 	if err != nil {
 		return 0, err
 	}
@@ -142,7 +142,7 @@ func (d *Device) ReadPressure() (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	rawPress, err := d.readSensorData(REG_PRESS)
+	rawPress, err := d.readSensorData(RegPress)
 	if err != nil {
 		return 0, err
 	}
@@ -189,7 +189,7 @@ func (d *Device) ReadAltitude() (alt int32, err error) {
 
 // SoftReset commands the BMP388 to reset of all user configuration settings
 func (d *Device) SoftReset() error {
-	err := d.writeRegister(REG_CMD, SOFT_RESET)
+	err := d.writeRegister(RegCmd, SoftReset)
 	if err != nil {
 		return errors.New("bmp388: failed to perform a soft reset")
 	}
@@ -199,23 +199,23 @@ func (d *Device) SoftReset() error {
 // Connected tries to reach the bmp388 and check its chip id register. Returns true if it was able to successfully
 // communicate over i2c and returns the correct value
 func (d *Device) Connected() bool {
-	data, err := d.readRegister(REG_CHIP_ID, 1)
-	return err == nil && data[0] == CHIP_ID // returns true if i2c comm was good and response equals 0x50
+	data, err := d.readRegister(RegChipId, 1)
+	return err == nil && data[0] == ChipId // returns true if i2c comm was good and response equals 0x50
 }
 
 // SetMode changes the run mode of the sensor, NORMAL is the one to use for most cases. Use FORCED if you plan to take
 // measurements infrequently and want to conserve power. SLEEP will of course put the sensor to sleep
 func (d *Device) SetMode(mode Mode) error {
 	d.Config.Mode = mode
-	return d.writeRegister(REG_PWR_CTRL, PWR_PRESS|PWR_TEMP|byte(d.Config.Mode))
+	return d.writeRegister(RegPwrCtrl, PwrPress|PwrTemp|byte(d.Config.Mode))
 }
 
 func (d *Device) readSensorData(register byte) (data int64, err error) {
 
 	// put the sensor back into forced mode to get a reading, the sensor goes back to sleep after taking one read in
 	// forced mode
-	if d.Config.Mode != NORMAL {
-		err = d.SetMode(FORCED)
+	if d.Config.Mode != Normal {
+		err = d.SetMode(Forced)
 		if err != nil {
 			return
 		}
@@ -231,7 +231,7 @@ func (d *Device) readSensorData(register byte) (data int64, err error) {
 
 // configurationError checks the register error for the configuration error bit. The bit is cleared on read by the bmp.
 func (d *Device) configurationError() bool {
-	data, err := d.readRegister(REG_ERR, 1)
+	data, err := d.readRegister(RegErr, 1)
 	return err == nil && (data[0]&0x04) != 0
 }
 
