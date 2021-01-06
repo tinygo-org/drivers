@@ -44,9 +44,6 @@ type calibrationCoefficients struct {
 	p9  int16
 	p10 int8
 	p11 int8
-
-	// temperature value used for pressure compensation
-	tlin int64
 }
 
 // New returns a bmp388 struct with the default I2C address. Configure must also be called after instanting
@@ -108,9 +105,9 @@ func (d *Device) Configure(config BMP388Config) (err error) {
 	return nil
 }
 
-// ReadTemperature returns the temperature in centicelsius, i.e 2426 / 100 = 24.26 C
-func (d *Device) ReadTemperature() (int32, error) {
-
+// Read the temperature registers and compute a compensation value for the temperature and pressure compensation
+// calculations. This is not the temperature itself.
+func (d *Device) tlinCompensate() (int64, error) {
 	rawTemp, err := d.readSensorData(RegTemp)
 	if err != nil {
 		return 0, err
@@ -122,17 +119,26 @@ func (d *Device) ReadTemperature() (int32, error) {
 	partialData3 := (partialData1 * partialData1)
 	partialData4 := partialData3 * int64(d.cali.t3)
 	partialData5 := (partialData2 * 262144) + partialData4
-	partialData6 := partialData5 / 4294967296
+	return partialData5 / 4294967296, nil
 
-	d.cali.tlin = partialData6
-	temp := ((partialData6 * 25) / 16384)
+}
+
+// ReadTemperature returns the temperature in centicelsius, i.e 2426 / 100 = 24.26 C
+func (d *Device) ReadTemperature() (int32, error) {
+
+	tlin, err := d.tlinCompensate()
+	if err != nil {
+		return 0, err
+	}
+
+	temp := (tlin * 25) / 16384
 	return int32(temp), nil
 }
 
 // ReadPressure returns the pressure in centipascals, i.e 10132520 / 100 = 101325.20 Pa
 func (d *Device) ReadPressure() (int32, error) {
 
-	_, err := d.ReadTemperature()
+	tlin, err := d.tlinCompensate()
 	if err != nil {
 		return 0, err
 	}
@@ -142,19 +148,19 @@ func (d *Device) ReadPressure() (int32, error) {
 	}
 
 	// code pulled from bmp388 C driver: https://github.com/BoschSensortec/BMP3-Sensor-API/blob/master/bmp3.c
-	partialData1 := d.cali.tlin * d.cali.tlin
+	partialData1 := tlin * tlin
 	partialData2 := partialData1 / 64
-	partialData3 := (partialData2 * d.cali.tlin) / 256
+	partialData3 := (partialData2 * tlin) / 256
 	partialData4 := (int64(d.cali.p8) * partialData3) / 32
 	partialData5 := (int64(d.cali.p7) * partialData1) * 16
-	partialData6 := (int64(d.cali.p6) * d.cali.tlin) * 4194304
+	partialData6 := (int64(d.cali.p6) * tlin) * 4194304
 	offset := (int64(d.cali.p5) * 140737488355328) + partialData4 + partialData5 + partialData6
 	partialData2 = (int64(d.cali.p4) * partialData3) / 32
 	partialData4 = (int64(d.cali.p3) * partialData1) * 4
-	partialData5 = (int64(d.cali.p2) - 16384) * d.cali.tlin * 2097152
+	partialData5 = (int64(d.cali.p2) - 16384) * tlin * 2097152
 	sensitivity := ((int64(d.cali.p1) - 16384) * 70368744177664) + partialData2 + partialData4 + partialData5
 	partialData1 = (sensitivity / 16777216) * rawPress
-	partialData2 = int64(d.cali.p10) * d.cali.tlin
+	partialData2 = int64(d.cali.p10) * tlin
 	partialData3 = partialData2 + (65536 * int64(d.cali.p9))
 	partialData4 = (partialData3 * rawPress) / 8192
 
