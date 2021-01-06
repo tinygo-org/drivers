@@ -23,7 +23,7 @@ func main() {
 	// datasheet has recommended settings for common use cases. If increasing the sampling rate, the output data rate
 	// (ODR) will likely have to be decreased. Configure() will return an error if there's a problem with the
 	// configuration settings - keep decreasing the ODR and cycling the power to the sensor until it is happy.
-	err := sensor.Configure(bmp388.BMP388Config{
+	err := sensor.Configure(bmp388.Config{
 		Pressure:    bmp388.Sampling8X,
 		Temperature: bmp388.Sampling2X,
 		ODR:         bmp388.Odr25,
@@ -44,10 +44,11 @@ func main() {
 
 		if err != nil {
 			println(err)
+		} else {
+			fmt.Printf("Temperature: %d cC\r\n", temp)
+			fmt.Printf("Pressure:    %d cPa\r\n", press)
 		}
 
-		fmt.Printf("Temperature: %d cC\r\n", temp)
-		fmt.Printf("Pressure:    %d cPa\r\n", press)
 		time.Sleep(time.Second)
 	}
 }

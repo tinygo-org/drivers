@@ -6,6 +6,14 @@ import (
 	"tinygo.org/x/drivers"
 )
 
+var (
+	errConfigWrite  = errors.New("bmp388: failed to configure sensor, check connection")
+	errConfig       = errors.New("bmp388: there is a problem with the configuration, try reducing ODR")
+	errCaliRead     = errors.New("bmp388: failed to read calibration coefficient register")
+	errSoftReset    = errors.New("bmp388: failed to perform a soft reset")
+	errNotConnected = errors.New("bmp388: not connected")
+)
+
 type Oversampling byte
 type Mode byte
 type OutputDataRate byte
@@ -73,19 +81,19 @@ func (d *Device) Configure(config Config) (err error) {
 	err = d.writeRegister(RegIIR, byte(d.Config.IIR<<1))
 
 	if err != nil {
-		return errors.New("bmp388: failed to configure sensor, check connection")
+		return errConfigWrite
 	}
 
 	// Check if there is a problem with the given configuration
 	if d.configurationError() {
-		return errors.New("bmp388: there is a problem with the configuration, try reducing ODR")
+		return errConfig
 	}
 
 	// Reading the builtin calibration coefficients and parsing them per the datasheet. The compensation formula given
 	// in the datasheet is implemented in floating point
 	buffer, err := d.readRegister(RegCali, 21)
 	if err != nil {
-		return errors.New("bmp388: failed to read calibration coefficient register")
+		return errCaliRead
 	}
 
 	d.cali.t1 = uint16(buffer[1])<<8 | uint16(buffer[0])
@@ -182,7 +190,7 @@ func (d *Device) ReadPressure() (int32, error) {
 func (d *Device) SoftReset() error {
 	err := d.writeRegister(RegCmd, SoftReset)
 	if err != nil {
-		return errors.New("bmp388: failed to perform a soft reset")
+		return errSoftReset
 	}
 	return nil
 }
@@ -202,6 +210,10 @@ func (d *Device) SetMode(mode Mode) error {
 }
 
 func (d *Device) readSensorData(register byte) (data int64, err error) {
+
+	if !d.Connected() {
+		return 0, errNotConnected
+	}
 
 	// put the sensor back into forced mode to get a reading, the sensor goes back to sleep after taking one read in
 	// forced mode
