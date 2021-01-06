@@ -11,7 +11,8 @@ type Mode byte
 type OutputDataRate byte
 type FilterCoefficient byte
 
-type BMP388Config struct {
+// Config contains settings for filtering, sampling, and modes of operation
+type Config struct {
 	Pressure    Oversampling
 	Temperature Oversampling
 	Mode        Mode
@@ -19,11 +20,12 @@ type BMP388Config struct {
 	IIR         FilterCoefficient
 }
 
+// Device wraps the I2C connection and configuration values for the BMP388
 type Device struct {
 	bus     drivers.I2C
 	Address uint8
 	cali    calibrationCoefficients
-	Config  BMP388Config
+	Config  Config
 }
 
 type calibrationCoefficients struct {
@@ -55,10 +57,10 @@ func New(bus drivers.I2C) Device {
 }
 
 // Configure can enable settings on the BMP388 and reads the calibration coefficients
-func (d *Device) Configure(config BMP388Config) (err error) {
+func (d *Device) Configure(config Config) (err error) {
 	d.Config = config
 
-	if d.Config == (BMP388Config{}) {
+	if d.Config == (Config{}) {
 		d.Config.Mode = Normal
 	}
 
