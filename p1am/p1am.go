@@ -182,6 +182,86 @@ func (s *Slot) Configure(data []byte) error {
 	return nil
 }
 
+func (s *Slot) ReadDiscrete() (uint32, error) {
+	if s == nil {
+		return 0, errors.New("invalid slot")
+	}
+	bytes := s.Props.DI
+	out := [2]byte{
+		READ_DISCRETE_HDR,
+		s.slot,
+	}
+	if err := s.p.spiSendRecvBuf(out[:], nil); err != nil {
+		return 0, err
+	}
+	if err := s.p.waitAck(200 * time.Millisecond); err != nil {
+		return 0, err
+	}
+	var data [4]byte
+	if err := s.p.spiSendRecvBuf(nil, data[:bytes]); err != nil {
+		return 0, err
+	}
+	err := s.p.dataSync()
+	return binary.LittleEndian.Uint32(data[:]), err
+}
+
+func (s *Slot) WriteDiscrete(value uint32) error {
+	return s.writeDiscrete(0, value)
+}
+
+func (s *Slot) writeDiscrete(channel byte, value uint32) error {
+	if s == nil {
+		return errors.New("invalid slot")
+	}
+	bytes := s.Props.DO
+	buf := [7]byte{
+		WRITE_DISCRETE_HDR,
+		s.slot,
+		channel,
+	}
+	binary.LittleEndian.PutUint32(buf[3:], value)
+	out := buf[:3+bytes]
+	if channel != 0 {
+		out = buf[:4]
+		out[3] &= 1
+	}
+	if err := s.p.spiSendRecvBuf(out, nil); err != nil {
+		return err
+	}
+	return s.p.dataSync()
+}
+
+type Channel struct {
+	s       *Slot
+	channel int
+}
+
+func (s *Slot) Channel(channel int) Channel {
+	return Channel{
+		s:       s,
+		channel: channel,
+	}
+}
+
+func (c Channel) ReadDiscrete() (bool, error) {
+	if c.channel < 1 || c.channel > int(c.s.Props.DI)*8 {
+		return false, errors.New("invalid channel")
+	}
+	data, err := c.s.ReadDiscrete()
+	return (data>>(c.channel-1))&1 == 1, err
+}
+
+func (c Channel) WriteDiscrete(value bool) error {
+	if c.channel < 1 || c.channel > int(c.s.Props.DO)*8 {
+		return errors.New("invalid channel")
+	}
+	data := uint32(0)
+	if value {
+		data = 1
+	}
+	return c.s.writeDiscrete(byte(c.channel), data)
+}
+
 const ackTimeout = 200 * time.Millisecond
 
 func awaitPin(pin machine.Pin, state bool, timeout time.Duration) bool {
