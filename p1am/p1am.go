@@ -129,6 +129,21 @@ func (p *P1AM) Initialize() error {
 	return nil
 }
 
+func (p *P1AM) Version() ([3]byte, error) {
+	if err := p.handleHDR(VERSION_HDR); err != nil {
+		return [3]byte{}, err
+	}
+	var buf [4]byte
+	if err := p.spiSendRecvBuf(nil, buf[:]); err != nil {
+		return [3]byte{}, err
+	}
+	return [3]byte{
+		byte(buf[1] >> 4),
+		byte(buf[1] & 0xF),
+		byte(buf[0]),
+	}, p.dataSync()
+}
+
 func (p *P1AM) Active() (bool, error) {
 	if _, err := p.spiSendRecvByte(ACTIVE_HDR); err != nil {
 		return false, err
