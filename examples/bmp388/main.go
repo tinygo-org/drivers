@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"machine"
+	"strconv"
 	"time"
 
 	"tinygo.org/x/drivers/bmp388"
@@ -10,7 +10,6 @@ import (
 
 func main() {
 
-	time.Sleep(time.Second)
 	machine.I2C0.Configure(machine.I2CConfig{})
 
 	sensor := bmp388.New(machine.I2C0)
@@ -45,8 +44,8 @@ func main() {
 		if err != nil {
 			println(err)
 		} else {
-			fmt.Printf("Temperature: %d cC\r\n", temp)
-			fmt.Printf("Pressure:    %d cPa\r\n", press)
+			println("Temperature: " + strconv.FormatInt(int64(temp), 10) + " cC")
+			println("Pressure:    " + strconv.FormatInt(int64(press), 10) + " cPa\n")
 		}
 
 		time.Sleep(time.Second)
