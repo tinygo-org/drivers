@@ -31,6 +31,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp280/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=trinket-m0 ./examples/bmp388/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/sram/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/time/main.go
