@@ -156,6 +156,54 @@ func (p *P1AM) Active() (bool, error) {
 	return buf != 0, err
 }
 
+const wdToggleTime = 100 * time.Millisecond
+
+func (p *P1AM) ConfigureWatchdog(interval time.Duration, reset bool) error {
+	ms := interval / time.Millisecond
+	toggleMs := wdToggleTime / time.Millisecond
+	resetB := byte(0)
+	if reset {
+		resetB = 1
+	}
+	buf := [6]byte{
+		CONFIGWD_HDR,
+		byte(ms),
+		byte(ms >> 8),
+		byte(toggleMs),
+		byte(toggleMs >> 8),
+		resetB,
+	}
+	if err := p.spiSendRecvBuf(buf[:], nil); err != nil {
+		return err
+	}
+	return p.dataSync()
+}
+
+func (p *P1AM) sendWatchdog(hdr byte) error {
+	if _, err := p.spiSendRecvByte(hdr); err != nil {
+		return err
+	}
+	if err := p.waitAck(200 * time.Millisecond); err != nil {
+		return err
+	}
+	if _, err := p.spiSendRecvByte(DUMMY); err != nil {
+		return err
+	}
+	return p.dataSync()
+}
+
+func (p *P1AM) StartWatchdog() error {
+	return p.sendWatchdog(STARTWD_HDR)
+}
+
+func (p *P1AM) StopWatchdog() error {
+	return p.sendWatchdog(STOPWD_HDR)
+}
+
+func (p *P1AM) PetWatchdog() error {
+	return p.sendWatchdog(PETWD_HDR)
+}
+
 func (p *P1AM) Slot(i int) *Slot {
 	if i < 1 || i > p.Slots {
 		return nil
