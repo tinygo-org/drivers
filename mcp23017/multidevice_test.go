@@ -4,13 +4,15 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+
+	"tinygo.org/x/drivers/tester"
 )
 
 func TestDevicesGetPins(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev0 := bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	fdev0 := newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	fdev0.Registers[rGPIO] = 0b10101100
 	fdev0.Registers[rGPIO|portB] = 0b01010011
 	fdev1.Registers[rGPIO] = 0b10101101
@@ -31,9 +33,9 @@ func TestDevicesGetPins(t *testing.T) {
 
 func TestDevicesSetPinsAllOff(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev0 := bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	fdev0 := newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	fdev0.Registers[rGPIO] = 0b10101100
 	fdev0.Registers[rGPIO|portB] = 0b01010011
 	fdev1.Registers[rGPIO] = 0b10101101
@@ -51,9 +53,9 @@ func TestDevicesSetPinsAllOff(t *testing.T) {
 
 func TestDevicesSetPinsAllOn(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev0 := bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	fdev0 := newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	fdev0.Registers[rGPIO] = 0b10101100
 	fdev0.Registers[rGPIO|portB] = 0b01010011
 	fdev1.Registers[rGPIO] = 0b10101101
@@ -71,9 +73,9 @@ func TestDevicesSetPinsAllOn(t *testing.T) {
 
 func TestDevicesSetPinsMask(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev0 := bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	fdev0 := newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	fdev0.Registers[rGPIO] = 0b10101100
 	fdev0.Registers[rGPIO|portB] = 0b01010011
 	fdev1.Registers[rGPIO] = 0b10101101
@@ -104,9 +106,9 @@ func TestDevicesSetPinsMask(t *testing.T) {
 
 func TestDevicesTogglePins(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	bus.addDevice(0x20)
-	bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	newDevice(bus, 0x20)
+	newDevice(bus, 0x21)
 	devs, err := NewI2CDevices(bus, 0x20, 0x21)
 	c.Assert(err, qt.IsNil)
 
@@ -124,9 +126,9 @@ func TestDevicesTogglePins(t *testing.T) {
 
 func TestDevicesSetGetModes(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev0 := bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	fdev0 := newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	devs, err := NewI2CDevices(bus, 0x20, 0x21)
 	c.Assert(err, qt.IsNil)
 	// Sanity check that IODIR registers start off all ones.
@@ -154,9 +156,9 @@ func TestDevicesSetGetModes(t *testing.T) {
 
 func TestDevicesPin(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	bus.addDevice(0x20)
-	fdev1 := bus.addDevice(0x21)
+	bus := tester.NewI2CBus(c)
+	newDevice(bus, 0x20)
+	fdev1 := newDevice(bus, 0x21)
 	devs, err := NewI2CDevices(bus, 0x20, 0x21)
 	c.Assert(err, qt.IsNil)
 	pin := devs.Pin(16)

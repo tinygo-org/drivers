@@ -5,12 +5,14 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+
+	"tinygo.org/x/drivers/tester"
 )
 
 func TestGetPins(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	fdev.Registers[rGPIO] = 0b10101100
 	fdev.Registers[rGPIO|portB] = 0b01010011
 	dev, err := NewI2C(bus, 0x20)
@@ -22,8 +24,8 @@ func TestGetPins(t *testing.T) {
 
 func TestSetPins(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	fdev.Registers[rGPIO] = 0b00001111
 	fdev.Registers[rGPIO|portB] = 0b11110000
 	dev, err := NewI2C(bus, 0x20)
@@ -52,8 +54,8 @@ func TestSetPins(t *testing.T) {
 
 func TestTogglePins(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	fdev.Registers[rGPIO] = 0b00001111
 	fdev.Registers[rGPIO|portB] = 0b11110000
 	dev, err := NewI2C(bus, 0x20)
@@ -71,8 +73,8 @@ func TestTogglePins(t *testing.T) {
 
 func TestSetGetModes(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	dev, err := NewI2C(bus, 0x20)
 	c.Assert(err, qt.IsNil)
 	// Calling SetModes with less items in than there are
@@ -102,8 +104,8 @@ func TestSetGetModes(t *testing.T) {
 
 func TestPinSetGet(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	dev, err := NewI2C(bus, 0x20)
 	c.Assert(err, qt.IsNil)
 	pin := dev.Pin(1)
@@ -129,8 +131,8 @@ func TestPinSetGet(t *testing.T) {
 
 func TestPinToggle(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	dev, err := NewI2C(bus, 0x20)
 	c.Assert(err, qt.IsNil)
 	pin := dev.Pin(1)
@@ -147,8 +149,8 @@ func TestPinToggle(t *testing.T) {
 
 func TestPinMode(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	dev, err := NewI2C(bus, 0x20)
 	c.Assert(err, qt.IsNil)
 	pin := dev.Pin(1)
@@ -201,10 +203,18 @@ func TestPins(t *testing.T) {
 
 func TestInitWithError(t *testing.T) {
 	c := qt.New(t)
-	bus := newBus(c)
-	fdev := bus.addDevice(0x20)
+	bus := tester.NewI2CBus(c)
+	fdev := newDevice(bus, 0x20)
 	fdev.Err = fmt.Errorf("some error")
 	dev, err := NewI2C(bus, 0x20)
 	c.Assert(err, qt.ErrorMatches, `cannot initialize mcp23017 device at 0x20: some error`)
 	c.Assert(dev, qt.IsNil)
+}
+
+func newDevice(bus *tester.I2CBus, addr uint8) *tester.I2CDevice {
+	fdev := bus.NewDevice(addr)
+	// IODIRA and IODIRB are all ones by default.
+	fdev.Registers[rIODIR] = 0xff
+	fdev.Registers[rIODIR|portB] = 0xff
+	return fdev
 }
