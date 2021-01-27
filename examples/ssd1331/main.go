@@ -1,4 +1,4 @@
-package ssd1331
+package main
 
 import (
 	"machine"

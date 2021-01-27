@@ -1,4 +1,4 @@
-package hcsr04
+package main
 
 import (
 	"machine"
