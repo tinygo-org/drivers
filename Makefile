@@ -165,6 +165,8 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis2mdl/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=arduino ./examples/keypad4x4/main.go
+	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
