@@ -19,9 +19,7 @@ type Device interface {
 
 type device struct {
 	bus  machine.SPI
-	din  machine.Pin // din
 	load machine.Pin // load
-	clk  machine.Pin // clk
 }
 
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
@@ -35,9 +33,7 @@ func NewDriver(load machine.Pin, bus machine.SPI) Device {
 func (driver *device) Configure() {
 	outPutConfig := machine.PinConfig{Mode: machine.PinOutput}
 
-	driver.din.Configure(outPutConfig)
 	driver.load.Configure(outPutConfig)
-	driver.clk.Configure(outPutConfig)
 }
 
 func (driver *device) SetScanLimit(digitNumber uint8) {
