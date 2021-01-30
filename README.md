@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 53 devices are supported.
+The following 54 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
