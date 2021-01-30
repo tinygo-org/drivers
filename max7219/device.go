@@ -23,7 +23,7 @@ type device struct {
 }
 
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
-func NewDriver(load machine.Pin, bus machine.SPI) Device {
+func NewDevice(load machine.Pin, bus machine.SPI) Device {
 	return &device{
 		load: load,
 		bus:  bus,
@@ -62,7 +62,6 @@ func (driver *device) StopShutdownMode() {
 
 func (driver *device) StartDisplayTest() {
 	driver.WriteCommand(REG_DISPLAY_TEST, 0x01)
-
 }
 
 func (driver *device) StopDisplayTest() {
