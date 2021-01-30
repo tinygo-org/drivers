@@ -43,30 +43,30 @@ func (driver *device) SetScanLimit(digitNumber uint8) {
 func (driver *device) SetDecodeMode(digitNumber uint8) {
 	switch digitNumber {
 	case 1: // only decode first digit
-		driver.WriteCommand(byte(REG_DECODE_MODE), 0x01)
+		driver.WriteCommand(REG_DECODE_MODE, 0x01)
 	case 2, 3, 4: //  decode digits 3-0
-		driver.WriteCommand(byte(REG_DECODE_MODE), 0x0F)
+		driver.WriteCommand(REG_DECODE_MODE, 0x0F)
 	case 8: // decode 8 digits
-		driver.WriteCommand(byte(REG_DECODE_MODE), 0xFF)
+		driver.WriteCommand(REG_DECODE_MODE, 0xFF)
 	}
 }
 
 func (driver *device) StartShutdownMode() {
-	driver.WriteCommand(byte(REG_SHUTDOWN), 0x00)
+	driver.WriteCommand(REG_SHUTDOWN, 0x00)
 
 }
 
 func (driver *device) StopShutdownMode() {
-	driver.WriteCommand(byte(REG_SHUTDOWN), 0x01)
+	driver.WriteCommand(REG_SHUTDOWN, 0x01)
 }
 
 func (driver *device) StartDisplayTest() {
-	driver.WriteCommand(byte(REG_DISPLAY_TEST), 0x01)
+	driver.WriteCommand(REG_DISPLAY_TEST, 0x01)
 
 }
 
 func (driver *device) StopDisplayTest() {
-	driver.WriteCommand(byte(REG_DISPLAY_TEST), 0x00)
+	driver.WriteCommand(REG_DISPLAY_TEST, 0x00)
 }
 
 func (driver *device) writeByte(data byte) {
