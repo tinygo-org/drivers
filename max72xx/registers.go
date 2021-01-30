@@ -1,4 +1,4 @@
-package max7219
+package max72xx
 
 const (
 	REG_NOOP         byte = 0x00

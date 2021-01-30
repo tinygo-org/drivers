@@ -4,7 +4,7 @@ import (
 	"machine"
 	"time"
 
-	"tinygo.org/x/drivers/max7219"
+	"tinygo.org/x/drivers/max72xx"
 )
 
 // example for a 4 digit 7 segment display
@@ -21,7 +21,7 @@ func main() {
 		println(err.Error())
 	}
 
-	driver := max7219.NewDevice(machine.D6, machine.SPI0)
+	driver := max72xx.NewDevice(machine.D6, machine.SPI0)
 	driver.Configure()
 
 	digitNumber := 4
