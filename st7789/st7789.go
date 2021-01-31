@@ -16,8 +16,10 @@ import (
 	"tinygo.org/x/drivers"
 )
 
+// Rotation controls the rotation used by the display.
 type Rotation uint8
 
+// FrameRate controls the frame rate used by the display.
 type FrameRate uint8
 
 // Device wraps an SPI connection.
@@ -278,7 +280,7 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	return nil
 }
 
-// FillRectangle fills a rectangle at a given coordinates with a buffer
+// FillRectangleWithBuffer fills buffer with a rectangle at a given coordinates.
 func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
 	i, j := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
@@ -370,12 +372,12 @@ func (d *Device) SetRotation(rotation Rotation) {
 	d.Data(madctl)
 }
 
-// Command sends a command to the display
+// Command sends a command to the display.
 func (d *Device) Command(command uint8) {
 	d.Tx([]byte{command}, true)
 }
 
-// Command sends a data to the display
+// Data sends data to the display.
 func (d *Device) Data(data uint8) {
 	d.Tx([]byte{data}, false)
 }
@@ -393,13 +395,13 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 }
 
 // Rx reads data from the display
-func (d *Device) Rx(command uint8, read_bytes []byte) {
+func (d *Device) Rx(command uint8, data []byte) {
 	d.dcPin.Low()
 	d.csPin.Low()
 	d.bus.Transfer(command)
 	d.dcPin.High()
-	for i := range read_bytes {
-		read_bytes[i], _ = d.bus.Transfer(0xFF)
+	for i := range data {
+		data[i], _ = d.bus.Transfer(0xFF)
 	}
 	d.csPin.High()
 }
@@ -421,7 +423,7 @@ func (d *Device) EnableBacklight(enable bool) {
 	}
 }
 
-// InverColors inverts the colors of the screen
+// InvertColors inverts the colors of the screen
 func (d *Device) InvertColors(invert bool) {
 	if invert {
 		d.Command(INVON)
@@ -435,7 +437,7 @@ func (d *Device) IsBGR(bgr bool) {
 	d.isBGR = bgr
 }
 
-// SetScrollWindow sets an area to scroll with fixed top and bottom parts of the display
+// SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 	d.Command(VSCRDEF)
 	d.Tx([]uint8{
@@ -451,7 +453,7 @@ func (d *Device) SetScroll(line int16) {
 	d.Tx([]uint8{uint8(line >> 8), uint8(line)}, false)
 }
 
-// SpotScroll returns the display to its normal state
+// StopScroll returns the display to its normal state.
 func (d *Device) StopScroll() {
 	d.Command(NORON)
 }
