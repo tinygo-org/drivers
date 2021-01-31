@@ -50,6 +50,8 @@ const (
 	GMCTRP1    = 0xE0
 	GMCTRN1    = 0xE1
 	GSCAN      = 0x45
+	VSCRDEF    = 0x33
+	VSCRSADD   = 0x37
 
 	NO_ROTATION  Rotation = 0
 	ROTATION_90  Rotation = 1 // 90 degrees clock-wise rotation
