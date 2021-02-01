@@ -57,7 +57,7 @@ func New(pin machine.Pin) Device {
 
 // Configure configures the ADC pin used for the thermistor.
 func (d *Device) Configure() {
-	d.adc.Configure()
+	d.adc.Configure(machine.ADCConfig{})
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
