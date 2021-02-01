@@ -171,7 +171,7 @@ endif
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
 		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
-		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x
+		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x keypad4x4 
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:
