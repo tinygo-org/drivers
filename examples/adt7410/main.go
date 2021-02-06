@@ -15,7 +15,7 @@ var (
 
 func main() {
 
-	i2c.Configure(machine.I2CConfig{Frequency: machine.TWI_FREQ_400KHZ})
+	i2c.Configure(machine.I2CConfig{Frequency: 400e3})
 	sensor.Configure()
 
 	for {
