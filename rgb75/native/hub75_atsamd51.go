@@ -318,11 +318,6 @@ func (hub *hub75) InitTimer(handle func()) {
 	for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_ENABLE) {
 	} // wait for it to disable
 
-	// // reset timer to default settings
-	// rowTimer.tc.CTRLA.Set(sam.TC_COUNT32_CTRLA_SWRST)
-	// for rowTimer.tc.SYNCBUSY.HasBits(sam.TC_COUNT32_SYNCBUSY_SWRST) {
-	// } // wait for it to reset
-
 	// enable the TC bus clock
 	rowTimer.bc.SetBits(rowTimer.cm)
 

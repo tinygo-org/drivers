@@ -4,15 +4,38 @@
 // both clock and data, this package uses individually-addressable GPIO for the
 // column-select (R,G,B) lines.
 //
-// Guide: https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf
-// This driver was inspired by https://github.com/2dom/PxMatrix
+// Extra features:
+//   - Matrix chaining (connecting multiple displays to form one large matrix)
+//   - Double-buffering (requires more RAM!)
+//   - Efficient GPIO access (not natively provided by TinyGo machine package)
+//
+// Designed for and implemented with an Adafruit MatrixPortal M4 (SAMD51). Care
+// was taken to separate the HUB75 logic from target-specific code so that other
+// devices and architectures can be added easily. This package contains only the
+// portable HUB75 logic. The required hardware interface and all target-specific
+// units implementing this interface can be found in rgb75/native.
+//
+// Note that you must carefully select which GPIO pins on your target device are
+// connected to the HUB75 matrix interface. If using the onboard HUB75 connector
+// on an Adafruit MatrixPortal M4, then these conditions are already satisfied.
+//   REQUIRED:
+//     - All six (6) HUB75 RGB data lines are on a single, common GPIO port.
+//   OPTIONAL (improves performance):
+//     - All HUB75 row-address select lines are on a single, common GPIO port.
+//     - The HUB75 CLK line is on the same port as RGB data lines.
+//
+// Inspired by the Adafruit_Protomatter library for Arduino, written by:
+//   - Phil "Paint Your Dragon" Burgess
+//   - Jeff Epler
+// See their original project:
+// 		https://github.com/adafruit/Adafruit_Protomatter
 //
 // TODO:
-//   To reduce the number of port accesses, we could use the (write-only) GPIO
-//   toggle registers if the MCU supports it (e.g., OUTTGL of SAMD51 PORT_Type).
-//   This requires a very small (as in memory) overhead to implement, but it
-//   does make the logic more complicated, because we need to keep track of the
-//   last 32-bit value written to these write-only port registers.
+//   To reduce the number of port accesses (slightly), we could use the write-
+//   only GPIO toggle registers if the MCU supports it (e.g., OUTTGL of SAMD51
+//   PORT_Type). This requires a small (as in memory) overhead to implement, but
+//   it does make the logic more complicated, because we need to keep track of
+//   the last 32-bit value written to these write-only port registers.
 package rgb75 // import "tinygo.org/x/drivers/rgb75"
 
 import (
@@ -28,6 +51,8 @@ var (
 	ErrInvalidHeight   = errors.New("invalid matrix height for given number of row address pins")
 )
 
+var ClearColor = color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x00}
+
 // Default configuration settings for a Device.
 const (
 	DefaultWidth      = 64 // (pixels) default total width of matrix chain
@@ -42,6 +67,7 @@ type Config struct {
 	Width      int   // (pixels) total width of matrix chain
 	Height     int   // (pixels) total height of matrix chain
 	ColorDepth uint8 // (bits) color depth of each R,G,B component
+	DoubleBuf  bool  // use double-buffering to reduce flicker
 
 	oneAddrPort bool // all address pins are on a single GPIO port
 	clkDataPort bool // RGB and CLK pins are all on a single GPIO port
@@ -52,16 +78,17 @@ type Config struct {
 // Device represents a connection to a chain of one or more RGB LED matrix
 // panels (HUB75).
 type Device struct {
-	cfg Config         // configuration settings
-	hub native.Hub75   // HUB75 connection
-	oen machine.Pin    // output enable pin (active low)
-	lat machine.Pin    // RGB data latch pin
-	clk machine.Pin    // RGB clock pin
-	rgb dataPins       // all (6) RGB data pins
-	row []machine.Pin  // slice of all row address pins
-	buf [][]color.RGBA // panel framebuffer
-	pos rowPlane       // current row/bitplane of ISR
-	val uint32         // current timer position
+	cfg Config           // configuration settings
+	hub native.Hub75     // HUB75 connection
+	oen machine.Pin      // output enable pin (active low)
+	lat machine.Pin      // RGB data latch pin
+	clk machine.Pin      // RGB clock pin
+	rgb dataPins         // all (6) RGB data pins
+	row []machine.Pin    // slice of all row address pins
+	buf [][][]color.RGBA // panel framebuffers (indexed by: [buf][col][row])
+	fbs bufferState      // double-buffering enabled
+	pos rowPlane         // current row/bitplane of ISR
+	val uint32           // current timer position
 }
 
 type (
@@ -79,6 +106,30 @@ type (
 		per           uint32 // timer period for current bitplane index
 	}
 )
+
+// bufferState holds the current state of the framebuffer for double-buffering
+// support.
+type bufferState struct {
+	// double is true if and only if double-buffering is enabled
+	double bool
+	// - The front-buffer (fg) is actively being displayed;
+	// 		i.e., The front-buffer (fg) is latched by the RGB LED drivers in the
+	// 					main row-scan timer's interrupt handler, (*Device).handleRow.
+	// - The back-buffer (bg) is an off-screen canvas where updates to the screen
+	//   are performed.
+	fg, bg int // current front- and back-buffer indices
+	// Once all updates are complete (i.e., an entire frame has been drawn), the
+	// front- and back-buffers are swapped, so that the row-scan ISR mentioned
+	// above receives a complete screen instantly and never draws a partially-
+	// updated frame (which causes flickering).
+	// The front- and back-buffers are swapped in method (*bufferState).swap.
+}
+
+// swap swaps the front- and back-buffer indices of the receiver bufferState s.
+//
+// This instantly changes which framebuffer content is latched by the RGB LED
+// drivers in the main row-scan timer's interrupt handler, (*Device).handleRow.
+func (s *bufferState) swap() { s.fg, s.bg = s.bg, s.fg }
 
 // New returns a new HUB75 driver. The returned Device must be initialized with
 // method Configure before it can be used.
@@ -118,6 +169,7 @@ func New(oen, lat, clk machine.Pin, rgb [6]machine.Pin, row []machine.Pin) *Devi
 		},
 		row: row,
 		buf: nil,
+		fbs: bufferState{},
 		pos: rowPlane{},
 		val: 0,
 	}
@@ -195,10 +247,23 @@ func (d *Device) Configure(cfg Config) error {
 		d.row[i].Configure(machine.PinConfig{Mode: machine.PinOutput})
 	}
 
-	// allocate the framebuffer
-	d.buf = make([][]color.RGBA, d.cfg.Height)
-	for i := range d.buf {
-		d.buf[i] = make([]color.RGBA, d.cfg.Width)
+	// configure the framebuffer state
+	var numBuffers int
+	if d.fbs.double = cfg.DoubleBuf; d.fbs.double {
+		d.fbs.fg, d.fbs.bg = 0, 1
+		numBuffers = 2
+	} else {
+		d.fbs.fg, d.fbs.bg = 0, 0 // keep these equal so that swap() has no effect
+		numBuffers = 1
+	}
+
+	// allocate the framebuffer(s)
+	d.buf = make([][][]color.RGBA, numBuffers)
+	for n := range d.buf {
+		d.buf[n] = make([][]color.RGBA, d.cfg.Height)
+		for y := range d.buf[n] {
+			d.buf[n][y] = make([]color.RGBA, d.cfg.Width)
+		}
 	}
 
 	return d.initialize()
@@ -209,27 +274,56 @@ func (d *Device) Size() (x, y int16) {
 	return int16(d.cfg.Width), int16(d.cfg.Height)
 }
 
-// SetPixel modifies the internal buffer.
+// SetPixel sets the color of a pixel in the framebuffer.
+// If double-buffering is enabled, SetPixel writes to the back-buffer, which
+// then requires a call to Display for the change to appear.
 func (d *Device) SetPixel(x, y int16, c color.RGBA) {
-	if y >= 0 && int(y) < len(d.buf) {
-		if x >= 0 && int(x) < len(d.buf[y]) {
-			d.buf[y][x] = c
+	// if double-buffering is not enabled, then d.fbs.fg == d.fbs.bg; this means
+	// the active front-buffer is modified and the change appears immediately
+	// without a subsequent call to Display.
+	if y >= 0 && int(y) < len(d.buf[d.fbs.bg]) {
+		if x >= 0 && int(x) < len(d.buf[d.fbs.bg][y]) {
+			d.buf[d.fbs.bg][y][x] = c
 		}
 	}
 }
 
-// Display sends the buffer (if any) to the screen.
+// GetPixel returns the color of a pixel in the framebuffer.
+// If double-buffering is enabled, GetPixel returns the color of a pixel from
+// the active front-buffer, which is what currently exists on the display.
+func (d *Device) GetPixel(x, y int16) color.RGBA {
+	// if double-buffering is not enabled, then d.fbs.fg == d.fbs.bg; this means
+	// the active front-buffer is the only source of pixel colors.
+	if y >= 0 && int(y) < len(d.buf[d.fbs.fg]) {
+		if x >= 0 && int(x) < len(d.buf[d.fbs.fg][y]) {
+			return d.buf[d.fbs.fg][y][x]
+		}
+	}
+	return ClearColor
+}
+
+// Display draws the current framebuffer to the display.
+// If double-buffering is enabled, Display swaps the front- and back-buffer so
+// that the previous back-buffer is activated and drawn to the display, and the
+// previous front-buffer is cleared and ready to be written into.
 func (d *Device) Display() error {
-	d.Resume()
+	if d.fbs.double {
+		d.fbs.swap()
+		d.clearBuffer(d.fbs.bg)
+	} else {
+		// double-buffering is not enabled, so just re-enable the row-scan timer (in
+		// case it isn't active) to resume screen updates.
+		d.Resume()
+	}
 	return nil
 }
 
-// ClearDisplay clears the display
+// ClearDisplay clears the display.
+// If double-buffering is enabled, ClearDisplay clears both the front- and back-
+// buffer so that the change is immediate and all framebuffer content is erased.
 func (d *Device) ClearDisplay() {
-	for y := range d.buf {
-		for x := range d.buf[y] {
-			d.buf[y][x] = color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x00}
-		}
+	for n := range d.buf {
+		d.clearBuffer(n)
 	}
 }
 
@@ -293,7 +387,7 @@ func (d *Device) initialize() error {
 // range-checked. So be very careful you are providing valid inputs, otherwise
 // this is a rather dangerous function susceptible to access violations!
 func (d *Device) rgbBit(x, y, n int) (r, g, b bool) {
-	cr, cg, cb, _ := d.buf[y][x].RGBA()
+	cr, cg, cb, _ := d.buf[d.fbs.fg][y][x].RGBA()
 	r = 0 != (cr & (1 << n))
 	g = 0 != (cg & (1 << n))
 	b = 0 != (cb & (1 << n))
@@ -404,6 +498,18 @@ func (d *Device) selectRow(row int) {
 		for i := 0; i < len(d.row); i++ {
 			// for each address line i, set high IFF the i'th bit in row is set
 			d.row[i].Set(row&(1<<i) != 0)
+		}
+	}
+}
+
+// clearBuffer writes a clear pixel to all elements of the framebuffer, at given
+// index n, of the receiver Device d.
+func (d *Device) clearBuffer(n int) {
+	if n >= 0 && n < len(d.buf) {
+		for y := range d.buf[n] {
+			for x := range d.buf[n][y] {
+				d.buf[n][y][x] = ClearColor
+			}
 		}
 	}
 }

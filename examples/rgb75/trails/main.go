@@ -16,6 +16,7 @@ func main() {
 		Width:      64,
 		Height:     32,
 		ColorDepth: 4,
+		DoubleBuf:  true,
 	}
 	display := &screen{
 		// actual rgb75 Device object
@@ -64,6 +65,9 @@ func main() {
 					display.SetPixel(x, y, px.color)
 				}
 			}
+		}
+		if err := display.Display(); nil != err {
+			println("error: " + err.Error())
 		}
 
 		time.Sleep(10 * time.Millisecond)
