@@ -57,9 +57,16 @@ func (g *GPIO) SetCommandMode(set bool) {
 	}
 }
 
+// WriteOnly is true if you passed rw in as machine.NoPin
+func (g *GPIO) WriteOnly() bool {
+	return g.rw == machine.NoPin
+}
+
 // Write writes len(data) bytes from data to display driver
 func (g *GPIO) Write(data []byte) (n int, err error) {
-	g.rw.Low()
+	if !g.WriteOnly() {
+		g.rw.Low()
+	}
 	for _, d := range data {
 		g.write(d)
 		n++
@@ -88,6 +95,9 @@ func (g *GPIO) write4BitMode(data byte) {
 func (g *GPIO) Read(data []byte) (n int, err error) {
 	if len(data) == 0 {
 		return 0, errors.New("length greater than 0 is required")
+	}
+	if g.WriteOnly() {
+		return 0, errors.New("Read not supported if RW not wired")
 	}
 	g.rw.High()
 	g.reconfigureGPIOMode(machine.PinInput)
