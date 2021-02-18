@@ -21,7 +21,7 @@ func main() {
 		println(err.Error())
 	}
 
-	driver := max72xx.NewDevice(machine.D6, machine.SPI0)
+	driver := max72xx.NewDevice(machine.SPI0, machine.D6)
 	driver.Configure()
 
 	digitNumber := 4
