@@ -239,15 +239,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
 
-	println("resolveTCPAddr")
-
-	println("splitting address")
 	r := strings.Split(address, ":")
-
-	println("getting dnc")
-	if ActiveDevice == nil {
-		println("active device is nil")
-	}
 
 	addr, err := ActiveDevice.GetDNS(r[0])
 	if err != nil {
