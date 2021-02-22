@@ -7,10 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nerzal/drivers/net"
-	"github.com/Nerzal/drivers/net/tls"
-	"github.com/Nerzal/drivers/net/ws"
 	"github.com/eclipse/paho.mqtt.golang/packets"
+	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net/tls"
 	"tinygo.org/x/drivers/net/ws"
 )
 
@@ -60,11 +59,6 @@ func (c *mqttclient) IsConnectionOpen() bool {
 func (c *mqttclient) Connect() Token {
 	var err error
 
-	if c == nil {
-		println("client was nil")
-	}
-
-	println("make connection")
 	// make connection
 	if strings.Contains(c.opts.Servers, "ssl://") {
 		url := strings.TrimPrefix(c.opts.Servers, "ssl://")
@@ -76,11 +70,13 @@ func (c *mqttclient) Connect() Token {
 		url := strings.TrimPrefix(c.opts.Servers, "tcp://")
 		c.conn, err = net.Dial("tcp", url)
 		if err != nil {
-			println("failed to dial:", err.Error())
 			return &mqtttoken{err: err}
 		}
 	} else if strings.Contains(c.opts.Servers, "ws://") {
-		websocket := ws.New(c.opts.Servers)
+		websocket, err := ws.New(c.opts.Servers)
+		if err != nil {
+			return &mqtttoken{err: err}
+		}
 		websocket.Open()
 		c.conn = websocket
 	} else {

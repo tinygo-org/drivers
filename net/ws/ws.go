@@ -7,7 +7,7 @@ import (
 	"syscall/js"
 	"time"
 
-	"github.com/Nerzal/drivers/net"
+	"tinygo.org/x/drivers/net"
 )
 
 // Close codes defined in RFC 6455, section 11.7.
