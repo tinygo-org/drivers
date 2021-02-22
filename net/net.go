@@ -238,9 +238,7 @@ func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
-
 	r := strings.Split(address, ":")
-
 	addr, err := ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err
