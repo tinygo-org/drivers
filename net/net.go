@@ -70,13 +70,16 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPSerialConn, error) {
 // It tries to provide a mostly compatible interface
 // to net.Dial().
 func Dial(network, address string) (Conn, error) {
+	println("dialing")
 	switch network {
 	case "tcp":
+		println("resolving tcp address")
 		raddr, err := ResolveTCPAddr(network, address)
 		if err != nil {
 			return nil, err
 		}
 
+		println("resolved tcp address")
 		c, e := DialTCP(network, &TCPAddr{}, raddr)
 		return c.opConn(), e
 	case "udp":
@@ -238,7 +241,17 @@ func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
+
+	println("resolveTCPAddr")
+
+	println("splitting address")
 	r := strings.Split(address, ":")
+
+	println("getting dnc")
+	if ActiveDevice == nil {
+		println("active device is nil")
+	}
+
 	addr, err := ActiveDevice.GetDNS(r[0])
 	if err != nil {
 		return nil, err

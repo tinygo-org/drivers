@@ -5,7 +5,7 @@ package tls
 import (
 	"strconv"
 
-	"tinygo.org/x/drivers/net"
+	"github.com/Nerzal/drivers/net"
 )
 
 // Dial makes a TLS network connection. It tries to provide a mostly compatible interface

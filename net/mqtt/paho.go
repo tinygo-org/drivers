@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nerzal/drivers/net"
 	"github.com/eclipse/paho.mqtt.golang/packets"
-	"tinygo.org/x/drivers/net"
 )
 
 const (

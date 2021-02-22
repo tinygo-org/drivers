@@ -7,9 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nerzal/drivers/net"
+	"github.com/Nerzal/drivers/net/tls"
+	"github.com/Nerzal/drivers/net/ws"
 	"github.com/eclipse/paho.mqtt.golang/packets"
-	"tinygo.org/x/drivers/net"
-	"tinygo.org/x/drivers/net/tls"
+	"tinygo.org/x/drivers/net/ws"
 )
 
 // NewClient will create an MQTT v3.1.1 client with all of the options specified
@@ -58,6 +60,11 @@ func (c *mqttclient) IsConnectionOpen() bool {
 func (c *mqttclient) Connect() Token {
 	var err error
 
+	if c == nil {
+		println("client was nil")
+	}
+
+	println("make connection")
 	// make connection
 	if strings.Contains(c.opts.Servers, "ssl://") {
 		url := strings.TrimPrefix(c.opts.Servers, "ssl://")
@@ -69,18 +76,27 @@ func (c *mqttclient) Connect() Token {
 		url := strings.TrimPrefix(c.opts.Servers, "tcp://")
 		c.conn, err = net.Dial("tcp", url)
 		if err != nil {
+			println("failed to dial:", err.Error())
 			return &mqtttoken{err: err}
 		}
+	} else if strings.Contains(c.opts.Servers, "ws://") {
+		websocket := ws.New(c.opts.Servers)
+		websocket.Open()
+		c.conn = websocket
 	} else {
 		// invalid protocol
 		return &mqtttoken{err: errors.New("invalid protocol")}
 	}
+
+	println("finished dialing")
 
 	c.mid = 1
 	c.inbound = make(chan packets.ControlPacket, 10)
 	c.stop = make(chan struct{})
 	c.incomingPubChan = make(chan *packets.PublishPacket, 10)
 	c.msgRouter.matchAndDispatch(c.incomingPubChan, c.opts.Order, c)
+
+	println("matched and dispatched")
 
 	// send the MQTT connect message
 	connectPkt := packets.NewControlPacket(packets.Connect).(*packets.ConnectPacket)
@@ -100,10 +116,14 @@ func (c *mqttclient) Connect() Token {
 	connectPkt.ProtocolName = "MQTT"
 	connectPkt.Keepalive = 60
 
+	println("sending connect message")
+
 	err = connectPkt.Write(c.conn)
 	if err != nil {
 		return &mqtttoken{err: err}
 	}
+
+	println("sent connect message")
 
 	// TODO: handle timeout as ReadPacket blocks until it gets a packet.
 	// CONNECT response.
