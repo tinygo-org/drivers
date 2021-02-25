@@ -69,6 +69,7 @@ The following 53 devices are supported.
 | [BMP180 barometer](https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf) | I2C |
 | [BMP280 temperature/barometer](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf) | I2C |
 | [Buzzer](https://en.wikipedia.org/wiki/Buzzer#Piezoelectric) | GPIO |
+| [DRV8838 motor driver](https://www.ti.com/lit/ds/symlink/drv8838.pdf) | GPIO |
 | [DS1307 real time clock](https://datasheets.maximintegrated.com/en/ds/DS1307.pdf) | I2C |
 | [DS3231 real time clock](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf) | I2C |
 | [ESP32 as WiFi Coprocessor with Arduino nina-fw](https://github.com/arduino/nina-fw) | SPI |
