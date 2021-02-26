@@ -17,7 +17,7 @@ import (
 	"tinygo.org/x/drivers/net"
 )
 
-const _debug = true
+const _debug = false
 
 const (
 	MaxSockets  = 4
@@ -312,15 +312,15 @@ func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) e
 		d.spiChipDeselect()
 		return err
 	}
-	l := d.sendCmd(CmdStartClientTCP, 4)
-	l += d.sendParam32(addr, false)
-	l += d.sendParam16(port, false)
-	l += d.sendParam8(sock, false)
-	l += d.sendParam8(mode, true)
-	d.addPadding(l)
+
+	d.sendCmd(CmdStartClientTCP, 4)
+	d.sendParam32(addr, false)
+	d.sendParam16(port, false)
+	d.sendParam8(sock, false)
+	d.sendParam8(mode, true)
+
 	d.spiChipDeselect()
 
-	println("wait for rsp cmd")
 	_, err := d.waitRspCmd1(CmdStartClientTCP)
 	return err
 }
