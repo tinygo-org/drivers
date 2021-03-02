@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	timeout uint16
+	timeout counter
 
 	checksumError = errors.New("checksum mismatch")
 	noSignalError = errors.New("no signal")
@@ -62,8 +62,8 @@ func init() {
 	timeout = cyclesPerMillisecond()
 }
 
-func cyclesPerMillisecond() uint16 {
+func cyclesPerMillisecond() counter {
 	freq := machine.CPUFrequency()
 	freq /= 1000
-	return uint16(freq)
+	return counter(freq)
 }

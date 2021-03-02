@@ -15,11 +15,11 @@ func powerUp(p machine.Pin) bool {
 	return state
 }
 
-func expectChange(p machine.Pin, oldState bool) uint16 {
-	counter := uint16(0)
-	for ; p.Get() == oldState && counter != timeout; counter++ {
+func expectChange(p machine.Pin, oldState bool) counter {
+	cnt := counter(0)
+	for ; p.Get() == oldState && cnt != timeout; cnt++ {
 	}
-	return counter
+	return cnt
 }
 
 func checksum(buf []uint8) uint8 {

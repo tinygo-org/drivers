@@ -51,7 +51,7 @@ func (t *device) read() error {
 	// initialize loop variables
 	bufferData := [5]byte{}
 	buf := bufferData[:]
-	signalsData := [80]uint16{}
+	signalsData := [80]counter{}
 	signals := signalsData[:]
 
 	initiateCommunication(t.pin)
@@ -73,7 +73,7 @@ func (t *device) read() error {
 	return nil
 }
 
-func (t *device) receiveSignals(result []uint16) {
+func (t *device) receiveSignals(result []counter) {
 	i := uint8(0)
 	machine.UART1.Interrupt.Disable()
 	defer machine.UART1.Interrupt.Enable()
@@ -82,7 +82,7 @@ func (t *device) receiveSignals(result []uint16) {
 		result[i*2+1] = expectChange(t.pin, true)
 	}
 }
-func (t *device) extractData(signals []uint16, buf []uint8) error {
+func (t *device) extractData(signals []counter, buf []uint8) error {
 	for i := uint8(0); i < 40; i++ {
 		lowCycle := signals[i*2]
 		highCycle := signals[i*2+1]
