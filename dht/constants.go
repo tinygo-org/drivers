@@ -50,12 +50,21 @@ const (
 	F
 )
 
+// If update time is less than 2 seconds, thermometer will never update data automatically.
+// It will require manual Update calls
+type UpdatePolicy struct {
+	UpdateTime          time.Duration
+	UpdateAutomatically bool
+}
+
 var (
 	timeout counter
 
-	checksumError = errors.New("checksum mismatch")
-	noSignalError = errors.New("no signal")
-	noDataError   = errors.New("no data")
+	checksumError     = errors.New("checksum mismatch")
+	noSignalError     = errors.New("no signal")
+	noDataError       = errors.New("no data")
+	updateError       = errors.New("cannot update now")
+	uninitializedData = errors.New("no mesurements done")
 )
 
 func init() {

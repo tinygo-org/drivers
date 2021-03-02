@@ -116,17 +116,36 @@ func waitForDataTransmission(p machine.Pin) error {
 
 type Device interface {
 	ReadMeasurements() error
-	Temperature() int16
-	TemperatureFloat(scale TemperatureScale) float32
-	Humidity() uint16
-	HumidityFloat() float32
+	Measurements() (temperature int16, humidity uint16, err error)
+	Temperature() (int16, error)
+	TemperatureFloat(scale TemperatureScale) (float32, error)
+	Humidity() (uint16, error)
+	HumidityFloat() (float32, error)
 }
 
-func New(p machine.Pin, deviceType DeviceType) Device {
-	return &device{
-		pin:          p,
-		measurements: deviceType,
-		temperature:  0,
-		humidity:     0,
+func New(pin machine.Pin, deviceType DeviceType) Device {
+	return &managedDevice{
+		t: device{
+			pin:          pin,
+			measurements: deviceType,
+		},
+		lastUpdate: time.Time{},
+		policy: UpdatePolicy{
+			UpdateTime:          time.Second * 2,
+			UpdateAutomatically: true,
+		},
+		initialized: false,
+	}
+}
+
+func NewWithPolicy(pin machine.Pin, deviceType DeviceType, updatePolicy UpdatePolicy) Device {
+	return &managedDevice{
+		t: device{
+			pin:          pin,
+			measurements: deviceType,
+		},
+		lastUpdate:  time.Time{},
+		policy:      updatePolicy,
+		initialized: false,
 	}
 }
