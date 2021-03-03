@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+type DummyDevice interface {
+	ReadMeasurements() error
+	Measurements() (temperature int16, humidity uint16, err error)
+	Temperature() (int16, error)
+	TemperatureFloat(scale TemperatureScale) (float32, error)
+	Humidity() (uint16, error)
+	HumidityFloat() (float32, error)
+}
+
 type device struct {
 	pin machine.Pin
 
@@ -141,38 +150,12 @@ func waitForDataTransmission(p machine.Pin) error {
 	return nil
 }
 
-type Device interface {
-	ReadMeasurements() error
-	Measurements() (temperature int16, humidity uint16, err error)
-	Temperature() (int16, error)
-	TemperatureFloat(scale TemperatureScale) (float32, error)
-	Humidity() (uint16, error)
-	HumidityFloat() (float32, error)
-}
-
-func New(pin machine.Pin, deviceType DeviceType) Device {
-	return &managedDevice{
-		t: device{
-			pin:          pin,
-			measurements: deviceType,
-			initialized:  false,
-		},
-		lastUpdate: time.Time{},
-		policy: UpdatePolicy{
-			UpdateTime:          time.Second * 2,
-			UpdateAutomatically: true,
-		},
-	}
-}
-
-func NewWithPolicy(pin machine.Pin, deviceType DeviceType, updatePolicy UpdatePolicy) Device {
-	return &managedDevice{
-		t: device{
-			pin:          pin,
-			measurements: deviceType,
-			initialized:  false,
-		},
-		lastUpdate: time.Time{},
-		policy:     updatePolicy,
+func NewDummyDevice(pin machine.Pin, deviceType DeviceType) DummyDevice {
+	return &device{
+		pin:          pin,
+		measurements: deviceType,
+		initialized:  false,
+		temperature:  0,
+		humidity:     0,
 	}
 }

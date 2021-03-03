@@ -2,6 +2,11 @@ package dht
 
 import "time"
 
+type Device interface {
+	DummyDevice
+	Configure(policy UpdatePolicy)
+}
+
 type managedDevice struct {
 	t          device
 	lastUpdate time.Time
@@ -77,4 +82,38 @@ func (m *managedDevice) ReadMeasurements() (err error) {
 		m.lastUpdate = timestamp
 	}
 	return
+}
+func (m *managedDevice) Configure(policy UpdatePolicy) {
+	if policy.UpdateAutomatically && policy.UpdateTime < time.Second*2 {
+		policy.UpdateTime = time.Second * 2
+	}
+	m.policy = policy
+}
+
+func New(pin machine.Pin, deviceType DeviceType) Device {
+	return &managedDevice{
+		t: device{
+			pin:          pin,
+			measurements: deviceType,
+			initialized:  false,
+		},
+		lastUpdate: time.Time{},
+		policy: UpdatePolicy{
+			UpdateTime:          time.Second * 2,
+			UpdateAutomatically: true,
+		},
+	}
+}
+
+func NewWithPolicy(pin machine.Pin, deviceType DeviceType, updatePolicy UpdatePolicy) Device {
+	result := &managedDevice{
+		t: device{
+			pin:          pin,
+			measurements: deviceType,
+			initialized:  false,
+		},
+		lastUpdate: time.Time{},
+	}
+	result.Configure(updatePolicy)
+	return result
 }
