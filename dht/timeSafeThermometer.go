@@ -1,6 +1,9 @@
 package dht
 
-import "time"
+import (
+	"machine"
+	"time"
+)
 
 type Device interface {
 	DummyDevice

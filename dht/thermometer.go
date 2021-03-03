@@ -29,7 +29,7 @@ func (t *device) ReadMeasurements() error {
 	state := powerUp(t.pin)
 	defer t.pin.Set(state)
 	err := t.read()
-	if err != nil {
+	if err == nil {
 		t.initialized = true
 	}
 	return err
