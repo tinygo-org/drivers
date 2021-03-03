@@ -66,6 +66,7 @@ func (t *device) Measurements() (temperature int16, humidity uint16, err error) 
 	if err != nil {
 		temperature = t.temperature
 		humidity = t.humidity
+		t.initialized = true
 	}
 	return
 }
@@ -151,13 +152,13 @@ func New(pin machine.Pin, deviceType DeviceType) Device {
 		t: device{
 			pin:          pin,
 			measurements: deviceType,
+			initialized:  false,
 		},
 		lastUpdate: time.Time{},
 		policy: UpdatePolicy{
 			UpdateTime:          time.Second * 2,
 			UpdateAutomatically: true,
 		},
-		initialized: false,
 	}
 }
 
@@ -166,9 +167,9 @@ func NewWithPolicy(pin machine.Pin, deviceType DeviceType, updatePolicy UpdatePo
 		t: device{
 			pin:          pin,
 			measurements: deviceType,
+			initialized:  false,
 		},
-		lastUpdate:  time.Time{},
-		policy:      updatePolicy,
-		initialized: false,
+		lastUpdate: time.Time{},
+		policy:     updatePolicy,
 	}
 }

@@ -3,10 +3,9 @@ package dht
 import "time"
 
 type managedDevice struct {
-	t           device
-	lastUpdate  time.Time
-	policy      UpdatePolicy
-	initialized bool
+	t          device
+	lastUpdate time.Time
+	policy     UpdatePolicy
 }
 
 func (m *managedDevice) Measurements() (temperature int16, humidity uint16, err error) {
@@ -37,7 +36,7 @@ func (m *managedDevice) checkForUpdateOnDataRequest() (err error) {
 		err = nil
 	}
 	// add error if the data is not initialized
-	if !m.initialized {
+	if !m.t.initialized {
 		err = UninitializedDataError
 	}
 	return err
@@ -69,13 +68,12 @@ func (m *managedDevice) HumidityFloat() (float32, error) {
 
 func (m *managedDevice) ReadMeasurements() (err error) {
 	timestamp := time.Now()
-	if !m.initialized || timestamp.Sub(m.lastUpdate) > m.policy.UpdateTime {
+	if !m.t.initialized || timestamp.Sub(m.lastUpdate) > m.policy.UpdateTime {
 		err = m.t.ReadMeasurements()
 	} else {
 		err = UpdateError
 	}
 	if err == nil {
-		m.initialized = true
 		m.lastUpdate = timestamp
 	}
 	return
