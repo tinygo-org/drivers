@@ -2,7 +2,6 @@ package dht
 
 import (
 	"encoding/binary"
-	"errors"
 	"machine"
 	"time"
 )
@@ -39,6 +38,8 @@ func (t TemperatureScale) convertToFloat(temp int16) float32 {
 	}
 }
 
+type ErrorCode uint8
+
 const (
 	startTimeout = time.Millisecond * 200
 	startingLow  = time.Millisecond * 20
@@ -48,7 +49,30 @@ const (
 
 	C TemperatureScale = iota
 	F
+
+	ChecksumError ErrorCode = iota
+	NoSignalError
+	NoDataError
+	UpdateError
+	UninitializedDataError
 )
+
+func (e ErrorCode) Error() string {
+	switch e {
+	case ChecksumError:
+		return "checksum mismatch"
+	case NoSignalError:
+		return "no signal"
+	case NoDataError:
+		return "no data"
+	case UpdateError:
+		return "cannot update now"
+	case UninitializedDataError:
+		return "no measurements done"
+	}
+	// should never be reached
+	return "unknown error"
+}
 
 // If update time is less than 2 seconds, thermometer will never update data automatically.
 // It will require manual Update calls
@@ -59,12 +83,6 @@ type UpdatePolicy struct {
 
 var (
 	timeout counter
-
-	checksumError     = errors.New("checksum mismatch")
-	noSignalError     = errors.New("no signal")
-	noDataError       = errors.New("no data")
-	updateError       = errors.New("cannot update now")
-	uninitializedData = errors.New("no mesurements done")
 )
 
 func init() {

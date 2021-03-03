@@ -9,25 +9,43 @@ type device struct {
 	pin machine.Pin
 
 	measurements DeviceType
+	initialized  bool
 
 	temperature int16
 	humidity    uint16
 }
 
-func (t *device) Temperature() int16 {
-	return t.temperature
+func (t *device) ReadMeasurements() error {
+	_, _, err := t.Measurements()
+	return err
 }
 
-func (t *device) TemperatureFloat(scale TemperatureScale) float32 {
-	return scale.convertToFloat(t.temperature)
+func (t *device) Temperature() (int16, error) {
+	if !t.initialized {
+		return 0, UninitializedDataError
+	}
+	return t.temperature, nil
 }
 
-func (t *device) Humidity() uint16 {
-	return t.humidity
+func (t *device) TemperatureFloat(scale TemperatureScale) (float32, error) {
+	if !t.initialized {
+		return 0, UninitializedDataError
+	}
+	return scale.convertToFloat(t.temperature), nil
 }
 
-func (t *device) HumidityFloat() float32 {
-	return float32(t.humidity) / 10.
+func (t *device) Humidity() (uint16, error) {
+	if !t.initialized {
+		return 0, UninitializedDataError
+	}
+	return t.humidity, nil
+}
+
+func (t *device) HumidityFloat() (float32, error) {
+	if !t.initialized {
+		return 0, UninitializedDataError
+	}
+	return float32(t.humidity) / 10., nil
 }
 
 func initiateCommunication(p machine.Pin) {
@@ -40,11 +58,16 @@ func initiateCommunication(p machine.Pin) {
 	p.Configure(machine.PinConfig{Mode: machine.PinInput})
 }
 
-func (t *device) ReadMeasurements() error {
+func (t *device) Measurements() (temperature int16, humidity uint16, err error) {
 	// initial waiting
 	state := powerUp(t.pin)
 	defer t.pin.Set(state)
-	return t.read()
+	err = t.read()
+	if err != nil {
+		temperature = t.temperature
+		humidity = t.humidity
+	}
+	return
 }
 
 func (t *device) read() error {
@@ -66,7 +89,7 @@ func (t *device) read() error {
 		return err
 	}
 	if !isValid(buf[:]) {
-		return checksumError
+		return ChecksumError
 	}
 
 	t.temperature, t.humidity = t.measurements.extractData(buf)
@@ -87,7 +110,7 @@ func (t *device) extractData(signals []counter, buf []uint8) error {
 		lowCycle := signals[i*2]
 		highCycle := signals[i*2+1]
 		if lowCycle == timeout || highCycle == timeout {
-			return noDataError
+			return NoDataError
 		}
 		byteN := i >> 3
 		buf[byteN] <<= 1
@@ -101,15 +124,15 @@ func (t *device) extractData(signals []counter, buf []uint8) error {
 func waitForDataTransmission(p machine.Pin) error {
 	// wait for thermometer to pull down
 	if expectChange(p, true) == timeout {
-		return noSignalError
+		return NoSignalError
 	}
 	//wait for thermometer to pull up
 	if expectChange(p, false) == timeout {
-		return noSignalError
+		return NoSignalError
 	}
 	// wait for thermometer to pull down and start sending the data
 	if expectChange(p, true) == timeout {
-		return noSignalError
+		return NoSignalError
 	}
 	return nil
 }
