@@ -2,4 +2,5 @@
 
 package dht
 
+// This file provides a definition of the counter for boards with frequency higher than 2^8 ticks per millisecond (>64MHz)
 type counter uint32
