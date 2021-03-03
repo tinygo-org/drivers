@@ -16,7 +16,13 @@ type device struct {
 }
 
 func (t *device) ReadMeasurements() error {
-	_, _, err := t.Measurements()
+	// initial waiting
+	state := powerUp(t.pin)
+	defer t.pin.Set(state)
+	err := t.read()
+	if err != nil {
+		t.initialized = true
+	}
 	return err
 }
 
@@ -59,15 +65,12 @@ func initiateCommunication(p machine.Pin) {
 }
 
 func (t *device) Measurements() (temperature int16, humidity uint16, err error) {
-	// initial waiting
-	state := powerUp(t.pin)
-	defer t.pin.Set(state)
-	err = t.read()
-	if err != nil {
-		temperature = t.temperature
-		humidity = t.humidity
-		t.initialized = true
+	if !t.initialized {
+		return 0, 0, UninitializedDataError
 	}
+	temperature = t.temperature
+	humidity = t.humidity
+	err = nil
 	return
 }
 
