@@ -20,17 +20,17 @@ package espat // import "tinygo.org/x/drivers/espat"
 
 import (
 	"errors"
-	"machine"
 	"strconv"
 	"strings"
 	"time"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/net"
 )
 
 // Device wraps UART connection to the ESP8266/ESP32.
 type Device struct {
-	bus machine.UART
+	bus drivers.UART
 
 	// command responses that come back from the ESP8266/ESP32
 	response []byte
@@ -43,7 +43,7 @@ type Device struct {
 var ActiveDevice *Device
 
 // New returns a new espat driver. Pass in a fully configured UART bus.
-func New(b machine.UART) *Device {
+func New(b drivers.UART) *Device {
 	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
 }
 
