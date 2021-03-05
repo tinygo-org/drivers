@@ -11,9 +11,23 @@ import (
 	"time"
 )
 
+const (
+	// These are the default execution times for the Clear and
+	// Home commands and everything else.
+	//
+	// These are used if RW is passed as machine.NoPin and ignored
+	// otherwise.
+	//
+	// They are set conservatively here and can be tweaked in the
+	// Config structure.
+	DefaultClearHomeTime = 80 * time.Millisecond
+	DefaultInstrExecTime = 80 * time.Microsecond
+)
+
 type Buser interface {
 	io.ReadWriter
 	SetCommandMode(set bool)
+	WriteOnly() bool
 }
 
 type Device struct {
@@ -28,6 +42,9 @@ type Device struct {
 
 	cursor     cursor
 	busyStatus []byte
+
+	clearHomeTime time.Duration // time clear/home instructions might take
+	instrExecTime time.Duration // time all other instructions might take
 }
 
 type cursor struct {
@@ -35,14 +52,18 @@ type cursor struct {
 }
 
 type Config struct {
-	Width       int16
-	Height      int16
-	CursorBlink bool
-	CursorOnOff bool
-	Font        uint8
+	Width         int16
+	Height        int16
+	CursorBlink   bool
+	CursorOnOff   bool
+	Font          uint8
+	ClearHomeTime time.Duration // time clear/home instructions might take - use 0 for the default
+	InstrExecTime time.Duration // time all other instructions might take - use 0 for the default
 }
 
 // NewGPIO4Bit returns 4bit data length HD44780 driver. Datapins are LCD DB pins starting from DB4 to DB7
+//
+// If your device has RW set permanently to ground then pass in rw as machine.NoPin
 func NewGPIO4Bit(dataPins []machine.Pin, e, rs, rw machine.Pin) (Device, error) {
 	const fourBitMode = 4
 	if len(dataPins) != fourBitMode {
@@ -52,6 +73,8 @@ func NewGPIO4Bit(dataPins []machine.Pin, e, rs, rw machine.Pin) (Device, error) 
 }
 
 // NewGPIO8Bit returns 8bit data length HD44780 driver. Datapins are LCD DB pins starting from DB0 to DB7
+//
+// If your device has RW set permanently to ground then pass in rw as machine.NoPin
 func NewGPIO8Bit(dataPins []machine.Pin, e, rs, rw machine.Pin) (Device, error) {
 	const eightBitMode = 8
 	if len(dataPins) != eightBitMode {
@@ -68,6 +91,8 @@ func (d *Device) Configure(cfg Config) error {
 	if d.width == 0 || d.height == 0 {
 		return errors.New("width and height must be set")
 	}
+	d.clearHomeTime = cfg.ClearHomeTime
+	d.instrExecTime = cfg.InstrExecTime
 	memoryMap := uint8(ONE_LINE)
 	if d.height > 1 {
 		memoryMap = TWO_LINE
@@ -186,7 +211,7 @@ func (d *Device) SendCommand(command byte) {
 	d.bus.SetCommandMode(true)
 	d.bus.Write([]byte{command})
 
-	for d.Busy() {
+	for d.busy(command == DISPLAY_CLEAR || command == CURSOR_HOME) {
 	}
 }
 
@@ -195,7 +220,7 @@ func (d *Device) sendData(data byte) {
 	d.bus.SetCommandMode(false)
 	d.bus.Write([]byte{data})
 
-	for d.Busy() {
+	for d.busy(false) {
 	}
 }
 
@@ -207,11 +232,37 @@ func (d *Device) CreateCharacter(cgramAddr uint8, data []byte) {
 	}
 }
 
-// Busy returns true when hd447890 is busy
-func (d *Device) Busy() bool {
+// busy returns true when hd447890 is busy
+// or after the timeout specified
+func (d *Device) busy(longDelay bool) bool {
+	if d.bus.WriteOnly() {
+		// Can't read busy flag if write only, so sleep a bit then return
+		if longDelay {
+			// Note that we sleep like this so the default
+			// time.Sleep is time.Sleep(constant) as
+			// time.Sleep(variable) doesn't seem to work on AVR yet
+			if d.clearHomeTime != 0 {
+				time.Sleep(d.clearHomeTime)
+			} else {
+				time.Sleep(DefaultClearHomeTime)
+			}
+		} else {
+			if d.instrExecTime != 0 {
+				time.Sleep(d.instrExecTime)
+			} else {
+				time.Sleep(DefaultInstrExecTime)
+			}
+		}
+		return false
+	}
 	d.bus.SetCommandMode(true)
 	d.bus.Read(d.busyStatus)
 	return (d.busyStatus[0] & BUSY) > 0
+}
+
+// Busy returns true when hd447890 is busy
+func (d *Device) Busy() bool {
+	return d.busy(false)
 }
 
 // Size returns the current size of the display.
