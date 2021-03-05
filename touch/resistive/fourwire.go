@@ -86,7 +86,7 @@ func (res *FourWire) ReadX() uint16 {
 	res.xm.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.xm.Pin.Low()
 
-	res.yp.Configure()
+	res.yp.Configure(machine.ADCConfig{})
 
 	return 0xFFFF - res.yp.Get()
 }
@@ -101,7 +101,7 @@ func (res *FourWire) ReadY() uint16 {
 	res.ym.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.ym.Pin.Low()
 
-	res.xp.Configure()
+	res.xp.Configure(machine.ADCConfig{})
 
 	return 0xFFFF - res.xp.Get()
 }
@@ -114,8 +114,8 @@ func (res *FourWire) ReadZ() uint16 {
 	res.ym.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	res.ym.Pin.High()
 
-	res.xm.Configure()
-	res.yp.Configure()
+	res.xm.Configure(machine.ADCConfig{})
+	res.yp.Configure(machine.ADCConfig{})
 
 	z1 := res.xm.Get()
 	z2 := res.yp.Get()
