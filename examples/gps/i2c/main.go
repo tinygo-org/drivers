@@ -10,7 +10,7 @@ import (
 func main() {
 	println("GPS I2C Example")
 	machine.I2C0.Configure(machine.I2CConfig{})
-	ublox := gps.NewI2C(&machine.I2C0)
+	ublox := gps.NewI2C(machine.I2C0)
 	parser := gps.NewParser()
 	var fix gps.Fix
 	for {
