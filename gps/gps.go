@@ -4,7 +4,6 @@ package gps // import "tinygo.org/x/drivers/gps"
 import (
 	"encoding/hex"
 	"errors"
-	"machine"
 	"strings"
 	"time"
 
@@ -21,13 +20,13 @@ type Device struct {
 	buffer   []byte
 	bufIdx   int
 	sentence strings.Builder
-	uart     *machine.UART
+	uart     drivers.UART
 	bus      drivers.I2C
 	address  uint16
 }
 
 // NewUART creates a new UART GPS connection. The UART must already be configured.
-func NewUART(uart *machine.UART) Device {
+func NewUART(uart drivers.UART) Device {
 	return Device{
 		uart:     uart,
 		buffer:   make([]byte, bufferSize),
