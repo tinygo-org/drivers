@@ -3,7 +3,7 @@
 [![PkgGoDev](https://pkg.go.dev/badge/tinygo.org/x/drivers)](https://pkg.go.dev/tinygo.org/x/drivers) [![CircleCI](https://circleci.com/gh/tinygo-org/drivers/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/drivers/tree/dev)
 
 
-This package provides a collection of hardware drivers for devices that can be used together with [TinyGo](https://tinygo.org).
+This package provides a collection of hardware drivers for devices such as sensors and displays that can be used together with [TinyGo](https://tinygo.org).
 
 ## Installing
 

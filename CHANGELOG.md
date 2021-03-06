@@ -1,3 +1,25 @@
+0.15.0
+---
+- **new devices**
+    - dht: add DHTXX thermometer
+    - mcp23017: new driver for MCP23017 (I2C port expander)
+    - bmp388: Add bmp388 support (#219)
+- **enhancements**
+    - hd44780: add a mode to work with boards where the RW pin is grounded
+    - st7789: add scrolling functions to match st7735
+    - microbitmatrix: matrix now working on microbit v2
+    - ds1307: Better interface "ReadTime" instead of "Time"
+    - ws2812: make AVR support more robust
+- **bugfixes**
+    - all: fix main package in examples
+- **core**
+    - adc: update all drivers with ADC to use new config struct
+    - spi: remove machine.SPI and replace with drivers.SPI interface for almost all SPI drivers
+- **testing**
+    - test: run unit tests against i2c drivers and any spi drivers without direct gpio
+- **docs**
+    - st7789: correct errors on various godoc comments
+
 0.14.0
 ---
 - **new devices**
