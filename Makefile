@@ -166,7 +166,7 @@ endif
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis2mdl/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/dht/main.go
-	@md5sum ./build/t
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino ./examples/keypad4x4/main.go
 	@md5sum ./build/test.hex
 
