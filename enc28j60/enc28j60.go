@@ -28,7 +28,8 @@ type Dev struct {
 	// subnet mask
 	mask net.IPMask
 	// device IP address
-	myip        net.IP
+	myip net.IP
+	// which IP is recieving requests or the router
 	broadcastip net.IP
 	dummy       [2]byte
 	// mac address
