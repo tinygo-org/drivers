@@ -49,7 +49,8 @@ func New(csb machine.Pin, spi drivers.SPI) *Dev {
 	}
 }
 
-func (d *Dev) Begin(buff []byte, macaddr []byte) error {
+// Init initializes device for use and configures the enc28j60's registries.
+func (d *Dev) Init(buff []byte, macaddr []byte) error {
 	if len(macaddr) != 6 {
 		return errBadMac
 	}
@@ -62,7 +63,7 @@ func (d *Dev) Begin(buff []byte, macaddr []byte) error {
 		// d.Stash.InitMap(SCRATCH_PAGE_NUM)
 	}
 	copy(d.macaddr[:], macaddr)
-	d.Init(macaddr)
+	d.configure(macaddr)
 	return nil
 }
 
@@ -92,7 +93,7 @@ func (d *Dev) readBuffer(len uint16, data []byte) {
 	d.CSB.Low()
 	cmd := [1]byte{ENC28J60_READ_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
-	d.Bus.Tx(nil, data)
+	d.Bus.Tx(nil, data[:len])
 	d.CSB.High()
 }
 
@@ -100,7 +101,7 @@ func (d *Dev) writeBuffer(len uint16, data []byte) {
 	d.CSB.Low()
 	cmd := [1]byte{ENC28J60_WRITE_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
-	d.Bus.Tx(data, nil)
+	d.Bus.Tx(data[:len], nil)
 	d.CSB.High()
 }
 func (d *Dev) setBank(address uint8) {
@@ -144,7 +145,7 @@ func (d *Dev) listen() {
 // Init initializes communication and device.
 //
 // macaddr is of length 6.
-func (d *Dev) Init(macaddr []byte) {
+func (d *Dev) configure(macaddr []byte) {
 	// initialize I/O
 	// ss as output:
 
@@ -269,6 +270,7 @@ func (d *Dev) PacketSend(len uint16, packet []byte) {
 		d.writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_TXRTS)
 	}
 }
+
 func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
 	var rxstat, len uint16
 	if d.read(EPKTCNT) == 0 {
@@ -308,5 +310,5 @@ func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
 	d.write(ERXRDPTH, uint8(d.NextPacketPtr>>8))
 	// decrement the packet counter indicate we are done with this packet
 	d.writeOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC)
-	return (len)
+	return len
 }

@@ -1,9 +1,20 @@
 package enc28j60
 
+import (
+	"errors"
+
+	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
+)
+
 const (
 	// ethernet frame type for ARP
 	efARPType       = 0x0806
 	protoAddrTypeIP = 0x0800
+)
+
+var (
+	errUnableToResolveARP = errors.New("unable to resolve ARP")
+	errARP                = errors.New("ARP protocol violation")
 )
 
 /* ARP Frame (Address resolution protocol)
@@ -24,7 +35,8 @@ Legend:
 */
 
 // writes ARP bytes to ethframe's payload without modifying the rest of the buffer
-func (s *Socket) writeARP() {
+// returns length of payload written
+func (s *Socket) writeARP() uint16 {
 	s.payloadwrite(0, []byte{
 		0, 1, // Write HW AT
 		byte(protoAddrTypeIP % 256), byte(protoAddrTypeIP >> 8), // write Proto AT
@@ -35,4 +47,25 @@ func (s *Socket) writeARP() {
 	s.payloadwrite(14, s.d.myip)
 	s.payloadwrite(18, []byte{0, 0, 0, 0, 0, 0}) // HW AoT (empty because it is what we want this dude to fill)
 	s.payloadwrite(24, s.d.broadcastip)
+	return 24 + 4 //28 is length of ARP payload
+}
+
+func (s *Socket) Resolve() (net.HardwareAddr, error) {
+	if s.mode != socketARPMode {
+		return nil, errARP
+	}
+	var plen uint16
+	plen = s.writeARP() + efPayloadOffset
+	s.d.PacketSend(plen, s.d.buffer)
+
+	plen = 0
+	for plen == 0 {
+		plen = s.d.PacketRecieve(uint16(len(s.d.buffer)), s.d.buffer)
+	}
+	// discard ethernet frame buffer. look in ARP payload for hardware address of target (us)
+	hwAoTIdx := idxRabinKarpBytes(s.d.buffer[efPayloadOffset:], s.dstMacaddr)
+	if hwAoTIdx == -1 {
+		return nil, errUnableToResolveARP
+	}
+	return net.HardwareAddr(s.d.buffer[hwAoTIdx-10 : hwAoTIdx-4]), nil
 }
