@@ -17,6 +17,32 @@ the enc28j60 takes care of the preamble and the SFD. It is by default configured
 of the FCS too.
 */
 
+// serial debugger enable
+var SDB = false
+
+func byteToHex(b byte) []byte {
+	var res [2]byte
+	res[0], res[1] = (b>>4)+'0', (b&0b0000_1111)+'0'
+	if (b >> 4) > 9 {
+		res[0] = (b >> 4) + 'A' - 10
+	}
+	if (b & 0b0000_1111) > 9 {
+		res[1] = (b & 0b0000_1111) + 'A' - 10
+	}
+	return res[:]
+}
+
+// debug print. 14342
+func dbp(msg string, data []byte) {
+	if SDB {
+		print(msg, "0x")
+		for i := 0; i < len(data); i++ {
+			print(string(byteToHex(data[i])))
+		}
+		println()
+	}
+}
+
 const (
 	preambleSize    = 7
 	startFrameDelim = 1
@@ -83,6 +109,8 @@ func (s Socket) efWriteType() error {
 // Open supports ARP for network discovery
 func (s *Socket) Open(protocol string, port uint16) error {
 	if !validIP(s.d.broadcastip) || !validIP(s.d.myip) {
+		dbp("gw:", append(s.d.broadcastip))
+		dbp("ip:", append(s.d.myip))
 		return errBadIP
 	}
 	switch protocol {
