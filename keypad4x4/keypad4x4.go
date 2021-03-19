@@ -74,8 +74,7 @@ func (keypad *device) GetKey() uint8 {
 
 // GetIndices returns the position of the pressed key
 func (keypad *device) GetIndices() (int, int) {
-	for rowIndex := range keypad.rows {
-		rowPin := keypad.rows[rowIndex]
+	for rowIndex, rowPin := range keypad.rows {
 		rowPin.Low()
 
 		for columnIndex := range keypad.columns {
