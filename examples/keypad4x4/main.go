@@ -31,7 +31,7 @@ func main() {
 
 	for {
 		key := keypadDevice.GetKey()
-		if key != 255 {
+		if key != keypad4x4.NoKeyPressed {
 			println("Button: ", mapping[key])
 		}
 	}

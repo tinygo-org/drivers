@@ -4,6 +4,9 @@ import (
 	"machine"
 )
 
+// NoKeyPressed is used, when no key was pressed
+const NoKeyPressed = 255
+
 // Device is used as 4x4 keypad driver
 type Device interface {
 	Configure()
@@ -66,7 +69,7 @@ func (keypad *device) Configure() {
 func (keypad *device) GetKey() uint8 {
 	row, column := keypad.GetIndices()
 	if row == -1 && column == -1 {
-		return 255
+		return NoKeyPressed
 	}
 
 	return keypad.mapping[row][column]
