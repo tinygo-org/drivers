@@ -1,19 +1,12 @@
 package enc28j60
 
 import (
-	"errors"
 	"machine"
 
 	"time"
 
 	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 	"tinygo.org/x/drivers"
-)
-
-var (
-	errBadRev     = errors.New("got rev=0. is dev connected?")
-	errBadMac     = errors.New("mac addr len not 6")
-	errBufferSize = errors.New("buff size not in 64..1500")
 )
 
 // ETHERCARD_STASH Enable access to IC memory
@@ -63,7 +56,7 @@ func (d *Dev) Init(buff []byte, macaddr []byte) error {
 		// d.Stash = &Stash{}
 		// d.Stash.InitMap(SCRATCH_PAGE_NUM)
 	}
-	copy(d.macaddr[:], macaddr)
+	d.macaddr = macaddr
 	dbp("cfg call w/mac:", macaddr)
 	d.configure(macaddr)
 	if d.GetRev() == 0 {
@@ -88,7 +81,6 @@ func (d *Dev) readOp(op, address uint8) uint8 {
 	// do dummy read if needed (for mac and mii, see datasheet page 29)
 	if address&0x80 != 0 {
 		d.Bus.Tx(d.dummy[0:1], nil)
-
 	}
 	d.CSB.High()
 	return read[0]
@@ -98,8 +90,8 @@ func (d *Dev) writeOp(op, address, data uint8) {
 	d.CSB.Low()
 	cmd := [2]byte{op | (address & ADDR_MASK), data}
 	err := d.Bus.Tx(cmd[:], nil)
+	dbp("write addr:", []byte{address})
 	if err != nil {
-		dbp("write addr:", []byte{address})
 		dbp(err.Error(), []byte{op})
 	}
 	d.CSB.High()

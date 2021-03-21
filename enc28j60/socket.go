@@ -1,9 +1,6 @@
 package enc28j60
 
 import (
-	"errors"
-	"math/rand"
-
 	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 )
 
@@ -75,12 +72,6 @@ type Socket struct {
 	receiveOffset uint16
 }
 
-var (
-	errOutOfBound = errors.New("out of buff bounds")
-	errMacAddr    = errors.New("bad mac addr")
-	errBadIP      = errors.New("bad ip")
-)
-
 func (s Socket) payloadwrite(offset uint16, buff []byte) error {
 	return s.bufwrite(efPayloadOffset, buff)
 }
@@ -96,7 +87,7 @@ func (s Socket) bufwrite(offset uint16, buff []byte) error {
 // ethernet frame write mac addresses to buffer
 func (s Socket) efWriteHWAdresses() error {
 	if s.dstMacaddr == nil || len(s.dstMacaddr) != 6 {
-		return errMacAddr
+		return errBadMac
 	}
 	s.bufwrite(7, append(s.dstMacaddr, s.d.macaddr...))
 	return nil
@@ -121,7 +112,7 @@ func (s *Socket) Open(protocol string, port uint16) error {
 	}
 
 	if port == 0 { // pick random local port instead
-		s.Port = 49152 + uint16(rand.Intn(16383))
+		s.Port = 49152 //+ uint16(rand.Intn(16383)) // rand.Intn consumes too much memory
 	}
 	return nil
 }

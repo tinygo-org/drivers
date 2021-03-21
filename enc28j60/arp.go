@@ -1,8 +1,6 @@
 package enc28j60
 
 import (
-	"errors"
-
 	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 )
 
@@ -10,11 +8,6 @@ const (
 	// ethernet frame type for ARP
 	efARPType       = 0x0806
 	protoAddrTypeIP = 0x0800
-)
-
-var (
-	errUnableToResolveARP = errors.New("unable to resolve ARP")
-	errARP                = errors.New("ARP protocol violation")
 )
 
 /* ARP Frame (Address resolution protocol)
