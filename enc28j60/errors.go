@@ -10,7 +10,7 @@ const (
 	errBadIP
 	errBadARP
 	errUnableToResolveARP //= errors.New("unable to resolve ARP")
-	errARP                //= errors.New("ARP protocol violation")
+	errARPViolation       //= errors.New("ARP protocol violation")
 )
 
 func (err ErrorCode) Error() string {
@@ -27,8 +27,8 @@ func (err ErrorCode) Error() string {
 		return "mac addr len not 6"
 	case errUnableToResolveARP:
 		return "unable to resolve ARP"
-	case errARP:
-		return "ARP protocol violate"
+	case errARPViolation:
+		return "ARP protocol violation"
 	}
 	return "undefined"
 }

@@ -80,10 +80,11 @@ const (
 
 // Bank 2 registers
 const (
-	MACON1   = (0x00 | 0x40 | 0x80)
-	MACON2   = (0x01 | 0x40 | 0x80)
-	MACON3   = (0x02 | 0x40 | 0x80)
-	MACON4   = (0x03 | 0x40 | 0x80)
+	MACON1 = (0x00 | 0x40 | 0x80)
+	MACON2 = (0x01 | 0x40 | 0x80)
+	MACON3 = (0x02 | 0x40 | 0x80)
+	MACON4 = (0x03 | 0x40 | 0x80)
+	// When FULDPX (MACON3<0>) = 0 : Nibble  time  offset  delay  between  the  end  of  one  transmission  and  the  beginning  of  the  next  in  aback-to-back sequence. The register value should be programmed to the desired period in nibble timesminus 6. The recommended setting is 12h which represents the minimum IEEE specified Inter-PacketGap (IPG) of 9.6us
 	MABBIPG  = (0x04 | 0x40 | 0x80)
 	MAIPGL   = (0x06 | 0x40 | 0x80)
 	MAIPGH   = (0x07 | 0x40 | 0x80)
@@ -219,14 +220,29 @@ const (
 
 // ENC28J60 MACON3 Register Bit Definitions
 const (
+	// All short frames will be zero-padded to 64 bytes and a valid CRC will then be appended
+	MACON3_ZPADCRC = 0b111 << 5
 	MACON3_PADCFG2 = 0x80
 	MACON3_PADCFG1 = 0x40
 	MACON3_PADCFG0 = 0x20
+	// MAC will append a  valid CRC to all frames transmitted regardless of  PADCFG bits. TXCRCEN must be set if the PADCFG bits specify that a valid CRC will be appended.
 	MACON3_TXCRCEN = 0x10
 	MACON3_PHDRLEN = 0x08
 	MACON3_HFRMLEN = 0x04
+	//The type/length field of transmitted and received frames will be checked. If it represents a length, the frame size will be compared and mismatches will be reported in the transmit/receive status vector.
 	MACON3_FRMLNEN = 0x02
-	MACON3_FULDPX  = 0x01
+	// MAC will operate in Full-Duplex mode. PDPXMD bit must also be set.
+	MACON3_FULDPX = 0x01
+)
+
+// ENC28J60 MACON4 Register Bit Definitions
+const (
+	//When the medium is occupied, the MAC will wait indefinitely for it to become free when attempting to transmit (use this setting for IEEE 802.3™ compliance)
+	MACON4_DEFER = 1 << 6
+	//  After  incidentally  causing  a  collision  during  backpressure,  the  MAC  will  immediately  begin retransmitting
+	MACON4_BPEN = 1 << 5
+	//After any collision, the MAC will immediately begin retransmitting
+	MACON4_NOBKOFF = 1 << 4
 )
 
 // ENC28J60 MICMD Register Bit Definitions

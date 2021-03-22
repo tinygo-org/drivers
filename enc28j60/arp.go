@@ -45,7 +45,7 @@ func (s *Socket) writeARP() uint16 {
 
 func (s *Socket) Resolve() (net.HardwareAddr, error) {
 	if s.mode != socketARPMode {
-		return nil, errARP
+		return nil, errARPViolation
 	}
 	var plen uint16
 	plen = s.writeARP() + efPayloadOffset
