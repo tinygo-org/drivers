@@ -80,6 +80,7 @@ The following 58 devices are supported.
 | [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO/I2C |
 | [HUB75 RGB led matrix](https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf) | SPI |
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
+| [4x4 Membrane Keypad](https://cdn.sparkfun.com/assets/f/f/a/5/0/DS-16038.pdf) | GPIO |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
 | [L9110x motor driver](https://www.elecrow.com/download/datasheet-l9110.pdf) | GPIO/PWM |
 | [LIS2MDL magnetometer](https://www.st.com/resource/en/datasheet/lis2mdl.pdf) | I2C |
