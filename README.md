@@ -87,10 +87,7 @@ The following 58 devices are supported.
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf) | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
-<<<<<<< HEAD
 | [MAX7219 & MAX7221 display driver](https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf) | SPI |
-=======
->>>>>>> docs: add missing new drivers added since last release
 | [MCP23017 port expander](https://ww1.microchip.com/downloads/en/DeviceDoc/20001952C.pdf) | I2C |
 | [MCP3008 analog to digital converter (ADC)](http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf) | SPI |
 | [Microphone - PDM](https://cdn-learn.adafruit.com/assets/assets/000/049/977/original/MP34DT01-M.pdf) | I2S/PDM |
