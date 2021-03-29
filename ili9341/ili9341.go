@@ -160,6 +160,20 @@ func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
 	return nil
 }
 
+// DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
+	k, i := d.Size()
+	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
+		x >= k || (x+w) > k || y >= i || (y+h) > i {
+		return errors.New("rectangle coordinates outside display area")
+	}
+	d.setWindow(x, y, w, h)
+	d.startWrite()
+	d.driver.write8sl(data)
+	d.endWrite()
+	return nil
+}
+
 // FillRectangle fills a rectangle at given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	k, i := d.Size()
@@ -300,7 +314,9 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 	d.dc.Low()
 	d.driver.write8(cmd)
 	d.dc.High()
-	d.driver.write8sl(data)
+	if data != nil {
+		d.driver.write8sl(data)
+	}
 	d.endWrite()
 }
 
