@@ -5,7 +5,7 @@ import "fmt"
 // I2CBus implements the I2C interface in memory for testing.
 type I2CBus struct {
 	c       Failer
-	devices []*I2CDevice
+	devices []I2CDevice
 }
 
 // NewI2CBus returns an I2CBus mock I2C instance that uses c to flag errors
@@ -19,9 +19,9 @@ func NewI2CBus(c Failer) *I2CBus {
 
 // AddDevice adds a new mock device to the mock I2C bus.
 // It panics if a device with the same address is added more than once.
-func (bus *I2CBus) AddDevice(d *I2CDevice) {
+func (bus *I2CBus) AddDevice(d I2CDevice) {
 	for _, dev := range bus.devices {
-		if dev.Addr() == d.addr {
+		if dev.Addr() == d.Addr() {
 			panic(fmt.Errorf("device already added at address %#x", d))
 		}
 	}
@@ -30,8 +30,8 @@ func (bus *I2CBus) AddDevice(d *I2CDevice) {
 
 // NewDevice creates a new device with the given address
 // and adds it to the mock I2C bus.
-func (bus *I2CBus) NewDevice(addr uint8) *I2CDevice {
-	dev := NewI2CDevice(bus.c, addr)
+func (bus *I2CBus) NewDevice(addr uint8) *I2CDevice8 {
+	dev := NewI2CDevice8(bus.c, addr)
 	bus.AddDevice(dev)
 	return dev
 }
@@ -53,7 +53,7 @@ func (bus *I2CBus) Tx(addr uint16, w, r []byte) error {
 }
 
 // FindDevice returns the device with the given address.
-func (bus *I2CBus) FindDevice(addr uint8) *I2CDevice {
+func (bus *I2CBus) FindDevice(addr uint8) I2CDevice {
 	for _, dev := range bus.devices {
 		if dev.Addr() == addr {
 			return dev
