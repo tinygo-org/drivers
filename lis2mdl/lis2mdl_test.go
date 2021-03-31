@@ -18,6 +18,7 @@ func TestWhoAmI(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, ADDRESS)
+	fake.Configure(tester.I2CConfig{})
 	copy(fake.Registers[:], defaultRegisters())
 	bus.AddDevice(fake)
 

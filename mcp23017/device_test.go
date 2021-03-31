@@ -213,6 +213,7 @@ func TestInitWithError(t *testing.T) {
 
 func newDevice(bus *tester.I2CBus, addr uint8) *tester.I2CDevice {
 	fdev := bus.NewDevice(addr)
+	fdev.Configure(tester.I2CConfig{})
 	// IODIRA and IODIRB are all ones by default.
 	fdev.Registers[rIODIR] = 0xff
 	fdev.Registers[rIODIR|portB] = 0xff
