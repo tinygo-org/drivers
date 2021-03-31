@@ -211,7 +211,7 @@ func TestInitWithError(t *testing.T) {
 	c.Assert(dev, qt.IsNil)
 }
 
-func newDevice(bus *tester.I2CBus, addr uint8) *tester.I2CDevice {
+func newDevice(bus *tester.I2CBus, addr uint8) *tester.I2CDevice8 {
 	fdev := bus.NewDevice(addr)
 	// IODIRA and IODIRB are all ones by default.
 	fdev.Registers[rIODIR] = 0xff
