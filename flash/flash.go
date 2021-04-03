@@ -290,9 +290,8 @@ func (dev *Device) EraseBlockSize() int64 {
 // supports this. The start and len parameters are in block numbers, use
 // EraseBlockSize to map addresses to blocks.
 func (dev *Device) EraseBlocks(start, len int64) error {
-	// TODO: maybe combine sector erase operations into block erase operations
 	for i := start; i < start+len; i++ {
-		if err := dev.EraseSector(uint32(i)); err != nil {
+		if err := dev.EraseBlock(uint32(i)); err != nil {
 			return err
 		}
 	}
