@@ -3,17 +3,19 @@ package enc28j60
 import (
 	"machine"
 	"time"
-
-	"tinygo.org/x/drivers"
 )
 
 // this file stores test functions the client can run in order to verify
 // the enc28j60's SPI/Ethernet connection and functioning. Results are printed
 // to serial
 
-func TestSPI(csb machine.Pin, spi drivers.SPI) {
-	e := New(csb, spi)
+func TestSPI(csb machine.Pin, spi machine.SPI) {
+	e, err := New(csb, spi)
+	if err != nil {
+		panic(err)
+	}
 	e.Reset()
+	e.configure([]byte{0, 0, 0, 0, 0, 0})
 	var ops = []struct {
 		addr     uint8
 		def, new uint8

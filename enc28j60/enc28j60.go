@@ -1,7 +1,9 @@
 package enc28j60
 
 import (
+	"device/avr"
 	"machine"
+	"runtime/interrupt"
 
 	"time"
 
@@ -23,24 +25,30 @@ type Dev struct {
 	mask net.IPMask
 	// device IP address
 	myip net.IP
-	// which IP is recieving requests or the router
+	// myip but masked
 	broadcastip net.IP
-	dummy       [2]byte
+	// which IP is recieving requests or the router
+	gatewayip net.IP
+	dummy     [2]byte
 	// mac address
 	macaddr net.HardwareAddr
 	// SPI bus (requires chip select to be usable).
 	Bus drivers.SPI
 	// *Stash
+	// interrupt state
+	is interrupt.State
 }
 
-// NewSPI returns a new device driver. The pin and SPI interface are not
-// touched, provide a fully configured SPI object and call Configure to start
-// using this device.
-func New(csb machine.Pin, spi drivers.SPI) *Dev {
+// NewSPI returns a new device driver. The SPI is configured in this call
+func New(csb machine.Pin, spi machine.SPI) (*Dev, error) {
+	err := spi.Configure(machine.SPIConfig{Frequency: 8e6, Mode: 0, LSBFirst: false})
+	if err != nil {
+		return nil, err
+	}
 	return &Dev{
 		CSB: csb, // chip select
-		Bus: spi,
-	}
+		Bus: &spi,
+	}, nil
 }
 
 // Init initializes device for use and configures the enc28j60's registries.
@@ -65,52 +73,20 @@ func (d *Dev) Init(buff []byte, macaddr []byte) error {
 	return nil
 }
 
-func (d *Dev) readOp(op, address uint8) uint8 {
-	cmd := [1]byte{op | (address & ADDR_MASK)}
-	var read [1]byte
-
-	d.CSB.Low()
-
-	err := d.Bus.Tx(cmd[:], read[:])
-	dbp("read addr:", []byte{address})
-	dbp("got:", read[:])
-	if err != nil {
-		dbp("error read addr:", []byte{address})
-		dbp(err.Error(), []byte{address})
-	}
-	// do dummy read if needed (for mac and mii, see datasheet page 29)
-	if address&0x80 != 0 {
-		d.Bus.Tx(d.dummy[0:1], nil)
-	}
-	d.CSB.High()
-	return read[0]
-}
-
-func (d *Dev) writeOp(op, address, data uint8) {
-	d.CSB.Low()
-	cmd := [2]byte{op | (address & ADDR_MASK), data}
-	err := d.Bus.Tx(cmd[:], nil)
-	dbp("write addr:", []byte{address})
-	if err != nil {
-		dbp(err.Error(), []byte{op})
-	}
-	d.CSB.High()
-}
-
 func (d *Dev) readBuffer(len uint16, data []byte) {
-	d.CSB.Low()
+	d.enable()
 	cmd := [1]byte{ENC28J60_READ_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(nil, data[:len])
-	d.CSB.High()
+	d.disable()
 }
 
 func (d *Dev) writeBuffer(len uint16, data []byte) {
-	d.CSB.Low()
+	d.enable()
 	cmd := [1]byte{ENC28J60_WRITE_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(data[:len], nil)
-	d.CSB.High()
+	d.disable()
 }
 func (d *Dev) setBank(address uint8) {
 	if (address & BANK_MASK) != d.Bank {
@@ -150,14 +126,33 @@ func (d *Dev) listen() {
 	// http.ListenAndServe()
 }
 
+// arduino's bit function. Computes the value of the specified bit (bit 0 is 1, bit 1 is 2, bit 2 is 4, etc.). https://www.arduino.cc/reference/en/language/functions/bits-and-bytes/bit/
+func bit(n byte) byte {
+	return 1 << n
+}
+
+// SPSR = 0x4d = 77
+// func (d *Dev) initAVRSPI() {
+// 	state := interrupt.Disable()
+// 	d.CSB.Configure(machine.PinConfig{Mode: machine.PinOutput})
+// 	d.CSB.High()
+// 	avr.SPCR.Set(avr.SPCR_SPE | avr.SPCR_MSTR)
+// 	avr.SPSR.SetBits(avr.SPSR_SPI2X)
+// 	interrupt.Restore(state)
+// }
+
 // Init initializes communication and device.
 //
 // macaddr is of length 6.
 func (d *Dev) configure(macaddr []byte) {
 	// initialize I/O
-	// ss as output:
+	SPCR := avr.SPCR.Get()
+	if SPCR == 0 {
+		dbp("SPI NOT INIT", nil)
+		// d.initAVRSPI()
+	}
 
-	d.CSB.High()
+	// d.disable()
 	// CSPASSIVE // ss=0
 	//
 	// pinMode(SPI_MOSI, OUTPUT)

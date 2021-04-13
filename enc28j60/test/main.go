@@ -6,13 +6,18 @@ import (
 	"tinygo.org/x/drivers/enc28j60"
 )
 
+/* Arduino Uno SPI pins:
+sck:  PB5, // is D13
+sdo:  PB3, // MOSI is D11
+sdi:  PB4, // MISO is D12
+cs:   PB2} // CS  is D10
+*/
+
 /* Arduino MEGA 2560 SPI pins as taken from tinygo library (online documentation seems to be wrong at times)
 SCK: PB1 == D52
-MISO(sdo): PB2 == D51
-MOSI(sdi): PB3 == D50
+MOSI(sdo): PB2 == D51
+MISO(sdi): PB3 == D50
 CS: PB0 == D53
-	sdo:  PB2,
-	sdi:  PB3,
 */
 
 // Arduino Mega 2560 CS pin
@@ -38,11 +43,11 @@ func main() {
 	)
 	enc28j60.SDB = true
 	// Machine-specific configuration
-	spiCS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	spiCS.High() // prevent SPI glitches
-	machine.SPI0.Configure(machine.SPIConfig{Mode: machine.Mode0, LSBFirst: false})
-
+	// spiCS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// spiCS.High() // prevent SPI glitches
 	enc28j60.TestSPI(spiCS, machine.SPI0)
+	for {
+	}
 }
 
 func printError(err error) {

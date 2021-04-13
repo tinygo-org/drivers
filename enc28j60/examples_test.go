@@ -13,10 +13,12 @@ func ExampleSocket_aRP() {
 	// Machine-specific configuration
 	machine.SPI0.Configure(machine.SPIConfig{})
 	// use pin D0 as output
-	machine.D0.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	e := enc28j60.New(machine.D0, machine.SPI0)
-	err := e.Init(buff[:], net.HardwareAddr{0xfe, 0xfe, 0xfe, 0x22, 0x22, 0x22})
+	e, err := enc28j60.New(machine.D0, machine.SPI0)
+	if err != nil {
+		println(err)
+	}
+	err = e.Init(buff[:], net.HardwareAddr{0xfe, 0xfe, 0xfe, 0x22, 0x22, 0x22})
 	if err != nil {
 		println(err)
 	}

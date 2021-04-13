@@ -6,7 +6,7 @@ import "github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 func (d *Dev) SetIPAddress(ip net.IP) { d.myip = ip }
 
 // SetGatewayAdress Sets router/gateway address. where requests outside the network will come from
-func (d *Dev) SetGatewayAddress(ip net.IP) { d.broadcastip = ip }
+func (d *Dev) SetGatewayAddress(ip net.IP) { d.gatewayip = ip }
 
 //SetSubnetMask sets the subnet mask for the device
 func (d *Dev) SetSubnetMask(mask net.IPMask) { d.mask = mask }
@@ -16,5 +16,13 @@ func (d *Dev) NewSocket() Socket {
 	return Socket{
 		Num: 0,
 		d:   d,
+	}
+}
+
+// applies subnet mask to ip to get broadcast ip
+func (d *Dev) updateBroadcastAddress() {
+	copy(d.broadcastip, d.myip)
+	for i := range d.myip {
+		d.broadcastip[i] = d.myip[i] | ^d.mask[i]
 	}
 }

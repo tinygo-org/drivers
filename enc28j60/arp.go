@@ -39,7 +39,7 @@ func (s *Socket) writeARP() uint16 {
 	s.payloadwrite(8, s.d.macaddr)
 	s.payloadwrite(14, s.d.myip)
 	s.payloadwrite(18, []byte{0, 0, 0, 0, 0, 0}) // HW AoT (empty because it is what we want this dude to fill)
-	s.payloadwrite(24, s.d.broadcastip)
+	s.payloadwrite(24, s.d.gatewayip)
 	return 24 + 4 //28 is length of ARP payload
 }
 

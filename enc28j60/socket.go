@@ -99,8 +99,8 @@ func (s Socket) efWriteType() error {
 
 // Open supports ARP for network discovery
 func (s *Socket) Open(protocol string, port uint16) error {
-	if !validIP(s.d.broadcastip) || !validIP(s.d.myip) {
-		dbp("gw:", append(s.d.broadcastip))
+	if !validIP(s.d.gatewayip) || !validIP(s.d.myip) {
+		dbp("gw:", append(s.d.gatewayip))
 		dbp("ip:", append(s.d.myip))
 		return errBadIP
 	}
