@@ -29,7 +29,7 @@ func byteToHex(b byte) []byte {
 	return res[:]
 }
 
-// debug print. 14342
+// debug serial print. If SDB is set to false then it is not compiled.
 func dbp(msg string, data []byte) {
 	if SDB {
 		print(msg, "0x")

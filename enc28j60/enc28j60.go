@@ -1,7 +1,6 @@
 package enc28j60
 
 import (
-	"device/avr"
 	"machine"
 	"runtime/interrupt"
 
@@ -74,20 +73,21 @@ func (d *Dev) Init(buff []byte, macaddr []byte) error {
 }
 
 func (d *Dev) readBuffer(len uint16, data []byte) {
-	d.enable()
+	d.enableCS()
 	cmd := [1]byte{ENC28J60_READ_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(nil, data[:len])
-	d.disable()
+	d.disableCS()
 }
 
 func (d *Dev) writeBuffer(len uint16, data []byte) {
-	d.enable()
+	d.enableCS()
 	cmd := [1]byte{ENC28J60_WRITE_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(data[:len], nil)
-	d.disable()
+	d.disableCS()
 }
+
 func (d *Dev) setBank(address uint8) {
 	if (address & BANK_MASK) != d.Bank {
 		d.writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0)
@@ -126,64 +126,19 @@ func (d *Dev) listen() {
 	// http.ListenAndServe()
 }
 
-// arduino's bit function. Computes the value of the specified bit (bit 0 is 1, bit 1 is 2, bit 2 is 4, etc.). https://www.arduino.cc/reference/en/language/functions/bits-and-bytes/bit/
-func bit(n byte) byte {
-	return 1 << n
-}
-
-// SPSR = 0x4d = 77
-// func (d *Dev) initAVRSPI() {
-// 	state := interrupt.Disable()
-// 	d.CSB.Configure(machine.PinConfig{Mode: machine.PinOutput})
-// 	d.CSB.High()
-// 	avr.SPCR.Set(avr.SPCR_SPE | avr.SPCR_MSTR)
-// 	avr.SPSR.SetBits(avr.SPSR_SPI2X)
-// 	interrupt.Restore(state)
-// }
-
 // Init initializes communication and device.
 //
 // macaddr is of length 6.
 func (d *Dev) configure(macaddr []byte) {
-	// initialize I/O
-	SPCR := avr.SPCR.Get()
-	if SPCR == 0 {
-		dbp("SPI NOT INIT", nil)
-		// d.initAVRSPI()
-	}
-
-	// d.disable()
-	// CSPASSIVE // ss=0
-	//
-	// pinMode(SPI_MOSI, OUTPUT)
-
-	// pinMode(SPI_SCK, OUTPUT)
-
-	// pinMode(SPI_MISO, INPUT)
-
-	// digitalWrite(SPI_MOSI, LOW)
-
-	// digitalWrite(SPI_SCK, LOW)
-
-	/*DDRB  |= 1<<PB3 | 1<<PB5; // mosi, sck output
-	cbi(DDRB,PINB4); // MISO is input
-		//
-		cbi(PORTB,PB3); // MOSI low
-		cbi(PORTB,PB5); // SCK low
-	*/
-	//
-	// initialize SPI interface
-	// master mode and Fosc/2 clock:
-	// SPCR = (1<<SPE)|(1<<MSTR);
-	// SPSR |= (1<<SPI2X);
-	// perform system reset
 	d.writeOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET)
 	time.Sleep(50 * time.Millisecond)
 
 	// check CLKRDY bit to see if reset is complete
 	// The CLKRDY does not work. See Rev. B4 Silicon Errata point. Just wait.
-	//while(!(enc28j60Read(ESTAT) & ESTAT_CLKRDY));
-	// do bank 0 stuff
+	// for d.readOp(ENC28J60_READ_CTRL_REG, ESTAT)&ESTAT_CLKRDY == 0 {
+	// }
+
+	// bank 0 stuff
 	// initialize receive buffer
 	// 16-bit transfers, must write low byte first
 	// set receive buffer start address
