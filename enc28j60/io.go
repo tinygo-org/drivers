@@ -6,30 +6,22 @@ import (
 )
 
 func (d *Dev) readOp(op, address uint8) uint8 {
-	cmd := [1]byte{op | (address & ADDR_MASK)}
-	var read [1]byte
-
 	d.enableCS()
-
-	err := d.Bus.Tx(cmd[:], read[:])
+	var read [2]byte
+	d.Bus.Tx([]byte{op | address, 0}, read[:])
 	dbp("read addr:", []byte{address})
 	dbp("got:", read[:])
-	if err != nil {
-		dbp("error read addr:", []byte{address})
-		dbp(err.Error(), []byte{address})
-	}
 	// do dummy read if needed (for mac and mii, see datasheet page 29)
-	if address&0x80 != 0 {
+	if address&SPRD_MASK != 0 {
 		d.Bus.Tx(d.dummy[0:1], nil)
 	}
 	d.disableCS()
-	return read[0]
+	return read[1]
 }
 
 func (d *Dev) writeOp(op, address, data uint8) {
 	d.enableCS()
-	cmd := [2]byte{op | (address & ADDR_MASK), data}
-	err := d.Bus.Tx(cmd[:], nil)
+	err := d.Bus.Tx([]byte{op | (address & ADDR_MASK), data}, nil)
 	dbp("write addr:", []byte{address})
 	if err != nil {
 		dbp(err.Error(), []byte{op})
@@ -37,36 +29,9 @@ func (d *Dev) writeOp(op, address, data uint8) {
 	d.disableCS()
 }
 
-// RCR
-func (d *Dev) readCtlReg(addr uint8) uint8 {
-	d.enableCS()
-	var data [3]byte
-	addr = ADDR_MASK & addr // first 3 bits are opcode
-
-	// Reading MAC and MII registers requires a dummy read on intermediate byte (see page 28)
-	if addr&0x80 != 0 {
-		d.Bus.Tx([]byte{addr, 0, 0}, data[:])
-		d.disableCS()
-		return data[2]
-	}
-
-	d.Bus.Tx([]byte{addr, 0}, data[:1])
-	d.disableCS()
-	return data[1]
-}
-
-func (d *Dev) writeCtlReg(addr uint8, data []byte) {
-	d.enableCS()
-	addr = ENC28J60_WRITE_CTRL_REG | (ADDR_MASK & addr)
-
-	d.Bus.Tx(append([]byte{addr}, data...), nil)
-
-	d.disableCS()
-}
-
 func (d *Dev) Reset() {
 	d.enableCS()
-	d.Bus.Tx([]byte{ENC28J60_SOFT_RESET}, nil)
+	d.Bus.Tx([]byte{SOFT_RESET}, nil)
 	d.disableCS()
 }
 
@@ -86,4 +51,31 @@ func (d *Dev) enableCS() {
 func (d *Dev) disableCS() {
 	d.CSB.High()
 	interrupt.Restore(d.is)
+}
+
+// RCR
+func (d *Dev) readCtlReg(addr uint8) uint8 {
+	d.enableCS()
+	var data [3]byte
+	addr = ADDR_MASK & addr // first 3 bits are masks
+
+	// Reading MAC and MII registers requires a dummy read on intermediate byte (see page 28)
+	if addr&SPRD_MASK != 0 {
+		d.Bus.Tx([]byte{addr, 0, 0}, data[:])
+		d.disableCS()
+		return data[2]
+	}
+
+	d.Bus.Tx([]byte{addr, 0}, data[:1])
+	d.disableCS()
+	return data[1]
+}
+
+func (d *Dev) writeCtlReg(addr uint8, data []byte) {
+	d.enableCS()
+	addr = WRITE_CTL_REG | (ADDR_MASK & addr)
+
+	d.Bus.Tx(append([]byte{addr}, data...), nil)
+
+	d.disableCS()
 }

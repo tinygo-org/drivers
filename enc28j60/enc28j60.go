@@ -39,14 +39,15 @@ type Dev struct {
 }
 
 // NewSPI returns a new device driver. The SPI is configured in this call
-func New(csb machine.Pin, spi machine.SPI) (*Dev, error) {
-	err := spi.Configure(machine.SPIConfig{Frequency: 8e6, Mode: 0, LSBFirst: false})
+func New(csb machine.Pin, spi machine.SPI, frequency uint32) (*Dev, error) {
+	err := spi.Configure(machine.SPIConfig{Frequency: frequency, Mode: 0, LSBFirst: false})
 	if err != nil {
 		return nil, err
 	}
 	return &Dev{
-		CSB: csb, // chip select
-		Bus: &spi,
+		CSB:  csb, // chip select
+		Bus:  &spi,
+		Bank: 255, // bad bank so as to force bank set on first read
 	}, nil
 }
 
@@ -74,7 +75,7 @@ func (d *Dev) Init(buff []byte, macaddr []byte) error {
 
 func (d *Dev) readBuffer(len uint16, data []byte) {
 	d.enableCS()
-	cmd := [1]byte{ENC28J60_READ_BUF_MEM}
+	cmd := [1]byte{READ_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(nil, data[:len])
 	d.disableCS()
@@ -82,28 +83,31 @@ func (d *Dev) readBuffer(len uint16, data []byte) {
 
 func (d *Dev) writeBuffer(len uint16, data []byte) {
 	d.enableCS()
-	cmd := [1]byte{ENC28J60_WRITE_BUF_MEM}
+	cmd := [1]byte{WRITE_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(data[:len], nil)
 	d.disableCS()
 }
 
 func (d *Dev) setBank(address uint8) {
-	if (address & BANK_MASK) != d.Bank {
-		d.writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0)
-		d.writeOp(ENC28J60_BIT_FIELD_SET, ECON1, (address&BANK_MASK)>>5)
-		d.Bank = address & BANK_MASK
+	bank := address & BANK_MASK
+	if bank != d.Bank {
+		// econCleared := d.readOp(READ_CTL_REG, ECON1) &^ 0b11
+		// d.writeOp(WRITE_CTL_REG, address, econCleared|bank)
+		d.writeOp(BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0)
+		d.writeOp(BIT_FIELD_SET, ECON1, (address&BANK_MASK)>>5)
+		d.Bank = bank
 	}
 }
 
 func (d *Dev) read(address uint8) uint8 {
 	d.setBank(address)
-	return d.readOp(ENC28J60_READ_CTRL_REG, address)
+	return d.readOp(READ_CTL_REG, address)
 }
 
 func (d *Dev) write(address, data uint8) {
 	d.setBank(address)
-	d.writeOp(ENC28J60_WRITE_CTRL_REG, address, data)
+	d.writeOp(WRITE_CTL_REG, address, data)
 }
 
 func (d *Dev) phyWrite(address uint8, data uint16) {
@@ -130,7 +134,7 @@ func (d *Dev) listen() {
 //
 // macaddr is of length 6.
 func (d *Dev) configure(macaddr []byte) {
-	d.writeOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET)
+	d.writeOp(SOFT_RESET, 0, SOFT_RESET)
 	time.Sleep(50 * time.Millisecond)
 
 	// check CLKRDY bit to see if reset is complete
@@ -181,7 +185,7 @@ func (d *Dev) configure(macaddr []byte) {
 	// bring MAC out of reset
 	d.write(MACON2, 0x00)
 	// enable automatic padding to 60bytes and CRC operations
-	d.writeOp(ENC28J60_BIT_FIELD_SET, MACON3, MACON3_PADCFG0|MACON3_TXCRCEN|MACON3_FRMLNEN)
+	d.writeOp(BIT_FIELD_SET, MACON3, MACON3_PADCFG0|MACON3_TXCRCEN|MACON3_FRMLNEN)
 	// set inter-frame gap (non-back-to-back)
 	d.write(MAIPGL, 0x12)
 	d.write(MAIPGH, 0x0C)
@@ -204,12 +208,14 @@ func (d *Dev) configure(macaddr []byte) {
 	// switch to bank 0
 	d.setBank(ECON1)
 	// enable interrutps
-	d.writeOp(ENC28J60_BIT_FIELD_SET, EIE, EIE_INTIE|EIE_PKTIE)
+	d.writeOp(BIT_FIELD_SET, EIE, EIE_INTIE|EIE_PKTIE)
 	// enable packet reception
-	d.writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_RXEN)
+	d.writeOp(BIT_FIELD_SET, ECON1, ECON1_RXEN)
 }
 
-func (d *Dev) GetRev() uint8 { return d.read(EREVID) }
+func (d *Dev) GetRev() uint8 {
+	return d.read(EREVID)
+}
 
 func (d *Dev) PacketSend(len uint16, packet []byte) {
 	d.write(EWRPTL, TXSTART_INIT&0xFF)
@@ -218,14 +224,14 @@ func (d *Dev) PacketSend(len uint16, packet []byte) {
 	d.write(ETXNDL, uint8(TXSTART_INIT+len&0xFF))
 	d.write(ETXNDH, uint8((TXSTART_INIT+len)>>8))
 	// write per-packet control byte (0x00 means use macon3 settings)
-	d.writeOp(ENC28J60_WRITE_BUF_MEM, 0, 0x00)
+	d.writeOp(WRITE_BUF_MEM, 0, 0x00)
 	// copy the packet into the transmit buffer
 	d.writeBuffer(len, packet)
 	// send the contents of the transmit buffer onto the network
-	d.writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS)
+	d.writeOp(BIT_FIELD_SET, ECON1, ECON1_TXRTS)
 	// Reset the transmit logic problem. See Rev. B4 Silicon Errata point 12.
 	if d.read(EIR)&EIR_TXERIF != 0 {
-		d.writeOp(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_TXRTS)
+		d.writeOp(BIT_FIELD_CLR, ECON1, ECON1_TXRTS)
 	}
 }
 
@@ -239,15 +245,15 @@ func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
 	d.write(ERDPTL, uint8(d.NextPacketPtr))
 	d.write(ERDPTH, uint8(d.NextPacketPtr>>8))
 	// read the next packet pointer
-	d.NextPacketPtr = uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0))
-	d.NextPacketPtr |= uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0)) << 8
+	d.NextPacketPtr = uint16(d.readOp(READ_BUF_MEM, 0))
+	d.NextPacketPtr |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
 	// read the packet length (see datasheet page 43)
-	len = uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0))
-	len |= uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0)) << 8
+	len = uint16(d.readOp(READ_BUF_MEM, 0))
+	len |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
 	len -= 4 //remove the CRC count
 	// read the receive status (see datasheet page 43)
-	rxstat = uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0))
-	rxstat |= uint16(d.readOp(ENC28J60_READ_BUF_MEM, 0)) << 8
+	rxstat = uint16(d.readOp(READ_BUF_MEM, 0))
+	rxstat |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
 	// limit retrieve length
 	if len > maxlen-1 {
 		len = maxlen - 1
@@ -267,6 +273,6 @@ func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
 	d.write(ERXRDPTL, uint8(d.NextPacketPtr))
 	d.write(ERXRDPTH, uint8(d.NextPacketPtr>>8))
 	// decrement the packet counter indicate we are done with this packet
-	d.writeOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC)
+	d.writeOp(BIT_FIELD_SET, ECON2, ECON2_PKTDEC)
 	return len
 }

@@ -5,54 +5,75 @@ import (
 	"time"
 )
 
+var errTest ErrorCode = 255
+
 // this file stores test functions the client can run in order to verify
 // the enc28j60's SPI/Ethernet connection and functioning. Results are printed
 // to serial
-
-func TestSPI(csb machine.Pin, spi machine.SPI) {
-	e, err := New(csb, spi)
+func TestSPI(csb machine.Pin, spi machine.SPI, frequency uint32) error {
+	e, err := New(csb, spi, frequency)
 	if err != nil {
-		panic(err)
+		println("spi config fail")
+		return errTest
 	}
-	e.Reset()
-	e.configure([]byte{0, 0, 0, 0, 0, 0})
+	// e.Reset()
+	// e.configure()
+	// e.configure([]byte{0, 0, 0, 0, 0, 0})
 	var ops = []struct {
-		addr     uint8
+		addr uint8
+		// default, new values
 		def, new uint8
-	}{ // TXPAUS allow MAC to transmit pause control frames (needed for flow control in full duplex)
-		{addr: MACON1, new: MACON1_MARXEN | MACON1_TXPAUS | MACON1_RXPAUS},
-		// bring MAC out of reset
-		{addr: MACON3, new: MACON3_ZPADCRC | MACON3_TXCRCEN | MACON3_FRMLNEN},
-		{addr: MACON4, new: MACON4_DEFER},
-		{addr: MABBIPG, new: 0x12},
-		// MAC address
-		{addr: MAADR5, new: 0xde},
-		{addr: MAADR4, new: 0xad},
-		{addr: MAADR3, new: 0xbe},
-		{addr: MAADR2, new: 0xef},
-		{addr: MAADR1, new: 0xfe},
-		{addr: MAADR0, new: 0xff},
+	}{
+		// first read All-bank registers
+		{addr: EIE, def: 0, new: 0b11},
+		{addr: ECON1, def: 0, new: 0b11},
+		{addr: ECON1, def: 0, new: 0b00},
+		{addr: ECON1, def: 0, new: 0b10},
+		{addr: ESTAT, def: 0, new: 0b01},
+		// commence reading registers in banks 0-3
+		{addr: ERXSTL, def: 0b1111_1010, new: RXSTART_INIT},
+		{addr: ERXSTH, def: 0b0_0101, new: RXSTART_INIT >> 8},
+		{addr: MACON1, def: 0b0_0000, new: 0b1},
 	}
-
+	// d.write(ERXSTL, &0xFF)
+	// d.write(ERXSTH, RXSTART_INIT>>8)
 	cnt := 0
 	var old, new uint8
+	// rx := [2]byte{}
 	for i := range ops {
-		old = e.readCtlReg(ops[i].addr)
-		// old = e.read(ops[i].addr)
-		e.writeCtlReg(ops[i].addr, []byte{ops[i].new})
-		// e.write(ops[i].addr, ops[i].new)
+		// Set Bank
+		bank := (ops[i].addr & BANK_MASK) >> 5
+		// e.enableCS()
+		// e.Bus.Tx([]byte{ECON1 | BIT_FIELD_CLR, BANK_MASK >> 5}, nil)
+		// e.disableCS()
+		// set bitField set bankmask
+		econCleared := e.readOp(READ_CTL_REG, ECON1) &^ 0b11
+		e.writeOp(WRITE_CTL_REG, ops[i].addr, econCleared|bank)
+
+		readbank := uint8(e.readOp(READ_CTL_REG, ECON1)&BANK_MASK) >> 5
+		// Read previous address data
+		old = e.readOp(READ_CTL_REG, ops[i].addr)
+
+		e.writeOp(WRITE_CTL_REG, ops[i].addr, ops[i].new)
+
+		new = e.readOp(READ_CTL_REG, ops[i].addr)
+
 		time.Sleep(time.Microsecond * 50)
-		new = e.read(ops[i].addr)
 		if new != ops[i].new {
 			cnt++
-
-			println("addr:", "0x"+string(byteToHex(ops[i].addr)),
+			println("addr:", "0x"+string(byteToHex(ops[i].addr&ADDR_MASK)),
 				", wrote ", "0x"+string(byteToHex(ops[i].new)),
 				", read back", "0x"+string(byteToHex(new)),
-				", old was ", "0x"+string(byteToHex(old)))
+				", old was ", "0x"+string(byteToHex(old)),
+				", read bank:", readbank,
+				", bankmask used:", bank)
 		}
 	}
 	if cnt > 0 {
-		println("some inconsistencies were found in SPI test")
+		println("some inconsistencies were found in SPI test. Rev", e.GetRev())
+		return errTest
 	}
+
+	println("All tests passed! Rev", e.GetRev())
+	return nil
 }

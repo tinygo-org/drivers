@@ -11,10 +11,9 @@ func ExampleSocket_aRP() {
 	// best declared as a global variable for tinygo application
 	var buff [1000]byte
 	// Machine-specific configuration
-	machine.SPI0.Configure(machine.SPIConfig{})
 	// use pin D0 as output
-
-	e, err := enc28j60.New(machine.D0, machine.SPI0)
+	// 8MHz SPI clk
+	e, err := enc28j60.New(machine.D10, machine.SPI0, 8e6)
 	if err != nil {
 		println(err)
 	}
