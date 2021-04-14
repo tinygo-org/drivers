@@ -547,8 +547,9 @@ func (d *Device) GetReasonCode() (uint8, error) {
 	return d.getUint8(d.req0(CmdGetReasonCode))
 }
 
-func (d *Device) GetTime() (string, error) {
-	return d.getString(d.req0(CmdGetTime))
+// GetTime is the time as a Unix timestamp
+func (d *Device) GetTime() (uint32, error) {
+	return d.getUint32(d.req0(CmdGetTime))
 }
 
 func (d *Device) GetTemperature() (float32, error) {
@@ -677,7 +678,7 @@ func (d *Device) getMACAddress(l uint8, err error) (MACAddress, error) {
 	if l != 6 {
 		return 0, ErrUnexpectedLength
 	}
-	return MACAddress(binary.LittleEndian.Uint64(d.buf[0:8]) >> 16), err
+	return MACAddress(binary.LittleEndian.Uint64(d.buf[0:8]) & 0xFFFFFFFFFFFF), err
 }
 
 // req0 sends a command to the device with no request parameters
