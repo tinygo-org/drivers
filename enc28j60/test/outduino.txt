@@ -1,0 +1,13 @@
+AlAll tests passed!
+All tests passed!
+addr: 0x1B , wrote  0x03 , read back 0x00 , old was  0x00
+addr: 0x1F , wrote  0x03 , read back 0x00 , old was  0x00
+addr: 0x1D , wrote  0x01 , read back 0x00 , old was  0x00
+some inconsistencies were found in SPI test
+All tests passed!
+addr: 0x1B , wrote  0x03 , read back 0xFF , old was  0x00
+addr: 0x1F , wrote  0x03 , read back 0xFF , old was  0xFA
+addr: 0x1D , wrote  0x01 , read back 0xFF , old was  0xFA
+some inconsistencies were found in SPI test
+All tests passed!
+All tests passed!

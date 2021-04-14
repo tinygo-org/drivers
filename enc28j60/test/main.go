@@ -21,7 +21,7 @@ CS: PB0 == D53
 */
 
 // Arduino Mega 2560 CS pin
-var spiCS = machine.D10
+var spiCS = machine.D53
 
 // Arduino uno CS Pin
 // var spiCS = machine.D10
@@ -43,9 +43,11 @@ func main() {
 	)
 	enc28j60.SDB = true
 	// Machine-specific configuration
-	// spiCS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	// spiCS.High() // prevent SPI glitches
-	enc28j60.TestSPI(spiCS, machine.SPI0)
+	spiCS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	spiCS.High()
+
+	enc28j60.TestSPI(spiCS, machine.SPI0, 8e6)
+
 	for {
 	}
 }
