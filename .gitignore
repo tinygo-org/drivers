@@ -1,6 +1,6 @@
 build
 .vscode/*
-
+*outduino.txt
 # for having temporary file directory for storing this .c files
 # or legacy go codes
 */_tmp/*

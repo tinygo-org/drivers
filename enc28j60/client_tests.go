@@ -25,11 +25,11 @@ func TestSPI(csb machine.Pin, spi machine.SPI, frequency uint32) error {
 		def, new uint8
 	}{
 		// first read All-bank registers
-		{addr: EIE, def: 0, new: 0b11},
+		// {addr: EIE, def: 0, new: 0b11},
 		{addr: ECON1, def: 0, new: 0b11},
 		{addr: ECON1, def: 0, new: 0b00},
 		{addr: ECON1, def: 0, new: 0b10},
-		{addr: ESTAT, def: 0, new: 0b01},
+		// {addr: ESTAT, def: 0, new: 0b01},
 		// commence reading registers in banks 0-3
 		{addr: ERXSTL, def: 0b1111_1010, new: RXSTART_INIT},
 		{addr: ERXSTH, def: 0b0_0101, new: RXSTART_INIT >> 8},

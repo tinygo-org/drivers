@@ -30,11 +30,14 @@ func byteToHex(b byte) []byte {
 }
 
 // debug serial print. If SDB is set to false then it is not compiled.
-func dbp(msg string, data []byte) {
+func dbp(msg string, datas ...[]byte) {
 	if SDB {
-		print(msg, "0x")
-		for i := 0; i < len(data); i++ {
-			print(string(byteToHex(data[i])))
+		print(msg)
+		for d := range datas {
+			print(" 0x")
+			for i := 0; i < len(datas[d]); i++ {
+				print(string(byteToHex(datas[d][i])))
+			}
 		}
 		println()
 	}
