@@ -39,16 +39,12 @@ type Dev struct {
 }
 
 // NewSPI returns a new device driver. The SPI is configured in this call
-func New(csb machine.Pin, spi machine.SPI, frequency uint32) (*Dev, error) {
-	err := spi.Configure(machine.SPIConfig{Frequency: frequency, Mode: 0, LSBFirst: false})
-	if err != nil {
-		return nil, err
-	}
+func New(csb machine.Pin, spi drivers.SPI) *Dev {
 	return &Dev{
 		CSB:  csb, // chip select
-		Bus:  &spi,
+		Bus:  spi,
 		Bank: 255, // bad bank so as to force bank set on first read
-	}, nil
+	}
 }
 
 // Init initializes device for use and configures the enc28j60's registries.
@@ -89,57 +85,28 @@ func (d *Dev) writeBuffer(len uint16, data []byte) {
 	d.disableCS()
 }
 
-func (d *Dev) setBank(address uint8) {
-	bank := address & BANK_MASK
-	if bank != d.Bank {
-		// econCleared := d.readOp(READ_CTL_REG, ECON1) &^ 0b11
-		// d.writeOp(WRITE_CTL_REG, address, econCleared|bank)
-		d.writeOp(BIT_FIELD_CLR, ECON1, ECON1_BSEL1|ECON1_BSEL0)
-		d.writeOp(BIT_FIELD_SET, ECON1, (address&BANK_MASK)>>5)
-		d.Bank = bank
-	}
-}
-
-func (d *Dev) read(address uint8) uint8 {
-	d.setBank(address)
-	return d.readOp(READ_CTL_REG, address)
-}
-
-func (d *Dev) write(address, data uint8) {
-	d.setBank(address)
-	d.writeOp(WRITE_CTL_REG, address, data)
-}
-
-func (d *Dev) phyWrite(address uint8, data uint16) {
-	// set the PHY register address
-	d.write(MIREGADR, address)
-	// write the PHY data
-	d.write(MIWRL, uint8(data))
-	d.write(MIWRH, uint8(data>>8))
-	// wait until the PHY write completes
-	for d.read(MISTAT)&MISTAT_BUSY != 0 {
-		time.Sleep(time.Microsecond * 15)
-	}
+func (d *Dev) Reset() {
+	d.enableCS()
+	d.Bank = 255
+	d.Bus.Tx([]byte{SOFT_RESET}, nil)
+	d.disableCS()
 }
 
 func (d *Dev) clkOut(clk uint8) {
 	//setup clkout: 2 is 12.5MHz:
 	d.write(ECOCON, clk&0x7)
 }
-func (d *Dev) listen() {
-	// http.ListenAndServe()
-}
 
 // Init initializes communication and device.
 //
 // macaddr is of length 6.
 func (d *Dev) configure(macaddr []byte) {
-	d.writeOp(SOFT_RESET, 0, SOFT_RESET)
+	d.Reset()
 	time.Sleep(50 * time.Millisecond)
 
 	// check CLKRDY bit to see if reset is complete
 	// The CLKRDY does not work. See Rev. B4 Silicon Errata point. Just wait.
-	// for d.readOp(ENC28J60_READ_CTRL_REG, ESTAT)&ESTAT_CLKRDY == 0 {
+	// for d.readOp(READ_CTL_REG, ESTAT)&ESTAT_CLKRDY == 0 {
 	// }
 
 	// bank 0 stuff

@@ -3,6 +3,8 @@ package main
 import (
 	"machine"
 
+	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
+
 	"tinygo.org/x/drivers/enc28j60"
 )
 
@@ -24,32 +26,54 @@ CS: PB0 == D53
 var spiCS = machine.D53
 
 // Arduino uno CS Pin
-// var spiCS = machine.D10
+// var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
 var buff [1000]byte
 
-func main() {
-	// Inline declarations so not used as RAM
-	var (
+var (
 	// gateway or router address
-	// gwAddr = net.IP{192, 168, 1, 1}
+	gwAddr = net.IP{192, 168, 1, 1}
 	// // IP address of ENC28J60
-	// ipAddr = net.IP{192, 168, 1, 5}
+	ipAddr = net.IP{192, 168, 1, 5}
 	// // Hardware address of ENC28J60
-	// macAddr = net.HardwareAddr{0xfe, 0xfe, 0xfe, 0x22, 0x22, 0x22}
+	macAddr = net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
 	// // network mask
-	// netmask = net.IPMask{255, 255, 255, 0}
-	)
+	netmask = net.IPMask{255, 255, 255, 0}
+)
+
+func main() {
 	enc28j60.SDB = true
+	// Inline declarations so not used as RAM
+
 	// Machine-specific configuration
-	spiCS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	spiCS.High()
-
-	enc28j60.TestSPI(spiCS, machine.SPI0, 8e6)
-
-	for {
-	}
+	// use pin D0 as output
+	// 8MHz SPI clk
+	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
+	e := enc28j60.TestSPI(spiCS, machine.SPI0)
+	printError(e)
+	// err := e.Init(buff[:], macAddr)
+	// if err != nil {
+	// 	printError(err)
+	// }
+	// // Set network specific Address
+	// e.SetGatewayAddress(gwAddr)
+	// e.SetIPAddress(ipAddr)
+	// e.SetSubnetMask(netmask)
+	// s := e.NewSocket()
+	// // 0 makes a random port
+	// err = s.Open("arp", 0)
+	// if err != nil {
+	// 	printError(err)
+	// }
+	// // ARP protocol does not support custom payload
+	// // we just wait for the destination to resolve our request
+	// gwHWAddr, err := s.Resolve()
+	// if err != nil {
+	// 	printError(err)
+	// }
+	// // do something with gateway address
+	// println(string(gwHWAddr))
 }
 
 func printError(err error) {
