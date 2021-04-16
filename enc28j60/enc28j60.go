@@ -69,19 +69,20 @@ func (d *Dev) Init(buff []byte, macaddr []byte) error {
 	return nil
 }
 
-func (d *Dev) readBuffer(len uint16, data []byte) {
+// read len(data) bytes from buffer
+func (d *Dev) readBuffer(data []byte) {
 	d.enableCS()
 	cmd := [1]byte{READ_BUF_MEM}
 	d.Bus.Tx(cmd[:], nil)
-	d.Bus.Tx(nil, data[:len])
+	d.Bus.Tx(nil, data)
 	d.disableCS()
 }
 
-func (d *Dev) writeBuffer(len uint16, data []byte) {
+// write data to buffer
+func (d *Dev) writeBuffer(data []byte) {
 	d.enableCS()
 	cmd := [1]byte{WRITE_BUF_MEM}
-	d.Bus.Tx(cmd[:], nil)
-	d.Bus.Tx(data[:len], nil)
+	d.Bus.Tx(append(cmd[:], data...), nil)
 	d.disableCS()
 }
 
@@ -193,7 +194,7 @@ func (d *Dev) PacketSend(len uint16, packet []byte) {
 	// write per-packet control byte (0x00 means use macon3 settings)
 	d.writeOp(WRITE_BUF_MEM, 0, 0x00)
 	// copy the packet into the transmit buffer
-	d.writeBuffer(len, packet)
+	d.writeBuffer(packet[:len])
 	// send the contents of the transmit buffer onto the network
 	d.writeOp(BIT_FIELD_SET, ECON1, ECON1_TXRTS)
 	// Reset the transmit logic problem. See Rev. B4 Silicon Errata point 12.
@@ -202,15 +203,22 @@ func (d *Dev) PacketSend(len uint16, packet []byte) {
 	}
 }
 
-func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
-	var rxstat, len uint16
+// return packet length in buffer
+func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) (len uint16) {
+	var rxstat uint16
 	if d.read(EPKTCNT) == 0 {
 		return 0
 	}
 
 	// Set the read pointer to the start of the received packet
-	d.write(ERDPTL, uint8(d.NextPacketPtr))
-	d.write(ERDPTH, uint8(d.NextPacketPtr>>8))
+	d.write16(ERDPTL, d.NextPacketPtr)
+	var fromBuff [2 + 2 + 2]byte
+	d.readBuffer(fromBuff[:])
+	d.NextPacketPtr = uint16(fromBuff[0]) + uint16(fromBuff[1])<<8
+	// read the packet length (see datasheet page 43)
+	len = uint16(fromBuff[2]) + uint16(fromBuff[3])<<8 - 4 //remove the CRC count (minus 4)
+
+	rxstat = uint16(fromBuff[4]) + uint16(fromBuff[5])<<8
 	// read the next packet pointer
 	d.NextPacketPtr = uint16(d.readOp(READ_BUF_MEM, 0))
 	d.NextPacketPtr |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
@@ -233,7 +241,7 @@ func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) uint16 {
 		len = 0
 	} else {
 		// copy the packet from the receive buffer
-		d.readBuffer(len, packet)
+		d.readBuffer(packet[:len])
 	}
 	// Move the RX read pointer to the start of the next received packet
 	// This frees the memory we just read out

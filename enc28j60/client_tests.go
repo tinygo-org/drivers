@@ -57,6 +57,9 @@ func TestSPI(csb machine.Pin, spi machine.SPI) error {
 				", bankmask used:", (ops[i].addr&BANK_MASK)>>5)
 		}
 	}
+	failures += testReg16(e)
+	failures += testBuffer(e)
+
 	if failures > 0 {
 		println("some inconsistencies were found in SPI test. Rev", e.GetRev())
 		return errTest
@@ -64,4 +67,48 @@ func TestSPI(csb machine.Pin, spi machine.SPI) error {
 
 	println("All tests passed! Rev", e.GetRev())
 	return nil
+}
+
+func testReg16(e *Dev) (failures int) {
+	var ops = []struct {
+		addr uint8
+		// default, new values
+		def, new uint16
+	}{
+		{addr: ERDPTL, def: 0x05FA, new: 0x1fff},
+	}
+	var old, new uint16
+	for i := range ops {
+		old = e.read16(ops[i].addr)
+		// write new data
+		e.write16(ops[i].addr, ops[i].new)
+		// read new data to check if all was written OK
+		new = e.read16(ops[i].addr)
+		if new != ops[i].new {
+			failures++
+			println("addrL:", "0x"+string(byteToHex(ops[i].addr&ADDR_MASK)),
+				", wrote ", "0x"+string(byteToHex(uint8(ops[i].new>>8)))+string(byteToHex(uint8(ops[i].new))),
+				", read back", "0x"+string(byteToHex(uint8(new>>8)))+string(byteToHex(uint8(new))),
+				", old was ", "0x"+string(byteToHex(uint8(old>>8)))+string(byteToHex(uint8(old))))
+		}
+	}
+	return
+}
+
+func testBuffer(e *Dev) (failures int) {
+	e.configure([]byte{0xde, 0xad, 0xfe, 0xff, 0xef, 0xee})
+	buff := [...]byte{0xff, 0xff, 0, 0xff}
+	// TODO figure out how buffer works
+	e.writeBuffer(buff[:])
+	var read [len(buff)]byte
+	e.readBuffer(read[:])
+	for i := range read {
+		if read[i] != buff[i] {
+			failures++
+			println("buffpos:", i,
+				"read:", string(byteToHex(read[i])),
+				"expect:", string(byteToHex(buff[i])))
+		}
+	}
+	return
 }

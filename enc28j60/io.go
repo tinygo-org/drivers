@@ -52,12 +52,24 @@ func (d *Dev) write(address, data uint8) {
 	d.writeOp(WRITE_CTL_REG, address, data)
 }
 
+func (d *Dev) write16(addressL uint8, data uint16) {
+	d.setBank(addressL)
+	d.writeOp(WRITE_CTL_REG, addressL, uint8(data))
+	d.writeOp(WRITE_CTL_REG, addressL+1, uint8(data>>8))
+}
+
+func (d *Dev) read16(addressL uint8) uint16 {
+	d.setBank(addressL)
+	return uint16(d.readOp(READ_CTL_REG, addressL)) + uint16(d.readOp(READ_CTL_REG, addressL+1))<<8
+}
+
 func (d *Dev) phyWrite(address uint8, data uint16) {
 	// set the PHY register address
 	d.write(MIREGADR, address)
 	// write the PHY data
-	d.write(MIWRL, uint8(data))
-	d.write(MIWRH, uint8(data>>8))
+	d.write16(MIWRL, data)
+	// d.write(MIWRL, uint8(data))
+	// d.write(MIWRH, uint8(data>>8))
 	// wait until the PHY write completes
 	for d.read(MISTAT)&MISTAT_BUSY != 0 {
 		time.Sleep(time.Microsecond * 15)

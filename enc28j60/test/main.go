@@ -50,16 +50,20 @@ func main() {
 	// use pin D0 as output
 	// 8MHz SPI clk
 	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
-	e := enc28j60.TestSPI(spiCS, machine.SPI0)
-	printError(e)
-	// err := e.Init(buff[:], macAddr)
-	// if err != nil {
-	// 	printError(err)
-	// }
+	test()
+	for {
+	}
+	e := enc28j60.New(spiCS, machine.SPI0)
+
+	err := e.Init(buff[:], macAddr)
+	if err != nil {
+		printError(err)
+	}
 	// // Set network specific Address
 	// e.SetGatewayAddress(gwAddr)
 	// e.SetIPAddress(ipAddr)
 	// e.SetSubnetMask(netmask)
+	// e.PacketRecieve()
 	// s := e.NewSocket()
 	// // 0 makes a random port
 	// err = s.Open("arp", 0)
@@ -74,6 +78,13 @@ func main() {
 	// }
 	// // do something with gateway address
 	// println(string(gwHWAddr))
+}
+func test() {
+	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
+	e := enc28j60.TestSPI(spiCS, machine.SPI0)
+	if e != nil {
+		printError(e)
+	}
 }
 
 func printError(err error) {
