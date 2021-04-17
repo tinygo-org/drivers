@@ -88,3 +88,42 @@ func (f *EtherFrame) read(b []byte) (int, error) {
 	copy(b[n+2:], f.Payload)
 	return len(b), nil
 }
+
+// UnmarshalBinary unmarshals a byte slice into a Frame.
+func (f *EtherFrame) UnmarshalBinary(b []byte) error {
+	// Verify that both hardware addresses and a single EtherType are present
+	if len(b) < 14 {
+		return errIO
+	}
+
+	// Track offset in packet for reading data
+	n := 14
+
+	// Continue looping and parsing VLAN tags until no more VLAN EtherType
+	// values are detected
+	f.EtherType = EtherType(binary.BigEndian.Uint16(b[n-2 : n]))
+
+	// Allocate single byte slice to store destination and source hardware
+	// addresses, and payload
+	bb := make([]byte, 6+6+len(b[n:]))
+	copy(bb[0:6], b[0:6])
+	f.Destination = bb[0:6]
+	copy(bb[6:12], b[6:12])
+	f.Source = bb[6:12]
+
+	// There used to be a minimum payload length restriction here, but as
+	// long as two hardware addresses and an EtherType are present, it
+	// doesn't really matter what is contained in the payload.  We will
+	// follow the "robustness principle".
+	copy(bb[12:], b[n:])
+	f.Payload = bb[12:]
+
+	return nil
+}
+
+func (f *EtherFrame) String() string {
+	return "dst: " + f.Destination.String() + "\n" +
+		"src: " + f.Source.String() + "\n" +
+		"etype: " + string(append(byteToHex(byte(f.EtherType>>8)), byteToHex(byte(f.EtherType))...)) + "\n" +
+		"payload: " + string(byteSliceToHex(f.Payload))
+}

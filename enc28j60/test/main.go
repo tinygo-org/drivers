@@ -2,6 +2,7 @@ package main
 
 import (
 	"machine"
+	"time"
 
 	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 
@@ -29,7 +30,7 @@ var spiCS = machine.D53
 // var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
-var buff [150]byte
+var buff [80]byte
 
 var (
 	// gateway or router address
@@ -44,6 +45,7 @@ var (
 
 func main() {
 	// linksys mac addr: C0:56:27:07:3D:71
+	// laptop 28:D2:44:9A:2F:F3
 	enc28j60.SDB = true
 	// Inline declarations so not used as RAM
 
@@ -62,20 +64,25 @@ func main() {
 	e.SetGatewayAddress(gwAddr)
 	e.SetIPAddress(ipAddr)
 	e.SetSubnetMask(netmask)
-	s := e.NewSocket()
-	// 0 makes a random port
-	err = s.Open("arp", 0)
-	if err != nil {
-		printError(err)
+	plen := e.PacketRecieve(buff[:])
+	for plen == 0 {
+		delay(500)
+		plen = e.PacketRecieve(buff[:])
 	}
-	// ARP protocol does not support custom payload
-	// we just wait for the destination to resolve our request
-	gwHWAddr, err := s.Resolve()
-	if err != nil {
-		printError(err)
+	var f enc28j60.EtherFrame
+	f.UnmarshalBinary(buff[:plen])
+	if f.EtherType == enc28j60.EtherTypeARP {
+		f.Destination, f.Source = f.Source, macAddr
+		var a enc28j60.ARPRequest
+		a.UnmarshalBinary(f.Payload)
+		println("arp:", a.String())
+		a.SetResponse(macAddr, enc28j60.IP(ipAddr))
+		println("arp:", a.String())
+		a.MarshalBinary(f.Payload)
+
 	}
-	// do something with gateway address
-	println(string(gwHWAddr))
+	println(string(byteSliceToHex(buff[:])))
+	println(f.String())
 }
 
 func testConn() {
@@ -122,4 +129,8 @@ func byteToHex(b byte) []byte {
 		res[1] = (b & 0b0000_1111) + 'A' - 10
 	}
 	return res[:]
+}
+
+func delay(millis uint32) {
+	time.Sleep(time.Millisecond * time.Duration(millis))
 }
