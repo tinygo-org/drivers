@@ -49,42 +49,52 @@ func (d *Device) Stop() {
 	d.ib.Low()
 }
 
+// PWM is the interface necessary for controlling the motor driver.
+type PWM interface {
+	Configure(config machine.PWMConfig) error
+	Channel(pin machine.Pin) (channel uint8, err error)
+	Top() uint32
+	Set(channel uint8, value uint32)
+	SetPeriod(period uint64) error
+}
+
 // PWMDevice is a motor with speed control.
 // ia and ib are the directional/speed PWM pins.
 type PWMDevice struct {
-	ia, ib machine.PWM
+	pwm    PWM
+	ca, cb uint8
 }
 
 // NewWithSpeed returns a new PWMMotor driver that uses 2 PWM pins to control both direction and speed.
-func NewWithSpeed(direction1, direction2 machine.PWM) PWMDevice {
+func NewWithSpeed(ca, cb uint8, pwm PWM) PWMDevice {
 	return PWMDevice{
-		ia: direction1,
-		ib: direction2,
+		pwm: pwm,
+		ca:  ca,
+		cb:  cb,
 	}
 }
 
-// Configure configures the PWMDevice.
-func (d *PWMDevice) Configure() {
-	d.ia.Configure()
-	d.ib.Configure()
-
+// Configure configures the PWMDevice. Note that the pins, PWM interface,
+// and channels must all already be configured.
+func (d *PWMDevice) Configure() (err error) {
 	d.Stop()
+	return
 }
 
-// Forward turns motor on in forward direction at specific speed.
-func (d *PWMDevice) Forward(speed uint16) {
-	d.ia.Set(speed)
-	d.ib.Set(0)
+// Forward turns motor on in forward direction at specific speed as a percentage.
+func (d *PWMDevice) Forward(speed uint32) {
+	d.pwm.Set(d.ca, d.pwm.Top()*speed/100)
+	d.pwm.Set(d.cb, 0)
 }
 
-// Backward turns motor on in backward direction at specific speed.
-func (d *PWMDevice) Backward(speed uint16) {
-	d.ia.Set(0)
-	d.ib.Set(speed)
+// Backward turns motor on in backward direction at specific speed as a percentage.
+func (d *PWMDevice) Backward(speed uint32) {
+	d.pwm.Set(d.ca, 0)
+	d.pwm.Set(d.cb, d.pwm.Top()*speed/100)
 }
 
 // Stop turns motor off.
 func (d *PWMDevice) Stop() {
-	d.ia.Set(0)
-	d.ib.Set(0)
+	d.pwm.Set(d.ca, 0)
+	d.pwm.Set(d.cb, 0)
 }
