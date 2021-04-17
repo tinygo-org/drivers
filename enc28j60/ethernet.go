@@ -64,7 +64,7 @@ type EtherFrame struct {
 	Payload []byte
 }
 
-func (f *EtherFrame) length() int {
+func (f *EtherFrame) Length() int {
 	// If payload is less than the required minimum length, we zero-pad up to
 	// the required minimum length
 	pl := len(f.Payload)
@@ -78,6 +78,15 @@ func (f *EtherFrame) length() int {
 	// 2 bytes: EtherType
 	// N bytes: payload length (may be padded)
 	return 6 + 6 + 2 + pl
+}
+
+// MarshalBinary allocates a byte slice and marshals a Frame into binary form.
+func (f *EtherFrame) MarshalBinary(b []byte) error {
+	if len(b) < f.Length() {
+		return errBufferSize
+	}
+	_, err := f.read(b)
+	return err
 }
 
 func (f *EtherFrame) read(b []byte) (int, error) {

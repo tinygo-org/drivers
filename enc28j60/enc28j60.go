@@ -76,6 +76,7 @@ func (d *Dev) readBuffer(data []byte) {
 	d.Bus.Tx(cmd[:], nil)
 	d.Bus.Tx(nil, data)
 	d.disableCS()
+	dbp("read from ebuff", data)
 }
 
 // write data to buffer
@@ -84,6 +85,7 @@ func (d *Dev) writeBuffer(data []byte) {
 	cmd := [1]byte{WRITE_BUF_MEM}
 	d.Bus.Tx(append(cmd[:], data...), nil)
 	d.disableCS()
+	dbp("write to ebuff", data)
 }
 
 func (d *Dev) Reset() {

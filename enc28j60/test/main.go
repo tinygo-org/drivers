@@ -30,7 +30,7 @@ var spiCS = machine.D53
 // var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
-var buff [80]byte
+var buff [160]byte
 
 var (
 	// gateway or router address
@@ -64,25 +64,41 @@ func main() {
 	e.SetGatewayAddress(gwAddr)
 	e.SetIPAddress(ipAddr)
 	e.SetSubnetMask(netmask)
-	plen := e.PacketRecieve(buff[:])
-	for plen == 0 {
-		delay(500)
-		plen = e.PacketRecieve(buff[:])
-	}
+
+	plen := waitForPacket(e, buff[:])
 	var f enc28j60.EtherFrame
 	f.UnmarshalBinary(buff[:plen])
-	if f.EtherType == enc28j60.EtherTypeARP {
-		f.Destination, f.Source = f.Source, macAddr
-		var a enc28j60.ARPRequest
-		a.UnmarshalBinary(f.Payload)
-		println("arp:", a.String())
-		a.SetResponse(macAddr, enc28j60.IP(ipAddr))
-		println("arp:", a.String())
-		a.MarshalBinary(f.Payload)
-
+	if f.EtherType != enc28j60.EtherTypeARP {
+		panic("BAD PACKET")
 	}
+
+	f.Destination, f.Source = f.Source, macAddr
+	var a enc28j60.ARPRequest
+	a.UnmarshalBinary(f.Payload)
+	println("arp:", a.String())
+	a.SetResponse(macAddr, enc28j60.IP(ipAddr))
+	println("arp:", a.String())
+	a.MarshalBinary(f.Payload)
+	err = f.MarshalBinary(buff[:])
+	println("sending: ")
+	e.PacketSend(buff[:f.Length()])
+	printError(err)
+
+	for f.EtherType == enc28j60.EtherTypeARP {
+		waitForPacket(e, buff[:])
+		f.UnmarshalBinary(buff[:])
+	}
+
 	println(string(byteSliceToHex(buff[:])))
 	println(f.String())
+}
+
+func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {
+	for plen == 0 {
+		plen = e.PacketRecieve(buff[:])
+		delay(500)
+	}
+	return
 }
 
 func testConn() {
@@ -102,10 +118,12 @@ func test() {
 }
 
 func printError(err error) {
-	if enc28j60.SDB {
-		println(err.Error())
-	} else {
-		println("error #", err.(enc28j60.ErrorCode))
+	if err != nil {
+		if enc28j60.SDB {
+			println(err.Error())
+		} else {
+			println("error #", err.(enc28j60.ErrorCode))
+		}
 	}
 }
 

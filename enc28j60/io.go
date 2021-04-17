@@ -23,7 +23,7 @@ func (d *Dev) readOp(op, address uint8) uint8 {
 
 	d.enableCS()
 	d.Bus.Tx([]byte{op | (address & ADDR_MASK), 0}, read[:])
-	dbp("RD addr, got:", []byte{address & ADDR_MASK}, read[1:])
+	// dbp("RD addr, got:", []byte{address & ADDR_MASK}, read[1:])
 	// do dummy read if needed (for mac and mii, see datasheet page 29)
 	if address&SPRD_MASK != 0 {
 		d.Bus.Tx(d.dummy[0:1], nil)
@@ -37,7 +37,7 @@ func (d *Dev) readOp(op, address uint8) uint8 {
 func (d *Dev) writeOp(op, address, data uint8) {
 	d.enableCS()
 	err := d.Bus.Tx([]byte{op | (address & ADDR_MASK), data}, nil)
-	dbp("WR addr, data:", []byte{address & ADDR_MASK}, []byte{data})
+	// dbp("WR addr, data:", []byte{address & ADDR_MASK}, []byte{data})
 	if err != nil {
 		dbp(err.Error(), []byte{op})
 	}
