@@ -119,6 +119,8 @@ func (d *Dev) configure(macaddr []byte) {
 	d.write(ERXSTL, RXSTART_INIT&0xFF)
 	d.write(ERXSTH, RXSTART_INIT>>8)
 	// set receive pointer address (should be programmed with same value, see 6.1)
+	// Thus, these lines prevent the read buffer from filling up before
+	// PacketRecieve is called
 	d.write(ERXRDPTL, RXSTART_INIT&0xFF)
 	d.write(ERXRDPTH, RXSTART_INIT>>8)
 	// RX end
@@ -185,16 +187,17 @@ func (d *Dev) GetRev() uint8 {
 	return d.read(EREVID)
 }
 
-func (d *Dev) PacketSend(len uint16, packet []byte) {
+func (d *Dev) PacketSend(packet []byte) {
+	plen := len(packet)
 	d.write(EWRPTL, TXSTART_INIT&0xFF)
 	d.write(EWRPTH, TXSTART_INIT>>8)
 	// Set the TXND pointer to correspond to the packet size given
-	d.write(ETXNDL, uint8(TXSTART_INIT+len&0xFF))
-	d.write(ETXNDH, uint8((TXSTART_INIT+len)>>8))
+	d.write(ETXNDL, uint8(TXSTART_INIT+plen&0xFF))
+	d.write(ETXNDH, uint8((TXSTART_INIT+plen)>>8))
 	// write per-packet control byte (0x00 means use macon3 settings)
 	d.writeOp(WRITE_BUF_MEM, 0, 0x00)
 	// copy the packet into the transmit buffer
-	d.writeBuffer(packet[:len])
+	d.writeBuffer(packet)
 	// send the contents of the transmit buffer onto the network
 	d.writeOp(BIT_FIELD_SET, ECON1, ECON1_TXRTS)
 	// Reset the transmit logic problem. See Rev. B4 Silicon Errata point 12.
@@ -204,7 +207,7 @@ func (d *Dev) PacketSend(len uint16, packet []byte) {
 }
 
 // return packet length in buffer
-func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) (len uint16) {
+func (d *Dev) PacketRecieve(packet []byte) (plen uint16) {
 	var rxstat uint16
 	if d.read(EPKTCNT) == 0 {
 		return 0
@@ -216,38 +219,29 @@ func (d *Dev) PacketRecieve(maxlen uint16, packet []byte) (len uint16) {
 	d.readBuffer(fromBuff[:])
 	d.NextPacketPtr = uint16(fromBuff[0]) + uint16(fromBuff[1])<<8
 	// read the packet length (see datasheet page 43)
-	len = uint16(fromBuff[2]) + uint16(fromBuff[3])<<8 - 4 //remove the CRC count (minus 4)
-
-	rxstat = uint16(fromBuff[4]) + uint16(fromBuff[5])<<8
-	// read the next packet pointer
-	d.NextPacketPtr = uint16(d.readOp(READ_BUF_MEM, 0))
-	d.NextPacketPtr |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
-	// read the packet length (see datasheet page 43)
-	len = uint16(d.readOp(READ_BUF_MEM, 0))
-	len |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
-	len -= 4 //remove the CRC count
+	plen = uint16(fromBuff[2]) + uint16(fromBuff[3])<<8 - 4 //remove the CRC count (minus 4)
 	// read the receive status (see datasheet page 43)
-	rxstat = uint16(d.readOp(READ_BUF_MEM, 0))
-	rxstat |= uint16(d.readOp(READ_BUF_MEM, 0)) << 8
+	rxstat = uint16(fromBuff[4]) + uint16(fromBuff[5])<<8
+
 	// limit retrieve length
-	if len > maxlen-1 {
-		len = maxlen - 1
+	if plen > uint16(len(packet)) {
+		plen = uint16(len(packet))
 	}
 	// check CRC and symbol errors (see datasheet page 44, table 7-3):
 	// The ERXFCON.CRCEN is set by default. Normally we should not
 	// need to check this.
 	if (rxstat & 0x80) == 0 {
 		// invalid
-		len = 0
+		plen = 0
 	} else {
 		// copy the packet from the receive buffer
-		d.readBuffer(packet[:len])
+		d.readBuffer(packet[:plen])
 	}
 	// Move the RX read pointer to the start of the next received packet
 	// This frees the memory we just read out
-	d.write(ERXRDPTL, uint8(d.NextPacketPtr))
-	d.write(ERXRDPTH, uint8(d.NextPacketPtr>>8))
+	d.write16(ERXRDPTL, d.NextPacketPtr)
+
 	// decrement the packet counter indicate we are done with this packet
 	d.writeOp(BIT_FIELD_SET, ECON2, ECON2_PKTDEC)
-	return len
+	return plen
 }

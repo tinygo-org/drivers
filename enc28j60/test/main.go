@@ -29,7 +29,7 @@ var spiCS = machine.D53
 // var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
-var buff [1000]byte
+var buff [150]byte
 
 var (
 	// gateway or router address
@@ -43,6 +43,7 @@ var (
 )
 
 func main() {
+	// linksys mac addr: C0:56:27:07:3D:71
 	enc28j60.SDB = true
 	// Inline declarations so not used as RAM
 
@@ -50,35 +51,41 @@ func main() {
 	// use pin D0 as output
 	// 8MHz SPI clk
 	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
-	test()
-	for {
-	}
+
 	e := enc28j60.New(spiCS, machine.SPI0)
 
 	err := e.Init(buff[:], macAddr)
 	if err != nil {
 		printError(err)
 	}
-	// // Set network specific Address
-	// e.SetGatewayAddress(gwAddr)
-	// e.SetIPAddress(ipAddr)
-	// e.SetSubnetMask(netmask)
-	// e.PacketRecieve()
-	// s := e.NewSocket()
-	// // 0 makes a random port
-	// err = s.Open("arp", 0)
-	// if err != nil {
-	// 	printError(err)
-	// }
-	// // ARP protocol does not support custom payload
-	// // we just wait for the destination to resolve our request
-	// gwHWAddr, err := s.Resolve()
-	// if err != nil {
-	// 	printError(err)
-	// }
-	// // do something with gateway address
-	// println(string(gwHWAddr))
+	// Set network specific Address
+	e.SetGatewayAddress(gwAddr)
+	e.SetIPAddress(ipAddr)
+	e.SetSubnetMask(netmask)
+	s := e.NewSocket()
+	// 0 makes a random port
+	err = s.Open("arp", 0)
+	if err != nil {
+		printError(err)
+	}
+	// ARP protocol does not support custom payload
+	// we just wait for the destination to resolve our request
+	gwHWAddr, err := s.Resolve()
+	if err != nil {
+		printError(err)
+	}
+	// do something with gateway address
+	println(string(gwHWAddr))
 }
+
+func testConn() {
+	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
+	e := enc28j60.TestConn(spiCS, machine.SPI0)
+	if e != nil {
+		printError(e)
+	}
+}
+
 func test() {
 	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
 	e := enc28j60.TestSPI(spiCS, machine.SPI0)

@@ -49,15 +49,16 @@ func (s *Socket) Resolve() (net.HardwareAddr, error) {
 	}
 	var plen uint16
 	plen = s.writeARP() + efPayloadOffset
-	s.d.PacketSend(plen, s.d.buffer)
+	s.d.PacketSend(s.d.buffer[:plen])
 
 	plen = 0
 	for plen == 0 {
-		plen = s.d.PacketRecieve(uint16(len(s.d.buffer)), s.d.buffer)
+		plen = s.d.PacketRecieve(s.d.buffer)
 	}
 	// discard ethernet frame buffer. look in ARP payload for hardware address of target (us)
 	hwAoTIdx := idxRabinKarpBytes(s.d.buffer[efPayloadOffset:], s.dstMacaddr)
 	if hwAoTIdx == -1 {
+		dbp("got:", s.d.buffer)
 		return nil, errUnableToResolveARP
 	}
 	return net.HardwareAddr(s.d.buffer[hwAoTIdx-10 : hwAoTIdx-4]), nil

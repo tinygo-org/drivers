@@ -17,6 +17,12 @@ of the FCS too.
 // serial debugger enable
 var SDB = false
 
+// byteToHex converts a single byte to an ASCII
+// byte slice representation.
+//
+// Example:
+//  print(string(byteToHex(0xff)))
+//  Output: "ff"
 func byteToHex(b byte) []byte {
 	var res [2]byte
 	res[0], res[1] = (b>>4)+'0', (b&0b0000_1111)+'0'
@@ -27,6 +33,16 @@ func byteToHex(b byte) []byte {
 		res[1] = (b & 0b0000_1111) + 'A' - 10
 	}
 	return res[:]
+}
+
+func byteSliceToHex(b []byte) []byte {
+	o := make([]byte, len(b)*2)
+	for i := 0; i < len(b); i++ {
+		aux := byteToHex(b[i])
+		o[i*2] = aux[0]
+		o[i*2+1] = aux[1]
+	}
+	return o
 }
 
 // debug serial print. If SDB is set to false then it is not compiled.

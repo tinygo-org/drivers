@@ -3,6 +3,9 @@ package enc28j60
 import (
 	"machine"
 	"time"
+
+	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
+	"tinygo.org/x/drivers"
 )
 
 var errTest ErrorCode = 255
@@ -27,8 +30,6 @@ func TestSPI(csb machine.Pin, spi machine.SPI) error {
 		{addr: ECON1, def: 0, new: 0b10},
 		// {addr: ESTAT, def: 0, new: 0b01},
 		// commence reading registers in banks 0-3
-		{addr: ERXSTL, def: 0b1111_1010, new: RXSTART_INIT},
-		{addr: ERXSTH, def: 0b0_0101, new: RXSTART_INIT >> 8},
 		{addr: MACON1, def: 0b0_0000, new: 0b1},
 	}
 
@@ -58,7 +59,6 @@ func TestSPI(csb machine.Pin, spi machine.SPI) error {
 		}
 	}
 	failures += testReg16(e)
-	failures += testBuffer(e)
 
 	if failures > 0 {
 		println("some inconsistencies were found in SPI test. Rev", e.GetRev())
@@ -75,6 +75,7 @@ func testReg16(e *Dev) (failures int) {
 		// default, new values
 		def, new uint16
 	}{
+		{addr: ERXSTL, def: 0x05FA, new: RXSTART_INIT},
 		{addr: ERDPTL, def: 0x05FA, new: 0x1fff},
 	}
 	var old, new uint16
@@ -95,20 +96,42 @@ func testReg16(e *Dev) (failures int) {
 	return
 }
 
-func testBuffer(e *Dev) (failures int) {
-	e.configure([]byte{0xde, 0xad, 0xfe, 0xff, 0xef, 0xee})
-	buff := [...]byte{0xff, 0xff, 0, 0xff}
-	// TODO figure out how buffer works
-	e.writeBuffer(buff[:])
-	var read [len(buff)]byte
-	e.readBuffer(read[:])
-	for i := range read {
-		if read[i] != buff[i] {
-			failures++
-			println("buffpos:", i,
-				"read:", string(byteToHex(read[i])),
-				"expect:", string(byteToHex(buff[i])))
-		}
+// Prints data recieved
+func TestConn(csb machine.Pin, spi drivers.SPI) error {
+	const plen = 300
+	ebuff := [plen]byte{}
+	var (
+		// gateway or router address
+		gwAddr = net.IP{192, 168, 1, 1}
+		// // IP address of ENC28J60
+		ipAddr = net.IP{192, 168, 1, 5}
+		// // Hardware address of ENC28J60
+		macAddr = net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
+		// // network mask
+		netmask = net.IPMask{255, 255, 255, 0}
+	)
+	// macaddr := []byte{0xde, 0xad, 0xfe, 0xfe, 0xfe, 0xfe}
+	// macaddr := []byte{0xde, 0xad, 0xfe, 0xff, 0xef, 0xee}
+	buff := [plen]byte{}
+	e := New(csb, spi)
+	e.SetGatewayAddress(gwAddr)
+	e.SetIPAddress(ipAddr)
+	e.SetSubnetMask(netmask)
+	err := e.Init(ebuff[:], macAddr)
+	if err != nil {
+		return err
 	}
-	return
+	println("macaddr:", string(byteSliceToHex(macAddr)))
+	println("recieving data...")
+	// TODO figure out how buffer works
+	for {
+		time.Sleep(time.Second)
+		plen := e.PacketRecieve(buff[:])
+		if plen == 0 {
+			continue
+		}
+		println("recieve data:")
+		println(string(byteSliceToHex(buff[:plen])))
+	}
+	return nil
 }
