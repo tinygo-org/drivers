@@ -15,7 +15,7 @@ import (
 var (
 	apa apa102.Device
 
-	led   = machine.PWM{machine.LED}
+	pwm   = machine.TCC0
 	leds  = make([]color.RGBA, 1)
 	wheel = &Wheel{Brightness: 0x10}
 )
@@ -27,12 +27,19 @@ func init() {
 	apa = apa102.NewSoftwareSPI(machine.PA00, machine.PA01, 1)
 
 	// Configure the regular on-board LED for PWM fading
-	machine.InitPWM()
-	led.Configure()
-
+	err := pwm.Configure(machine.PWMConfig{})
+	if err != nil {
+		println("failed to configure PWM")
+		return
+	}
 }
 
 func main() {
+	channelLED, err := pwm.Channel(machine.LED)
+	if err != nil {
+		println("failed to configure LED PWM channel")
+		return
+	}
 
 	// We'll fade the on-board LED in a goroutine to show/ensure that the APA102
 	// works fine with the scheduler enabled.  Comment this out to test this code
@@ -43,11 +50,11 @@ func main() {
 				brightening = !brightening
 				continue
 			}
-			var brightness uint16 = uint16(i) << 8
+			var brightness uint32 = uint32(i)
 			if !brightening {
-				brightness = 0xFFFF - brightness
+				brightness = 256 - brightness
 			}
-			led.Set(brightness)
+			pwm.Set(channelLED, pwm.Top()*brightness/256)
 			time.Sleep(5 * time.Millisecond)
 		}
 	}()
