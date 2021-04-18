@@ -134,5 +134,5 @@ func (f *EtherFrame) String() string {
 	return "dst: " + f.Destination.String() + "\n" +
 		"src: " + f.Source.String() + "\n" +
 		"etype: " + string(append(byteToHex(byte(f.EtherType>>8)), byteToHex(byte(f.EtherType))...)) + "\n" +
-		"payload: " + string(byteSliceToHex(f.Payload))
+		"Ether payload: " + string(byteSliceToHex(f.Payload[:]))
 }

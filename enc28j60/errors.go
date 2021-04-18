@@ -11,6 +11,7 @@ const (
 	errBadARP
 	errUnableToResolveARP //= errors.New("unable to resolve ARP")
 	errARPViolation       //= errors.New("ARP protocol violation")
+	errIPNotImplemented
 	errIO
 )
 
@@ -32,6 +33,8 @@ func (err ErrorCode) Error() string {
 		return "ARP protocol violation"
 	case errIO:
 		return "I/O"
+	case errIPNotImplemented:
+		return "internet protocol procedure not implemented"
 	}
 	return "undefined"
 }

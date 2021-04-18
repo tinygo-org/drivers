@@ -46,7 +46,7 @@ var (
 func main() {
 	// linksys mac addr: C0:56:27:07:3D:71
 	// laptop 28:D2:44:9A:2F:F3
-	enc28j60.SDB = true
+	enc28j60.SDB = false
 	// Inline declarations so not used as RAM
 
 	// Machine-specific configuration
@@ -75,21 +75,33 @@ func main() {
 	f.Destination, f.Source = f.Source, macAddr
 	var a enc28j60.ARPRequest
 	a.UnmarshalBinary(f.Payload)
-	println("arp:", a.String())
+	println(a.String())
+	// Set ARP response values using recieved ARP request
 	a.SetResponse(macAddr, enc28j60.IP(ipAddr))
-	println("arp:", a.String())
+	println(a.String())
+	// send ARP response
 	a.MarshalBinary(f.Payload)
 	err = f.MarshalBinary(buff[:])
 	println("sending: ")
 	e.PacketSend(buff[:f.Length()])
 	printError(err)
 
+	// Wait for IPv4 request (browser request)
 	for f.EtherType == enc28j60.EtherTypeARP {
-		waitForPacket(e, buff[:])
-		f.UnmarshalBinary(buff[:])
+		plen = waitForPacket(e, buff[:])
+		f.UnmarshalBinary(buff[:plen])
 	}
-
-	println(string(byteSliceToHex(buff[:])))
+	if f.EtherType != enc28j60.EtherTypeIPv4 {
+		panic("expected IPv4")
+	}
+	var ipf enc28j60.IPFrame
+	err = ipf.UnmarshalBinary(f.Payload)
+	printError(err)
+	println(ipf.String())
+	var tcpf enc28j60.TCPFrame
+	tcpf.UnmarshalBinary(ipf.Data)
+	println(tcpf.String())
+	println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
 	println(f.String())
 }
 

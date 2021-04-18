@@ -116,48 +116,11 @@ func (a *ARPRequest) SetResponse(macaddr net.HardwareAddr, ip IP) error {
 func (a *ARPRequest) String() string {
 	// if bytes are only 0, then it is an ARP request
 	if bytesAreAll(a.HWTargetAddr, 0) {
-		return a.HWSenderAddr.String() + "->" +
+		return "ARP " + a.HWSenderAddr.String() + "->" +
 			"who has " + a.IPTargetAddr.String() + "?" + " Tell " + a.IPSenderAddr.String()
 	}
-	return a.HWSenderAddr.String() + "->" +
+	return "ARP " + a.HWSenderAddr.String() + "->" +
 		"I have " + a.IPSenderAddr.String() + "! Telling " + a.IPTargetAddr.String() + ", aka " + a.HWTargetAddr.String()
-}
-
-// writes ARP bytes to ethframe's payload without modifying the rest of the buffer
-// returns length of payload written
-func (s *Socket) writeARP() uint16 {
-	s.payloadwrite(0, []byte{
-		0, 1, // Write HW AT
-		byte(protoAddrTypeIP % 256), byte(protoAddrTypeIP >> 8), // write Proto AT
-		6, 4, // write HW AL and Proto AL
-		0, 1, // write OP Code
-	})
-	s.payloadwrite(8, s.d.macaddr)
-	s.payloadwrite(14, s.d.myip)
-	s.payloadwrite(18, []byte{0, 0, 0, 0, 0, 0}) // HW AoT (empty because it is what we want this dude to fill)
-	s.payloadwrite(24, s.d.gatewayip)
-	return 24 + 4 //28 is length of ARP payload
-}
-
-func (s *Socket) Resolve() (net.HardwareAddr, error) {
-	if s.mode != socketARPMode {
-		return nil, errARPViolation
-	}
-	var plen uint16
-	plen = s.writeARP() + efPayloadOffset
-	s.d.PacketSend(s.d.buffer[:plen])
-
-	plen = 0
-	for plen == 0 {
-		plen = s.d.PacketRecieve(s.d.buffer)
-	}
-	// discard ethernet frame buffer. look in ARP payload for hardware address of target (us)
-	hwAoTIdx := idxRabinKarpBytes(s.d.buffer[efPayloadOffset:], s.dstMacaddr)
-	if hwAoTIdx == -1 {
-		dbp("got:", s.d.buffer)
-		return nil, errUnableToResolveARP
-	}
-	return net.HardwareAddr(s.d.buffer[hwAoTIdx-10 : hwAoTIdx-4]), nil
 }
 
 // bytesAreAll returns true if b is composed of only unit bytes
