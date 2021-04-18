@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/enc28j60"
+	"tinygo.org/x/drivers/encoding/hex"
 	"tinygo.org/x/drivers/frame"
 	"tinygo.org/x/drivers/net2"
 )
@@ -57,8 +58,8 @@ func main() {
 
 	// Wait for ARP Package. Make a browser request to http://192.168.1.5
 	var plen uint16
-	f := new(frame.EtherFrame)
-	a := new(frame.ARPRequest)
+	f := new(frame.Ethernet)
+	a := new(frame.ARP)
 	f.Framer = a
 	for f.EtherType != frame.EtherTypeARP {
 		plen := waitForPacket(e, buff[:])
@@ -82,16 +83,16 @@ func main() {
 		plen = waitForPacket(e, buff[:])
 		f.UnmarshalBinary(buff[:plen])
 	}
-	ipf := new(frame.IPFrame)
+	ipf := new(frame.IP)
 	tcpf := new(frame.TCP)
-	// ipf.Framer = tcpf
+	ipf.Framer = tcpf
 	f.Framer = ipf
 
-	err = ipf.UnmarshalBinary(f.Payload)
+	// UnmarshalFrame
+	err = f.UnmarshalFrame(buff[:])
 	printError(err)
 	println(ipf.String())
 
-	tcpf.UnmarshalBinary(ipf.Data)
 	println(tcpf.String())
 
 	// prepare answer
@@ -106,37 +107,19 @@ func main() {
 
 	// f.Framer = &ipf
 
-	println("send tcp: ", string(byteSliceToHex(buff[:tcpf.FrameLength()])))
-
 	plen = waitForPacket(e, buff[:])
 	f.UnmarshalBinary(buff[:plen])
 	println(f.String())
-	println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
+	println("FullEtherFrame: ", string(hex.Bytes(buff[:plen])))
 
 }
 
 func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {
 	for plen == 0 {
 		plen = e.PacketRecieve(buff[:])
-		delay(500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	return
-}
-
-func testConn() {
-	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
-	e := enc28j60.TestConn(spiCS, machine.SPI0)
-	if e != nil {
-		printError(e)
-	}
-}
-
-func test() {
-	machine.SPI0.Configure(machine.SPIConfig{Frequency: 4e6})
-	e := enc28j60.TestSPI(spiCS, machine.SPI0)
-	if e != nil {
-		printError(e)
-	}
 }
 
 func printError(err error) {
@@ -147,30 +130,4 @@ func printError(err error) {
 			println("error #", err.(enc28j60.ErrorCode))
 		}
 	}
-}
-
-func byteSliceToHex(b []byte) []byte {
-	o := make([]byte, len(b)*2)
-	for i := 0; i < len(b); i++ {
-		aux := byteToHex(b[i])
-		o[i*2] = aux[0]
-		o[i*2+1] = aux[1]
-	}
-	return o
-}
-
-func byteToHex(b byte) []byte {
-	var res [2]byte
-	res[0], res[1] = (b>>4)+'0', (b&0b0000_1111)+'0'
-	if (b >> 4) > 9 {
-		res[0] = (b >> 4) + 'A' - 10
-	}
-	if (b & 0b0000_1111) > 9 {
-		res[1] = (b & 0b0000_1111) + 'A' - 10
-	}
-	return res[:]
-}
-
-func delay(millis uint32) {
-	time.Sleep(time.Millisecond * time.Duration(millis))
 }

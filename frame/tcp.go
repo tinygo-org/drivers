@@ -59,6 +59,10 @@ func (tcp *TCP) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tcp *TCP) UnmarshalFrame(data []byte) error {
+	return tcp.UnmarshalBinary(data)
+}
+
 func (tcp *TCP) MarshalFrame(data []byte) error {
 	if len(data) < int(tcp.FrameLength()) {
 		return errBufferTooSmall

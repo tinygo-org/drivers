@@ -30,7 +30,7 @@ Legend:
 | = 1   |=0x0800   |=6     |=4        | 1 | 2   |       known        |=0      |
 */
 
-type ARPRequest struct {
+type ARP struct {
 	HWType, ProtoType uint16
 	HWSize, ProtoSize uint8
 	OpCode            uint16
@@ -41,7 +41,7 @@ type ARPRequest struct {
 }
 
 // UnmarshalBinary marshals an ARP Request into payload byte slice
-func (a *ARPRequest) MarshalFrame(payload []byte) error {
+func (a *ARP) MarshalFrame(payload []byte) error {
 	totalSize := 8 + 2*a.HWSize + 2*a.ProtoSize
 	if uint16(len(payload)) < uint16(totalSize) {
 		return errBufferTooSmall
@@ -62,7 +62,7 @@ func (a *ARPRequest) MarshalFrame(payload []byte) error {
 	return nil
 }
 
-func (a *ARPRequest) FrameLength() uint16 {
+func (a *ARP) FrameLength() uint16 {
 	// TODO maybe set these in some constructor function that returns an *ARPRequest pointer
 	if a.HWSize == 0 { // set basic framelengths if not set
 		a.HWSize = 6
@@ -72,7 +72,7 @@ func (a *ARPRequest) FrameLength() uint16 {
 }
 
 // UnmarshalFrame unmarshals a payload byte slice into a ARP Request.
-func (a *ARPRequest) UnmarshalFrame(payload []byte) error {
+func (a *ARP) UnmarshalFrame(payload []byte) error {
 	// Verify that both proto sizes and HW size are present
 	if len(payload) < 6 {
 		return errBufferTooSmall
@@ -107,12 +107,11 @@ func (a *ARPRequest) UnmarshalFrame(payload []byte) error {
 }
 
 // UnmarshalBinary unmarshals a payload byte slice into a ARP Request.
-func (a *ARPRequest) UnmarshalBinary(payload []byte) error {
-
+func (a *ARP) UnmarshalBinary(payload []byte) error {
 	return a.UnmarshalFrame(payload)
 }
 
-func (a *ARPRequest) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {
+func (a *ARP) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {
 	// These must be pre-filled by an arp response
 	if a.HWTargetAddr == nil || a.HWSenderAddr == nil || !bytes.Equal(a.IPTargetAddr, ip) {
 		return errBadARP
@@ -126,7 +125,7 @@ func (a *ARPRequest) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {
 	return nil
 }
 
-func (a *ARPRequest) String() string {
+func (a *ARP) String() string {
 	// if bytes are only 0, then it is an ARP request
 	if bytesAreAll(a.HWTargetAddr, 0) {
 		return "ARP " + a.HWSenderAddr.String() + "->" +

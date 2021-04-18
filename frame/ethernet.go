@@ -51,7 +51,7 @@ type Framer interface {
 // A Frame is an IEEE 802.3 Ethernet II frame.  A Frame contains information
 // such as source and destination hardware addresses, zero or more optional
 // 802.1Q VLAN tags, an EtherType, and payload data.
-type EtherFrame struct {
+type Ethernet struct {
 	// EtherType is a value used to identify an upper layer protocol
 	// encapsulated in this Frame.
 	EtherType EtherType
@@ -74,7 +74,7 @@ type EtherFrame struct {
 	Framer
 }
 
-func (f *EtherFrame) MarshalFrame(buff []byte) error {
+func (f *Ethernet) MarshalFrame(buff []byte) error {
 	if uint16(len(buff)) < f.FrameLength() {
 		return errBufferSize
 	}
@@ -90,7 +90,10 @@ func (f *EtherFrame) MarshalFrame(buff []byte) error {
 	return nil
 }
 
-func (f *EtherFrame) UnmarshalFrame(buff []byte) error {
+// UnmarshalFrame unmarshals binary data in buffer into Ethernet Frame.
+// If Ethernet has a non-nil Framer it will call Framer's UnmarshalFrame
+// on Ethernet Payload.
+func (f *Ethernet) UnmarshalFrame(buff []byte) error {
 	// Verify that both hardware addresses and a single EtherType are present
 	if uint16(len(buff)) < f.FrameLength() {
 		return errBufferSize
@@ -119,7 +122,7 @@ func (f *EtherFrame) UnmarshalFrame(buff []byte) error {
 
 // FrameLength Returns padded Ethernet frame length after querying attached Framer.
 // If no Framer found then returns EthernetFrame length + payload slice length
-func (f *EtherFrame) FrameLength() uint16 {
+func (f *Ethernet) FrameLength() uint16 {
 	paylen := uint16(len(f.Payload))
 	// If payload is less than the required minimum length, we zero-pad up to
 	// the required minimum length
@@ -138,7 +141,7 @@ func (f *EtherFrame) FrameLength() uint16 {
 }
 
 // UnmarshalBinary unmarshals a byte slice into a Frame.
-func (f *EtherFrame) UnmarshalBinary(b []byte) error {
+func (f *Ethernet) UnmarshalBinary(b []byte) error {
 	// Verify that both hardware addresses and a single EtherType are present
 	if len(b) < 14 {
 		return errIO
@@ -170,13 +173,13 @@ func (f *EtherFrame) UnmarshalBinary(b []byte) error {
 }
 
 // setResponse with own Macaddress
-func (f *EtherFrame) SetResponse(macAddr net2.HardwareAddr, etherType EtherType) {
+func (f *Ethernet) SetResponse(macAddr net2.HardwareAddr, etherType EtherType) {
 	f.Destination = f.Source
 	f.Source = macAddr
 	f.EtherType = etherType
 }
 
-func (f *EtherFrame) String() string {
+func (f *Ethernet) String() string {
 	return "dst: " + f.Destination.String() + "\n" +
 		"src: " + f.Source.String() + "\n" +
 		"etype: " + string(append(hex.Byte(byte(f.EtherType>>8)), hex.Byte(byte(f.EtherType))...)) + "\n" +
