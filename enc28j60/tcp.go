@@ -6,7 +6,11 @@ import (
 )
 
 // There are 9 flags, bits 100 thru 103 are reserved
-const TCPHEADER_FLAGS_MASK = 0x01ff
+const (
+	// TCP words are 4 octals, or uint32s
+	TCP_WORDLEN                 = 4
+	TCPHEADER_FLAGS_MASK uint16 = 0x01ff
+)
 const (
 	TCPHEADER_FLAG_FIN = 1 << iota
 	TCPHEADER_FLAG_SYN
@@ -46,13 +50,30 @@ func (tcp *TCPFrame) UnmarshalBinary(data []byte) error {
 	tcp.Checksum = binary.BigEndian.Uint16(data[16:18])
 	tcp.UrgentPtr = binary.BigEndian.Uint16(data[18:20])
 	if tcp.DataOffset > 5 {
-		if uint16(tcp.DataOffset)*10 > uint16(len(data)) {
+		if uint16(tcp.DataOffset)*TCP_WORDLEN > uint16(len(data)) {
 			return errBufferSize
 		}
-		tcp.Options = data[20 : tcp.DataOffset*10]
+		tcp.Options = data[20 : tcp.DataOffset*TCP_WORDLEN]
 	}
-	tcp.Data = data[tcp.DataOffset*10:]
+	tcp.Data = data[tcp.DataOffset*TCP_WORDLEN:]
 	return nil
+}
+
+func (tcp *TCPFrame) MarshalBinary(data []byte) error {
+
+	return nil
+}
+
+func (tcp *TCPFrame) SetFlags(ORflags uint16) {
+	if ORflags & ^TCPHEADER_FLAGS_MASK != 0 {
+		panic("bad flag")
+	}
+	tcp.Flags |= uint16(ORflags)
+}
+
+// Has Flags returns true if ORflags are all set
+func (tcp *TCPFrame) HasFlags(ORflags uint16) bool {
+	return (tcp.Flags & ORflags) == ORflags
 }
 
 func (tcp *TCPFrame) String() string {

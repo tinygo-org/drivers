@@ -68,7 +68,10 @@ func main() {
 	plen := waitForPacket(e, buff[:])
 	var f enc28j60.EtherFrame
 	f.UnmarshalBinary(buff[:plen])
+
+	println("ARP? FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
 	if f.EtherType != enc28j60.EtherTypeARP {
+
 		panic("BAD PACKET")
 	}
 
@@ -92,6 +95,7 @@ func main() {
 		f.UnmarshalBinary(buff[:plen])
 	}
 	if f.EtherType != enc28j60.EtherTypeIPv4 {
+		println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
 		panic("expected IPv4")
 	}
 	var ipf enc28j60.IPFrame
