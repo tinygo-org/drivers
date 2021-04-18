@@ -4,8 +4,9 @@ import (
 	"machine"
 	"time"
 
-	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/encoding/hex"
+	"tinygo.org/x/drivers/net2"
 )
 
 var errTest ErrorCode = 255
@@ -50,10 +51,10 @@ func TestSPI(csb machine.Pin, spi machine.SPI) error {
 		new = e.readOp(READ_CTL_REG, ops[i].addr)
 		if new != ops[i].new {
 			failures++
-			println("addr:", "0x"+string(byteToHex(ops[i].addr&ADDR_MASK)),
-				", wrote ", "0x"+string(byteToHex(ops[i].new)),
-				", read back", "0x"+string(byteToHex(new)),
-				", old was ", "0x"+string(byteToHex(old)),
+			println("addr:", "0x"+string(hex.Byte(ops[i].addr&ADDR_MASK)),
+				", wrote ", "0x"+string(hex.Byte(ops[i].new)),
+				", read back", "0x"+string(hex.Byte(new)),
+				", old was ", "0x"+string(hex.Byte(old)),
 				", read bank:", readbank,
 				", bankmask used:", (ops[i].addr&BANK_MASK)>>5)
 		}
@@ -87,10 +88,10 @@ func testReg16(e *Dev) (failures int) {
 		new = e.read16(ops[i].addr)
 		if new != ops[i].new {
 			failures++
-			println("addrL:", "0x"+string(byteToHex(ops[i].addr&ADDR_MASK)),
-				", wrote ", "0x"+string(byteToHex(uint8(ops[i].new>>8)))+string(byteToHex(uint8(ops[i].new))),
-				", read back", "0x"+string(byteToHex(uint8(new>>8)))+string(byteToHex(uint8(new))),
-				", old was ", "0x"+string(byteToHex(uint8(old>>8)))+string(byteToHex(uint8(old))))
+			println("addrL:", "0x"+string(hex.Byte(ops[i].addr&ADDR_MASK)),
+				", wrote ", "0x"+string(hex.Byte(uint8(ops[i].new>>8)))+string(hex.Byte(uint8(ops[i].new))),
+				", read back", "0x"+string(hex.Byte(uint8(new>>8)))+string(hex.Byte(uint8(new))),
+				", old was ", "0x"+string(hex.Byte(uint8(old>>8)))+string(hex.Byte(uint8(old))))
 		}
 	}
 	return
@@ -101,27 +102,18 @@ func TestConn(csb machine.Pin, spi drivers.SPI) error {
 	const plen = 300
 	ebuff := [plen]byte{}
 	var (
-		// gateway or router address
-		gwAddr = net.IP{192, 168, 1, 1}
-		// // IP address of ENC28J60
-		ipAddr = net.IP{192, 168, 1, 5}
 		// // Hardware address of ENC28J60
-		macAddr = net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
-		// // network mask
-		netmask = net.IPMask{255, 255, 255, 0}
+		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
 	)
 	// macaddr := []byte{0xde, 0xad, 0xfe, 0xfe, 0xfe, 0xfe}
 	// macaddr := []byte{0xde, 0xad, 0xfe, 0xff, 0xef, 0xee}
 	buff := [plen]byte{}
 	e := New(csb, spi)
-	e.SetGatewayAddress(gwAddr)
-	e.SetIPAddress(ipAddr)
-	e.SetSubnetMask(netmask)
 	err := e.Init(ebuff[:], macAddr)
 	if err != nil {
 		return err
 	}
-	println("macaddr:", string(byteSliceToHex(macAddr)))
+	println("macaddr:", string(hex.Bytes(macAddr)))
 	println("recieving data...")
 	// TODO figure out how buffer works
 	for {
@@ -131,7 +123,7 @@ func TestConn(csb machine.Pin, spi drivers.SPI) error {
 			continue
 		}
 		println("recieve data:")
-		println(string(byteSliceToHex(buff[:plen])))
+		println(string(hex.Bytes(buff[:plen])))
 	}
 	return nil
 }

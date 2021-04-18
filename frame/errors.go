@@ -1,4 +1,4 @@
-package enc28j60
+package frame
 
 type ErrorCode uint8
 

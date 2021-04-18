@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"machine"
 	"time"
 
-	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
-
 	"tinygo.org/x/drivers/enc28j60"
+	"tinygo.org/x/drivers/frame"
+	"tinygo.org/x/drivers/net2"
 )
 
 /* Arduino Uno SPI pins:
@@ -32,22 +33,15 @@ var spiCS = machine.D53
 // declare as global value, can't escape RAM usage
 var buff [160]byte
 
-var (
-	// gateway or router address
-	gwAddr = net.IP{192, 168, 1, 1}
-	// // IP address of ENC28J60
-	ipAddr = net.IP{192, 168, 1, 5}
-	// // Hardware address of ENC28J60
-	macAddr = net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
-	// // network mask
-	netmask = net.IPMask{255, 255, 255, 0}
-)
-
 func main() {
 	// linksys mac addr: C0:56:27:07:3D:71
 	// laptop 28:D2:44:9A:2F:F3
 	enc28j60.SDB = false
 	// Inline declarations so not used as RAM
+	var (
+		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
+		ipAddr  = net2.IP{192, 168, 1, 5}
+	)
 
 	// Machine-specific configuration
 	// use pin D0 as output
@@ -60,53 +54,65 @@ func main() {
 	if err != nil {
 		printError(err)
 	}
-	// Set network specific Address
-	e.SetGatewayAddress(gwAddr)
-	e.SetIPAddress(ipAddr)
-	e.SetSubnetMask(netmask)
 
-	plen := waitForPacket(e, buff[:])
-	var f enc28j60.EtherFrame
-	f.UnmarshalBinary(buff[:plen])
-
-	println("ARP? FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
-	if f.EtherType != enc28j60.EtherTypeARP {
-
-		panic("BAD PACKET")
+	// Wait for ARP Package. Make a browser request to http://192.168.1.5
+	var plen uint16
+	f := new(frame.EtherFrame)
+	a := new(frame.ARPRequest)
+	f.Framer = a
+	for f.EtherType != frame.EtherTypeARP {
+		plen := waitForPacket(e, buff[:])
+		err = f.UnmarshalFrame(buff[:plen])
+		printError(err)
 	}
+	println(a.String())
 
-	f.Destination, f.Source = f.Source, macAddr
-	var a enc28j60.ARPRequest
-	a.UnmarshalBinary(f.Payload)
-	println(a.String())
 	// Set ARP response values using recieved ARP request
-	a.SetResponse(macAddr, enc28j60.IP(ipAddr))
-	println(a.String())
-	// send ARP response
-	a.MarshalBinary(f.Payload)
-	err = f.MarshalBinary(buff[:])
-	println("sending: ")
-	e.PacketSend(buff[:f.Length()])
+	a.SetResponse(macAddr, net2.IP(ipAddr))
+	f.SetResponse(macAddr, frame.EtherTypeARP)
+	f.Framer = a
+	err = f.MarshalFrame(buff[:])
 	printError(err)
 
-	// Wait for IPv4 request (browser request)
-	for f.EtherType == enc28j60.EtherTypeARP {
+	// send ARP response
+	e.PacketSend(buff[:f.FrameLength()])
+
+	// Wait for IPv4 request (browser request) destined for our MAC Addr
+	for f.EtherType != frame.EtherTypeIPv4 || !bytes.Equal(f.Destination, macAddr) {
 		plen = waitForPacket(e, buff[:])
 		f.UnmarshalBinary(buff[:plen])
 	}
-	if f.EtherType != enc28j60.EtherTypeIPv4 {
-		println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
-		panic("expected IPv4")
-	}
-	var ipf enc28j60.IPFrame
+	ipf := new(frame.IPFrame)
+	tcpf := new(frame.TCP)
+	// ipf.Framer = tcpf
+	f.Framer = ipf
+
 	err = ipf.UnmarshalBinary(f.Payload)
 	printError(err)
 	println(ipf.String())
-	var tcpf enc28j60.TCPFrame
+
 	tcpf.UnmarshalBinary(ipf.Data)
 	println(tcpf.String())
-	println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
+
+	// prepare answer
+	tcpf.Ack++ // ack receive
+	tcpf.SetFlags(frame.TCPHEADER_FLAG_ACK)
+
+	// prepare ip answer
+	// ipf.SetResponse()
+	// ipf.Destination, ipf.Source = ipf.Source, ipf.Destination
+	// ipf.Framer = &tcpf
+	// f.Framer = &ipf
+
+	// f.Framer = &ipf
+
+	println("send tcp: ", string(byteSliceToHex(buff[:tcpf.FrameLength()])))
+
+	plen = waitForPacket(e, buff[:])
+	f.UnmarshalBinary(buff[:plen])
 	println(f.String())
+	println("FullEtherFrame: ", string(byteSliceToHex(buff[:plen])))
+
 }
 
 func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {

@@ -1,4 +1,4 @@
-package enc28j60
+package frame
 
 import (
 	"encoding/binary"
@@ -23,7 +23,7 @@ const (
 	TCPHEADER_FLAG_NS
 )
 
-type TCPFrame struct {
+type TCP struct {
 	// Source and Destination ports
 	Source, Destination uint16
 	Seq, Ack            uint32
@@ -36,9 +36,9 @@ type TCPFrame struct {
 }
 
 // Unmarshals a TCP frame from a IP Frame Data
-func (tcp *TCPFrame) UnmarshalBinary(data []byte) error {
+func (tcp *TCP) UnmarshalBinary(data []byte) error {
 	if len(data) < 20 {
-		return errBufferSize
+		return errBufferTooSmall
 	}
 	tcp.Source = binary.BigEndian.Uint16(data[0:2])
 	tcp.Destination = binary.BigEndian.Uint16(data[2:4])
@@ -51,7 +51,7 @@ func (tcp *TCPFrame) UnmarshalBinary(data []byte) error {
 	tcp.UrgentPtr = binary.BigEndian.Uint16(data[18:20])
 	if tcp.DataOffset > 5 {
 		if uint16(tcp.DataOffset)*TCP_WORDLEN > uint16(len(data)) {
-			return errBufferSize
+			return errBufferTooSmall
 		}
 		tcp.Options = data[20 : tcp.DataOffset*TCP_WORDLEN]
 	}
@@ -59,12 +59,38 @@ func (tcp *TCPFrame) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tcp *TCPFrame) MarshalBinary(data []byte) error {
+func (tcp *TCP) MarshalFrame(data []byte) error {
+	if len(data) < int(tcp.FrameLength()) {
+		return errBufferTooSmall
+	}
+	binary.BigEndian.PutUint16(data[0:2], tcp.Source)
+	binary.BigEndian.PutUint16(data[2:4], tcp.Destination)
 
+	binary.BigEndian.PutUint32(data[4:8], tcp.Seq)
+	binary.BigEndian.PutUint32(data[8:12], tcp.Ack)
+
+	binary.BigEndian.PutUint16(data[12:14], tcp.Flags)
+	data[12] |= tcp.DataOffset << 4
+
+	binary.BigEndian.PutUint16(data[14:16], tcp.WindowSize)
+	// skip checksum data[16:18]
+	binary.BigEndian.PutUint16(data[18:20], tcp.UrgentPtr)
+	n := 20
+	if tcp.DataOffset > 5 {
+		copy(data[n:n+len(tcp.Options)], tcp.Options)
+		n += len(tcp.Options)
+	}
+	copy(data[n:n+len(tcp.Data)], tcp.Data)
+
+	binary.BigEndian.PutUint16(data[16:18], checksum(data))
 	return nil
 }
 
-func (tcp *TCPFrame) SetFlags(ORflags uint16) {
+func (tcp *TCP) FrameLength() uint16 {
+	return uint16(tcp.DataOffset)*TCP_WORDLEN + uint16(len(tcp.Options)+len(tcp.Data))
+}
+
+func (tcp *TCP) SetFlags(ORflags uint16) {
 	if ORflags & ^TCPHEADER_FLAGS_MASK != 0 {
 		panic("bad flag")
 	}
@@ -72,11 +98,9 @@ func (tcp *TCPFrame) SetFlags(ORflags uint16) {
 }
 
 // Has Flags returns true if ORflags are all set
-func (tcp *TCPFrame) HasFlags(ORflags uint16) bool {
-	return (tcp.Flags & ORflags) == ORflags
-}
+func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == ORflags }
 
-func (tcp *TCPFrame) String() string {
+func (tcp *TCP) String() string {
 	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination))
 }
 

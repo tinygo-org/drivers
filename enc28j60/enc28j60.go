@@ -6,8 +6,8 @@ import (
 
 	"time"
 
-	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/net2"
 )
 
 // ETHERCARD_STASH Enable access to IC memory
@@ -20,17 +20,15 @@ type Dev struct {
 	Bank          uint8
 	NextPacketPtr uint16
 	buffer        []byte
-	// subnet mask
-	mask net.IPMask
 	// device IP address
-	myip net.IP
+	myip net2.IP
 	// myip but masked
-	broadcastip net.IP
+	broadcastip net2.IP
 	// which IP is recieving requests or the router
-	gatewayip net.IP
+	gatewayip net2.IP
 	dummy     [2]byte
 	// mac address
-	macaddr net.HardwareAddr
+	macaddr net2.HardwareAddr
 	// SPI bus (requires chip select to be usable).
 	Bus drivers.SPI
 	// *Stash

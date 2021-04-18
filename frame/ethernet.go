@@ -1,4 +1,4 @@
-package enc28j60
+package frame
 
 // The code below was taken from github.com/mdlayher/ethernet and adapted for embedded use
 // All credit to mdlayher and the ethernet Authors
@@ -6,7 +6,8 @@ package enc28j60
 import (
 	"encoding/binary"
 
-	"github.com/jkaflik/tinygo-w5500-driver/wiznet/net"
+	"tinygo.org/x/drivers/encoding/hex"
+	"tinygo.org/x/drivers/net2"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 var (
 	// Broadcast is a special hardware address which indicates a Frame should
 	// be sent to every device on a given LAN segment.
-	Broadcast = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	Broadcast = net2.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 )
 
 // An EtherType is a value used to identify an upper layer protocol
@@ -40,62 +41,100 @@ const (
 	EtherTypeServiceVLAN EtherType = 0x88a8
 )
 
+type Framer interface {
+	// FrameLength includes header and data length in bytes
+	FrameLength() uint16
+	MarshalFrame([]byte) error
+	UnmarshalFrame([]byte) error
+}
+
 // A Frame is an IEEE 802.3 Ethernet II frame.  A Frame contains information
 // such as source and destination hardware addresses, zero or more optional
 // 802.1Q VLAN tags, an EtherType, and payload data.
 type EtherFrame struct {
+	// EtherType is a value used to identify an upper layer protocol
+	// encapsulated in this Frame.
+	EtherType EtherType
+
 	// Destination specifies the destination hardware address for this Frame.
 	//
 	// If this address is set to Broadcast, the Frame will be sent to every
 	// device on a given LAN segment.
-	Destination net.HardwareAddr
+	Destination net2.HardwareAddr
 
 	// Source specifies the source hardware address for this Frame.
 	//
 	// Typically, this is the hardware address of the network interface used to
 	// send this Frame.
-	Source net.HardwareAddr
-
-	// EtherType is a value used to identify an upper layer protocol
-	// encapsulated in this Frame.
-	EtherType EtherType
+	Source net2.HardwareAddr
 
 	// Payload is a variable length data payload encapsulated by this Frame.
 	Payload []byte
+	// Save subframers
+	Framer
 }
 
-func (f *EtherFrame) Length() int {
-	// If payload is less than the required minimum length, we zero-pad up to
-	// the required minimum length
-	pl := len(f.Payload)
-	if pl < minPayload {
-		pl = minPayload
+func (f *EtherFrame) MarshalFrame(buff []byte) error {
+	if uint16(len(buff)) < f.FrameLength() {
+		return errBufferSize
+	}
+	copy(buff[0:6], f.Destination)
+	copy(buff[6:12], f.Source)
+	n := 12
+	binary.BigEndian.PutUint16(buff[n:n+2], uint16(f.EtherType))
+	n += 2
+	if f.Framer != nil {
+		return f.Framer.MarshalFrame(buff[n:])
+	}
+	copy(buff[n:], f.Payload)
+	return nil
+}
+
+func (f *EtherFrame) UnmarshalFrame(buff []byte) error {
+	// Verify that both hardware addresses and a single EtherType are present
+	if uint16(len(buff)) < f.FrameLength() {
+		return errBufferSize
 	}
 
+	// Track offset in packet for reading data
+	n := 14
+
+	// Continue looping and parsing VLAN tags until no more VLAN EtherType
+	// values are detected
+	f.EtherType = EtherType(binary.BigEndian.Uint16(buff[n-2 : n]))
+	// Future stuff: do VLAN implementation
+
+	// Allocate single byte slice to store destination and source hardware
+	// addresses, and payload
+	bb := make([]byte, 6+6)
+	copy(bb[0:12], buff[0:12])
+	f.Destination = bb[0:6]
+	f.Source = bb[6:12]
+	if f.Framer != nil {
+		return f.Framer.UnmarshalFrame(buff[n:])
+	}
+	f.Payload = buff[n:]
+	return nil
+}
+
+// FrameLength Returns padded Ethernet frame length after querying attached Framer.
+// If no Framer found then returns EthernetFrame length + payload slice length
+func (f *EtherFrame) FrameLength() uint16 {
+	paylen := uint16(len(f.Payload))
+	// If payload is less than the required minimum length, we zero-pad up to
+	// the required minimum length
+	if f.Framer != nil {
+		paylen = f.Framer.FrameLength()
+	}
+	if paylen < minPayload {
+		paylen = minPayload
+	}
 	// 6 bytes: destination hardware address
 	// 6 bytes: source hardware address
 	// N bytes: VLAN tags (if present)
 	// 2 bytes: EtherType
 	// N bytes: payload length (may be padded)
-	return 6 + 6 + 2 + pl
-}
-
-// MarshalBinary allocates a byte slice and marshals a Frame into binary form.
-func (f *EtherFrame) MarshalBinary(b []byte) error {
-	if len(b) < f.Length() {
-		return errBufferSize
-	}
-	_, err := f.read(b)
-	return err
-}
-
-func (f *EtherFrame) read(b []byte) (int, error) {
-	copy(b[0:6], f.Destination)
-	copy(b[6:12], f.Source)
-	n := 12
-	binary.BigEndian.PutUint16(b[n:n+2], uint16(f.EtherType))
-	copy(b[n+2:], f.Payload)
-	return len(b), nil
+	return 6 + 6 + 2 + paylen
 }
 
 // UnmarshalBinary unmarshals a byte slice into a Frame.
@@ -130,9 +169,16 @@ func (f *EtherFrame) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+// setResponse with own Macaddress
+func (f *EtherFrame) SetResponse(macAddr net2.HardwareAddr, etherType EtherType) {
+	f.Destination = f.Source
+	f.Source = macAddr
+	f.EtherType = etherType
+}
+
 func (f *EtherFrame) String() string {
 	return "dst: " + f.Destination.String() + "\n" +
 		"src: " + f.Source.String() + "\n" +
-		"etype: " + string(append(byteToHex(byte(f.EtherType>>8)), byteToHex(byte(f.EtherType))...)) + "\n" +
-		"Ether payload: " + string(byteSliceToHex(f.Payload[:]))
+		"etype: " + string(append(hex.Byte(byte(f.EtherType>>8)), hex.Byte(byte(f.EtherType))...)) + "\n" +
+		"Ether payload: " + string(hex.Bytes(f.Payload[:]))
 }
