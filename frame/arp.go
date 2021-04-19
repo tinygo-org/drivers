@@ -106,6 +106,9 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	return nil
 }
 
+// No optional/data fields on ARP
+func (a *ARP) ClearOptions() {}
+
 func (a *ARP) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {
 	// These must be pre-filled by an arp response
 	if a.HWTargetAddr == nil || a.HWSenderAddr == nil || !bytes.Equal(a.IPTargetAddr, ip) {

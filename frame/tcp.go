@@ -27,9 +27,13 @@ type TCP struct {
 	// Source and Destination ports
 	Source, Destination uint16
 	Seq, Ack            uint32
+	// LastSeq is persistent in marshalling
+	// is modified when calling SetResponse
+	LastSeq             uint32
 	DataOffset          uint8
 	Flags, WindowSize   uint16
 	Checksum, UrgentPtr uint16
+
 	// not implemented
 	Options []byte
 	Data    []byte
@@ -58,7 +62,6 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	}
 	tcp.Data = data[tcp.DataOffset*TCP_WORDLEN:]
 	return nil
-
 }
 
 func (tcp *TCP) MarshalFrame(data []byte) error {
@@ -92,6 +95,24 @@ func (tcp *TCP) FrameLength() uint16 {
 	return uint16(tcp.DataOffset)*TCP_WORDLEN + uint16(len(tcp.Options)+len(tcp.Data))
 }
 
+func (tcp *TCP) ClearOptions() {
+	tcp.Options = nil
+	tcp.Data = nil
+}
+
+func (tcp *TCP) SetResponse(port uint16) {
+	tcp.Destination = tcp.Source
+	tcp.Source = port
+	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
+		tcp.SetFlags(TCPHEADER_FLAG_ACK)
+		tcp.Ack++
+		tcp.LastSeq = tcp.Seq
+		return
+	}
+
+	tcp.LastSeq = tcp.Seq
+}
+
 func (tcp *TCP) SetFlags(ORflags uint16) {
 	if ORflags & ^TCPHEADER_FLAGS_MASK != 0 {
 		panic("bad flag")
@@ -103,7 +124,12 @@ func (tcp *TCP) SetFlags(ORflags uint16) {
 func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == ORflags }
 
 func (tcp *TCP) String() string {
-	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination))
+	data := ""
+	if len(tcp.Data) > 0 {
+		data = string(tcp.Data)
+	}
+	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination)) +
+		" datapacket:" + data
 }
 
 func u32toa(u uint32) string {

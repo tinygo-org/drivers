@@ -32,12 +32,12 @@ var spiCS = machine.D53
 // var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
-var buff [160]byte
+var buff [300]byte
 
 func main() {
 	// linksys mac addr: C0:56:27:07:3D:71
 	// laptop 28:D2:44:9A:2F:F3
-	enc28j60.SDB = false
+	enc28j60.SDB = true
 	// Inline declarations so not used as RAM
 	var (
 		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
@@ -89,29 +89,34 @@ func main() {
 	f.Framer = ipf
 
 	// UnmarshalFrame
-	err = f.UnmarshalFrame(buff[:])
+
+	err = f.UnmarshalFrame(buff[:plen])
+
 	printError(err)
 	println(ipf.String())
 
 	println(tcpf.String())
 
 	// prepare answer
-	tcpf.Ack++ // ack receive
-	tcpf.SetFlags(frame.TCPHEADER_FLAG_ACK)
+	ipf.SetResponse()
+	tcpf.SetResponse(80)
 
-	// prepare ip answer
-	// ipf.SetResponse()
-	// ipf.Destination, ipf.Source = ipf.Source, ipf.Destination
-	// ipf.Framer = &tcpf
-	// f.Framer = &ipf
+	f.SetResponse(macAddr, 0)
 
-	// f.Framer = &ipf
+	err = f.MarshalFrame(buff[:])
+	printError(err)
+	f.ClearOptions()
+	// Send ACK through TCP
+	e.PacketSend(buff[:f.FrameLength()])
+	println("Waiting for TCP response")
+	for tcpf.Seq == tcpf.LastSeq {
+		plen = waitForPacket(e, buff[:])
+		f.UnmarshalFrame(buff[:plen])
+	}
 
-	plen = waitForPacket(e, buff[:])
-	f.UnmarshalBinary(buff[:plen])
 	println(f.String())
 	println("FullEtherFrame: ", string(hex.Bytes(buff[:plen])))
-
+	println(tcpf.String())
 }
 
 func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {

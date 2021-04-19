@@ -65,15 +65,6 @@ func (ip *IP) MarshalFrame(payload []byte) error {
 	return nil
 }
 
-func (ip *IP) FrameLength() uint16 {
-	const addrlen uint16 = 4 // for now only IPv4
-	headlen := 12 + 2*addrlen
-	if ip.Framer != nil {
-		return headlen + ip.Framer.FrameLength()
-	}
-	return headlen + uint16(len(ip.Data))
-}
-
 func (ip *IP) UnmarshalFrame(payload []byte) error {
 	ip.Version = payload[0]
 	addrlen := 4
@@ -108,6 +99,18 @@ func (ip *IP) UnmarshalFrame(payload []byte) error {
 	}
 	ip.Data = payload[n:]
 	return nil
+}
+func (ip *IP) FrameLength() uint16 {
+	const addrlen uint16 = 4 // for now only IPv4
+	headlen := 12 + 2*addrlen
+	if ip.Framer != nil {
+		return headlen + ip.Framer.FrameLength()
+	}
+	return headlen + uint16(len(ip.Data))
+}
+func (ip *IP) ClearOptions() {
+	ip.Data = nil
+	ip.Framer.ClearOptions()
 }
 
 // SetResponse removes Data Pointer and reverses Source and Destination IP Addresses

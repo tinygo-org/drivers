@@ -41,13 +41,6 @@ const (
 	EtherTypeServiceVLAN EtherType = 0x88a8
 )
 
-type Framer interface {
-	// FrameLength includes header and data length in bytes
-	FrameLength() uint16
-	MarshalFrame([]byte) error
-	UnmarshalFrame([]byte) error
-}
-
 // A Frame is an IEEE 802.3 Ethernet II frame.  A Frame contains information
 // such as source and destination hardware addresses, zero or more optional
 // 802.1Q VLAN tags, an EtherType, and payload data.
@@ -76,7 +69,7 @@ type Ethernet struct {
 
 func (f *Ethernet) MarshalFrame(buff []byte) error {
 	if uint16(len(buff)) < f.FrameLength() {
-		return errBufferSize
+		return errBufferTooSmall
 	}
 	copy(buff[0:6], f.Destination)
 	copy(buff[6:12], f.Source)
@@ -93,6 +86,10 @@ func (f *Ethernet) MarshalFrame(buff []byte) error {
 // UnmarshalFrame unmarshals binary data in buffer into Ethernet Frame.
 // If Ethernet has a non-nil Framer it will call Framer's UnmarshalFrame
 // on Ethernet Payload.
+//
+// Be sure to call UnmarshalFrame on the packet length recieved and no more.
+// Calling UnmarshalFrame on a whole buffer can cause memory segmentation
+// failures when attempting to marshal using Framers with MarshalFrame.
 func (f *Ethernet) UnmarshalFrame(buff []byte) error {
 	n, err := f.UnmarshalBinary(buff)
 	if err != nil {
@@ -131,7 +128,7 @@ func (f *Ethernet) FrameLength() uint16 {
 func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 	// Verify that both hardware addresses and a single EtherType are present
 	if uint16(len(buff)) < f.FrameLength() {
-		return 0, errBufferSize
+		return 0, errBufferTooSmall
 	}
 
 	// Track offset in packet for reading data
@@ -154,11 +151,18 @@ func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 	return n, nil
 }
 
-// setResponse with own Macaddress
+// setResponse with own Macaddress. If etherType is equal to 0, etherType is not changed
 func (f *Ethernet) SetResponse(macAddr net2.HardwareAddr, etherType EtherType) {
 	f.Destination = f.Source
 	f.Source = macAddr
-	f.EtherType = etherType
+	if etherType != 0 {
+		f.EtherType = etherType
+	}
+}
+
+func (f *Ethernet) ClearOptions() {
+	f.Payload = nil
+	f.Framer.ClearOptions()
 }
 
 func (f *Ethernet) String() string {
