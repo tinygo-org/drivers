@@ -40,7 +40,7 @@ type ARP struct {
 	IPTargetAddr      net2.IP
 }
 
-// UnmarshalBinary marshals an ARP Request into payload byte slice
+// MarshalFrame marshals an ARP Request into payload byte slice
 func (a *ARP) MarshalFrame(payload []byte) error {
 	totalSize := 8 + 2*a.HWSize + 2*a.ProtoSize
 	if uint16(len(payload)) < uint16(totalSize) {
@@ -71,7 +71,7 @@ func (a *ARP) FrameLength() uint16 {
 	return 8 + uint16(a.HWSize+a.ProtoSize)*2
 }
 
-// UnmarshalFrame unmarshals a payload byte slice into a ARP Request.
+// UnmarshalFrame unmarshals a payload byte slice into a ARP Request. Implements Framer Interface
 func (a *ARP) UnmarshalFrame(payload []byte) error {
 	// Verify that both proto sizes and HW size are present
 	if len(payload) < 6 {
@@ -104,11 +104,6 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	a.IPTargetAddr = bb[n : n+a.ProtoSize]
 	copy(bb, payload[addrOffset:addrOffset+addrSectorLen])
 	return nil
-}
-
-// UnmarshalBinary unmarshals a payload byte slice into a ARP Request.
-func (a *ARP) UnmarshalBinary(payload []byte) error {
-	return a.UnmarshalFrame(payload)
 }
 
 func (a *ARP) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {

@@ -35,8 +35,9 @@ type TCP struct {
 	Data    []byte
 }
 
-// Unmarshals a TCP frame from a IP Frame Data
-func (tcp *TCP) UnmarshalBinary(data []byte) error {
+// UnmarshalFrame unmarshals a TCP frame from a byte slice, usually
+// the byte slice contains IP data segment.
+func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	if len(data) < 20 {
 		return errBufferTooSmall
 	}
@@ -57,10 +58,7 @@ func (tcp *TCP) UnmarshalBinary(data []byte) error {
 	}
 	tcp.Data = data[tcp.DataOffset*TCP_WORDLEN:]
 	return nil
-}
 
-func (tcp *TCP) UnmarshalFrame(data []byte) error {
-	return tcp.UnmarshalBinary(data)
 }
 
 func (tcp *TCP) MarshalFrame(data []byte) error {

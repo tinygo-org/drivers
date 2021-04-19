@@ -110,68 +110,11 @@ func (ip *IP) UnmarshalFrame(payload []byte) error {
 	return nil
 }
 
-func (ip *IP) UnmarshalBinary(payload []byte) error {
-	ip.Version = payload[0]
-	addrlen := 4
-	if ip.Version != IPHEADER_VERSION_4 {
-		return errIPNotImplemented
-	}
-	if len(payload) < 12+2*addrlen {
-		return errBufferTooSmall
-	}
-	ip.IHL = payload[1]
-	ip.TotalLength = binary.BigEndian.Uint16(payload[2:4])
-	ip.ID = binary.BigEndian.Uint16(payload[4:6])
-	ip.Flags = binary.BigEndian.Uint16(payload[6:8])
-	if ip.Flags&IPHEADER_FLAG_DONTFRAGMENT == 0 {
-		return errIPNotImplemented
-	}
-	ip.TTL = payload[8]
-	ip.Protocol = payload[9]
-	if ip.Protocol != IPHEADER_PROTOCOL_TCP {
-		return errIPNotImplemented
-	}
-	ip.HeaderChecksum = binary.BigEndian.Uint16(payload[10:12])
-	n := 12
-	ip.Source = make(net2.IP, addrlen)
-	ip.Destination = make(net2.IP, addrlen)
-	copy(ip.Source, payload[n:n+addrlen])
-	n += addrlen
-	copy(ip.Destination, payload[n:n+addrlen])
-	n += addrlen
-	ip.Data = payload[n:]
-	return nil
-}
-
 // SetResponse removes Data Pointer and reverses Source and Destination IP Addresses
 func (ip *IP) SetResponse() {
 	ip.Destination, ip.Source = ip.Source, ip.Destination
 	ip.Data = nil
 }
-
-// func (ip *IPFrame) MarshalBinary(payload []byte) error {
-// 	addrlen := 4 // for now only IPv4
-// 	if len(payload) < 12+2*addrlen {
-// 		return errBufferSize
-// 	}
-// 	payload[0] = ip.Version
-// 	payload[1] = ip.IHL
-// 	ip.setLength()
-// 	binary.BigEndian.PutUint16(payload[2:4], ip.TotalLength)
-// 	binary.BigEndian.PutUint16(payload[4:6], ip.ID)
-// 	binary.BigEndian.PutUint16(payload[6:8], ip.Flags)
-// 	payload[8] = ip.TTL
-// 	payload[9] = ip.Protocol
-// 	// skip checksum data [10:12] until end
-// 	n := 12
-// 	copy(payload[n:n+addrlen], ip.Source)
-// 	n += addrlen
-// 	copy(payload[n:n+addrlen], ip.Destination)
-// 	n += addrlen
-
-// 	binary.BigEndian.PutUint16(payload[10:12], checksum(payload))
-// 	return nil
-// }
 
 func (ip *IP) setLength() { ip.TotalLength = ip.FrameLength() }
 

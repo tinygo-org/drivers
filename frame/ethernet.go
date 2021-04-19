@@ -94,29 +94,13 @@ func (f *Ethernet) MarshalFrame(buff []byte) error {
 // If Ethernet has a non-nil Framer it will call Framer's UnmarshalFrame
 // on Ethernet Payload.
 func (f *Ethernet) UnmarshalFrame(buff []byte) error {
-	// Verify that both hardware addresses and a single EtherType are present
-	if uint16(len(buff)) < f.FrameLength() {
-		return errBufferSize
+	n, err := f.UnmarshalBinary(buff)
+	if err != nil {
+		return err
 	}
-
-	// Track offset in packet for reading data
-	n := 14
-
-	// Continue looping and parsing VLAN tags until no more VLAN EtherType
-	// values are detected
-	f.EtherType = EtherType(binary.BigEndian.Uint16(buff[n-2 : n]))
-	// Future stuff: do VLAN implementation
-
-	// Allocate single byte slice to store destination and source hardware
-	// addresses, and payload
-	bb := make([]byte, 6+6)
-	copy(bb[0:12], buff[0:12])
-	f.Destination = bb[0:6]
-	f.Source = bb[6:12]
 	if f.Framer != nil {
 		return f.Framer.UnmarshalFrame(buff[n:])
 	}
-	f.Payload = buff[n:]
 	return nil
 }
 
@@ -140,36 +124,34 @@ func (f *Ethernet) FrameLength() uint16 {
 	return 6 + 6 + 2 + paylen
 }
 
-// UnmarshalBinary unmarshals a byte slice into a Frame.
-func (f *Ethernet) UnmarshalBinary(b []byte) error {
+// UnmarshalBinary unmarshals a byte slice into an Ethernet Frame. Does not unmarshal
+// Framer field. Returns length of Ethernet header marshalled.
+//
+// Payload is marshalled into a slice which points to original buffer.
+func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 	// Verify that both hardware addresses and a single EtherType are present
-	if len(b) < 14 {
-		return errIO
+	if uint16(len(buff)) < f.FrameLength() {
+		return 0, errBufferSize
 	}
 
 	// Track offset in packet for reading data
-	n := 14
+	var n uint16 = 14
 
 	// Continue looping and parsing VLAN tags until no more VLAN EtherType
 	// values are detected
-	f.EtherType = EtherType(binary.BigEndian.Uint16(b[n-2 : n]))
+	// VLAN NOT IMPLEMENTED
+
+	f.EtherType = EtherType(binary.BigEndian.Uint16(buff[n-2 : n]))
+	// Future stuff: do VLAN implementation
 
 	// Allocate single byte slice to store destination and source hardware
 	// addresses, and payload
-	bb := make([]byte, 6+6+len(b[n:]))
-	copy(bb[0:6], b[0:6])
+	bb := make([]byte, 6+6)
+	copy(bb[0:12], buff[0:12])
 	f.Destination = bb[0:6]
-	copy(bb[6:12], b[6:12])
 	f.Source = bb[6:12]
-
-	// There used to be a minimum payload length restriction here, but as
-	// long as two hardware addresses and an EtherType are present, it
-	// doesn't really matter what is contained in the payload.  We will
-	// follow the "robustness principle".
-	copy(bb[12:], b[n:])
-	f.Payload = bb[12:]
-
-	return nil
+	f.Payload = buff[n:]
+	return n, nil
 }
 
 // setResponse with own Macaddress
