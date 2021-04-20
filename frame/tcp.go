@@ -115,6 +115,7 @@ func (tcp *TCP) SetResponse(port uint16, ResponseFrame *IP) {
 	tcp.Destination = tcp.Source
 	tcp.Source = port
 	tcp.PseudoHeaderInfo = ResponseFrame
+	tcp.WindowSize = 1024 // TODO assign meaningful value to window size
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
 		tcp.SetFlags(TCPHEADER_FLAG_ACK)
 		tcp.Ack++
