@@ -4,7 +4,7 @@ import "encoding/binary"
 
 // Checksum function as defined by RFC 791. The checksumRFC791 field
 // is the 16-bit ones' complement of the ones' complement sum of
-// all 16-bit words in the header. For purposes of computing the checksumRFC791, '
+// all 16-bit words in the header. For purposes of computing the checksumRFC791,
 // the value of the checksumRFC791 field is zero.
 func checksumRFC791(data []byte) uint16 {
 	var sum uint32

@@ -79,6 +79,9 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 
 	binary.BigEndian.PutUint16(data[14:16], tcp.WindowSize)
 	// skip checksum data[16:18]
+	// zero out checksum field so as to ignore fields in checksum calculation
+	data[16] = 0
+	data[17] = 0
 	binary.BigEndian.PutUint16(data[18:20], tcp.UrgentPtr)
 	n := 20
 	if tcp.DataOffset > 5 && tcp.Options != nil {

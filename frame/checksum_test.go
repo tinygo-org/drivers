@@ -16,6 +16,7 @@ func TestChecksum(t *testing.T) {
 		{hexdata: "4500 0073 0000 4000 4011  c0a8 0001 c0a8 00c7", expected: 0xB861},    // from https://en.wikipedia.org/wiki/IPv4_header_checksum
 		{hexdata: "4500 0073 0000 4000 4011  c0a8 0001 c0a8 00c7 00", expected: 0xB861}, // with padding
 		{hexdata: "4500 0073 0000 4000 4011  c0a8 0001 c0a8 00c7 0000", expected: 0xB861},
+		{hexdata: "28 D2 44 9A 2F F3 DE AD BE EF FF FF 08 00 45 00 00 3C 13 98 40 00 40 06 A3 5E C0 A8 01 05 C0 A8 01 70 00 50 E6 66 B3 F8 07 40 00 00 00 01 A0 12 FA F0 00 00 00 00 02 04 05 B4 04 02 08 0A 09 45 F3 B2 00 00 00 00 01 03 03 07", expected: 0x2a51},
 	}
 
 	for _, test := range tests {

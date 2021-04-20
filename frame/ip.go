@@ -56,14 +56,17 @@ func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 	n += copy(payload[n:n+addrlen], ip.Source)
 
 	n += copy(payload[n:n+addrlen], ip.Destination)
+	payload[10] = 0 // we set checksum field to zero to exclude it from calculation
+	payload[11] = 0
 
-	binary.BigEndian.PutUint16(payload[10:12], checksumRFC791(payload[:n]))
 	if ip.Framer != nil {
 		m, err := ip.Framer.MarshalFrame(payload[n:])
 		ip.TotalLength = m + uint16(n)
 		binary.BigEndian.PutUint16(payload[2:4], ip.TotalLength)
+		binary.BigEndian.PutUint16(payload[10:12], checksumRFC791(payload[:n]))
 		return ip.TotalLength, err
 	}
+	binary.BigEndian.PutUint16(payload[10:12], checksumRFC791(payload[:n]))
 	n += copy(payload[n:], ip.Data)
 	return uint16(n), nil
 }
