@@ -33,7 +33,8 @@ type TCP struct {
 	DataOffset          uint8
 	Flags, WindowSize   uint16
 	Checksum, UrgentPtr uint16
-
+	// TCP requires a 12 byte pseudo-header to calculate the checksum
+	PseudoHeaderInfo *IP
 	// not implemented
 	Options []byte
 	Data    []byte
@@ -88,8 +89,16 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 		n += copy(data[n:], tcp.Options)
 	}
 	n += copy(data[n:], tcp.Data)
-
-	binary.BigEndian.PutUint16(data[16:18], checksumRFC791(data[:n]))
+	if tcp.PseudoHeaderInfo.Version != IPHEADER_VERSION_4 {
+		return uint16(n), errIPNotImplemented
+	}
+	ph := tcp.PseudoHeaderInfo
+	// checksum IPv4 TCP packet and PseudoHeader
+	binary.BigEndian.PutUint16(data[16:18], checksumRFC791(append(data[:n],
+		ph.Source[0], ph.Source[1], ph.Source[2], ph.Source[3],
+		ph.Destination[0], ph.Destination[1], ph.Destination[2], ph.Destination[3],
+		0, ph.Protocol, uint8(n>>8), uint8(n),
+	)))
 	return uint16(n), nil
 }
 
@@ -102,9 +111,10 @@ func (tcp *TCP) ClearOptions() {
 	tcp.Data = nil
 }
 
-func (tcp *TCP) SetResponse(port uint16) {
+func (tcp *TCP) SetResponse(port uint16, ResponseFrame *IP) {
 	tcp.Destination = tcp.Source
 	tcp.Source = port
+	tcp.PseudoHeaderInfo = ResponseFrame
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
 		tcp.SetFlags(TCPHEADER_FLAG_ACK)
 		tcp.Ack++

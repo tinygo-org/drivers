@@ -98,7 +98,7 @@ func main() {
 
 	// prepare answer
 	ipf.SetResponse()
-	tcpf.SetResponse(80)
+	tcpf.SetResponse(80, ipf)
 
 	f.SetResponse(macAddr, 0)
 
