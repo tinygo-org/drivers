@@ -86,7 +86,7 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	}
 	n += copy(data[n:], tcp.Data)
 
-	binary.BigEndian.PutUint16(data[16:18], checksum(data[:n]))
+	binary.BigEndian.PutUint16(data[16:18], checksumRFC791(data[:n]))
 	return uint16(n), nil
 }
 

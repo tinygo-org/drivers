@@ -57,7 +57,7 @@ func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 
 	n += copy(payload[n:n+addrlen], ip.Destination)
 
-	binary.BigEndian.PutUint16(payload[10:12], checksum(payload[:n]))
+	binary.BigEndian.PutUint16(payload[10:12], checksumRFC791(payload[:n]))
 	if ip.Framer != nil {
 		m, err := ip.Framer.MarshalFrame(payload[n:])
 		ip.TotalLength = m + uint16(n)
@@ -126,20 +126,4 @@ func (ip *IP) setLength() { ip.TotalLength = ip.FrameLength() }
 
 func (ip *IP) String() string {
 	return "IPv4 " + ip.Source.String() + "->" + ip.Destination.String()
-}
-
-func checksum(data []byte) uint16 {
-	var sum uint32
-	n := len(data) / 2
-	// automatic padding of data
-	if len(data)%2 != 0 {
-		sum += uint32(data[len(data)-1]) << 8
-	}
-	for i := 0; i < n; i++ {
-		sum += uint32(binary.BigEndian.Uint16(data[i : i+2]))
-	}
-	for sum > 0xffff {
-		sum = sum&0xffff + sum>>8
-	}
-	return ^uint16(sum)
 }
