@@ -64,9 +64,9 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	return nil
 }
 
-func (tcp *TCP) MarshalFrame(data []byte) error {
+func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	if len(data) < int(tcp.FrameLength()) {
-		return errBufferTooSmall
+		return 0, errBufferTooSmall
 	}
 	binary.BigEndian.PutUint16(data[0:2], tcp.Source)
 	binary.BigEndian.PutUint16(data[2:4], tcp.Destination)
@@ -81,14 +81,13 @@ func (tcp *TCP) MarshalFrame(data []byte) error {
 	// skip checksum data[16:18]
 	binary.BigEndian.PutUint16(data[18:20], tcp.UrgentPtr)
 	n := 20
-	if tcp.DataOffset > 5 {
-		copy(data[n:n+len(tcp.Options)], tcp.Options)
-		n += len(tcp.Options)
+	if tcp.DataOffset > 5 && tcp.Options != nil {
+		n += copy(data[n:], tcp.Options)
 	}
-	copy(data[n:n+len(tcp.Data)], tcp.Data)
+	n += copy(data[n:], tcp.Data)
 
-	binary.BigEndian.PutUint16(data[16:18], checksum(data))
-	return nil
+	binary.BigEndian.PutUint16(data[16:18], checksum(data[:n]))
+	return uint16(n), nil
 }
 
 func (tcp *TCP) FrameLength() uint16 {
@@ -129,7 +128,7 @@ func (tcp *TCP) String() string {
 		data = string(tcp.Data)
 	}
 	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination)) +
-		" datapacket:" + data
+		" datapacket(not copied):" + data
 }
 
 func u32toa(u uint32) string {

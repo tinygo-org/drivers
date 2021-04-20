@@ -41,10 +41,10 @@ type ARP struct {
 }
 
 // MarshalFrame marshals an ARP Request into payload byte slice
-func (a *ARP) MarshalFrame(payload []byte) error {
+func (a *ARP) MarshalFrame(payload []byte) (uint16, error) {
 	totalSize := 8 + 2*a.HWSize + 2*a.ProtoSize
 	if uint16(len(payload)) < uint16(totalSize) {
-		return errBufferTooSmall
+		return 0, errBufferTooSmall
 	}
 	binary.BigEndian.PutUint16(payload[0:2], a.HWType)
 	binary.BigEndian.PutUint16(payload[2:4], a.ProtoType)
@@ -59,7 +59,8 @@ func (a *ARP) MarshalFrame(payload []byte) error {
 	copy(payload[n:n+a.HWSize], a.HWTargetAddr)
 	n += a.HWSize
 	copy(payload[n:n+a.ProtoSize], a.IPTargetAddr)
-	return nil
+	n += a.ProtoSize
+	return uint16(n), nil
 }
 
 func (a *ARP) FrameLength() uint16 {

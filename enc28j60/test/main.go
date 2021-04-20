@@ -40,10 +40,9 @@ func main() {
 	enc28j60.SDB = true
 	// Inline declarations so not used as RAM
 	var (
-		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
+		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFF, 0xFF}
 		ipAddr  = net2.IP{192, 168, 1, 5}
 	)
-
 	// Machine-specific configuration
 	// use pin D0 as output
 	// 8MHz SPI clk
@@ -69,14 +68,14 @@ func main() {
 	println(a.String())
 
 	// Set ARP response values using recieved ARP request
-	a.SetResponse(macAddr, net2.IP(ipAddr))
+	a.SetResponse(macAddr, ipAddr)
 	f.SetResponse(macAddr, frame.EtherTypeARP)
 	f.Framer = a
-	err = f.MarshalFrame(buff[:])
+	plen, err = f.MarshalFrame(buff[:])
 	printError(err)
 
 	// send ARP response
-	e.PacketSend(buff[:f.FrameLength()])
+	e.PacketSend(buff[:plen])
 
 	// Wait for IPv4 request (browser request) destined for our MAC Addr
 	for f.EtherType != frame.EtherTypeIPv4 || !bytes.Equal(f.Destination, macAddr) {
@@ -103,11 +102,11 @@ func main() {
 
 	f.SetResponse(macAddr, 0)
 
-	err = f.MarshalFrame(buff[:])
+	plen, err = f.MarshalFrame(buff[:])
 	printError(err)
 	f.ClearOptions()
 	// Send ACK through TCP
-	e.PacketSend(buff[:f.FrameLength()])
+	e.PacketSend(buff[:plen])
 	println("Waiting for TCP response")
 	for tcpf.Seq == tcpf.LastSeq {
 		plen = waitForPacket(e, buff[:])
@@ -122,7 +121,7 @@ func main() {
 func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {
 	for plen == 0 {
 		plen = e.PacketRecieve(buff[:])
-		time.Sleep(time.Millisecond * time.Duration(500))
+		time.Sleep(time.Millisecond * time.Duration(1))
 	}
 	return
 }

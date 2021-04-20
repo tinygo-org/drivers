@@ -67,9 +67,9 @@ type Ethernet struct {
 	Framer
 }
 
-func (f *Ethernet) MarshalFrame(buff []byte) error {
+func (f *Ethernet) MarshalFrame(buff []byte) (uint16, error) {
 	if uint16(len(buff)) < f.FrameLength() {
-		return errBufferTooSmall
+		return 0, errBufferTooSmall
 	}
 	copy(buff[0:6], f.Destination)
 	copy(buff[6:12], f.Source)
@@ -77,10 +77,11 @@ func (f *Ethernet) MarshalFrame(buff []byte) error {
 	binary.BigEndian.PutUint16(buff[n:n+2], uint16(f.EtherType))
 	n += 2
 	if f.Framer != nil {
-		return f.Framer.MarshalFrame(buff[n:])
+		m, err := f.Framer.MarshalFrame(buff[n:])
+		return uint16(n) + m, err
 	}
-	copy(buff[n:], f.Payload)
-	return nil
+	n += copy(buff[n:], f.Payload)
+	return uint16(n), nil
 }
 
 // UnmarshalFrame unmarshals binary data in buffer into Ethernet Frame.

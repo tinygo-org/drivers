@@ -34,19 +34,19 @@ type IP struct {
 	Framer
 }
 
-func (ip *IP) MarshalFrame(payload []byte) error {
+func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 	const addrlen = 4 // for now only IPv4
 	if uint16(len(payload)) < ip.FrameLength() {
-		return errBufferTooSmall
+		return 0, errBufferTooSmall
 	}
 	if len(ip.Source) != addrlen || len(ip.Destination) != addrlen {
-		return errBadIP
+		return 0, errBadIP
 	}
 
 	payload[0] = ip.Version
 	payload[1] = ip.IHL
 	ip.setLength()
-	binary.BigEndian.PutUint16(payload[2:4], ip.TotalLength)
+
 	binary.BigEndian.PutUint16(payload[4:6], ip.ID)
 	binary.BigEndian.PutUint16(payload[6:8], ip.Flags)
 	payload[8] = ip.TTL
@@ -59,10 +59,13 @@ func (ip *IP) MarshalFrame(payload []byte) error {
 
 	binary.BigEndian.PutUint16(payload[10:12], checksum(payload[:n]))
 	if ip.Framer != nil {
-		return ip.Framer.MarshalFrame(payload[n:])
+		m, err := ip.Framer.MarshalFrame(payload[n:])
+		ip.TotalLength = m + uint16(n)
+		binary.BigEndian.PutUint16(payload[2:4], ip.TotalLength)
+		return ip.TotalLength, err
 	}
-	copy(payload[n:], ip.Data)
-	return nil
+	n += copy(payload[n:], ip.Data)
+	return uint16(n), nil
 }
 
 func (ip *IP) UnmarshalFrame(payload []byte) error {
