@@ -25,7 +25,6 @@ func TestChecksum(t *testing.T) {
 			t.Errorf("got %#x. expected %#x for data: %#x", got, test.expected, buff)
 		}
 	}
-
 }
 
 func hexStringToBytes(hexes string) []byte {

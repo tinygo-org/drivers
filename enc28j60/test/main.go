@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"machine"
-	"time"
 
 	"tinygo.org/x/drivers/enc28j60"
 	"tinygo.org/x/drivers/encoding/hex"
@@ -32,13 +32,14 @@ var spiCS = machine.D53
 // var spiCS = machine.D10 // on Arduino Uno
 
 // declare as global value, can't escape RAM usage
-var buff [300]byte
+var buff [500]byte
 
 func main() {
 	// linksys mac addr: C0:56:27:07:3D:71
 	// laptop 28:D2:44:9A:2F:F3
 	enc28j60.SDB = true
 	// Inline declarations so not used as RAM
+
 	var (
 		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFF, 0xFF}
 		ipAddr  = net2.IP{192, 168, 1, 5}
@@ -108,7 +109,7 @@ func main() {
 	// Send ACK through TCP
 	e.PacketSend(buff[:plen])
 	println("Waiting for TCP response")
-	for tcpf.Seq == tcpf.LastSeq {
+	for tcpf.Seq != tcpf.LastSeq+1 {
 		plen = waitForPacket(e, buff[:])
 		f.UnmarshalFrame(buff[:plen])
 	}
@@ -121,7 +122,6 @@ func main() {
 func waitForPacket(e *enc28j60.Dev, buff []byte) (plen uint16) {
 	for plen == 0 {
 		plen = e.PacketRecieve(buff[:])
-		time.Sleep(time.Millisecond * time.Duration(1))
 	}
 	return
 }

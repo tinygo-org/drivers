@@ -48,8 +48,8 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	}
 	tcp.Source = binary.BigEndian.Uint16(data[0:2])
 	tcp.Destination = binary.BigEndian.Uint16(data[2:4])
-	tcp.Seq = binary.BigEndian.Uint32(data[4:8])
-	tcp.Ack = binary.BigEndian.Uint32(data[8:12])
+	tcp.Ack = binary.BigEndian.Uint32(data[4:8])  // Seq/Ack switcheroo. Client/remote ack is our seq
+	tcp.Seq = binary.BigEndian.Uint32(data[8:12]) // Ack will be our counter of amount of data recieved
 	tcp.DataOffset = data[12] >> 4
 	tcp.Flags = TCPHEADER_FLAGS_MASK & binary.BigEndian.Uint16(data[12:14])
 	tcp.WindowSize = binary.BigEndian.Uint16(data[14:16])
@@ -76,7 +76,6 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	binary.BigEndian.PutUint32(data[8:12], tcp.Ack)
 
 	binary.BigEndian.PutUint16(data[12:14], tcp.Flags)
-	data[12] |= tcp.DataOffset << 4
 
 	binary.BigEndian.PutUint16(data[14:16], tcp.WindowSize)
 	// skip checksum data[16:18]
@@ -92,6 +91,12 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	if tcp.PseudoHeaderInfo.Version != IPHEADER_VERSION_4 {
 		return uint16(n), errIPNotImplemented
 	}
+	if n%TCP_WORDLEN > 0 {
+		n += TCP_WORDLEN - n%TCP_WORDLEN // [padding to fulfill TCP]
+	}
+	tcp.DataOffset = uint8(n / TCP_WORDLEN)
+	data[12] |= tcp.DataOffset << 4
+
 	ph := tcp.PseudoHeaderInfo
 	// checksum IPv4 TCP packet and PseudoHeader
 	binary.BigEndian.PutUint16(data[16:18], checksumRFC791(append(data[:n],
@@ -112,17 +117,23 @@ func (tcp *TCP) ClearOptions() {
 }
 
 func (tcp *TCP) SetResponse(port uint16, ResponseFrame *IP) {
+
 	tcp.Destination = tcp.Source
 	tcp.Source = port
 	tcp.PseudoHeaderInfo = ResponseFrame
-	tcp.WindowSize = 1024 // TODO assign meaningful value to window size
+
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
+		tcp.Seq = 4864 // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
+		// set Maximum segment size (option 0x02) length 4 (0x04) to 1280 (0x0500)
+		tcp.Options = []byte{0x02, 0x04, 0x05, 0x00}
 		tcp.SetFlags(TCPHEADER_FLAG_ACK)
 		tcp.Ack++
 		tcp.LastSeq = tcp.Seq
+		tcp.WindowSize = 1400 // this is what EtherCard does?
 		return
 	}
-
+	tcp.WindowSize = 1024 // TODO assign meaningful value to window size (or not?)
+	tcp.Options = nil
 	tcp.LastSeq = tcp.Seq
 }
 
@@ -136,6 +147,36 @@ func (tcp *TCP) SetFlags(ORflags uint16) {
 // Has Flags returns true if ORflags are all set
 func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == ORflags }
 
+// StringFlags returns human readable flag string. i.e:
+// "[SYN,ACK]".
+//
+// Beware use on AVR boards and other tiny places as it causes
+// a lot of heap allocation and can quickly drain space.
+func (tcp *TCP) StringFlags() string {
+	const strflags = "FINSYNRSTPSHACKURGECECWRNS "
+	const flaglen = 3
+	buff := make([]byte, 2+(flaglen+1)*9)
+	n := 0
+	for i := 0; i*3 < len(strflags)-flaglen; i++ {
+		if tcp.HasFlags(1 << i) {
+			if n == 0 {
+				buff[0] = '['
+				n++
+			} else {
+				buff[n] = ','
+				n++
+			}
+			copy(buff[n:n+3], []byte(strflags[i*flaglen:i*flaglen+flaglen]))
+			n += 3
+		}
+	}
+	if n > 0 {
+		buff[n] = ']'
+		n++
+	}
+	return string(buff[:n])
+}
+
 func (tcp *TCP) String() string {
 	data := ""
 	if len(tcp.Data) > 0 {
@@ -143,6 +184,7 @@ func (tcp *TCP) String() string {
 	}
 	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination)) +
 		" datapacket(not copied):" + data
+
 }
 
 func u32toa(u uint32) string {

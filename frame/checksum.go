@@ -2,6 +2,8 @@ package frame
 
 import "encoding/binary"
 
+
+
 // Checksum function as defined by RFC 791. The checksumRFC791 field
 // is the 16-bit ones' complement of the ones' complement sum of
 // all 16-bit words in the header. For purposes of computing the checksumRFC791,
