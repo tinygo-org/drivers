@@ -9,5 +9,5 @@ type Framer interface {
 	UnmarshalFrame([]byte) error
 	// Clear Options removes optional fields which would otherwise give an artificially high
 	// FrameLength when Unmarshalling
-	ClearOptions()
+	SetResponse() error
 }

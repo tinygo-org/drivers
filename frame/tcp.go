@@ -43,6 +43,7 @@ type TCP struct {
 // UnmarshalFrame unmarshals a TCP frame from a byte slice, usually
 // the byte slice contains IP data segment.
 func (tcp *TCP) UnmarshalFrame(data []byte) error {
+	_log("TCP:unmarshal")
 	if len(data) < 20 {
 		return errBufferTooSmall
 	}
@@ -66,6 +67,7 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 }
 
 func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
+	_log("TCP:marshal")
 	if len(data) < int(tcp.FrameLength()) {
 		return 0, errBufferTooSmall
 	}
@@ -111,16 +113,13 @@ func (tcp *TCP) FrameLength() uint16 {
 	return uint16(tcp.DataOffset)*TCP_WORDLEN + uint16(len(tcp.Options)+len(tcp.Data))
 }
 
-func (tcp *TCP) ClearOptions() {
-	tcp.Options = nil
-	tcp.Data = nil
-}
+// Set TCP response header. Call IP.SetResponse() before this method.
+func (tcp *TCP) SetResponse() error {
+	tcp.Destination, tcp.Source = tcp.Source, tcp.Destination
 
-func (tcp *TCP) SetResponse(port uint16, ResponseFrame *IP) {
-
-	tcp.Destination = tcp.Source
-	tcp.Source = port
-	tcp.PseudoHeaderInfo = ResponseFrame
+	if tcp.PseudoHeaderInfo == nil {
+		return errNoTCPPseudoHeader
+	}
 
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
 		tcp.Seq = 4864 // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
@@ -130,11 +129,13 @@ func (tcp *TCP) SetResponse(port uint16, ResponseFrame *IP) {
 		tcp.Ack++
 		tcp.LastSeq = tcp.Seq
 		tcp.WindowSize = 1400 // this is what EtherCard does?
-		return
+		return nil
 	}
+	tcp.Ack += uint32(tcp.FrameLength())
 	tcp.WindowSize = 1024 // TODO assign meaningful value to window size (or not?)
 	tcp.Options = nil
 	tcp.LastSeq = tcp.Seq
+	return nil
 }
 
 func (tcp *TCP) SetFlags(ORflags uint16) {
@@ -147,6 +148,11 @@ func (tcp *TCP) SetFlags(ORflags uint16) {
 // Has Flags returns true if ORflags are all set
 func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == ORflags }
 
+// String Flag const
+const flaglen = 3
+
+var flagbuff = [2 + (flaglen+1)*9]byte{}
+
 // StringFlags returns human readable flag string. i.e:
 // "[SYN,ACK]".
 //
@@ -154,27 +160,25 @@ func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == 
 // a lot of heap allocation and can quickly drain space.
 func (tcp *TCP) StringFlags() string {
 	const strflags = "FINSYNRSTPSHACKURGECECWRNS "
-	const flaglen = 3
-	buff := make([]byte, 2+(flaglen+1)*9)
 	n := 0
 	for i := 0; i*3 < len(strflags)-flaglen; i++ {
 		if tcp.HasFlags(1 << i) {
 			if n == 0 {
-				buff[0] = '['
+				flagbuff[0] = '['
 				n++
 			} else {
-				buff[n] = ','
+				flagbuff[n] = ','
 				n++
 			}
-			copy(buff[n:n+3], []byte(strflags[i*flaglen:i*flaglen+flaglen]))
+			copy(flagbuff[n:n+3], []byte(strflags[i*flaglen:i*flaglen+flaglen]))
 			n += 3
 		}
 	}
 	if n > 0 {
-		buff[n] = ']'
+		flagbuff[n] = ']'
 		n++
 	}
-	return string(buff[:n])
+	return string(flagbuff[:n])
 }
 
 func (tcp *TCP) String() string {
@@ -183,7 +187,7 @@ func (tcp *TCP) String() string {
 		data = string(tcp.Data)
 	}
 	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination)) +
-		" datapacket(not copied):" + data
+		tcp.StringFlags() + "seq(" + strconv.Itoa(int(tcp.Seq-tcp.LastSeq)) + ")" + " datapacket(not copied):" + data
 
 }
 

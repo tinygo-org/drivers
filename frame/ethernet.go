@@ -92,11 +92,14 @@ func (f *Ethernet) MarshalFrame(buff []byte) (uint16, error) {
 // Calling UnmarshalFrame on a whole buffer can cause memory segmentation
 // failures when attempting to marshal using Framers with MarshalFrame.
 func (f *Ethernet) UnmarshalFrame(buff []byte) error {
+	_log("ETHunmarshal frame")
 	n, err := f.UnmarshalBinary(buff)
 	if err != nil {
 		return err
 	}
+	_log("ETH:subframe?")
 	if f.Framer != nil {
+		_log("ETH:subframe")
 		return f.Framer.UnmarshalFrame(buff[n:])
 	}
 	return nil
@@ -127,8 +130,13 @@ func (f *Ethernet) FrameLength() uint16 {
 //
 // Payload is marshalled into a slice which points to original buffer.
 func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
+	_log("ETHunmarshal bin")
+	println(len(buff))
+	bufflen := uint16(len(buff))
+	println(bufflen)
 	// Verify that both hardware addresses and a single EtherType are present
-	if uint16(len(buff)) < f.FrameLength() {
+	if bufflen < f.FrameLength() {
+		_log("ETH:umbin fail")
 		return 0, errBufferTooSmall
 	}
 
@@ -153,17 +161,12 @@ func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 }
 
 // setResponse with own Macaddress. If etherType is equal to 0, etherType is not changed
-func (f *Ethernet) SetResponse(macAddr net2.HardwareAddr, etherType EtherType) {
-	f.Destination = f.Source
-	f.Source = macAddr
-	if etherType != 0 {
-		f.EtherType = etherType
+func (f *Ethernet) SetResponse() error {
+	f.Destination, f.Source = f.Source, f.Destination
+	if f.Framer != nil {
+		return f.Framer.SetResponse()
 	}
-}
-
-func (f *Ethernet) ClearOptions() {
-	f.Payload = nil
-	f.Framer.ClearOptions()
+	return nil
 }
 
 func (f *Ethernet) String() string {

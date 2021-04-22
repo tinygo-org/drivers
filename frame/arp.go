@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"encoding/binary"
 
 	"tinygo.org/x/drivers/net2"
@@ -107,24 +106,17 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	return nil
 }
 
-// No optional/data fields on ARP
-func (a *ARP) ClearOptions() {}
-
-func (a *ARP) SetResponse(macaddr net2.HardwareAddr, ip net2.IP) error {
+func (a *ARP) SetResponse() error {
 	// These must be pre-filled by an arp response
-	if a.HWTargetAddr == nil || a.HWSenderAddr == nil || !bytes.Equal(a.IPTargetAddr, ip) {
-		return errBadARP
-	}
-	if len(macaddr) > 255 || uint8(len(macaddr)) != a.HWSize {
-		return errBadMac
-	}
-	a.HWTargetAddr, a.HWSenderAddr = a.HWSenderAddr, macaddr
-	a.IPTargetAddr = a.IPSenderAddr
-	a.IPSenderAddr = ip
+	a.HWTargetAddr, a.HWSenderAddr = a.HWSenderAddr, a.HWTargetAddr
+	a.IPTargetAddr, a.IPSenderAddr = a.IPSenderAddr, a.IPTargetAddr
 	return nil
 }
 
 func (a *ARP) String() string {
+	if len(a.HWSenderAddr) == 0 || len(a.IPSenderAddr) != int(a.ProtoSize) {
+		return "bad ARP unmarshal"
+	}
 	// if bytes are only 0, then it is an ARP request
 	if bytesAreAll(a.HWTargetAddr, 0) {
 		return "ARP " + a.HWSenderAddr.String() + "->" +

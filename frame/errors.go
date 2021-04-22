@@ -14,6 +14,7 @@ const (
 	errARPViolation       //= errors.New("ARP protocol violation")
 	errIPNotImplemented
 	errIO
+	errNoTCPPseudoHeader
 )
 
 func (err ErrorCode) Error() string {
@@ -38,6 +39,8 @@ func (err ErrorCode) Error() string {
 		return "I/O"
 	case errIPNotImplemented:
 		return "internet protocol procedure not implemented"
+	case errNoTCPPseudoHeader:
+		return "could not form pseudo header for TCP"
 	}
 	return "undefined"
 }

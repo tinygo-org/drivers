@@ -35,6 +35,7 @@ type IP struct {
 }
 
 func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
+	_log("IP:marshal")
 	const addrlen = 4 // for now only IPv4
 	if uint16(len(payload)) < ip.FrameLength() {
 		return 0, errBufferTooSmall
@@ -72,6 +73,7 @@ func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 }
 
 func (ip *IP) UnmarshalFrame(payload []byte) error {
+	_log("IP:unmarshal")
 	ip.Version = payload[0]
 	addrlen := 4
 	if ip.Version != IPHEADER_VERSION_4 {
@@ -114,15 +116,15 @@ func (ip *IP) FrameLength() uint16 {
 	}
 	return headlen + uint16(len(ip.Data))
 }
-func (ip *IP) ClearOptions() {
-	ip.Data = nil
-	ip.Framer.ClearOptions()
-}
 
 // SetResponse removes Data Pointer and reverses Source and Destination IP Addresses
-func (ip *IP) SetResponse() {
+func (ip *IP) SetResponse() error {
 	ip.Destination, ip.Source = ip.Source, ip.Destination
 	ip.Data = nil
+	if ip.Framer != nil {
+		return ip.Framer.SetResponse()
+	}
+	return nil
 }
 
 func (ip *IP) setLength() { ip.TotalLength = ip.FrameLength() }
