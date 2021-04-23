@@ -161,10 +161,11 @@ func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 }
 
 // setResponse with own Macaddress. If etherType is equal to 0, etherType is not changed
-func (f *Ethernet) SetResponse() error {
-	f.Destination, f.Source = f.Source, f.Destination
+func (f *Ethernet) SetResponse(MAC net2.HardwareAddr) error {
+	f.Destination = f.Source
+	f.Source = MAC
 	if f.Framer != nil {
-		return f.Framer.SetResponse()
+		return f.Framer.SetResponse(MAC)
 	}
 	return nil
 }

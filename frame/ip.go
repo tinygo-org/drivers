@@ -118,11 +118,11 @@ func (ip *IP) FrameLength() uint16 {
 }
 
 // SetResponse removes Data Pointer and reverses Source and Destination IP Addresses
-func (ip *IP) SetResponse() error {
+func (ip *IP) SetResponse(MAC net2.HardwareAddr) error {
 	ip.Destination, ip.Source = ip.Source, ip.Destination
 	ip.Data = nil
 	if ip.Framer != nil {
-		return ip.Framer.SetResponse()
+		return ip.Framer.SetResponse(MAC)
 	}
 	return nil
 }

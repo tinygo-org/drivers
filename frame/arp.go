@@ -106,9 +106,13 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	return nil
 }
 
-func (a *ARP) SetResponse() error {
+func (a *ARP) SetResponse(MAC net2.HardwareAddr) error {
 	// These must be pre-filled by an arp response
-	a.HWTargetAddr, a.HWSenderAddr = a.HWSenderAddr, a.HWTargetAddr
+	if len(MAC) != int(a.HWSize) {
+		return errBadMac
+	}
+	a.HWTargetAddr = a.HWSenderAddr
+	a.HWSenderAddr = MAC
 	a.IPTargetAddr, a.IPSenderAddr = a.IPSenderAddr, a.IPTargetAddr
 	return nil
 }

@@ -70,10 +70,9 @@ func main() {
 	}
 	println(a.String())
 	// we must set our mac addresses for the ARP to fulfill. This will be done automatically in future by constructing a Ethernet Frame
-	f.Source = macAddr
-	a.HWSenderAddr = macAddr // we add our mac address to the ARP
+
 	// Set ARP response values using recieved ARP request
-	f.SetResponse()
+	f.SetResponse(macAddr)
 
 	plen, err = f.MarshalFrame(buff[:])
 	printError(err)
@@ -106,7 +105,7 @@ func main() {
 	println(tcpf.String())
 
 	// prepare answer .SetResponse sets all sub framer responses
-	f.SetResponse()
+	f.SetResponse(macAddr)
 
 	plen, err = f.MarshalFrame(buff[:])
 	printError(err)
@@ -121,7 +120,7 @@ func main() {
 	// -- connection established --
 	// send Ack and prepare to receive HTTP
 	// FIRST
-	f.SetResponse()
+	f.SetResponse(macAddr)
 
 	// f.ClearOptions()
 
