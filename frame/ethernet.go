@@ -135,7 +135,7 @@ func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 	bufflen := uint16(len(buff))
 	println(bufflen)
 	// Verify that both hardware addresses and a single EtherType are present
-	if bufflen < f.FrameLength() {
+	if bufflen < 14 {
 		_log("ETH:umbin fail")
 		return 0, errBufferTooSmall
 	}

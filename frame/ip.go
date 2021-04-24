@@ -37,7 +37,7 @@ type IP struct {
 func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 	_log("IP:marshal")
 	const addrlen = 4 // for now only IPv4
-	if uint16(len(payload)) < ip.FrameLength() {
+	if uint16(len(payload)) < 12 {
 		return 0, errBufferTooSmall
 	}
 	if len(ip.Source) != addrlen || len(ip.Destination) != addrlen {

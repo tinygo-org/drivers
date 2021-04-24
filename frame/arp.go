@@ -42,6 +42,7 @@ type ARP struct {
 // MarshalFrame marshals an ARP Request into payload byte slice
 func (a *ARP) MarshalFrame(payload []byte) (uint16, error) {
 	totalSize := 8 + 2*a.HWSize + 2*a.ProtoSize
+	_log("arp:marshal")
 	if uint16(len(payload)) < uint16(totalSize) {
 		return 0, errBufferTooSmall
 	}
@@ -74,7 +75,9 @@ func (a *ARP) FrameLength() uint16 {
 // UnmarshalFrame unmarshals a payload byte slice into a ARP Request. Implements Framer Interface
 func (a *ARP) UnmarshalFrame(payload []byte) error {
 	// Verify that both proto sizes and HW size are present
+	_log("arp:unmarshal")
 	if len(payload) < 6 {
+		_log("arp:len(buff)<6")
 		return errBufferTooSmall
 	}
 	a.HWType = binary.BigEndian.Uint16(payload[0:2])
@@ -88,6 +91,7 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	const addrOffset = 8
 	totalSize := addrOffset + addrSectorLen
 	if len(payload) < int(totalSize) {
+		_log("arp:smallbuff")
 		return errBufferTooSmall
 	}
 

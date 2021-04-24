@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"tinygo.org/x/drivers/enc28j60"
-	"tinygo.org/x/drivers/encoding/hex"
 	"tinygo.org/x/drivers/frame"
 	"tinygo.org/x/drivers/net2"
 )
@@ -56,92 +55,91 @@ func main() {
 	if err != nil {
 		printError(err)
 	}
-
-	// Wait for ARP Package. Make a browser request to http://192.168.1.5
+	// create variables in use
 	var plen uint16
 	f := new(frame.Ethernet)
 	a := new(frame.ARP)
-	f.Framer = a
-
-	for f.EtherType != frame.EtherTypeARP && !bytes.Equal(a.IPTargetAddr, ipAddr) {
-		plen := waitForPacket(e, buff[:])
-		err = f.UnmarshalFrame(buff[:plen])
-		printError(err)
-	}
-	println(a.String())
-	// we must set our mac addresses for the ARP to fulfill. This will be done automatically in future by constructing a Ethernet Frame
-
-	// Set ARP response values using recieved ARP request
-	f.SetResponse(macAddr)
-
-	plen, err = f.MarshalFrame(buff[:])
-	printError(err)
-
-	// send ARP response
-	e.PacketSend(buff[:plen])
-	a = nil // clear ARP memory once done
-	// Setup TCP frame
 	ipf := new(frame.IP)
 	tcpf := new(frame.TCP)
+	for {
+		f.Framer = a
+		a.IPTargetAddr = nil
+		// Wait for ARP Package. Make a browser request to http://192.168.1.5
+		for f.EtherType != frame.EtherTypeARP && !bytes.Equal(a.IPTargetAddr, ipAddr) {
+			plen := waitForPacket(e, buff[:])
+			err = f.UnmarshalFrame(buff[:plen])
+			printError(err)
+		}
+		println(a.String())
+		// we must set our mac addresses for the ARP to fulfill. This will be done automatically in future by constructing a Ethernet Frame
 
-	ipf.Framer = tcpf
-	tcpf.PseudoHeaderInfo = ipf
-	f.Framer = ipf
+		// Set ARP response values using recieved ARP request
+		f.SetResponse(macAddr)
 
-	// Wait for IPv4 request (browser request) destined for our MAC Addr
-	for (f.EtherType != frame.EtherTypeIPv4 /*&& tcpf.HasFlags(frame.TCPHEADER_FLAG_SYN)*/) || !bytes.Equal(f.Destination, macAddr) {
-		plen = waitForPacket(e, buff[:])
-		f.UnmarshalBinary(buff[:plen])
+		plen, err = f.MarshalFrame(buff[:])
+		printError(err)
+
+		// send ARP response
+		e.PacketSend(buff[:plen])
+		// a = nil // clear ARP memory once done
+		// Setup TCP frame
+
+		ipf.Framer = tcpf
+		tcpf.PseudoHeaderInfo = ipf
+		f.Framer = ipf
+		f.Destination = nil
+		// Wait for IPv4 request (browser request) destined for our MAC Addr
+		for (f.EtherType != frame.EtherTypeIPv4) || !bytes.Equal(f.Destination, macAddr) {
+			plen = waitForPacket(e, buff[:])
+			f.UnmarshalBinary(buff[:plen])
+		}
+		err = f.UnmarshalFrame(buff[:plen])
+		printError(err)
+
+		// prepare answer .SetResponse sets all sub framer responses
+		f.SetResponse(macAddr)
+
+		plen, err = f.MarshalFrame(buff[:])
+		printError(err)
+		// Send ACK through TCP, wait for HTTP GET request
+		e.PacketSend(buff[:plen])
+		println("Waiting for HTTP GET")
+		for tcpf.Seq != tcpf.LastSeq+1 && len(tcpf.Data) == 0 {
+			// We'll skip the incoming ACK. contains no critical information. HTTP request is what we want
+			plen = waitForPacket(e, buff[:])
+			f.UnmarshalFrame(buff[:plen])
+		}
+
+		println(tcpf.String())
+		// -- connection established --
+		// TCP.Data contains HTTP request!
+		f.SetResponse(macAddr)
+
+		// send ACK
+		plen, err = f.MarshalFrame(buff[:])
+		printError(err)
+		e.PacketSend(buff[:plen])
+
+		// Send HTTP and FIN|PSH bit
+		tcpf.Data = []byte(httpResponse)
+		tcpf.SetFlags(frame.TCPHEADER_FLAG_FIN | frame.TCPHEADER_FLAG_PSH)
+
+		plen, err = f.MarshalFrame(buff[:])
+		printError(err)
+		e.PacketSend(buff[:plen])
+		nextseq := tcpf.Seq + uint32(len(tcpf.Data)) + 1
+		tcpf.ClearFlags(frame.TCPHEADER_FLAG_FIN)
+
+		for tcpf.Seq != nextseq && !tcpf.HasFlags(frame.TCPHEADER_FLAG_FIN) {
+			plen = waitForPacket(e, buff[:])
+			err = f.UnmarshalFrame(buff[:plen])
+		}
+		f.SetResponse(macAddr)
+		plen, err = f.MarshalFrame(buff[:])
+		e.PacketSend(buff[:plen])
+		println("e fini anakin")
+		frame.SDB = true
 	}
-	err = f.UnmarshalFrame(buff[:plen])
-	printError(err)
-
-	// prepare answer .SetResponse sets all sub framer responses
-	f.SetResponse(macAddr)
-
-	plen, err = f.MarshalFrame(buff[:])
-	printError(err)
-	// Send ACK through TCP, wait for HTTP GET request
-	e.PacketSend(buff[:plen])
-	println("Waiting for HTTP GET")
-	for tcpf.Seq != tcpf.LastSeq+1 && len(tcpf.Data) == 0 {
-		// We'll skip the incoming ACK. contains no critical information. HTTP request is what we want
-		plen = waitForPacket(e, buff[:])
-		f.UnmarshalFrame(buff[:plen])
-	}
-
-	println(tcpf.String())
-	// -- connection established --
-	// TCP.Data contains HTTP request!
-	f.SetResponse(macAddr)
-
-	// send ACK
-	plen, err = f.MarshalFrame(buff[:])
-	printError(err)
-	e.PacketSend(buff[:plen])
-
-	// Send HTTP and FIN|PSH bit
-	tcpf.Data = []byte(httpResponse)
-	tcpf.SetFlags(frame.TCPHEADER_FLAG_FIN | frame.TCPHEADER_FLAG_PSH)
-
-	plen, err = f.MarshalFrame(buff[:])
-	printError(err)
-	e.PacketSend(buff[:plen])
-	println("FullEtherFrame: ")
-	hex.PrintBytes(buff[:plen])
-	println()
-	nextseq := tcpf.Seq + uint32(len(tcpf.Data)) + 1
-
-	println("wait for seq", nextseq)
-	for tcpf.Seq != nextseq && !tcpf.HasFlags(frame.TCPHEADER_FLAG_FIN) {
-		plen = waitForPacket(e, buff[:])
-		f.UnmarshalFrame(buff[:plen])
-		println("got seq", tcpf.Seq)
-	}
-
-	println(tcpf.String())
-	println("FullEtherFrame: ")
-	hex.PrintBytes(buff[:plen])
 }
 
 const httpResponse = "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n<h2>..::TinyGo Rocks::..</h2>"

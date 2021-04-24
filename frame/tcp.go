@@ -124,7 +124,7 @@ func (tcp *TCP) FrameLength() uint16 {
 	return uint16(tcp.DataOffset)*TCP_WORDLEN + uint16(len(tcp.Options)+len(tcp.Data))
 }
 
-// Set TCP response header. Call IP.SetResponse() before this method.
+// Set TCP response header.
 func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
 	tcp.Destination, tcp.Source = tcp.Source, tcp.Destination
 	tcp.SetFlags(TCPHEADER_FLAG_ACK)
@@ -141,14 +141,20 @@ func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
 		tcp.WindowSize = 1400 // this is what EtherCard does?
 		return nil
 	}
-
-	tcp.ClearFlags(TCPHEADER_FLAG_FIN | TCPHEADER_FLAG_PSH)
-
-	tcp.Ack += uint32(len(tcp.Data))
-	tcp.WindowSize = 1024 // TODO assign meaningful value to window size (or not?)
-	tcp.Options = nil
-	tcp.Data = nil
 	tcp.LastSeq = tcp.Seq
+	tcp.Options = nil
+
+	tcp.WindowSize = 1024 // TODO assign meaningful value to window size (or not?)
+	// End TCP connection branch
+	if tcp.HasFlags(TCPHEADER_FLAG_FIN) {
+		tcp.ClearFlags(TCPHEADER_FLAG_FIN | TCPHEADER_FLAG_PSH)
+		tcp.Data = nil
+		tcp.Ack++
+		return nil
+	}
+	tcp.ClearFlags(TCPHEADER_FLAG_FIN | TCPHEADER_FLAG_PSH)
+	tcp.Ack += uint32(len(tcp.Data))
+	tcp.Data = nil
 	return nil
 }
 
