@@ -91,26 +91,35 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	if tcp.DataOffset > 5 && tcp.Options != nil {
 		n += copy(data[n:], tcp.Options)
 	}
-	n += copy(data[n:], tcp.Data)
-	if tcp.PseudoHeaderInfo.Version != IPHEADER_VERSION_4 {
-		return uint16(n), errIPNotImplemented
-	}
 	if n%TCP_WORDLEN > 0 {
 		n += TCP_WORDLEN - n%TCP_WORDLEN // [padding to fulfill TCP]
 	}
 	tcp.DataOffset = uint8(n / TCP_WORDLEN)
+	data[12] &^= 0b1111_0000 // zero out past value
 	data[12] |= tcp.DataOffset << 4
+
+	n += copy(data[n:], tcp.Data)
+	// Checksum preparations after data is copied
+	if tcp.PseudoHeaderInfo.Version != IPHEADER_VERSION_4 {
+		return uint16(n), errIPNotImplemented
+	}
 
 	ph := tcp.PseudoHeaderInfo
 	// checksum IPv4 TCP packet and PseudoHeader
-	binary.BigEndian.PutUint16(data[16:18], checksumRFC791(append(data[:n],
+	var checksumPadding uint8
+	if n%2 > 0 {
+		checksumPadding++
+	}
+	chk := checksumRFC791(append(data[:n+int(checksumPadding)],
 		ph.Source[0], ph.Source[1], ph.Source[2], ph.Source[3],
 		ph.Destination[0], ph.Destination[1], ph.Destination[2], ph.Destination[3],
 		0, ph.Protocol, uint8(n>>8), uint8(n),
-	)))
+	))
+	binary.BigEndian.PutUint16(data[16:18], chk)
 	return uint16(n), nil
 }
 
+// FrameLength for TCP frame. Should be called right after unmarshalling/marshalling TCP frame.
 func (tcp *TCP) FrameLength() uint16 {
 	return uint16(tcp.DataOffset)*TCP_WORDLEN + uint16(len(tcp.Options)+len(tcp.Data))
 }
@@ -118,24 +127,27 @@ func (tcp *TCP) FrameLength() uint16 {
 // Set TCP response header. Call IP.SetResponse() before this method.
 func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
 	tcp.Destination, tcp.Source = tcp.Source, tcp.Destination
-
+	tcp.SetFlags(TCPHEADER_FLAG_ACK)
 	if tcp.PseudoHeaderInfo == nil {
 		return errNoTCPPseudoHeader
 	}
 
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
-		tcp.Seq = 4864 // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
+		tcp.Seq = 2560 // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
 		// set Maximum segment size (option 0x02) length 4 (0x04) to 1280 (0x0500)
 		tcp.Options = []byte{0x02, 0x04, 0x05, 0x00}
-		tcp.SetFlags(TCPHEADER_FLAG_ACK)
-		tcp.Ack++
 		tcp.LastSeq = tcp.Seq
+		tcp.Ack++
 		tcp.WindowSize = 1400 // this is what EtherCard does?
 		return nil
 	}
-	tcp.Ack += uint32(tcp.FrameLength())
+
+	tcp.ClearFlags(TCPHEADER_FLAG_FIN | TCPHEADER_FLAG_PSH)
+
+	tcp.Ack += uint32(len(tcp.Data))
 	tcp.WindowSize = 1024 // TODO assign meaningful value to window size (or not?)
 	tcp.Options = nil
+	tcp.Data = nil
 	tcp.LastSeq = tcp.Seq
 	return nil
 }
@@ -149,6 +161,7 @@ func (tcp *TCP) SetFlags(ORflags uint16) {
 
 // Has Flags returns true if ORflags are all set
 func (tcp *TCP) HasFlags(ORflags uint16) bool { return (tcp.Flags & ORflags) == ORflags }
+func (tcp *TCP) ClearFlags(ORflags uint16)    { tcp.Flags &^= ORflags }
 
 // String Flag const
 const flaglen = 3
@@ -184,15 +197,19 @@ func (tcp *TCP) StringFlags() string {
 }
 
 func (tcp *TCP) String() string {
-	data := ""
-	if len(tcp.Data) > 0 {
-		data = string(tcp.Data)
-	}
+	dlen := min(20, len(tcp.Data))
 	return "TCP port " + u32toa(uint32(tcp.Source)) + "->" + u32toa(uint32(tcp.Destination)) +
-		tcp.StringFlags() + "seq(" + strconv.Itoa(int(tcp.Seq-tcp.LastSeq)) + ")" + " datapacket(not copied):" + data
+		tcp.StringFlags() + "seq(" + strconv.Itoa(int(tcp.Seq-tcp.LastSeq)) + ")" + " data:" + string(tcp.Data[0:dlen])
 
 }
 
 func u32toa(u uint32) string {
 	return strconv.Itoa(int(u))
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

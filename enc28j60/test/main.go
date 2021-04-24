@@ -87,46 +87,64 @@ func main() {
 	ipf.Framer = tcpf
 	tcpf.PseudoHeaderInfo = ipf
 	f.Framer = ipf
-	// enc28j60.SDB = true
-	frame.SDB = true
+
 	// Wait for IPv4 request (browser request) destined for our MAC Addr
 	for (f.EtherType != frame.EtherTypeIPv4 /*&& tcpf.HasFlags(frame.TCPHEADER_FLAG_SYN)*/) || !bytes.Equal(f.Destination, macAddr) {
 		plen = waitForPacket(e, buff[:])
-		f.UnmarshalFrame(buff[:plen])
+		f.UnmarshalBinary(buff[:plen])
 	}
-
-	// UnmarshalFrame
-	// frame.SDB = false
 	err = f.UnmarshalFrame(buff[:plen])
-
 	printError(err)
-	println(ipf.String())
-
-	println(tcpf.String())
 
 	// prepare answer .SetResponse sets all sub framer responses
 	f.SetResponse(macAddr)
 
 	plen, err = f.MarshalFrame(buff[:])
 	printError(err)
-	// Send ACK through TCP, wait for connection establishment
+	// Send ACK through TCP, wait for HTTP GET request
 	e.PacketSend(buff[:plen])
-	println("Waiting for TCP response")
-	for tcpf.Seq != tcpf.LastSeq+1 {
+	println("Waiting for HTTP GET")
+	for tcpf.Seq != tcpf.LastSeq+1 && len(tcpf.Data) == 0 {
+		// We'll skip the incoming ACK. contains no critical information. HTTP request is what we want
 		plen = waitForPacket(e, buff[:])
 		f.UnmarshalFrame(buff[:plen])
-		println(tcpf.String())
 	}
+
+	println(tcpf.String())
 	// -- connection established --
-	// send Ack and prepare to receive HTTP
-	// FIRST
+	// TCP.Data contains HTTP request!
 	f.SetResponse(macAddr)
 
-	// f.ClearOptions()
+	// send ACK
+	plen, err = f.MarshalFrame(buff[:])
+	printError(err)
+	e.PacketSend(buff[:plen])
 
-	println(f.String())
-	println("FullEtherFrame: ", string(hex.Bytes(buff[:plen])))
+	// Send HTTP and FIN|PSH bit
+	tcpf.Data = []byte(httpResponse)
+	tcpf.SetFlags(frame.TCPHEADER_FLAG_FIN | frame.TCPHEADER_FLAG_PSH)
+
+	plen, err = f.MarshalFrame(buff[:])
+	printError(err)
+	e.PacketSend(buff[:plen])
+	println("FullEtherFrame: ")
+	hex.PrintBytes(buff[:plen])
+	println()
+	nextseq := tcpf.Seq + uint32(len(tcpf.Data)) + 1
+
+	println("wait for seq", nextseq)
+	for tcpf.Seq != nextseq && !tcpf.HasFlags(frame.TCPHEADER_FLAG_FIN) {
+		plen = waitForPacket(e, buff[:])
+		f.UnmarshalFrame(buff[:plen])
+		println("got seq", tcpf.Seq)
+	}
+
+	println(tcpf.String())
+	println("FullEtherFrame: ")
+	hex.PrintBytes(buff[:plen])
 }
+
+const httpResponse = "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n<h2>..::TinyGo Rocks::..</h2>"
 
 func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {

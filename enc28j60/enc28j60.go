@@ -187,8 +187,16 @@ func (d *Dev) GetRev() uint8 {
 	return d.read(EREVID)
 }
 
+// PacketSend sends a binary packet over the network
 func (d *Dev) PacketSend(packet []byte) {
 	plen := len(packet)
+	// After a packet is transmitted, however, the hardware
+	// will write a seven-byte status vector into memory after
+	// the last byte in the packet. Therefore, the host control-
+	// ler should leave at least seven bytes between each
+	// packet and the beginning of the receive buffer. No
+	// explicit action is required to initialize the transmission
+	// buffer.
 	d.write(EWRPTL, TXSTART_INIT&0xFF)
 	d.write(EWRPTH, TXSTART_INIT>>8)
 	// Set the TXND pointer to correspond to the packet size given

@@ -33,3 +33,10 @@ func Bytes(b []byte) []byte {
 	}
 	return o
 }
+
+// PrintBytes print binary slice as hexadecimal with minimal memory allocation. uses `print()`
+func PrintBytes(b []byte) {
+	for i := 0; i < len(b); i++ {
+		print(string(Byte(b[i])))
+	}
+}

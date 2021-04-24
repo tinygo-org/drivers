@@ -1,8 +1,12 @@
 package frame
 
 import (
+	"encoding/binary"
 	"strings"
 	"testing"
+
+	"tinygo.org/x/drivers/encoding/hex"
+	"tinygo.org/x/drivers/net2"
 )
 
 func TestChecksum(t *testing.T) {
@@ -23,6 +27,47 @@ func TestChecksum(t *testing.T) {
 		got := checksumRFC791(buff)
 		if got != test.expected {
 			t.Errorf("got %#x. expected %#x for data: %#x", got, test.expected, buff)
+		}
+	}
+}
+
+func TestTCPChecksum(t *testing.T) {
+	var tests = []struct {
+		tcpf     TCP
+		pseudo   IP
+		Data     []byte
+		expected uint16
+	}{
+		{
+			TCP{Source: 80, Destination: 44084, Seq: 2561, Ack: 1631906285, DataOffset: 5, Flags: 0x019, WindowSize: 1024},
+			IP{Source: net2.IP{192, 168, 1, 5}, Destination: net2.IP{192, 168, 1, 112}, Protocol: 6, Version: 69},
+			[]byte("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n<h2>..::TinyGo Rocks::..</h2>"),
+			0x2a3e,
+		},
+	}
+
+	for _, test := range tests {
+		tcpBuff := make([]byte, 400)
+		tcpf := &test.tcpf
+		tcpf.Data = test.Data
+		tcpf.PseudoHeaderInfo = &test.pseudo
+		plen, err := tcpf.MarshalFrame(tcpBuff)
+		if err != nil {
+			t.Error(err)
+			t.FailNow()
+		}
+		got := binary.BigEndian.Uint16(tcpBuff[16:18])
+		tcpBuff[16] = 0
+		tcpBuff[17] = 0
+		hgot := checksumRFC791(tcpBuff[:20])
+		pgot := checksumRFC791(tcpBuff[:plen])
+		tgot := checksumRFC791(tcpBuff[:])
+		if got != test.expected {
+			t.Errorf("expected %#x checksum. got %#x. buff: %s", test.expected, got, hex.Bytes(tcpBuff[:plen]))
+			t.Errorf("hbuff:%#x pack:%#x total:%#x", hgot, pgot, tgot)
+			if pgot != tgot {
+				t.Errorf("checksum mismatch: tbuff:%x", tcpBuff)
+			}
 		}
 	}
 }
