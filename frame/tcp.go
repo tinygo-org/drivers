@@ -125,10 +125,11 @@ func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
 	}
 
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
-		tcp.Seq = 2560 //uint32(tcp.PseudoHeaderInfo.ID) + 0x00af&uint32(tcp.Checksum) // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
-		// set Maximum segment size (option 0x02) length 4 (0x04) to 1280 (0x0500)
+		// adds some entropy to sequence number so for loops don't get false positive packets
+		tcp.Seq = uint32(0x0062&tcp.PseudoHeaderInfo.ID) + uint32(0x00af&tcp.Checksum) // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
 		tcp.Data = nil
 		tcp.UrgentPtr = 0
+		// set Maximum segment size (option 0x02) length 4 (0x04) to 1280 (0x0500)
 		tcp.Options = []byte{0x02, 0x04, 0x05, 0x00}
 		tcp.LastSeq = tcp.Seq
 		tcp.Ack++

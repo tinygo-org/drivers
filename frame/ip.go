@@ -103,9 +103,9 @@ func (ip *IP) UnmarshalFrame(payload []byte) error {
 	ip.Destination = bb[addrlen : addrlen*2] //make(net2.IP, addrlen)
 	n += copy(bb, payload[n:n+addrlen*2])
 	if ip.Framer != nil {
-		return ip.Framer.UnmarshalFrame(payload[n:])
+		return ip.Framer.UnmarshalFrame(payload[n:ip.TotalLength])
 	}
-	ip.Data = payload[n:]
+	ip.Data = payload[n:ip.TotalLength]
 	return nil
 }
 func (ip *IP) FrameLength() uint16 {

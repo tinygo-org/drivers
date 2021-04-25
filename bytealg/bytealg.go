@@ -1,18 +1,16 @@
-package enc28j60
+package bytealg
 
 // equal checks if two byte slices are equal.
-// It is equivalent to bytes.equal.
+// It is equivalent to bytes.equal but no
 func equal(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-
 	for i, v := range a {
 		if v != b[i] {
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -23,15 +21,22 @@ const primerRK = 16777619
 
 // idxRabinKarpBytes uses the Rabin-Karp search algorithm to return the index of the
 // first occurence of substr in s, or -1 if not present.
-func idxRabinKarpBytes(s, sep []byte) int {
+func IdxRabinKarpBytes(s, substr []byte) int {
+	// Handle edge cases
+	if len(s) == 0 {
+		if len(substr) == 0 {
+			return 0
+		}
+		return -1
+	}
 	// Rabin-Karp search
-	hashsep, pow := hashStrBytes(sep)
-	n := len(sep)
+	hashsep, pow := hashStrBytes(substr)
+	n := len(substr)
 	var h uint32
 	for i := 0; i < n; i++ {
 		h = h*primerRK + uint32(s[i])
 	}
-	if h == hashsep && equal(s[:n], sep) {
+	if h == hashsep && equal(s[:n], substr) {
 		return 0
 	}
 	for i := n; i < len(s); {
@@ -39,7 +44,7 @@ func idxRabinKarpBytes(s, sep []byte) int {
 		h += uint32(s[i])
 		h -= pow * uint32(s[i-n])
 		i++
-		if h == hashsep && equal(s[i-n:i], sep) {
+		if h == hashsep && equal(s[i-n:i], substr) {
 			return i - n
 		}
 	}
