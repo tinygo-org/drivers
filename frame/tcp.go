@@ -47,7 +47,7 @@ type TCP struct {
 func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	_log("TCP:unmarshal")
 	if len(data) < 20 {
-		return errBufferTooSmall
+		return ErrBufferTooSmall
 	}
 	tcp.Source = binary.BigEndian.Uint16(data[0:2])
 	tcp.Destination = binary.BigEndian.Uint16(data[2:4])
@@ -60,7 +60,7 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 	tcp.UrgentPtr = binary.BigEndian.Uint16(data[18:20])
 	if tcp.DataOffset > 5 {
 		if uint16(tcp.DataOffset)*TCP_WORDLEN > uint16(len(data)) {
-			return errBufferTooSmall
+			return ErrBufferTooSmall
 		}
 		tcp.Options = data[20 : tcp.DataOffset*TCP_WORDLEN]
 	}
@@ -71,14 +71,13 @@ func (tcp *TCP) UnmarshalFrame(data []byte) error {
 func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	_log("TCP:marshal")
 	if len(data) < int(tcp.FrameLength()) {
-		return 0, errBufferTooSmall
+		return 0, ErrBufferTooSmall
 	}
 	binary.BigEndian.PutUint16(data[0:2], tcp.Source)
 	binary.BigEndian.PutUint16(data[2:4], tcp.Destination)
 
 	binary.BigEndian.PutUint32(data[4:8], tcp.Seq)
 	binary.BigEndian.PutUint32(data[8:12], tcp.Ack)
-
 	binary.BigEndian.PutUint16(data[12:14], tcp.Flags)
 
 	binary.BigEndian.PutUint16(data[14:16], tcp.WindowSize)
@@ -94,27 +93,20 @@ func (tcp *TCP) MarshalFrame(data []byte) (uint16, error) {
 	if n%TCP_WORDLEN > 0 {
 		n += TCP_WORDLEN - n%TCP_WORDLEN // [padding to fulfill TCP]
 	}
+
 	tcp.DataOffset = uint8(n / TCP_WORDLEN)
-	data[12] &^= 0b1111_0000 // zero out past value
+	_log("tcp:marshal doffset", []byte{tcp.DataOffset})
+	data[12] &= 0b0000_0001 // zero out past value and reserved values
 	data[12] |= tcp.DataOffset << 4
 
 	n += copy(data[n:], tcp.Data)
 	// Checksum preparations after data is copied
 	if tcp.PseudoHeaderInfo.Version != IPHEADER_VERSION_4 {
-		return uint16(n), errIPNotImplemented
+		return uint16(n), ErrIPNotImplemented
 	}
-
-	ph := tcp.PseudoHeaderInfo
-	// checksum IPv4 TCP packet and PseudoHeader
-	var checksumPadding uint8
-	if n%2 > 0 {
-		checksumPadding++
-	}
-	chk := checksumRFC791(append(data[:n+int(checksumPadding)],
-		ph.Source[0], ph.Source[1], ph.Source[2], ph.Source[3],
-		ph.Destination[0], ph.Destination[1], ph.Destination[2], ph.Destination[3],
-		0, ph.Protocol, uint8(n>>8), uint8(n),
-	))
+	penders := tcp.checksumHeader(data[:n])
+	chk := checksumRFC791(penders)
+	// _log("tcp:sum {} for {}", []byte{byte(chk >> 8), byte(chk)}, penders)
 	binary.BigEndian.PutUint16(data[16:18], chk)
 	return uint16(n), nil
 }
@@ -129,12 +121,14 @@ func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
 	tcp.Destination, tcp.Source = tcp.Source, tcp.Destination
 	tcp.SetFlags(TCPHEADER_FLAG_ACK)
 	if tcp.PseudoHeaderInfo == nil {
-		return errNoTCPPseudoHeader
+		return ErrNoTCPPseudoHeader
 	}
 
 	if tcp.HasFlags(TCPHEADER_FLAG_SYN) {
-		tcp.Seq = 2560 // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
+		tcp.Seq = 2560 //uint32(tcp.PseudoHeaderInfo.ID) + 0x00af&uint32(tcp.Checksum) // uint32(checksumRFC791([]byte{byte(tcp.Ack)}))
 		// set Maximum segment size (option 0x02) length 4 (0x04) to 1280 (0x0500)
+		tcp.Data = nil
+		tcp.UrgentPtr = 0
 		tcp.Options = []byte{0x02, 0x04, 0x05, 0x00}
 		tcp.LastSeq = tcp.Seq
 		tcp.Ack++
@@ -173,6 +167,22 @@ func (tcp *TCP) ClearFlags(ORflags uint16)    { tcp.Flags &^= ORflags }
 const flaglen = 3
 
 var flagbuff = [2 + (flaglen+1)*9]byte{}
+
+// checksumHeader IPv4 TCP packet and PseudoHeader
+func (tcp *TCP) checksumHeader(headerAndData []byte) []byte {
+	ph := tcp.PseudoHeaderInfo
+	n := len(headerAndData)
+	if n%2 > 0 {
+		return append(headerAndData, 0, // with zero padding for data
+			ph.Source[0], ph.Source[1], ph.Source[2], ph.Source[3],
+			ph.Destination[0], ph.Destination[1], ph.Destination[2], ph.Destination[3],
+			0, ph.Protocol, uint8(n>>8), uint8(n))
+	}
+	return append(headerAndData,
+		ph.Source[0], ph.Source[1], ph.Source[2], ph.Source[3],
+		ph.Destination[0], ph.Destination[1], ph.Destination[2], ph.Destination[3],
+		0, ph.Protocol, uint8(n>>8), uint8(n))
+}
 
 // StringFlags returns human readable flag string. i.e:
 // "[SYN,ACK]".

@@ -38,10 +38,10 @@ func (ip *IP) MarshalFrame(payload []byte) (uint16, error) {
 	_log("IP:marshal")
 	const addrlen = 4 // for now only IPv4
 	if uint16(len(payload)) < 12 {
-		return 0, errBufferTooSmall
+		return 0, ErrBufferTooSmall
 	}
 	if len(ip.Source) != addrlen || len(ip.Destination) != addrlen {
-		return 0, errBadIP
+		return 0, ErrBadIP
 	}
 
 	payload[0] = ip.Version
@@ -77,22 +77,22 @@ func (ip *IP) UnmarshalFrame(payload []byte) error {
 	ip.Version = payload[0]
 	addrlen := 4
 	if ip.Version != IPHEADER_VERSION_4 {
-		return errIPNotImplemented
+		return ErrIPNotImplemented
 	}
 	if len(payload) < 12+2*addrlen {
-		return errBufferTooSmall
+		return ErrBufferTooSmall
 	}
 	ip.IHL = payload[1]
 	ip.TotalLength = binary.BigEndian.Uint16(payload[2:4])
 	ip.ID = binary.BigEndian.Uint16(payload[4:6])
 	ip.Flags = binary.BigEndian.Uint16(payload[6:8])
 	if ip.Flags&IPHEADER_FLAG_DONTFRAGMENT == 0 {
-		return errIPNotImplemented
+		return ErrIPNotImplemented
 	}
 	ip.TTL = payload[8]
 	ip.Protocol = payload[9]
 	if ip.Protocol != IPHEADER_PROTOCOL_TCP {
-		return errIPNotImplemented
+		return ErrIPNotImplemented
 	}
 	ip.HeaderChecksum = binary.BigEndian.Uint16(payload[10:12])
 	n := 12

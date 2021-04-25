@@ -69,7 +69,7 @@ type Ethernet struct {
 
 func (f *Ethernet) MarshalFrame(buff []byte) (uint16, error) {
 	if uint16(len(buff)) < f.FrameLength() {
-		return 0, errBufferTooSmall
+		return 0, ErrBufferTooSmall
 	}
 	copy(buff[0:6], f.Destination)
 	copy(buff[6:12], f.Source)
@@ -131,13 +131,11 @@ func (f *Ethernet) FrameLength() uint16 {
 // Payload is marshalled into a slice which points to original buffer.
 func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 	_log("ETHunmarshal bin")
-	println(len(buff))
 	bufflen := uint16(len(buff))
-	println(bufflen)
 	// Verify that both hardware addresses and a single EtherType are present
 	if bufflen < 14 {
 		_log("ETH:umbin fail")
-		return 0, errBufferTooSmall
+		return 0, ErrBufferTooSmall
 	}
 
 	// Track offset in packet for reading data

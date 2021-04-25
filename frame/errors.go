@@ -3,43 +3,48 @@ package frame
 type ErrorCode uint8
 
 const (
-	errOutOfBound ErrorCode = iota
-	errBufferSize
-	errBufferTooSmall
-	errBadRev // errors.New("got rev=0. is dev connected?")
-	errBadMac //errors.New("mac addr len not 6")
-	errBadIP
-	errBadARP
-	errUnableToResolveARP //= errors.New("unable to resolve ARP")
-	errARPViolation       //= errors.New("ARP protocol violation")
-	errIPNotImplemented
-	errIO
-	errNoTCPPseudoHeader
+	errUndefined ErrorCode = iota
+	// out of buff bounds
+	ErrOutOfBound
+	// buff size not in 64..1500
+	ErrBufferSize
+	// buffer too small for unmarshal/marshal
+	ErrBufferTooSmall
+	ErrBadRev // errors.New("got rev=0. is dev connected?")
+	ErrBadMac //errors.New("mac addr len not 6")
+	ErrBadIP
+	ErrBadARP
+	ErrUnableToResolveARP //= errors.New("unable to resolve ARP")
+	ErrARPViolation       //= errors.New("ARP protocol violation")
+	ErrIPNotImplemented
+	ErrIO
+	ErrNoTCPPseudoHeader
+	ErrCodeMax
 )
 
 func (err ErrorCode) Error() string {
 	switch err {
-	case errOutOfBound:
+	case ErrOutOfBound:
 		return "out of buff bounds"
-	case errBufferSize:
+	case ErrBufferSize:
 		return "buff size not in 64..1500"
-	case errBufferTooSmall:
+	case ErrBufferTooSmall:
 		return "buffer too small for unmarshal/marshal"
-	case errBadRev:
+	case ErrBadRev:
 		return "got rev=0. is dev connected?"
-	case errBadIP:
+	case ErrBadIP:
 		return "invalid IP address"
-	case errBadMac:
+	case ErrBadMac:
 		return "mac addr len not 6"
-	case errUnableToResolveARP:
+	case ErrUnableToResolveARP:
 		return "unable to resolve ARP"
-	case errARPViolation:
+	case ErrARPViolation:
 		return "ARP protocol violation"
-	case errIO:
+	case ErrIO:
 		return "I/O"
-	case errIPNotImplemented:
+	case ErrIPNotImplemented:
 		return "internet protocol procedure not implemented"
-	case errNoTCPPseudoHeader:
+	case ErrNoTCPPseudoHeader:
 		return "could not form pseudo header for TCP"
 	}
 	return "undefined"

@@ -21,6 +21,12 @@ func TestTCPChecksum(t *testing.T) {
 			[]byte("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n<h2>..::TinyGo Rocks::..</h2>"),
 			0x2a3e,
 		},
+		{
+			TCP{Source: 80, Destination: 44984, Seq: 2561, Ack: 3511653306, DataOffset: 5, Flags: 0x019, WindowSize: 1024},
+			IP{Source: net2.IP{192, 168, 1, 5}, Destination: net2.IP{192, 168, 1, 112}, Protocol: 6, Version: 69},
+			[]byte("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n<h2>..::TinyGo Rocks::..</h2>"),
+			0x0ce2, // getting 0x0cb2
+		},
 	}
 
 	for _, test := range tests {

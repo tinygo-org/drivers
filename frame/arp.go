@@ -42,9 +42,9 @@ type ARP struct {
 // MarshalFrame marshals an ARP Request into payload byte slice
 func (a *ARP) MarshalFrame(payload []byte) (uint16, error) {
 	totalSize := 8 + 2*a.HWSize + 2*a.ProtoSize
-	_log("arp:marshal")
+	_log("arp:marshal", []byte{a.HWSize, a.ProtoSize})
 	if uint16(len(payload)) < uint16(totalSize) {
-		return 0, errBufferTooSmall
+		return 0, ErrBufferTooSmall
 	}
 	binary.BigEndian.PutUint16(payload[0:2], a.HWType)
 	binary.BigEndian.PutUint16(payload[2:4], a.ProtoType)
@@ -60,6 +60,7 @@ func (a *ARP) MarshalFrame(payload []byte) (uint16, error) {
 	n += a.HWSize
 	copy(payload[n:n+a.ProtoSize], a.IPTargetAddr)
 	n += a.ProtoSize
+	_log("arp:marshal done", []byte{n})
 	return uint16(n), nil
 }
 
@@ -78,7 +79,7 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	_log("arp:unmarshal")
 	if len(payload) < 6 {
 		_log("arp:len(buff)<6")
-		return errBufferTooSmall
+		return ErrBufferTooSmall
 	}
 	a.HWType = binary.BigEndian.Uint16(payload[0:2])
 	a.ProtoType = binary.BigEndian.Uint16(payload[2:4])
@@ -92,7 +93,7 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	totalSize := addrOffset + addrSectorLen
 	if len(payload) < int(totalSize) {
 		_log("arp:smallbuff")
-		return errBufferTooSmall
+		return ErrBufferTooSmall
 	}
 
 	// Track offset in packet for reading data (can't possibly surpass 256)
@@ -113,7 +114,7 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 func (a *ARP) SetResponse(MAC net2.HardwareAddr) error {
 	// These must be pre-filled by an arp response
 	if len(MAC) != int(a.HWSize) {
-		return errBadMac
+		return ErrBadMac
 	}
 	a.HWTargetAddr = a.HWSenderAddr
 	a.HWSenderAddr = MAC

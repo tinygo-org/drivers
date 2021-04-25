@@ -11,7 +11,8 @@ func _log(msg string, datas ...[]byte) {
 	if SDB {
 		print(msg)
 		for d := range datas {
-			print(" 0x" + string(hex.Bytes(datas[d])))
+			print(" 0x")
+			hex.PrintBytes(datas[d])
 		}
 		println()
 	}
