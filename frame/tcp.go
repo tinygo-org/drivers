@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	"tinygo.org/x/drivers/net2"
+	"tinygo.org/x/drivers/net"
 )
 
 // There are 9 flags, bits 100 thru 103 are reserved
@@ -117,7 +117,7 @@ func (tcp *TCP) FrameLength() uint16 {
 }
 
 // Set TCP response header.
-func (tcp *TCP) SetResponse(MAC net2.HardwareAddr) error {
+func (tcp *TCP) SetResponse(MAC net.HardwareAddr) error {
 	tcp.Destination, tcp.Source = tcp.Source, tcp.Destination
 	tcp.SetFlags(TCPHEADER_FLAG_ACK)
 	if tcp.PseudoHeaderInfo == nil {

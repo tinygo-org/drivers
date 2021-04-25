@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/espat"
-	"tinygo.org/x/drivers/net/mqtt"
+	"tinygo.org/x/drivers/net"/mqtt"
 )
 
 // access point info

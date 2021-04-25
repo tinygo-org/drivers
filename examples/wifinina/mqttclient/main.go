@@ -17,7 +17,7 @@ import (
 	"math/rand"
 	"time"
 
-	"tinygo.org/x/drivers/net/mqtt"
+	"tinygo.org/x/drivers/net"/mqtt"
 	"tinygo.org/x/drivers/wifinina"
 )
 

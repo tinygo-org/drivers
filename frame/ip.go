@@ -3,7 +3,7 @@ package frame
 import (
 	"encoding/binary"
 
-	"tinygo.org/x/drivers/net2"
+	"tinygo.org/x/drivers/net"
 )
 
 const (
@@ -28,7 +28,7 @@ type IP struct {
 	TTL, Protocol uint8
 
 	HeaderChecksum      uint16
-	Source, Destination net2.IP
+	Source, Destination net.IP
 	Data                []byte
 	// OOP comes to save the day
 	Framer
@@ -99,8 +99,8 @@ func (ip *IP) UnmarshalFrame(payload []byte) error {
 	// allocate single segment to store both source and destination. uses only one `copy`
 	bb := make([]byte, addrlen*2)
 
-	ip.Source = bb[0:addrlen]                //make(net2.IP, addrlen)
-	ip.Destination = bb[addrlen : addrlen*2] //make(net2.IP, addrlen)
+	ip.Source = bb[0:addrlen]                //make(net.IP, addrlen)
+	ip.Destination = bb[addrlen : addrlen*2] //make(net.IP, addrlen)
 	n += copy(bb, payload[n:n+addrlen*2])
 	if ip.Framer != nil {
 		return ip.Framer.UnmarshalFrame(payload[n:ip.TotalLength])
@@ -118,7 +118,7 @@ func (ip *IP) FrameLength() uint16 {
 }
 
 // SetResponse removes Data Pointer and reverses Source and Destination IP Addresses
-func (ip *IP) SetResponse(MAC net2.HardwareAddr) error {
+func (ip *IP) SetResponse(MAC net.HardwareAddr) error {
 	ip.Destination, ip.Source = ip.Source, ip.Destination
 	ip.Data = nil
 	if ip.Framer != nil {

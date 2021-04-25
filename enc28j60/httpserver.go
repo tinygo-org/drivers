@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"unsafe"
 
+	"tinygo.org/x/drivers/net"
+
 	"tinygo.org/x/drivers/bytealg"
 	"tinygo.org/x/drivers/frame"
-	"tinygo.org/x/drivers/net2"
 )
 
-func (e *Dev) HTTPListenAndServe(IPAddr net2.IP, handler func(URL []byte) (response []byte)) (err error) {
+func (e *Dev) HTTPListenAndServe(IPAddr net.IP, handler func(URL []byte) (response []byte)) (err error) {
 	var plen uint16
 	const httpHeader = "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n"
 	macAddr := e.macaddr

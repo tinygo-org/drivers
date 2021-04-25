@@ -11,7 +11,7 @@ import (
 	"machine"
 	"time"
 
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net""
 	"tinygo.org/x/drivers/wifinina"
 )
 

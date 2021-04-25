@@ -1,6 +1,6 @@
 package frame
 
-import "tinygo.org/x/drivers/net2"
+import "tinygo.org/x/drivers/net"
 
 type Framer interface {
 
@@ -11,5 +11,5 @@ type Framer interface {
 	UnmarshalFrame([]byte) error
 	// Clear Options removes optional fields which would otherwise give an artificially high
 	// FrameLength when Unmarshalling
-	SetResponse(MAC net2.HardwareAddr) error
+	SetResponse(MAC net.HardwareAddr) error
 }

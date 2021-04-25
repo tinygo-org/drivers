@@ -6,8 +6,9 @@ package frame
 import (
 	"encoding/binary"
 
+	"tinygo.org/x/drivers/net"
+
 	"tinygo.org/x/drivers/encoding/hex"
-	"tinygo.org/x/drivers/net2"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 var (
 	// Broadcast is a special hardware address which indicates a Frame should
 	// be sent to every device on a given LAN segment.
-	Broadcast = net2.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	Broadcast = net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 )
 
 // An EtherType is a value used to identify an upper layer protocol
@@ -53,13 +54,13 @@ type Ethernet struct {
 	//
 	// If this address is set to Broadcast, the Frame will be sent to every
 	// device on a given LAN segment.
-	Destination net2.HardwareAddr
+	Destination net.HardwareAddr
 
 	// Source specifies the source hardware address for this Frame.
 	//
 	// Typically, this is the hardware address of the network interface used to
 	// send this Frame.
-	Source net2.HardwareAddr
+	Source net.HardwareAddr
 
 	// Payload is a variable length data payload encapsulated by this Frame.
 	Payload []byte
@@ -159,7 +160,7 @@ func (f *Ethernet) UnmarshalBinary(buff []byte) (uint16, error) {
 }
 
 // setResponse with own Macaddress. If etherType is equal to 0, etherType is not changed
-func (f *Ethernet) SetResponse(MAC net2.HardwareAddr) error {
+func (f *Ethernet) SetResponse(MAC net.HardwareAddr) error {
 	f.Destination = f.Source
 	f.Source = MAC
 	if f.Framer != nil {

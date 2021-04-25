@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/eclipse/paho.mqtt.golang/packets"
-	"tinygo.org/x/drivers/net"
-	"tinygo.org/x/drivers/net/tls"
+	"tinygo.org/x/drivers/net""
+	"tinygo.org/x/drivers/net"/tls"
 )
 
 // NewClient will create an MQTT v3.1.1 client with all of the options specified

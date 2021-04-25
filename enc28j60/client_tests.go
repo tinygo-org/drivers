@@ -4,9 +4,10 @@ import (
 	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/net"
+
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/encoding/hex"
-	"tinygo.org/x/drivers/net2"
 )
 
 var errTest ErrorCode = 255
@@ -103,7 +104,7 @@ func TestConn(csb machine.Pin, spi drivers.SPI) error {
 	ebuff := [plen]byte{}
 	var (
 		// // Hardware address of ENC28J60
-		macAddr = net2.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
+		macAddr = net.HardwareAddr{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xFF}
 	)
 	// macaddr := []byte{0xde, 0xad, 0xfe, 0xfe, 0xfe, 0xfe}
 	// macaddr := []byte{0xde, 0xad, 0xfe, 0xff, 0xef, 0xee}

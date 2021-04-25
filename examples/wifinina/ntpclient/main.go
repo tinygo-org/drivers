@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"time"
 
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net""
 	"tinygo.org/x/drivers/wifinina"
 )
 

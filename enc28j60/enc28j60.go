@@ -4,10 +4,11 @@ import (
 	"machine"
 	"runtime/interrupt"
 
+	"tinygo.org/x/drivers/net"
+
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/net2"
 )
 
 // ETHERCARD_STASH Enable access to IC memory
@@ -21,14 +22,14 @@ type Dev struct {
 	NextPacketPtr uint16
 	buffer        []byte
 	// device IP address
-	myip net2.IP
+	myip net.IP
 	// myip but masked
-	broadcastip net2.IP
+	broadcastip net.IP
 	// which IP is recieving requests or the router
-	gatewayip net2.IP
+	gatewayip net.IP
 	dummy     [2]byte
 	// mac address
-	macaddr net2.HardwareAddr
+	macaddr net.HardwareAddr
 	// SPI bus (requires chip select to be usable).
 	Bus drivers.SPI
 	// *Stash

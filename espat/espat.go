@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net""
 )
 
 // Device wraps UART connection to the ESP8266/ESP32.

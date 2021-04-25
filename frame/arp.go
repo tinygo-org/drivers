@@ -3,7 +3,7 @@ package frame
 import (
 	"encoding/binary"
 
-	"tinygo.org/x/drivers/net2"
+	"tinygo.org/x/drivers/net"
 )
 
 const (
@@ -33,10 +33,10 @@ type ARP struct {
 	HWType, ProtoType uint16
 	HWSize, ProtoSize uint8
 	OpCode            uint16
-	HWSenderAddr      net2.HardwareAddr
-	IPSenderAddr      net2.IP
-	HWTargetAddr      net2.HardwareAddr
-	IPTargetAddr      net2.IP
+	HWSenderAddr      net.HardwareAddr
+	IPSenderAddr      net.IP
+	HWTargetAddr      net.HardwareAddr
+	IPTargetAddr      net.IP
 }
 
 // MarshalFrame marshals an ARP Request into payload byte slice
@@ -111,7 +111,7 @@ func (a *ARP) UnmarshalFrame(payload []byte) error {
 	return nil
 }
 
-func (a *ARP) SetResponse(MAC net2.HardwareAddr) error {
+func (a *ARP) SetResponse(MAC net.HardwareAddr) error {
 	// These must be pre-filled by an arp response
 	if len(MAC) != int(a.HWSize) {
 		return ErrBadMac

@@ -14,7 +14,7 @@ import (
 	"machine"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net""
 )
 
 const _debug = false
