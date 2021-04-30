@@ -1,10 +1,10 @@
-// +build atsamd51
-
 package ili9341
 
 import (
 	"machine"
 )
+
+var buf [64]byte
 
 type spiDriver struct {
 	bus machine.SPI
@@ -44,9 +44,16 @@ func (pd *spiDriver) write16(data uint16) {
 }
 
 func (pd *spiDriver) write16n(data uint16, n int) {
-	for i := 0; i < n; i++ {
-		pd.bus.Tx([]byte{uint8(data >> 8), uint8(data)}, nil)
+	for i := 0; i < len(buf); i += 2 {
+		buf[i] = uint8(data >> 8)
+		buf[i+1] = uint8(data)
 	}
+
+	for i := 0; i < (n >> 5); i++ {
+		pd.bus.Tx(buf[:], nil)
+	}
+
+	pd.bus.Tx(buf[:n%64], nil)
 }
 
 func (pd *spiDriver) write16sl(data []uint16) {
