@@ -13,7 +13,7 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-// Device wraps an SPI connection.
+// Device wraps I2C or SPI connection.
 type Device struct {
 	bus        Buser
 	buffer     []byte
@@ -21,6 +21,7 @@ type Device struct {
 	height     int16
 	bufferSize int16
 	vccState   VccMode
+	canReset   bool
 }
 
 // Config is the configuration for the display
@@ -98,6 +99,7 @@ func (d *Device) Configure(cfg Config) {
 	}
 	d.bufferSize = d.width * d.height / 8
 	d.buffer = make([]byte, d.bufferSize)
+	d.canReset = cfg.Address != 0 || d.width != 128 || d.height != 64 // I2C or not 128x64
 
 	d.bus.configure()
 
@@ -178,9 +180,11 @@ func (d *Device) ClearDisplay() {
 
 // Display sends the whole buffer to the screen
 func (d *Device) Display() error {
+	// Reset the screen to 0x0
+	// This works fine with I2C
 	// In the 128x64 (SPI) screen resetting to 0x0 after 128 times corrupt the buffer
-	// Since we're printing the whole buffer, avoid resetting it
-	if d.width != 128 || d.height != 64 {
+	// Since we're printing the whole buffer, avoid resetting it in this case
+	if d.canReset {
 		d.Command(COLUMNADDR)
 		d.Command(0)
 		d.Command(uint8(d.width - 1))
