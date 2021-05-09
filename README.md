@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 58 devices are supported.
+The following 60 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -95,6 +95,7 @@ The following 58 devices are supported.
 | [MPU6050 accelerometer/gyroscope](https://store.invensense.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf) | I2C |
 | [P1AM-100 Base Controller](https://facts-engineering.github.io/modules/P1AM-100/P1AM-100.html) | SPI |
 | [PCD8544 display](http://eia.udg.edu/~forest/PCD8544_1.pdf) | SPI |
+| [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf) | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf) | GPIO |
 | [Semihosting](https://wiki.segger.com/Semihosting) | Debug |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\)) | GPIO |

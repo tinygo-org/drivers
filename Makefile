@@ -177,11 +177,20 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino ./examples/keypad4x4/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/alarm/
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/clkout/
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/time/
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/timer/
+	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
 		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
-		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x dht keypad4x4 max72xx p1am tone tm1637
+		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x dht keypad4x4 max72xx p1am tone tm1637 \
+		pcf8563
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:
