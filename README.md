@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 63 devices are supported.
+The following 64 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -92,6 +92,7 @@ The following 63 devices are supported.
 | [MAX7219 & MAX7221 display driver](https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf) | SPI |
 | [MCP23017 port expander](https://ww1.microchip.com/downloads/en/DeviceDoc/20001952C.pdf) | I2C |
 | [MCP3008 analog to digital converter (ADC)](http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf) | SPI |
+| [MCP2515 Stand-Alone CAN Controller with SPI Interface](https://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Family-Data-Sheet-DS20001801K.pdf) | SPI |
 | [Microphone - PDM](https://cdn-learn.adafruit.com/assets/assets/000/049/977/original/MP34DT01-M.pdf) | I2S/PDM |
 | [MMA8653 accelerometer](https://www.nxp.com/docs/en/data-sheet/MMA8653FC.pdf) | I2C |
 | [MPU6050 accelerometer/gyroscope](https://store.invensense.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf) | I2C |
