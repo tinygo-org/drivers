@@ -23,33 +23,46 @@ const ntpHost = "129.6.15.29"
 
 const NTP_PACKET_SIZE = 48
 
+// these are the default pins for the Arduino Nano33 IoT.
+// change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
+
+	// these are the default pins for the Arduino Nano33 IoT.
+	uart = machine.UART2
+	tx   = machine.NINA_TX
+	rx   = machine.NINA_RX
+	spi  = machine.NINA_SPI
+
 	// this is the ESP chip that has the WIFININA firmware flashed on it
 	adaptor *wifinina.Device
 	b       = make([]byte, NTP_PACKET_SIZE)
 )
 
-func main() {
+func setup() {
+	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
-	// Init esp32
 	// Configure SPI for 8Mhz, Mode 0, MSB First
-	machine.NINA_SPI.Configure(machine.SPIConfig{
+	spi.Configure(machine.SPIConfig{
 		Frequency: 8 * 1e6,
 		SDO:       machine.NINA_SDO,
 		SDI:       machine.NINA_SDI,
 		SCK:       machine.NINA_SCK,
 	})
 
-	// these are the default pins for the Arduino Nano33 IoT.
-	adaptor = wifinina.New(machine.NINA_SPI,
+	adaptor = wifinina.New(spi,
 		machine.NINA_CS,
 		machine.NINA_ACK,
 		machine.NINA_GPIO0,
 		machine.NINA_RESETN)
-
 	adaptor.Configure()
+}
 
-	// connect to access point
+func main() {
+
+	setup()
+
+	waitSerial()
+
 	connectToAP()
 
 	// now make UDP connection
@@ -80,10 +93,13 @@ func main() {
 		}
 	}
 
-	// Right now this code is never reached. Need a way to trigger it...
-	println("Disconnecting UDP...")
-	conn.Close()
-	println("Done.")
+}
+
+// Wait for user to open serial console
+func waitSerial() {
+	for !machine.UART0.DTR() {
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
@@ -140,6 +156,12 @@ func clearBuffer() {
 
 // connect to access point
 func connectToAP() {
+	if len(ssid) == 0 || len(pass) == 0 {
+		for {
+			println("Connection failed: Either ssid or password not set")
+			time.Sleep(10 * time.Second)
+		}
+	}
 	time.Sleep(2 * time.Second)
 	message("Connecting to " + ssid)
 	adaptor.SetPassphrase(ssid, pass)
