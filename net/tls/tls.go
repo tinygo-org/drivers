@@ -4,6 +4,7 @@ package tls
 
 import (
 	"strconv"
+	"strings"
 
 	"tinygo.org/x/drivers/net"
 )
@@ -17,14 +18,17 @@ func Dial(network, address string, config *Config) (*net.TCPSerialConn, error) {
 		return nil, err
 	}
 
-	addr := raddr.IP.String()
+	hostname := strings.Split(address, ":")[0]
 	sendport := strconv.Itoa(raddr.Port)
+	if sendport == "0" {
+		sendport = "443"
+	}
 
 	// disconnect any old socket
 	net.ActiveDevice.DisconnectSocket()
 
 	// connect new socket
-	err = net.ActiveDevice.ConnectSSLSocket(addr, sendport)
+	err = net.ActiveDevice.ConnectSSLSocket(hostname, sendport)
 	if err != nil {
 		return nil, err
 	}

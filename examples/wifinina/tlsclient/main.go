@@ -1,17 +1,20 @@
 // This example opens a TCP connection using a device with WiFiNINA firmware
-// and sends a HTTP request to retrieve a webpage, based on the following
-// Arduino example:
+// and sends a HTTPS request to retrieve a webpage
 //
-// https://github.com/arduino-libraries/WiFiNINA/blob/master/examples/WiFiWebClientRepeating/
+// You shall see "strict-transport-security" header in the response,
+// this confirms communication is indeed over HTTPS
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
 //
 package main
 
 import (
 	"fmt"
 	"machine"
+	"strings"
 	"time"
 
 	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net/tls"
 	"tinygo.org/x/drivers/wifinina"
 )
 
@@ -71,7 +74,7 @@ func main() {
 	for {
 		readConnection()
 		if time.Now().Sub(lastRequestTime).Milliseconds() >= 10000 {
-			makeHTTPRequest()
+			makeHTTPSRequest()
 		}
 	}
 
@@ -96,29 +99,24 @@ func readConnection() {
 	}
 }
 
-func makeHTTPRequest() {
+func makeHTTPSRequest() {
 
 	var err error
 	if conn != nil {
 		conn.Close()
 	}
 
-	// make TCP connection
-	ip := net.ParseIP(server)
-	raddr := &net.TCPAddr{IP: ip, Port: 80}
-	laddr := &net.TCPAddr{Port: 8080}
-
 	message("\r\n---------------\r\nDialing TCP connection")
-	conn, err = net.DialTCP("tcp", laddr, raddr)
-	for ; err != nil; conn, err = net.DialTCP("tcp", laddr, raddr) {
+	conn, err = tls.Dial("tcp", server, nil)
+	for ; err != nil; conn, err = tls.Dial("tcp", server, nil) {
 		message("Connection failed: " + err.Error())
 		time.Sleep(5 * time.Second)
 	}
 	println("Connected!\r")
 
-	print("Sending HTTP request...")
+	print("Sending HTTPS request...")
 	fmt.Fprintln(conn, "GET / HTTP/1.1")
-	fmt.Fprintln(conn, "Host:", server)
+	fmt.Fprintln(conn, "Host:", strings.Split(server, ":")[0])
 	fmt.Fprintln(conn, "User-Agent: TinyGo")
 	fmt.Fprintln(conn, "Connection: close")
 	fmt.Fprintln(conn)

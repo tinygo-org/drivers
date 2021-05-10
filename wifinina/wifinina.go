@@ -303,21 +303,29 @@ func (d *Device) Configure() {
 
 // ----------- client methods (should this be a separate struct?) ------------
 
-func (d *Device) StartClient(addr uint32, port uint16, sock uint8, mode uint8) error {
+func (d *Device) StartClient(hostname string, addr uint32, port uint16, sock uint8, mode uint8) error {
 	if _debug {
-		println("[StartClient] called StartClient()\r")
-		fmt.Printf("[StartClient] addr: % 02X, port: %d, sock: %d\r\n", addr, port, sock)
+		fmt.Printf("[StartClient] hostname: %s addr: % 02X, port: %d, sock: %d\r\n", hostname, addr, port, sock)
 	}
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return err
 	}
 
-	d.sendCmd(CmdStartClientTCP, 4)
+	if len(hostname) > 0 {
+		d.sendCmd(CmdStartClientTCP, 5)
+		d.sendParamStr(hostname, false)
+	} else {
+		d.sendCmd(CmdStartClientTCP, 4)
+	}
 	d.sendParam32(addr, false)
 	d.sendParam16(port, false)
 	d.sendParam8(sock, false)
 	d.sendParam8(mode, true)
+
+	if len(hostname) > 0 {
+		d.padTo4(17 + len(hostname))
+	}
 
 	d.spiChipDeselect()
 
@@ -818,7 +826,7 @@ func (d *Device) sendCmdStr(cmd uint8, p1 string) (err error) {
 	}
 	l := d.sendCmd(cmd, 1)
 	l += d.sendParamStr(p1, true)
-	d.addPadding(l)
+	d.padTo4(5 + len(p1))
 	return nil
 }
 
@@ -1144,7 +1152,7 @@ func (d *Device) addPadding(l int) {
 
 func (d *Device) padTo4(l int) {
 	if _debug {
-		println("addPadding", l, "\r")
+		println("padTo4", l, "\r")
 	}
 
 	for l%4 != 0 {

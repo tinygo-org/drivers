@@ -50,19 +50,24 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	drv.proto, drv.ip, drv.port = mode, 0, 0
 
 	// convert port to uint16
-	p64, err := strconv.ParseUint(portStr, 10, 16)
-	if err != nil {
-		return fmt.Errorf("could not convert port to uint16: %s", err.Error())
-	}
-	port := uint16(p64)
-
-	// look up the hostname if necessary; if an IP address was specified, the
-	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
-	ipAddr, err := drv.dev.GetHostByName(addr)
+	port, err := convertPort(portStr)
 	if err != nil {
 		return err
 	}
-	ip := ipAddr.AsUint32()
+
+	hostname := addr
+	ip := uint32(0)
+
+	if mode != ProtoModeTLS {
+		// look up the hostname if necessary; if an IP address was specified, the
+		// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
+		ipAddr, err := drv.dev.GetHostByName(addr)
+		if err != nil {
+			return err
+		}
+		hostname = ""
+		ip = ipAddr.AsUint32()
+	}
 
 	// check to see if socket is already set; if so, stop it
 	if drv.sock != NoSocketAvail {
@@ -77,7 +82,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	}
 
 	// attempt to start the client
-	if err := drv.dev.StartClient(ip, port, drv.sock, mode); err != nil {
+	if err := drv.dev.StartClient(hostname, ip, port, drv.sock, mode); err != nil {
 		return err
 	}
 
@@ -169,7 +174,7 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 		return 0, ErrNoData
 	}
 	if drv.proto == ProtoModeUDP {
-		if err := drv.dev.StartClient(drv.ip, drv.port, drv.sock, drv.proto); err != nil {
+		if err := drv.dev.StartClient("", drv.ip, drv.port, drv.sock, drv.proto); err != nil {
 			return 0, fmt.Errorf("error in startClient: %w", err)
 		}
 		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
