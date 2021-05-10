@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 60 devices are supported.
+The following 61 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -109,6 +109,7 @@ The following 60 devices are supported.
 | [ST7789 TFT color display](https://cdn-shop.adafruit.com/product-files/3787/3787_tft_QT154H2201__________20190228182902.pdf) | SPI |
 | [Stepper motor "Easystepper" controller](https://en.wikipedia.org/wiki/Stepper_motor) | GPIO |
 | [Thermistor](https://www.farnell.com/datasheets/33552.pdf) | ADC |
+| [TM1637 7-segment LED display](https://www.mcielectronics.cl/website_MCI/static/documents/Datasheet_TM1637.pdf) | I2C |
 | [TMP102 I2C Temperature Sensor](https://download.mikroe.com/documents/datasheets/tmp102-data-sheet.pdf) | I2C |
 | [VEML6070 UV light sensor](https://www.vishay.com/docs/84277/veml6070.pdf) | I2C |
 | [VL53L1X time-of-flight distance sensor](https://www.st.com/resource/en/datasheet/vl53l1x.pdf) | I2C |
