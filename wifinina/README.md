@@ -8,24 +8,13 @@ The way this driver works is by using the SPI interface of your microcontroller 
 
 For information on how to use this driver, please take a look at the examples located in the [examples/wifinina](../examples/wifinina) directory.
 
-## WiFiNINA Firmware Installation
+## nina-fw Firmware
 
-**PLEASE NOTE: New Arduino Nano33 IoT boards already have the WiFiNINA firmware pre-installed, so you should not need to install the firmware yourself.**
+**PLEASE NOTE: New Arduino Nano33 IoT boards most likely already have a recent version of the nina-fw firmware pre-installed, so you should not need to install the firmware yourself.**
 
-In order to use this driver, you must have the WiFiNINA firmware installed on the ESP32 chip. If it is already installed, you can just use it. You do not need to build and flash the firmware again.
+In order to use this driver, you must have the nina-fw firmware installed on the ESP32 chip. If it is already installed, you can just use it. You do not need to flash the firmware again.
 
-### Building the WifiNINA firmware
-
-We have provided a Dockerfile that can build the needed firmware.
-
-```shell
-docker build -t wifinina ./wifinina/
-docker run -v "$(pwd)/build:/src/build" wifinina
-```
-
-This will put the firmware files into the `build` directory. Now you can flash them to the ESP32 chip.
-
-### Installing esptool to flash WifiNINA firmware
+### Installing esptool to flash nina-fw firmware
 
 In order to flash the firmware, you need to use Python to install the `esptool` package.
 
@@ -35,24 +24,27 @@ pip install esptool
 
 Once you have installed `esptool` you can follow the correct procedure for flashing your board.
 
-### Installing on Arduino Nano33 IoT
+### Updating the Arduino Nano33 IoT
 
-The Arduino Nano33 IoT board has the WiFiNINA firmware flashed onto the onboard NINA-W102 chip out of the box.
+In the `updater` directory we have a precompiled binary of the "passthrough" code you will need to flash first, in order to update the ESP32 co-processor on your board.
 
-Flashing the firmware is only necessary on the Arduino Nano33 IoT in order to upgrade or if other firmware was installed previously.
-
-If you do want to install the firmware on the Arduino Nano33 IoT board's built-in NINA-W102 chip, you will need to first build the firmware as described above.
-
-To flash this firmware on the Arduino Nano33 IoT you will need to follow the following procedure using the Arduino IDE software:
-
-- Install _Arduino SAMD Boards_ from the Boards Manager.
-- Install _WiFiNINA_ from the Library Manager.
-- Using the normal Arduino software, load the `SerialNINAPassthrough` sketch on to the board (in File -> Examples -> WiFiNINA-> Tools).
-
-Now you can flash the WifiNINA firmware using the `esptool` script:
+This is what needs to be done. There is also a bash script that performs the same steps also located in the `updater` directory.
 
 ```shell
-python esptool.py --chip esp32 --port /dev/ttyACM0 --baud 115200 --before no_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 40m --flash_size detect 0x1000 build/bootloader.bin 0xf000 build/phy_init_data.bin 0x30000 build/nina-fw.bin 0x8000 build/partitions.bin
+mkdir -p ../build
+
+# reset board into bootloader mode using 1200 baud
+stty -F /dev/ttyACM0 ispeed 1200 ospeed 1200
+
+# flash the passthru binary to the SAMD21 using bossac
+# code from https://github.com/arduino-libraries/WiFiNINA/blob/master/examples/Tools/SerialNINAPassthrough/SerialNINAPassthrough.ino
+bossac -d -i -e -w -v -R --port=/dev/ttyACM0 --offset=0x2000 ./SerialNINAPassthrough.ino.nano_33_iot.bin
+
+# download the nina-fw binary
+wget -P ../build/ https://github.com/arduino/nina-fw/releases/download/1.4.5/NINA_W102-v1.4.5.bin 
+
+# flash the nina-fw binary to the ESP32 using esptool
+esptool --port /dev/ttyACM0 --before default_reset --baud 115200 write_flash 0 ../build/NINA_W102-v1.4.5.bin
 ```
 
-You only need to do this one time, and then the correct WiFiNINA firmware will be on the NINA chip, and you can just flash the Arduino Nano33 IoT board using TinyGo. We should be able to remove some of these steps in a future release of this software.
+You only need to do this one time, and then the correct nina-fw firmware will be on the NINA ESP32 chip, and you can just flash the Arduino Nano33 IoT board using TinyGo.
