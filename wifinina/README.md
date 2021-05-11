@@ -10,9 +10,9 @@ For information on how to use this driver, please take a look at the examples lo
 
 ## nina-fw Firmware
 
-**PLEASE NOTE: New Arduino Nano33 IoT boards most likely already have a recent version of the nina-fw firmware pre-installed, so you should not need to install the firmware yourself.**
+**PLEASE NOTE: New Adafruit Boards with WiFi and Arduino Nano33 IoT boards most likely already have a recent version of the nina-fw firmware pre-installed. You should not need to install the firmware yourself.**
 
-In order to use this driver, you must have the nina-fw firmware installed on the ESP32 chip. If it is already installed, you can just use it. You do not need to flash the firmware again.
+In order to use this driver, you must have the nina-fw firmware installed on the ESP32 chip. If it is already installed, you can just use it. You do not need to flash the firmware again. The following instructions are only for those who want or need to update the firmware on your board.
 
 ### Installing esptool to flash nina-fw firmware
 
@@ -24,7 +24,7 @@ pip install esptool
 
 Once you have installed `esptool` you can follow the correct procedure for flashing your board.
 
-### Updating the Arduino Nano33 IoT
+### Updating nina-fw on the Arduino Nano33 IoT
 
 In the `updater` directory we have a precompiled binary of the "passthrough" code you will need to flash first, in order to update the ESP32 co-processor on your board.
 
@@ -48,3 +48,9 @@ esptool --port /dev/ttyACM0 --before default_reset --baud 115200 write_flash 0 .
 ```
 
 You only need to do this one time, and then the correct nina-fw firmware will be on the NINA ESP32 chip, and you can just flash the Arduino Nano33 IoT board using TinyGo.
+
+## Updating Adafruit ESP32 WiFi Boards
+
+Adafruit provides very good instructions for updating their boards that provide a ESP32 WiFi-BLE co-processor. For more information, please see:
+
+https://learn.adafruit.com/upgrading-esp32-firmware

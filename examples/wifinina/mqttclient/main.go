@@ -35,10 +35,7 @@ const server = "tcp://test.mosquitto.org:1883"
 var (
 
 	// these are the default pins for the Arduino Nano33 IoT.
-	uart = machine.UART2
-	tx   = machine.NINA_TX
-	rx   = machine.NINA_RX
-	spi  = machine.NINA_SPI
+	spi = machine.NINA_SPI
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
 	adaptor *wifinina.Device
@@ -48,7 +45,6 @@ var (
 func main() {
 	time.Sleep(3000 * time.Millisecond)
 
-	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 	rand.Seed(time.Now().UnixNano())
 
 	// Configure SPI for 8Mhz, Mode 0, MSB First
@@ -94,7 +90,7 @@ func main() {
 				println(err.Error())
 			}
 		}
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Right now this code is never reached. Need a way to trigger it...

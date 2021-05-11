@@ -29,10 +29,7 @@ const serverIP = ""
 var (
 
 	// these are the default pins for the Arduino Nano33 IoT.
-	uart = machine.UART2
-	tx   = machine.NINA_TX
-	rx   = machine.NINA_RX
-	spi  = machine.NINA_SPI
+	spi = machine.NINA_SPI
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
 	adaptor *wifinina.Device
@@ -41,8 +38,6 @@ var (
 var buf = &bytes.Buffer{}
 
 func main() {
-
-	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
 	// Configure SPI for 8Mhz, Mode 0, MSB First
 	spi.Configure(machine.SPIConfig{
