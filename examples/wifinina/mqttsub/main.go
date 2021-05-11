@@ -32,12 +32,8 @@ const server = "tcp://test.mosquitto.org:1883"
 
 // change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-
 	// these are the default pins for the Arduino Nano33 IoT.
-	uart = machine.UART2
-	tx   = machine.NINA_TX
-	rx   = machine.NINA_RX
-	spi  = machine.NINA_SPI
+	spi = machine.NINA_SPI
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
 	adaptor *wifinina.Device
@@ -55,7 +51,6 @@ func subHandler(client mqtt.Client, msg mqtt.Message) {
 func main() {
 	time.Sleep(3000 * time.Millisecond)
 
-	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 	rand.Seed(time.Now().UnixNano())
 
 	// Configure SPI for 8Mhz, Mode 0, MSB First
