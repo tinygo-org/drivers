@@ -1,3 +1,46 @@
+0.16.0
+---
+- **new devices**
+    - aht20: add device
+    - ina260: add new i2c device
+    - keypad: add 4x4 keypad driver (#226)
+    - max7219: add driver support
+    - mcp2515: add support for mcp2515 CAN device
+    - p1am: support the P1AM-100 hardware watchdog
+    - pcf8563: add support for pcf8563 real time clock
+    - servo: add driver using PWM
+    - tm1637: add support for tm1637 7-segment LED
+    - tone: add package for producing tones using the PWM interface
+- **enhancements**
+    - pwm: update drivers with PWM to use new interface
+    - wifinina: Make TLS work over WiFiNINA Verified on Arduino Nano33 IoT and nina fw v1.4.5
+    - ssd1306: Enable reset screen for SSD1306 via I2C
+    - st7789: add scrolling functions to match st7735
+- **bugfixes**
+    - wifinina:
+        - fix getMACAddress and getTime
+        - fix println + cleanup
+        - remove debug flag and remove unnecessary padding call
+        - fix padding and implement missing functions
+    - flash: fix EraseBlocks method which is erasing sectors instead
+- **core**
+    - all: use interfaces for UART objects
+    - all: do not take the pointer of an I2C object
+    - adc: update drivers with ADC to use new config struct
+- **testing**
+    - tester:
+        - add a mock for command-oriented i2c devices
+        - add 16-bit register mock device
+
+- **docs**
+    - ssd1306: example of ssd1306 with 128x64 display over I2C
+    - wifinina:
+        - add information about Adafruit boards with ESP32 wifi coprocessors, and modify examples to remove code that was both not being used, and also prevented many Adafruit boards from being able to be targeted by the examples
+        - update docs to simplify the nina-fw update process
+        - example that connects to AP and prints ip addresses, time and mac
+    - p1am: documentation and example program
+    - add missing new drivers added since last release
+
 0.15.0
 ---
 - **new devices**
