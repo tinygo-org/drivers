@@ -58,6 +58,7 @@ The following 62 devices are supported.
 |----------|-------------|
 | [ADT7410 I2C Temperature Sensor](https://www.analog.com/media/en/technical-documentation/data-sheets/ADT7410.pdf) | I2C |
 | [ADXL345 accelerometer](http://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf) | I2C |
+| [AHT20 I2C Temperature and Humidity Sensor](http://www.aosong.com/userfiles/files/media/AHT20%20%E8%8B%B1%E6%96%87%E7%89%88%E8%AF%B4%E6%98%8E%E4%B9%A6%20A0%2020201222.pdf) | I2C |
 | [AMG88xx 8x8 Thermal camera sensor](https://cdn-learn.adafruit.com/assets/assets/000/043/261/original/Grid-EYE_SPECIFICATIONS%28Reference%29.pdf) | I2C |
 | [APA102 RGB LED](https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf) | SPI |
 | [AT24CX 2-wire serial EEPROM](https://www.openimpulse.com/blog/wp-content/uploads/wpsc/downloadables/24C32-Datasheet.pdf) | I2C |
