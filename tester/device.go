@@ -10,6 +10,9 @@ type I2CDevice interface {
 	// WriteRegister implements I2C.WriteRegister.
 	WriteRegister(r uint8, buf []byte) error
 
+	// Tx implements I2C.Tx
+	Tx(w, r []byte) error
+
 	// Addr returns the Device address.
 	Addr() uint8
 }

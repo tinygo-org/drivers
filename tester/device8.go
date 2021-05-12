@@ -53,6 +53,12 @@ func (d *I2CDevice8) WriteRegister(r uint8, buf []byte) error {
 	return nil
 }
 
+// Tx implements I2C.Tx.
+func (bus *I2CDevice8) Tx(w, r []byte) error {
+	// TODO: implement this
+	return nil
+}
+
 // assertRegisterRange asserts that reading or writing the given
 // register and subsequent registers is in range of the available registers.
 func (d *I2CDevice8) assertRegisterRange(r uint8, buf []byte) {
