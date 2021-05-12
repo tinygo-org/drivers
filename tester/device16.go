@@ -72,3 +72,9 @@ func (d *I2CDevice16) WriteRegister(r uint8, buf []byte) error {
 
 	return nil
 }
+
+// Tx implements I2C.Tx.
+func (bus *I2CDevice16) Tx(w, r []byte) error {
+	// TODO: implement this
+	return nil
+}
