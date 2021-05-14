@@ -10,7 +10,7 @@ import (
 func main() {
 	println("GPS UART Example")
 	machine.UART1.Configure(machine.UARTConfig{BaudRate: 9600})
-	ublox := gps.NewUART(&machine.UART1)
+	ublox := gps.NewUART(machine.UART1)
 	parser := gps.NewParser()
 	var fix gps.Fix
 	for {

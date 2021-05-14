@@ -30,7 +30,7 @@ var (
 	tx   = machine.PA22
 	rx   = machine.PA23
 
-	console = machine.UART0
+	console = machine.Serial
 
 	adaptor *espat.Device
 )

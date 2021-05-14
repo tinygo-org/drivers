@@ -20,7 +20,7 @@ var (
 	input [consoleBufLen]byte
 	store [storageBufLen]byte
 
-	console = machine.UART0
+	console = machine.Serial
 
 	dev *flash.Device
 
