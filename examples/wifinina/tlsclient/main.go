@@ -77,7 +77,7 @@ func main() {
 
 // Wait for user to open serial console
 func waitSerial() {
-	for !machine.UART0.DTR() {
+	for !machine.Serial.DTR() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
