@@ -347,7 +347,7 @@ func xxdfprint(w io.Writer, offset uint32, b []byte) {
 		}
 		fmt.Fprintf(w, "%08x: % x    ", offset+uint32(i), b[i:l])
 		for j, n := 0, l-i; j < 16; j++ {
-			if j >= n || !strconv.IsPrint(rune(b[i+j])) || b[i+j] >= 0xFE {
+			if j >= n || !strconv.IsPrint(rune(b[i+j])) || b[i+j] >= 0x80 {
 				buf16[j] = '.'
 			} else {
 				buf16[j] = b[i+j]

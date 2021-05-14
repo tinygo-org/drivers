@@ -195,6 +195,8 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/console/
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/tinyfs/
+	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \

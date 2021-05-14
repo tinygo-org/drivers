@@ -23,8 +23,15 @@ const (
 	SD_CARD_TYPE_SDHC = 3 // High Capacity SD card
 )
 
+var (
+	dummy [512]byte
+)
+
 type Device struct {
 	bus        machine.SPI
+	sck        machine.Pin
+	sdo        machine.Pin
+	sdi        machine.Pin
 	cs         machine.Pin
 	cmdbuf     []byte
 	dummybuf   []byte
@@ -34,10 +41,13 @@ type Device struct {
 	CSD        *CSD
 }
 
-func New(b machine.SPI, cs machine.Pin) Device {
+func New(b machine.SPI, sck, sdo, sdi, cs machine.Pin) Device {
 	return Device{
 		bus:        b,
 		cs:         cs,
+		sck:        sck,
+		sdo:        sdo,
+		sdi:        sdi,
 		cmdbuf:     make([]byte, 6),
 		dummybuf:   make([]byte, 512),
 		tokenbuf:   make([]byte, 1),
@@ -50,26 +60,38 @@ func (d *Device) Configure() error {
 }
 
 func (d *Device) initCard() error {
+	d.bus.Configure(machine.SPIConfig{
+		SCK:       d.sck,
+		SDO:       d.sdo,
+		SDI:       d.sdi,
+		Frequency: 250000,
+		LSBFirst:  false,
+		Mode:      0, // phase=0, polarity=0
+	})
+
 	// set pin modes
 	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.cs.High()
 
-	// clock card at least 100 cycles with cs high
-	for i := 0; i < 16; i++ {
-		d.bus.Transfer(byte(0xFF))
+	for i := range dummy {
+		dummy[i] = 0xFF
 	}
 
+	// clock card at least 100 cycles with cs high
+	d.bus.Tx(dummy[:10], nil)
+
 	d.cs.Low()
+	d.bus.Tx(dummy[:], nil)
 
 	// CMD0: init card; sould return _R1_IDLE_STATE (allow 5 attempts)
 	ok := false
-	for i := 0; i < 2000; i++ {
+	tm := setTimeout(0, 2*time.Second)
+	for !tm.expired() {
 		// Wait up to 2 seconds to be the same as the Arduino
 		if d.cmd(CMD0_GO_IDLE_STATE, 0, 0x95) == _R1_IDLE_STATE {
 			ok = true
 			break
 		}
-		time.Sleep(1 * time.Millisecond)
 	}
 	if !ok {
 		return fmt.Errorf("no SD card")
@@ -115,20 +137,21 @@ func (d *Device) initCard() error {
 
 	// check for timeout
 	ok = false
-	for i := 0; i < 2000; i++ {
+	tm = setTimeout(0, 2*time.Second)
+	for !tm.expired() {
 		if d.acmd(ACMD41_SD_APP_OP_COND, arg) == 0 {
 			ok = true
 			break
 		}
-		time.Sleep(1 * time.Millisecond)
 	}
+
 	if !ok {
 		return fmt.Errorf("SD_CARD_ERROR_ACMD41")
 	}
 
 	// if SD2 read OCR register to check for SDHC card
 	if d.sdCardType == SD_CARD_TYPE_SD2 {
-		if d.cmd(CMD58_READ_OCR, 0, 0) != 0 {
+		if d.cmd(CMD58_READ_OCR, 0, 0xFF) != 0 {
 			return fmt.Errorf("SD_CARD_ERROR_CMD58")
 		}
 
@@ -143,6 +166,10 @@ func (d *Device) initCard() error {
 		for i := 1; i < 4; i++ {
 			d.bus.Transfer(byte(0xFF))
 		}
+	}
+
+	if d.cmd(CMD16_SET_BLOCKLEN, 0x0200, 0xFF) != 0 {
+		return fmt.Errorf("SD_CARD_ERROR_CMD16")
 	}
 
 	var buf [16]byte
@@ -162,19 +189,28 @@ func (d *Device) initCard() error {
 
 	d.cs.High()
 
+	d.bus.Configure(machine.SPIConfig{
+		SCK:       d.sck,
+		SDO:       d.sdo,
+		SDI:       d.sdi,
+		Frequency: 4000000,
+		LSBFirst:  false,
+		Mode:      0, // phase=0, polarity=0
+	})
+
 	return nil
 }
 
 func (d Device) acmd(cmd byte, arg uint32) byte {
-	d.cmd(CMD55_APP_CMD, 0, 0)
-	return d.cmd(cmd, arg, 0)
+	d.cmd(CMD55_APP_CMD, 0, 0xFF)
+	return d.cmd(cmd, arg, 0xFF)
 }
 
 func (d Device) cmd(cmd byte, arg uint32, crc byte) byte {
 	d.cs.Low()
 
 	if cmd != 12 {
-		d.waitNotBusy(300)
+		d.waitNotBusy(300 * time.Millisecond)
 	}
 
 	// create and send the command
@@ -209,8 +245,9 @@ func (d Device) cmd(cmd byte, arg uint32, crc byte) byte {
 	return 0xFF // -1
 }
 
-func (d Device) waitNotBusy(timeoutMs int) error {
-	for i := 0; i < timeoutMs; i++ {
+func (d Device) waitNotBusy(timeout time.Duration) error {
+	tm := setTimeout(1, timeout)
+	for !tm.expired() {
 		r, err := d.bus.Transfer(byte(0xFF))
 		if err != nil {
 			return err
@@ -218,8 +255,6 @@ func (d Device) waitNotBusy(timeoutMs int) error {
 		if r == 0xFF {
 			return nil
 		}
-
-		time.Sleep(1 * time.Millisecond)
 	}
 	return nil
 }
@@ -227,7 +262,8 @@ func (d Device) waitNotBusy(timeoutMs int) error {
 func (d Device) waitStartBlock() error {
 	status := byte(0xFF)
 
-	for i := 0; i < 3000; i++ {
+	tm := setTimeout(0, 300*time.Millisecond)
+	for !tm.expired() {
 		var err error
 		status, err = d.bus.Transfer(byte(0xFF))
 		if err != nil {
@@ -237,7 +273,6 @@ func (d Device) waitStartBlock() error {
 		if status != 0xFF {
 			break
 		}
-		time.Sleep(100 * time.Microsecond)
 	}
 
 	if status != 254 {
@@ -259,7 +294,7 @@ func (d Device) ReadCID(csd []byte) error {
 }
 
 func (d Device) readRegister(cmd uint8, dst []byte) error {
-	if d.cmd(cmd, 0, 0) != 0 {
+	if d.cmd(cmd, 0, 0xFF) != 0 {
 		return fmt.Errorf("SD_CARD_ERROR_READ_REG")
 	}
 	if err := d.waitStartBlock(); err != nil {
@@ -290,14 +325,14 @@ func (d Device) ReadData(block uint32, dst []byte) error {
 	if d.sdCardType != SD_CARD_TYPE_SDHC {
 		block <<= 9
 	}
-	if d.cmd(CMD17_READ_SINGLE_BLOCK, block, 0) != 0 {
+	if d.cmd(CMD17_READ_SINGLE_BLOCK, block, 0xFF) != 0 {
 		return fmt.Errorf("CMD17 error")
 	}
 	if err := d.waitStartBlock(); err != nil {
 		return fmt.Errorf("waitStartBlock()")
 	}
 
-	err := d.bus.Tx(nil, dst)
+	err := d.bus.Tx(dummy[:512], dst)
 	if err != nil {
 		return err
 	}
@@ -318,7 +353,7 @@ func (d Device) WriteMultiStart(block uint32) error {
 	if d.sdCardType != SD_CARD_TYPE_SDHC {
 		block <<= 9
 	}
-	if d.cmd(CMD25_WRITE_MULTIPLE_BLOCK, block, 0) != 0 {
+	if d.cmd(CMD25_WRITE_MULTIPLE_BLOCK, block, 0xFF) != 0 {
 		return fmt.Errorf("CMD25 error")
 	}
 
@@ -355,7 +390,7 @@ func (d Device) WriteMulti(buf []byte) error {
 	}
 
 	// wait no busy
-	err = d.waitNotBusy(600)
+	err = d.waitNotBusy(600 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("SD_CARD_ERROR_WRITE_TIMEOUT")
 	}
@@ -373,7 +408,7 @@ func (d Device) WriteMultiStop() error {
 	// skip 1 byte
 	d.bus.Transfer(byte(0xFF))
 
-	err := d.waitNotBusy(600)
+	err := d.waitNotBusy(600 * time.Millisecond)
 	if err != nil {
 		return nil
 	}
@@ -391,7 +426,7 @@ func (d Device) WriteData(block uint32, src []byte) error {
 	if d.sdCardType != SD_CARD_TYPE_SDHC {
 		block <<= 9
 	}
-	if d.cmd(CMD24_WRITE_BLOCK, block, 0) != 0 {
+	if d.cmd(CMD24_WRITE_BLOCK, block, 0xFF) != 0 {
 		return fmt.Errorf("CMD24 error")
 	}
 
@@ -418,7 +453,7 @@ func (d Device) WriteData(block uint32, src []byte) error {
 	}
 
 	// wait no busy
-	err = d.waitNotBusy(600)
+	err = d.waitNotBusy(600 * time.Millisecond)
 	if err != nil {
 		return fmt.Errorf("SD_CARD_ERROR_WRITE_TIMEOUT")
 	}
