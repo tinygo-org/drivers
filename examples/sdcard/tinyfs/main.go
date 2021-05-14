@@ -5,6 +5,8 @@ import (
 	"machine"
 	"time"
 
+	"github.com/tinygo-org/tinyfs/fatfs"
+	"tinygo.org/x/drivers/examples/sdcard/tinyfs/console"
 	"tinygo.org/x/drivers/sdcard"
 )
 
@@ -19,10 +21,6 @@ var (
 
 func main() {
 	waitSerial()
-	fmt.Printf("sdcard console\r\n")
-
-	led := ledPin
-	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	sd := sdcard.New(spi, sckPin, sdoPin, sdiPin, csPin)
 	err := sd.Configure()
@@ -33,14 +31,14 @@ func main() {
 		}
 	}
 
-	go RunFor(&sd)
+	filesystem := fatfs.New(&sd)
 
-	for {
-		led.High()
-		time.Sleep(200 * time.Millisecond)
-		led.Low()
-		time.Sleep(200 * time.Millisecond)
-	}
+	// Configure FATFS with sector size (must match value in ff.h - use 512)
+	filesystem.Configure(&fatfs.Config{
+		SectorSize: 512,
+	})
+
+	console.RunFor(&sd, filesystem)
 }
 
 // Wait for user to open serial console

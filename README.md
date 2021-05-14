@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 65 devices are supported.
+The following 66 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -106,6 +106,7 @@ The following 65 devices are supported.
 | [Shift registers (SIPO)](https://en.wikipedia.org/wiki/Shift_register#Serial-in_parallel-out_(SIPO)) | GPIO |
 | [SHT3x Digital Humidity Sensor](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/0_Datasheets/Humidity/Sensirion_Humidity_Sensors_SHT3x_Datasheet_digital.pdf) | I2C |
 | [SPI NOR Flash Memory](https://en.wikipedia.org/wiki/Flash_memory#NOR_flash) | SPI/QSPI |
+| [SPI SDCARD/MMC](https://en.wikipedia.org/wiki/SD_card) | SPI |
 | [SSD1306 OLED display](https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf) | I2C / SPI |
 | [SSD1331 TFT color display](https://www.crystalfontz.com/controllers/SolomonSystech/SSD1331/381/) | SPI |
 | [SSD1351 OLED display](https://download.mikroe.com/documents/datasheets/ssd1351-revision-1.3.pdf) | SPI |
