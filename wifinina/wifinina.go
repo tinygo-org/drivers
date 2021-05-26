@@ -484,7 +484,7 @@ func (d *Device) GetCurrentBSSID() (MACAddress, error) {
 }
 
 func (d *Device) GetCurrentRSSI() (int32, error) {
-	return d.getInt32(d.req1(CmdGetCurrBSSID))
+	return d.getInt32(d.req1(CmdGetCurrRSSI))
 }
 
 func (d *Device) GetCurrentSSID() (string, error) {
