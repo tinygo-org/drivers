@@ -52,13 +52,35 @@ func main() {
 	connectToAP()
 
 	for {
-		println("---------------------------------")
+		println("----------------------------------------")
+		printSSID()
+		printRSSI()
+		printMac()
 		printIPs()
 		printTime()
-		printMacAddress()
 		time.Sleep(10 * time.Second)
 	}
 
+}
+
+func printSSID() {
+	print("SSID: ")
+	ssid, err := adaptor.GetCurrentSSID()
+	if err != nil {
+		println("Unknown (error: ", err.Error(), ")")
+		return
+	}
+	println(ssid)
+}
+
+func printRSSI() {
+	print("RSSI: ")
+	rssi, err := adaptor.GetCurrentRSSI()
+	if err != nil {
+		println("Unknown (error: ", err.Error(), ")")
+		return
+	}
+	println(fmt.Sprintf("%d", rssi))
 }
 
 func printIPs() {
@@ -69,20 +91,28 @@ func printIPs() {
 	}
 	println("IP: ", ip.String())
 	println("Subnet: ", subnet.String())
-	println("Gateway IP: ", gateway.String())
+	println("Gateway: ", gateway.String())
 }
 
 func printTime() {
 	print("Time: ")
 	t, err := adaptor.GetTime()
-	if err != nil {
-		println("Unknown (error: ", err.Error(), ")")
+	for {
+		if err != nil {
+			println("Unknown (error: ", err.Error(), ")")
+			return
+		}
+		if t != 0 {
+			break
+		}
+		time.Sleep(time.Second)
+		t, err = adaptor.GetTime()
 	}
 	println(time.Unix(int64(t), 0).String())
 }
 
-func printMacAddress() {
-	print("MAC Address: ")
+func printMac() {
+	print("MAC: ")
 	b := make([]byte, 8)
 	mac, err := adaptor.GetMACAddress()
 	if err != nil {
@@ -115,16 +145,12 @@ func connectToAP() {
 		}
 	}
 	time.Sleep(2 * time.Second)
-	message("Connecting to " + ssid)
+	println("Connecting to " + ssid)
 	adaptor.SetPassphrase(ssid, pass)
 	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		message("Connection status: " + st.String())
+		println("Connection status: " + st.String())
 		time.Sleep(1 * time.Second)
 		st, _ = adaptor.GetConnectionStatus()
 	}
-	message("Connected.")
-}
-
-func message(msg string) {
-	println(msg, "\r")
+	println("Connected.")
 }
