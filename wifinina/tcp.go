@@ -1,7 +1,7 @@
 package wifinina
 
 import (
-	"fmt"
+	"errors"
 	"strconv"
 	"time"
 
@@ -104,7 +104,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 func convertPort(portStr string) (uint16, error) {
 	p64, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
-		return 0, fmt.Errorf("could not convert port to uint16: %w", err)
+		return 0, errors.New("could not convert port to uint16: " + err.Error())
 	}
 	return uint16(p64), nil
 }
@@ -175,13 +175,13 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 	}
 	if drv.proto == ProtoModeUDP {
 		if err := drv.dev.StartClient("", drv.ip, drv.port, drv.sock, drv.proto); err != nil {
-			return 0, fmt.Errorf("error in startClient: %w", err)
+			return 0, errors.New("error in startClient: " + err.Error())
 		}
 		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
-			return 0, fmt.Errorf("error in insertDataBuf: %w", err)
+			return 0, errors.New("error in insertDataBuf: " + err.Error())
 		}
 		if _, err := drv.dev.SendUDPData(drv.sock); err != nil {
-			return 0, fmt.Errorf("error in sendUDPData: %w", err)
+			return 0, errors.New("error in sendUDPData: " + err.Error())
 		}
 		return len(b), nil
 	} else {
