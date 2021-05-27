@@ -8,7 +8,10 @@ package wifinina // import "tinygo.org/x/drivers/wifinina"
 
 import (
 	"encoding/binary"
-	"fmt"
+	"encoding/hex"
+	"fmt" // used only in debug printouts and is optimized out when debugging is disabled
+	"strconv"
+	"strings"
 	"time"
 
 	"machine"
@@ -213,15 +216,16 @@ func (addr IPAddress) String() string {
 	if len(addr) < 4 {
 		return ""
 	}
-	return fmt.Sprintf("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3])
+	return strconv.Itoa(int(addr[0])) + "." + strconv.Itoa(int(addr[1])) + "." + strconv.Itoa(int(addr[2])) + "." + strconv.Itoa(int(addr[3]))
 }
 
 func ParseIPv4(s string) (IPAddress, error) {
-	var v0, v1, v2, v3 uint8
-	if _, err := fmt.Sscanf(s, "%d.%d.%d.%d", &v0, &v1, &v2, &v3); err != nil {
-		return "", err
-	}
-	return IPAddress([]byte{v0, v1, v2, v3}), nil
+	v := strings.Split(s, ".")
+	v0, _ := strconv.Atoi(v[0])
+	v1, _ := strconv.Atoi(v[1])
+	v2, _ := strconv.Atoi(v[2])
+	v3, _ := strconv.Atoi(v[3])
+	return IPAddress([]byte{byte(v0), byte(v1), byte(v2), byte(v3)}), nil
 }
 
 func (addr IPAddress) AsUint32() uint32 {
@@ -235,13 +239,23 @@ func (addr IPAddress) AsUint32() uint32 {
 type MACAddress uint64
 
 func (addr MACAddress) String() string {
-	return fmt.Sprintf("%016X", uint64(addr))
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(addr))
+	encoded := hex.EncodeToString(b)
+	result := ""
+	for i := 2; i < 8; i++ {
+		result += encoded[i*2 : i*2+2]
+		if i < 7 {
+			result += ":"
+		}
+	}
+	return result
 }
 
 type Error uint8
 
 func (err Error) Error() string {
-	return fmt.Sprintf("wifinina error: 0x%02X", uint8(err))
+	return "wifinina error: 0x" + hex.EncodeToString([]byte{uint8(err)})
 }
 
 // Cmd Struct Message */

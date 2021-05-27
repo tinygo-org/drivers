@@ -2,9 +2,8 @@
 package main
 
 import (
-	"encoding/binary"
-	"fmt"
 	"machine"
+	"strconv"
 	"time"
 
 	"tinygo.org/x/drivers/wifinina"
@@ -80,7 +79,7 @@ func printRSSI() {
 		println("Unknown (error: ", err.Error(), ")")
 		return
 	}
-	println(fmt.Sprintf("%d", rssi))
+	println(strconv.Itoa(int(rssi)))
 }
 
 func printIPs() {
@@ -113,20 +112,11 @@ func printTime() {
 
 func printMac() {
 	print("MAC: ")
-	b := make([]byte, 8)
 	mac, err := adaptor.GetMACAddress()
 	if err != nil {
 		println("Unknown (", err.Error(), ")")
 	}
-	binary.LittleEndian.PutUint64(b, uint64(mac))
-	macAddress := ""
-	for i := 5; i >= 0; i-- {
-		macAddress += fmt.Sprintf("%0X", b[i])
-		if i != 0 {
-			macAddress += ":"
-		}
-	}
-	println(macAddress)
+	println(mac.String())
 }
 
 // Wait for user to open serial console
