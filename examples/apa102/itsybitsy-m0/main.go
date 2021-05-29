@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	apa apa102.Device
+	apa *apa102.Device
 
 	pwm   = machine.TCC0
 	leds  = make([]color.RGBA, 1)
