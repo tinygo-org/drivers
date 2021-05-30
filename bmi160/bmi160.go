@@ -13,6 +13,8 @@ type DeviceSPI struct {
 	// Chip select pin
 	CSB machine.Pin
 
+	buf [7]byte
+
 	// SPI bus (requires chip select to be usable).
 	Bus drivers.SPI
 }
@@ -80,7 +82,10 @@ func (d *DeviceSPI) Reset() error {
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
 func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
-	data := []byte{0x80 | reg_TEMPERATURE_0, 0, 0}
+	data := d.buf[:3]
+	data[0] = 0x80 | reg_TEMPERATURE_0
+	data[1] = 0
+	data[2] = 0
 	d.CSB.Low()
 	err = d.Bus.Tx(data, data)
 	d.CSB.High()
@@ -113,7 +118,11 @@ func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *DeviceSPI) ReadAcceleration() (x int32, y int32, z int32, err error) {
-	data := []byte{0x80 | reg_ACC_XL, 0, 0, 0, 0, 0, 0}
+	data := d.buf[:7]
+	data[0] = 0x80 | reg_ACC_XL
+	for i := 1; i < len(data); i++ {
+		data[i] = 0
+	}
 	d.CSB.Low()
 	err = d.Bus.Tx(data, data)
 	d.CSB.High()
@@ -139,7 +148,11 @@ func (d *DeviceSPI) ReadAcceleration() (x int32, y int32, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *DeviceSPI) ReadRotation() (x int32, y int32, z int32, err error) {
-	data := []byte{0x80 | reg_GYR_XL, 0, 0, 0, 0, 0, 0}
+	data := d.buf[:7]
+	data[0] = 0x80 | reg_GYR_XL
+	for i := 1; i < len(data); i++ {
+		data[i] = 0
+	}
 	d.CSB.Low()
 	err = d.Bus.Tx(data, data)
 	d.CSB.High()
@@ -185,7 +198,9 @@ func (d *DeviceSPI) readRegister(address uint8) uint8 {
 	// I don't know why but it appears necessary to sleep for a bit here.
 	time.Sleep(time.Millisecond)
 
-	data := []byte{0x80 | address, 0}
+	data := d.buf[:2]
+	data[0] = 0x80 | address
+	data[1] = 0
 	d.CSB.Low()
 	d.Bus.Tx(data, data)
 	d.CSB.High()
@@ -198,7 +213,11 @@ func (d *DeviceSPI) writeRegister(address, data uint8) {
 	// I don't know why but it appears necessary to sleep for a bit here.
 	time.Sleep(time.Millisecond)
 
+	buf := d.buf[:2]
+	buf[0] = address
+	buf[1] = data
+
 	d.CSB.Low()
-	d.Bus.Tx([]byte{address, data}, []byte{0, 0})
+	d.Bus.Tx(buf, buf)
 	d.CSB.High()
 }
