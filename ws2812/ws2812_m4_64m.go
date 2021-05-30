@@ -7,6 +7,7 @@ package ws2812
 
 import (
 	"device/arm"
+	"runtime/interrupt"
 )
 
 // Send a single byte using the WS2812 protocol.
@@ -14,6 +15,7 @@ func (d Device) WriteByte(c byte) error {
 	// For the Cortex-M4 at 64MHz
 	portSet, maskSet := d.Pin.PortMaskSet()
 	portClear, maskClear := d.Pin.PortMaskClear()
+	mask := interrupt.Disable()
 
 	// See:
 	// https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
@@ -106,5 +108,6 @@ func (d Device) WriteByte(c byte) error {
 		"maskClear": maskClear,
 		"portClear": portClear,
 	})
+	interrupt.Restore(mask)
 	return nil
 }

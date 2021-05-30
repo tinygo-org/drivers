@@ -7,6 +7,7 @@ package ws2812
 import (
 	"device/avr"
 	"machine"
+	"runtime/interrupt"
 )
 
 // Send a single byte using the WS2812 protocol.
@@ -17,6 +18,7 @@ func (d Device) WriteByte(c byte) error {
 	// Probably this is about pointer registers, which are very limited on AVR.
 	port, maskSet := d.Pin.PortMaskSet()
 	_, maskClear := d.Pin.PortMaskClear()
+	mask := interrupt.Disable()
 
 	switch machine.CPUFrequency() {
 	case 16e6: // 16MHz
@@ -51,8 +53,10 @@ func (d Device) WriteByte(c byte) error {
 			"maskClear": maskClear,
 			"portClear": port,
 		})
+		interrupt.Restore(mask)
 		return nil
 	default:
+		interrupt.Restore(mask)
 		return errUnknownClockSpeed
 	}
 }

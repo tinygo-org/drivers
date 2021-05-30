@@ -5,12 +5,14 @@ package ws2812
 import (
 	"device"
 	"machine"
+	"runtime/interrupt"
 	"unsafe"
 )
 
 func (d Device) WriteByte(c byte) error {
 	portSet, maskSet := d.Pin.PortMaskSet()
 	portClear, maskClear := d.Pin.PortMaskClear()
+	mask := interrupt.Disable()
 
 	switch machine.CPUFrequency() {
 	case 160e6: // 160MHz
@@ -220,6 +222,7 @@ func (d Device) WriteByte(c byte) error {
 			"maskClear": maskClear,
 			"portClear": uintptr(unsafe.Pointer(portClear)),
 		})
+		interrupt.Restore(mask)
 		return nil
 	case 80e6: // 80MHz
 		// See docs for 160MHz.
@@ -336,8 +339,10 @@ func (d Device) WriteByte(c byte) error {
 			"maskClear": maskClear,
 			"portClear": uintptr(unsafe.Pointer(portClear)),
 		})
+		interrupt.Restore(mask)
 		return nil
 	default:
+		interrupt.Restore(mask)
 		return errUnknownClockSpeed
 	}
 }
