@@ -1,4 +1,4 @@
-// +build atsamd51
+// +build atsamd51 atsame5x
 
 package ws2812
 

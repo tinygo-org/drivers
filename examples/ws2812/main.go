@@ -15,7 +15,6 @@ import (
 var leds [10]color.RGBA
 
 func main() {
-	led := machine.LED
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
