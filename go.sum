@@ -9,6 +9,8 @@ github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/sago35/tinygo-dma v0.0.0-20210610020721-297675ab9b23 h1:ESMYhe6RQJ2RbBCH2OK1SNyYq3gKoBpI7g07aLjQgJI=
+github.com/sago35/tinygo-dma v0.0.0-20210610020721-297675ab9b23/go.mod h1:gXCCsg4cKOJ6NJl7teGN597XgN0hzQJz0Wekayj4k+M=
 github.com/tinygo-org/tinyfs v0.0.0-20210514004344-b02c062d12c9 h1:66or7MohOph3xr3gMGCXceLkd+MBoUbV/rPPjl8iQOU=
 github.com/tinygo-org/tinyfs v0.0.0-20210514004344-b02c062d12c9/go.mod h1:HGuyo42bGd1zWSuS1gwgyyjN36ZZMlEpwM0vSrglmXc=
 github.com/tinygo-org/tinyfs v0.0.0-20210514090915-924e60a7bcf8 h1:pYwuKe1XuNeJnGV1UjeZ0FhuZ5+lapIq1NUmGacbBwo=

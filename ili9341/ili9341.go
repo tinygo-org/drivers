@@ -28,6 +28,35 @@ type Device struct {
 	rd  machine.Pin
 }
 
+var cmdBuf [4]byte
+var initCmd = []byte{
+	0xEF, 3, 0x03, 0x80, 0x02,
+	0xCF, 3, 0x00, 0xC1, 0x30,
+	0xED, 4, 0x64, 0x03, 0x12, 0x81,
+	0xE8, 3, 0x85, 0x00, 0x78,
+	0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
+	0xF7, 1, 0x20,
+	0xEA, 2, 0x00, 0x00,
+	PWCTR1, 1, 0x23, // Power control VRH[5:0]
+	PWCTR2, 1, 0x10, // Power control SAP[2:0];BT[3:0]
+	VMCTR1, 2, 0x3e, 0x28, // VCM control
+	VMCTR2, 1, 0x86, // VCM control2
+	MADCTL, 1, 0x48, // Memory Access Control
+	VSCRSADD, 1, 0x00, // Vertical scroll zero
+	PIXFMT, 1, 0x55,
+	FRMCTR1, 2, 0x00, 0x18,
+	DFUNCTR, 3, 0x08, 0x82, 0x27, // Display Function Control
+	0xF2, 1, 0x00, // 3Gamma Function Disable
+	GAMMASET, 1, 0x01, // Gamma curve selected
+	GMCTRP1, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, // Set Gamma
+	0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+	GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
+	0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+	SLPOUT, 0x80, // Exit Sleep
+	DISPON, 0x80, // Display on
+	0x00, // End of list
+}
+
 // Configure prepares display for use
 func (d *Device) Configure(config Config) {
 
@@ -80,33 +109,6 @@ func (d *Device) Configure(config Config) {
 		delay(150)
 	}
 
-	initCmd := []byte{
-		0xEF, 3, 0x03, 0x80, 0x02,
-		0xCF, 3, 0x00, 0xC1, 0x30,
-		0xED, 4, 0x64, 0x03, 0x12, 0x81,
-		0xE8, 3, 0x85, 0x00, 0x78,
-		0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
-		0xF7, 1, 0x20,
-		0xEA, 2, 0x00, 0x00,
-		PWCTR1, 1, 0x23, // Power control VRH[5:0]
-		PWCTR2, 1, 0x10, // Power control SAP[2:0];BT[3:0]
-		VMCTR1, 2, 0x3e, 0x28, // VCM control
-		VMCTR2, 1, 0x86, // VCM control2
-		MADCTL, 1, 0x48, // Memory Access Control
-		VSCRSADD, 1, 0x00, // Vertical scroll zero
-		PIXFMT, 1, 0x55,
-		FRMCTR1, 2, 0x00, 0x18,
-		DFUNCTR, 3, 0x08, 0x82, 0x27, // Display Function Control
-		0xF2, 1, 0x00, // 3Gamma Function Disable
-		GAMMASET, 1, 0x01, // Gamma curve selected
-		GMCTRP1, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, // Set Gamma
-		0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
-		GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
-		0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
-		SLPOUT, 0x80, // Exit Sleep
-		DISPON, 0x80, // Display on
-		0x00, // End of list
-	}
 	for i, c := 0, len(initCmd); i < c; {
 		cmd := initCmd[i]
 		if cmd == 0x00 {
@@ -146,8 +148,24 @@ func (d *Device) Display() error {
 	return nil
 }
 
+var err1 = errors.New("rectangle coordinates outside display area")
+
 // DrawRGBBitmap copies an RGB bitmap to the internal buffer at given coordinates
 func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
+	k, i := d.Size()
+	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
+		x >= k || (x+w) > k || y >= i || (y+h) > i {
+		return err1
+	}
+	d.setWindow(x, y, w, h)
+	d.startWrite()
+	d.driver.write16sl(data)
+	d.endWrite()
+	return nil
+}
+
+// DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
 		x >= k || (x+w) > k || y >= i || (y+h) > i {
@@ -155,7 +173,7 @@ func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
 	}
 	d.setWindow(x, y, w, h)
 	d.startWrite()
-	d.driver.write16sl(data)
+	d.driver.write8sl(data)
 	d.endWrite()
 	return nil
 }
@@ -235,7 +253,8 @@ func (d *Device) SetRotation(rotation Rotation) {
 	case 3:
 		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
 	}
-	d.sendCommand(MADCTL, []uint8{madctl})
+	cmdBuf[0] = madctl
+	d.sendCommand(MADCTL, cmdBuf[:1])
 	d.rotation = rotation
 }
 
@@ -266,16 +285,14 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	//y += d.rowOffset
 	x1 := x + w - 1
 	if x != d.x0 || x1 != d.x1 {
-		d.sendCommand(CASET, []uint8{
-			uint8(x >> 8), uint8(x), uint8(x1 >> 8), uint8(x1),
-		})
+		cmdBuf[0], cmdBuf[1], cmdBuf[2], cmdBuf[3] = uint8(x>>8), uint8(x), uint8(x1>>8), uint8(x1)
+		d.sendCommand(CASET, cmdBuf[:4])
 		d.x0, d.x1 = x, x1
 	}
 	y1 := y + h - 1
 	if y != d.y0 || y1 != d.y1 {
-		d.sendCommand(PASET, []uint8{
-			uint8(y >> 8), uint8(y), uint8(y1 >> 8), uint8(y1),
-		})
+		cmdBuf[0], cmdBuf[1], cmdBuf[2], cmdBuf[3] = uint8(y>>8), uint8(y), uint8(y1>>8), uint8(y1)
+		d.sendCommand(PASET, cmdBuf[:4])
 		d.y0, d.y1 = y, y1
 	}
 	d.sendCommand(RAMWR, nil)
@@ -300,7 +317,9 @@ func (d *Device) sendCommand(cmd byte, data []byte) {
 	d.dc.Low()
 	d.driver.write8(cmd)
 	d.dc.High()
-	d.driver.write8sl(data)
+	if data != nil {
+		d.driver.write8sl(data)
+	}
 	d.endWrite()
 }
 
