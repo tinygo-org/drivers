@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	frameBuffer = [(graphics.BALLHEIGHT + 8) * (graphics.BALLWIDTH + 8)]uint16{}
+	frameBuffer = [(graphics.BALLHEIGHT + 8) * (graphics.BALLWIDTH + 8) * 2]uint8{}
 
 	startTime int64
 	frame     int64
@@ -179,7 +179,8 @@ func main() {
 						c = BGCOLOR
 					}
 				}
-				frameBuffer[y*int(width)+x] = c
+				frameBuffer[(y*int(width)+x)*2] = byte(c >> 8)
+				frameBuffer[(y*int(width)+x)*2+1] = byte(c)
 				bx1++ // Increment bitmap position counters (X axis)
 				bgx1++
 			}
@@ -190,7 +191,7 @@ func main() {
 			bgy++
 		}
 
-		display.DrawRGBBitmap(minx, miny, frameBuffer[:width*height], width, height)
+		display.DrawRGBBitmap8(minx, miny, frameBuffer[:width*height*2], width, height)
 
 		// Show approximate frame rate
 		frame++
@@ -215,11 +216,13 @@ func DrawBackground() {
 				b = graphics.Background[j*byteWidth+k/8]
 			}
 			if b&0x80 == 0 {
-				frameBuffer[k] = BGCOLOR
+				frameBuffer[2*k] = byte(BGCOLOR >> 8)
+				frameBuffer[2*k+1] = byte(BGCOLOR & 0xFF)
 			} else {
-				frameBuffer[k] = GRIDCOLOR
+				frameBuffer[2*k] = byte(GRIDCOLOR >> 8)
+				frameBuffer[2*k+1] = byte(GRIDCOLOR & 0xFF)
 			}
 		}
-		display.DrawRGBBitmap(0, j, frameBuffer[0:w], w, 1)
+		display.DrawRGBBitmap8(0, j, frameBuffer[0:w*2], w, 1)
 	}
 }
