@@ -167,7 +167,7 @@ func main() {
 		//var bufIdx int8 = 0
 
 		//tft.setAddrWindow(minx, miny, width, height)
-		dbg5.Low()
+		//dbg5.Low()
 		dbg6.High()
 		//fmt.Printf("%d < %d < %d < %d\r\n", by, 0, BALLHEIGHT, height)
 
