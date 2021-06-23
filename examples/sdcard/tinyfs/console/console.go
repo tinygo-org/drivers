@@ -35,6 +35,7 @@ var (
 	commands = map[string]cmdfunc{
 		"":        noop,
 		"dbg":     dbg,
+		"help":    help,
 		"lsblk":   lsblk,
 		"mount":   mount,
 		"umount":  umount,
@@ -159,6 +160,28 @@ func runCommand(line string) {
 }
 
 func noop(argv []string) {}
+
+func help(argv []string) {
+	fmt.Printf("help\r\n")
+	fmt.Printf("  show help\r\n")
+	fmt.Printf("dbg\r\n")
+	fmt.Printf("  toggle debug mode\r\n")
+	fmt.Printf("xxd <hex address, ex: 0xA0> <size of hexdump in bytes>\r\n")
+	fmt.Printf("  hexdump the specified address\r\n")
+	fmt.Printf("ls <target file>\r\n")
+	fmt.Printf("  list information\r\n")
+	fmt.Printf("samples\r\n")
+	fmt.Printf("  write some files in the root directory\r\n")
+	fmt.Printf("mkdir <target dir>\r\n")
+	fmt.Printf("  create directory\r\n")
+	fmt.Printf("cat <target file>\r\n")
+	fmt.Printf("  print the contents of file\r\n")
+	fmt.Printf("create <target file>\r\n")
+	fmt.Printf("  create file\r\n")
+	fmt.Printf("write <target file>\r\n")
+	fmt.Printf("  write to file (press CTRL-D to exit)\r\n")
+	fmt.Printf("rm\r\n")
+}
 
 func dbg(argv []string) {
 	if debug {
@@ -421,7 +444,7 @@ func cat(argv []string) {
 		println("Trying to cat to " + tgt)
 	}
 	if tgt == "" {
-		println("Usage: cat <target dir>")
+		println("Usage: cat <target file>")
 		return
 	}
 	if debug {
