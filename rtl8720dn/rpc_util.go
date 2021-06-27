@@ -81,7 +81,6 @@ func (r *RTL8720DN) readThread() {
 
 		length := uint16(readBuf[0]) + uint16(readBuf[1])<<8
 		crc := uint16(readBuf[2]) + uint16(readBuf[3])<<8
-		//fmt.Printf("len %d (%X) crc %04X\r\n", length, length, crc)
 
 		n, _ = io.ReadFull(r.port, payload[:length])
 		if r.debug {
@@ -91,7 +90,6 @@ func (r *RTL8720DN) readThread() {
 		}
 
 		n = int(length)
-		//fmt.Printf("rx : %2d : %s\n", n, dumpHex(payload[:n]))
 
 		crcNew := computeCRC16(payload[:n])
 		if g, e := crcNew, crc; g != e {

@@ -1,6 +1,6 @@
 package rtl8720dn
 
-// TODO: 後で整理する
+// TODO: Implement these when needed
 // https://github.com/Seeed-Studio/seeed-ambd-firmware/blob/master/erpc_idl/erpc_shim/rpc_system_header.h
 
 type RPC_T_GAP_CAUSE int32
