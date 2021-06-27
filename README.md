@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 66 devices are supported.
+The following 67 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -100,6 +100,7 @@ The following 66 devices are supported.
 | [PCD8544 display](http://eia.udg.edu/~forest/PCD8544_1.pdf) | SPI |
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf) | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf) | GPIO |
+| [RTL8720DN 2.4G/5G Dual Bands Wireless and BLE5.0](https://www.seeedstudio.com/Realtek8720DN-2-4G-5G-Dual-Bands-Wireless-and-BLE5-0-Combo-Module-p-4442.html) | UART |
 | [Semihosting](https://wiki.segger.com/Semihosting) | Debug |
 | [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all) | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\)) | GPIO |
