@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tinygo-org/tinyfs"
+	"tinygo.org/x/tinyfs"
 )
 
 const consoleBufLen = 64

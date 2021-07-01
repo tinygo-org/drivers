@@ -5,9 +5,9 @@ import (
 	"machine"
 	"time"
 
-	"github.com/tinygo-org/tinyfs/fatfs"
 	"tinygo.org/x/drivers/examples/sdcard/tinyfs/console"
 	"tinygo.org/x/drivers/sdcard"
+	"tinygo.org/x/tinyfs/fatfs"
 )
 
 var (
