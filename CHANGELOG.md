@@ -1,3 +1,24 @@
+0.17.0
+---
+- **new devices**
+    - rtl8720dn: add support for rtl8720dn
+    - sdcard: add support for spi sdcard driver, along with fatfs
+- **enhancements**
+    - apa102: use 4-byte buffer to improve speed
+    - bmi160: avoid heap allocations
+    - ili9341: add standard SPI driver
+    - wifinina
+        - avoid fmt package
+        - Fix RSSI command for WiFiNINA + Print current SSID + Wait for correct time before printing it out + Cleanup
+    - ws2812
+        - rename the pin to ws2812
+        - add tag for nrf52833
+        - Disable interrupts before sending ws2812 data
+        - add support for qtpy and atsame5x
+- **core**
+    - modules: switch to use tinygo-org version of tinyfs package
+    - all: use machine.Serial as the default output
+
 0.16.0
 ---
 - **new devices**
