@@ -1,3 +1,7 @@
+0.17.1
+---
+- To correct an error in the release process. Same as 0.17.0.
+
 0.17.0
 ---
 - **new devices**
