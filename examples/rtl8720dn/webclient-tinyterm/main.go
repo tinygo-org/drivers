@@ -12,10 +12,11 @@ import (
 )
 
 // You can override the setting with the init() in another source code.
+// If debug is enabled, a serial connection is required.
 // func init() {
 //    ssid = "your-ssid"
 //    password = "your-password"
-//    debug = true
+//    debug = false // true
 //    server = "tinygo.org"
 // }
 
@@ -63,6 +64,10 @@ func main() {
 
 func run() error {
 	fmt.Fprintf(terminal, "setupRTL8720DN()\r\n")
+	if debug {
+		fmt.Fprintf(terminal, "Running in debug mode.\r\n")
+		fmt.Fprintf(terminal, "A serial connection is required to continue execution.\r\n")
+	}
 	rtl, err := setupRTL8720DN()
 	if err != nil {
 		return err
