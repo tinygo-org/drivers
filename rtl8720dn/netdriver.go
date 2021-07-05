@@ -12,8 +12,8 @@ func (r *RTL8720DN) GetDNS(domain string) (string, error) {
 		fmt.Printf("GetDNS(%q)\r\n", domain)
 	}
 
-	ipaddr := [4]byte{}
-	_, err := r.Rpc_netconn_gethostbyname(domain, ipaddr[:])
+	ipaddr := make([]byte, 4)
+	_, err := r.Rpc_netconn_gethostbyname(domain, &ipaddr)
 	if err != nil {
 		return "", err
 	}
@@ -31,8 +31,8 @@ func (r *RTL8720DN) ConnectTCPSocket(addr, port string) error {
 		fmt.Printf("ConnectTCPSocket(%q, %q)\r\n", addr, port)
 	}
 
-	ipaddr := [4]byte{}
-	_, err := r.Rpc_netconn_gethostbyname(addr, ipaddr[:])
+	ipaddr := make([]byte, 4)
+	_, err := r.Rpc_netconn_gethostbyname(addr, &ipaddr)
 	if err != nil {
 		return err
 	}
@@ -81,8 +81,9 @@ func (r *RTL8720DN) ConnectTCPSocket(addr, port string) error {
 		return err
 	}
 
-	optlen := uint32(4)
-	_, err = r.Rpc_lwip_getsockopt(socket, 0x00000FFF, 0x00001007, []byte{0xA5, 0xA5, 0xA5, 0xA5}, nil, optlen)
+	optval := make([]byte, 4)
+	optlen := uint32(len(optval))
+	_, err = r.Rpc_lwip_getsockopt(socket, 0x00000FFF, 0x00001007, []byte{0xA5, 0xA5, 0xA5, 0xA5}, &optval, &optlen)
 	if err != nil {
 		return err
 	}
@@ -225,7 +226,7 @@ func (r *RTL8720DN) ReadSocket(b []byte) (n int, err error) {
 
 	switch r.connectionType {
 	case ConnectionTypeTCP:
-		nn, err := r.Rpc_lwip_recv(r.socket, b, uint32(len(b)), 0x00000008, 0x00002800)
+		nn, err := r.Rpc_lwip_recv(r.socket, &b, uint32(len(b)), 0x00000008, 0x00002800)
 		if err != nil {
 			return 0, err
 		}
@@ -245,7 +246,7 @@ func (r *RTL8720DN) ReadSocket(b []byte) (n int, err error) {
 		}
 		n = int(nn)
 	case ConnectionTypeTLS:
-		nn, err := r.Rpc_wifi_get_ssl_receive(r.client, b, int32(len(b)))
+		nn, err := r.Rpc_wifi_get_ssl_receive(r.client, &b, int32(len(b)))
 		if err != nil {
 			return 0, err
 		}

@@ -59,7 +59,7 @@ func (r *RTL8720DN) ConnectToAP(ssid string, password string) error {
 
 func (r *RTL8720DN) GetIP() (ip, subnet, gateway IPAddress, err error) {
 	ip_info := make([]byte, 12)
-	_, err = r.Rpc_tcpip_adapter_get_ip_info(0, ip_info)
+	_, err = r.Rpc_tcpip_adapter_get_ip_info(0, &ip_info)
 	if err != nil {
 		return nil, nil, nil, err
 	}
