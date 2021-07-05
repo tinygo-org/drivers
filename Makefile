@@ -199,6 +199,8 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webclient/
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webserver/
+	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
