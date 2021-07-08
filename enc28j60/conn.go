@@ -16,11 +16,14 @@ type Packet struct {
 // NextPacket returns a Packet which reads data from the
 // next packet in the FIFO queue. When one is done reading packet data, call
 // Discard on said packet and NextPacket will return the next packet in the FIFO.
-func (d *Dev) NextPacket() (swtch.Reader, error) {
+func (d *Dev) NextPacket(deadline time.Time) (swtch.Reader, error) {
 	dbp("NextPacket")
 	var err error
 	for d.read(EPKTCNT) == 0 { // loop until a packet is received.
-		time.Sleep(time.Millisecond)
+		if time.Since(deadline) > 0 {
+			return nil, ErrRXDeadlineExceeded
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	p := &Packet{ic: d} // Weird bug when creating Packet before read loop. LLVM on AVR is buggy and ic will be nil afterwards.
 	// Set the read pointer to the start of the next packet
