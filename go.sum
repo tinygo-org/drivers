@@ -9,8 +9,8 @@ github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/soypat/ether-swtch v0.9.1 h1:h7A6wwy8CF2w4WozwbAH+oE7U4Ik5sFvy5ncIHX6qJk=
-github.com/soypat/ether-swtch v0.9.1/go.mod h1:GV76EJ0ud2JLMX9PO3OEwWi+FmDqWtR+rVDy8Udy5ok=
+github.com/soypat/ether-swtch v0.10.0 h1:oYDJ2MaamQgPevhYFq1w2dZD8hIIF0VEZ8FFr42x+kM=
+github.com/soypat/ether-swtch v0.10.0/go.mod h1:GV76EJ0ud2JLMX9PO3OEwWi+FmDqWtR+rVDy8Udy5ok=
 github.com/soypat/net v0.2.0/go.mod h1:hd58cJl8uqwu3q+9Q6/fG0WKW+YEdx3E9puO/GLk6e0=
 github.com/soypat/net v0.2.2 h1:i9AfaFeHoKjL5bPvYs5wYIU/2aU+MSs+3YJ6LWn1ZLs=
 github.com/soypat/net v0.2.2/go.mod h1:cxcMlZM5FCxUfb5k1vMWwLN1/Woxq3cdux3rT2/PCpY=
