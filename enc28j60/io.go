@@ -8,8 +8,7 @@ import (
 // read len(data) bytes from buffer
 func (d *Dev) readBuffer(data []byte) {
 	d.enableCS()
-	d.buf[0] = READ_BUF_MEM
-	d.bus.Tx(d.buf[:1], nil)
+	d.bus.Transfer(READ_BUF_MEM)
 	d.bus.Tx(nil, data)
 	d.disableCS()
 	dbp("read from ebuff", data)
@@ -18,8 +17,8 @@ func (d *Dev) readBuffer(data []byte) {
 // write data to TX buffer
 func (d *Dev) writeBuffer(data []byte) {
 	d.enableCS()
-	d.buf[0] = WRITE_BUF_MEM
-	d.bus.Tx(append(d.buf[:1], data...), nil)
+	d.bus.Transfer(WRITE_BUF_MEM)
+	d.bus.Tx(data, nil)
 	d.disableCS()
 	dbp("write to ebuff", data)
 }
@@ -58,7 +57,7 @@ func (d *Dev) writeOp(op, address, data uint8) {
 	d.buf[1] = data
 	err := d.bus.Tx(d.buf[:2], nil)
 	if err != nil {
-		dbp(err.Error(), []byte{op})
+		dbp("writeOp", d.buf[:1])
 	}
 	d.disableCS()
 }

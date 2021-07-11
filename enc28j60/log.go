@@ -1,3 +1,5 @@
+// +build !noheap
+
 package enc28j60
 
 import "github.com/soypat/ether-swtch/hex"
@@ -11,10 +13,8 @@ func dbp(msg string, datas ...[]byte) {
 	if SDB {
 		print(msg)
 		for d := range datas {
-			print(" 0x" + string(hex.Bytes(datas[d])))
-			// for i := 0; i < len(datas[d]); i++ {
-			// 	print(string(hex.Byte(datas[d][i])))
-			// }
+			print(" 0x")
+			print(string(hex.Bytes(datas[d])))
 		}
 		println()
 	}
