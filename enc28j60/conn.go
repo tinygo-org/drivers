@@ -25,7 +25,8 @@ func (d *Dev) NextPacket(deadline time.Time) (swtch.Reader, error) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	p := &Packet{ic: d} // Weird bug when creating Packet before read loop. LLVM on AVR is buggy and ic will be nil afterwards.
+	// p := &Packet{ic: d} // Weird bug when creating Packet before read loop. LLVM on AVR is buggy and ic will be nil afterwards.
+	p := &d.rx
 	// Set the read pointer to the start of the next packet
 	d.write16(ERDPTL, d.nextPacketPtr)
 	p.cursor = d.nextPacketPtr // Packet reader

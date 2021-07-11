@@ -22,6 +22,7 @@ type Dev struct {
 	is interrupt.State
 	// Bank saves last memory bank accessed by read/write ops.
 	Bank uint8
+	rx   Packet
 	// Houses ERDPTL register data pointing to next packet position in buffer.
 	nextPacketPtr uint16
 	// tcursor points to the current octet in the TX buffer.
@@ -49,6 +50,7 @@ func (d *Dev) Init(macaddr []byte) error {
 	if len(macaddr) != 6 {
 		return ErrBadMac
 	}
+	d.rx.ic = d
 	d.macaddr = macaddr
 	dbp("cfg call w/mac:", macaddr)
 	d.configure(macaddr)
