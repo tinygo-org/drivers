@@ -4,8 +4,6 @@ import (
 	"machine"
 	"runtime/interrupt"
 
-	"github.com/soypat/net"
-
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -29,14 +27,14 @@ type Dev struct {
 	tcursor uint16
 	// buf is a small buffer for small SPI packets like read/write command bytes and reading the Receive status vector.
 	// Helps save space and speeds up IO.
-	buf [6]byte
-	// MAC address is the physical address of this device.
-	macaddr net.HardwareAddr
+	buf  [6]byte
+	hbuf []byte // latter half of buf. Having a second buffer prevents slicing overhead from happening in time-critical functions such as readOp.
 	// SPI bus (requires chip select to be usable).
 	bus drivers.SPI
 }
 
 // NewSPI returns a new device driver. The SPI is configured in this call
+//go:inline
 func New(csb machine.Pin, spi drivers.SPI) *Dev {
 	return &Dev{
 		CSB:  csb, // chip select
@@ -46,12 +44,13 @@ func New(csb machine.Pin, spi drivers.SPI) *Dev {
 }
 
 // Init initializes device for use and configures the enc28j60's registries.
+//go:inline
 func (d *Dev) Init(macaddr []byte) error {
 	if len(macaddr) != 6 {
 		return ErrBadMac
 	}
 	d.rx.ic = d
-	d.macaddr = macaddr
+	d.hbuf = d.buf[3:]
 	dbp("cfg call w/mac:", macaddr)
 	d.configure(macaddr)
 	if d.GetRev() == 0 {
@@ -65,16 +64,19 @@ func (d *Dev) Init(macaddr []byte) error {
 func (d *Dev) ResetChip() {
 	d.enableCS()
 	d.Bank = 255
-	d.bus.Tx([]byte{SOFT_RESET}, nil)
+	d.hbuf[0] = SOFT_RESET
+	d.bus.Tx(d.hbuf[:1], nil)
 	d.disableCS()
 }
 
+//go:inline
 func (d *Dev) clkOut(clk uint8) {
 	//setup clkout: 2 is 12.5MHz:
 	d.write(ECOCON, clk&0x7)
 }
 
 // configure mac address and RX/TX/other buffer registers.
+//go:inline
 func (d *Dev) configure(macaddr []byte) {
 	d.ResetChip()
 	time.Sleep(50 * time.Millisecond)
@@ -158,6 +160,7 @@ func (d *Dev) configure(macaddr []byte) {
 
 // Gets the revision of the connected ENC28J60 chip.
 // Will be a number greater than 0 if successful.
+//go:inline
 func (d *Dev) GetRev() uint8 {
 	return d.read(EREVID)
 }

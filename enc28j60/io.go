@@ -39,10 +39,12 @@ func (d *Dev) setBank(address uint8) {
 // the ENC28J60 Bank be set beforehand.
 func (d *Dev) readOp(op, address uint8) uint8 {
 	d.enableCS()
-	d.bus.Tx([]byte{op | (address & ADDR_MASK), 0}, d.buf[:2])
+	d.hbuf[0] = op | (address & ADDR_MASK)
+	d.hbuf[1] = 0
+	d.bus.Tx(d.hbuf[:2], d.buf[:2])
 	// do dummy read if needed (for mac and mii, see datasheet page 29)
 	if address&SPRD_MASK != 0 {
-		d.bus.Tx(d.buf[2:3], nil)
+		d.bus.Tx(d.hbuf[:1], nil)
 	}
 	d.disableCS()
 	return d.buf[1]
@@ -52,7 +54,9 @@ func (d *Dev) readOp(op, address uint8) uint8 {
 // the ENC28J60 Bank be set beforehand.
 func (d *Dev) writeOp(op, address, data uint8) {
 	d.enableCS()
-	err := d.bus.Tx([]byte{op | (address & ADDR_MASK), data}, nil)
+	d.buf[0] = op | (address & ADDR_MASK)
+	d.buf[1] = data
+	err := d.bus.Tx(d.buf[:2], nil)
 	if err != nil {
 		dbp(err.Error(), []byte{op})
 	}
@@ -112,6 +116,7 @@ func (d *Dev) phyRead(address uint8) uint16 {
 
 // enableCS enables SPI communication on bus. Disables Interrupts.
 // do not call enableCS twice before calling disable
+//go:inline
 func (d *Dev) enableCS() {
 	d.is = interrupt.Disable()
 	d.CSB.Low()
@@ -120,6 +125,7 @@ func (d *Dev) enableCS() {
 // disableCS ends SPI communication on bus
 // always call disableCS after calling enable once
 // critical part done
+//go:inline
 func (d *Dev) disableCS() {
 	d.CSB.High()
 	interrupt.Restore(d.is)
