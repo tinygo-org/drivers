@@ -3,7 +3,6 @@ package rtl8720dn
 import (
 	"fmt"
 	"io"
-	"time"
 )
 
 var (
@@ -66,7 +65,7 @@ func dumpHex(b []byte) {
 	}
 }
 
-func (r *RTL8720DN) readThread() {
+func (r *RTL8720DN) read() {
 	for {
 		n, _ := io.ReadFull(r.port, readBuf[:4])
 		if n == 0 {
@@ -93,13 +92,10 @@ func (r *RTL8720DN) readThread() {
 
 		crcNew := computeCRC16(payload[:n])
 		if g, e := crcNew, crc; g != e {
-			fmt.Printf("err CRC16: got %04X want %04X\n", g, e)
+			fmt.Printf("err CRC16: got %04X want %04X\r\n", g, e)
 		}
 		if payload[0] == 0x02 || payload[0] == 0x00 {
-			r.received <- true
-
-			// switch goroutine
-			time.Sleep(1)
+			return
 		}
 	}
 }

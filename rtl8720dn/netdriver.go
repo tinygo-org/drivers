@@ -266,8 +266,15 @@ func (r *RTL8720DN) IsSocketDataAvailable() bool {
 	if r.debug {
 		fmt.Printf("IsSocketDataAvailable()\r\n")
 	}
-	fmt.Printf("not implemented yet\r\n")
-	return true
+	ret, err := r.Rpc_lwip_available(r.socket)
+	if err != nil {
+		fmt.Printf("error: %s\r\n", err.Error())
+		return false
+	}
+	if ret == 1 {
+		return true
+	}
+	return false
 }
 
 func (r *RTL8720DN) Response(timeout int) ([]byte, error) {
