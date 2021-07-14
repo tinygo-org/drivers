@@ -226,7 +226,12 @@ func (r *RTL8720DN) ReadSocket(b []byte) (n int, err error) {
 
 	switch r.connectionType {
 	case ConnectionTypeTCP:
-		nn, err := r.Rpc_lwip_recv(r.socket, &b, uint32(len(b)), 0x00000008, 0x00002800)
+		length := len(b)
+		if length > maxUartRecvSize-16 {
+			length = maxUartRecvSize - 16
+		}
+		buf := b[:length]
+		nn, err := r.Rpc_lwip_recv(r.socket, &buf, uint32(length), 0x00000008, 0x00002800)
 		if err != nil {
 			return 0, err
 		}
@@ -236,17 +241,14 @@ func (r *RTL8720DN) ReadSocket(b []byte) (n int, err error) {
 		} else if nn == 0 {
 			return 0, r.DisconnectSocket()
 		}
-		if r.length == 0 {
-			header := httpHeader(b[:nn])
-			r.length = header.ContentLength()
-		}
-		r.length -= int(nn)
-		if r.length == 0 {
-			return int(nn), r.DisconnectSocket()
-		}
 		n = int(nn)
 	case ConnectionTypeTLS:
-		nn, err := r.Rpc_wifi_get_ssl_receive(r.client, &b, int32(len(b)))
+		length := len(b)
+		if length > maxUartRecvSize-16 {
+			length = maxUartRecvSize - 16
+		}
+		buf := b[:length]
+		nn, err := r.Rpc_wifi_get_ssl_receive(r.client, &buf, int32(length))
 		if err != nil {
 			return 0, err
 		}

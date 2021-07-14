@@ -69,6 +69,31 @@ func run() error {
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
+	access := 1
+
+	cookie, err := r.Cookie("access")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			cookie = &http.Cookie{
+				Name:  "access",
+				Value: "1",
+			}
+		} else {
+			http.Error(w, fmt.Sprintf("%s", err.Error()), http.StatusBadRequest)
+			return
+		}
+	} else {
+		v, err := strconv.ParseInt(cookie.Value, 10, 0)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid cookie.Value : %s", cookie.Value), http.StatusBadRequest)
+			return
+		}
+		cookie.Value = fmt.Sprintf("%d", v+1)
+		access = int(v) + 1
+	}
+	http.SetCookie(w, cookie)
+	w.WriteHeader(http.StatusOK)
+
 	fmt.Fprintf(w, `
 <html>
 <head>
@@ -89,6 +114,11 @@ func root(w http.ResponseWriter, r *http.Request) {
 </head>
 <body onLoad="onLoad()">
     <h5>TinyGo HTTP Server</h5>
+
+    <p>
+        access: %d
+    </p>
+
     <a href="/hello">/hello</a><br>
     <a href="/6">/6</a><br>
 
@@ -110,7 +140,7 @@ func root(w http.ResponseWriter, r *http.Request) {
     </p>
 </body>
 </html>
-    `)
+    `, access)
 }
 
 func sixlines(w http.ResponseWriter, r *http.Request) {

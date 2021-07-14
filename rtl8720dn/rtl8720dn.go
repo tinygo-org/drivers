@@ -2,6 +2,8 @@ package rtl8720dn
 
 import "io"
 
+const maxUartRecvSize = 128
+
 type RTL8720DN struct {
 	port  io.ReadWriter
 	seq   uint64

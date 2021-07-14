@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"image/color"
+	"strings"
 	"time"
 
 	"tinygo.org/x/drivers/net"
-	"tinygo.org/x/drivers/rtl8720dn"
+	"tinygo.org/x/drivers/net/http"
 	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
 )
@@ -23,8 +25,8 @@ import (
 var (
 	ssid     string
 	password string
-	server   string = "tinygo.org"
-	debug           = false
+	url      = "http://tinygo.org/"
+	debug    = false
 )
 
 var (
@@ -40,10 +42,6 @@ var (
 )
 
 var buf [0x400]byte
-
-var lastRequestTime time.Time
-var conn net.Conn
-var adaptor *rtl8720dn.RTL8720DN
 
 func main() {
 	display.FillScreen(black)
@@ -73,6 +71,7 @@ func run() error {
 		return err
 	}
 	net.UseDriver(rtl)
+	http.SetBuf(buf[:])
 
 	fmt.Fprintf(terminal, "ConnectToAP()\r\n")
 	err = rtl.ConnectToAP(ssid, password)
@@ -89,60 +88,49 @@ func run() error {
 	fmt.Fprintf(terminal, "Mask       : %s\r\n", subnet)
 	fmt.Fprintf(terminal, "Gateway    : %s\r\n", gateway)
 
+	// You can send and receive cookies in the following way
+	// 	import "tinygo.org/x/drivers/net/http/cookiejar"
+	// 	jar, err := cookiejar.New(nil)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	client := &http.Client{Jar: jar}
+	// 	http.DefaultClient = client
+
 	cnt := 0
 	for {
-		readConnection()
-		if time.Now().Sub(lastRequestTime).Milliseconds() >= 10000 {
-			makeHTTPRequest()
-			cnt++
-			fmt.Fprintf(terminal, "-------- %d --------\r\n", cnt)
+		// Various examples are as follows
+		//
+		// -- Get
+		// 	resp, err := http.Get(url)
+		//
+		// -- Post
+		// 	body := `cnt=12`
+		// 	resp, err = http.Post(url, "application/x-www-form-urlencoded", strings.NewReader(body))
+		//
+		// -- Post with JSON
+		// 	body := `{"msg": "hello"}`
+		// 	resp, err := http.Post(url, "application/json", strings.NewReader(body))
+
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
 		}
-	}
-}
 
-func readConnection() {
-	if conn != nil {
-		for n, err := conn.Read(buf[:]); n > 0; n, err = conn.Read(buf[:]) {
-			if err != nil {
-				fmt.Fprintf(terminal, "Read error: "+err.Error()+"\r\n")
-			} else {
-				fmt.Fprintf(terminal, string(buf[0:n]))
-			}
+		fmt.Fprintf(terminal, "%s %s\r\n", resp.Proto, resp.Status)
+		for k, v := range resp.Header {
+			fmt.Fprintf(terminal, "%s: %s\r\n", k, strings.Join(v, " "))
 		}
+		fmt.Printf("\r\n")
+
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			fmt.Fprintf(terminal, "%s\r\n", scanner.Text())
+		}
+		resp.Body.Close()
+
+		cnt++
+		fmt.Fprintf(terminal, "-------- %d --------\r\n", cnt)
+		time.Sleep(10 * time.Second)
 	}
-}
-
-func makeHTTPRequest() {
-
-	var err error
-	if conn != nil {
-		conn.Close()
-	}
-
-	// make TCP connection
-	ip := net.ParseIP(server)
-	raddr := &net.TCPAddr{IP: ip, Port: 80}
-	laddr := &net.TCPAddr{Port: 8080}
-
-	message("\r\n---------------\r\nDialing TCP connection")
-	conn, err = net.DialTCP("tcp", laddr, raddr)
-	for ; err != nil; conn, err = net.DialTCP("tcp", laddr, raddr) {
-		message("Connection failed: " + err.Error())
-		time.Sleep(5 * time.Second)
-	}
-	fmt.Fprintf(terminal, "Connected!\r\n")
-
-	fmt.Fprintf(terminal, "Sending HTTP request...")
-	fmt.Fprintln(conn, "GET / HTTP/1.1")
-	fmt.Fprintln(conn, "Host:", server)
-	fmt.Fprintln(conn, "User-Agent: TinyGo")
-	fmt.Fprintln(conn, "Connection: close")
-	fmt.Fprintln(conn)
-	fmt.Fprintf(terminal, "Sent!\r\n\r\n")
-
-	lastRequestTime = time.Now()
-}
-
-func message(msg string) {
-	fmt.Fprintf(terminal, "%s\r\n", msg)
 }
