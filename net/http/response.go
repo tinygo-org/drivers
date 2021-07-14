@@ -99,6 +99,11 @@ type Response struct {
 	TLS *tls.ConnectionState
 }
 
+// Cookies parses and returns the cookies set in the Set-Cookie headers.
+func (r *Response) Cookies() []*Cookie {
+	return readSetCookies(r.Header)
+}
+
 // RFC 7234, section 5.4: Should treat
 //	Pragma: no-cache
 // like
