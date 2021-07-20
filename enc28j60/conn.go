@@ -17,7 +17,11 @@ type Packet struct {
 // next packet in the FIFO queue. When one is done reading packet data, call
 // Discard on said packet and NextPacket will return the next packet in the FIFO.
 func (d *Dev) NextPacket(deadline time.Time) (swtch.Reader, error) {
+	// first we discard the current packet if not already discarded:
 	dbp("NextPacket")
+	if d.rx.cursor != d.rx.end {
+		d.rx.Discard()
+	}
 	var err error
 	for d.read(EPKTCNT) == 0 { // loop until a packet is received.
 		if time.Since(deadline) > 0 {
