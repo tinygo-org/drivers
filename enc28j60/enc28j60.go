@@ -20,7 +20,8 @@ type Dev struct {
 	is interrupt.State
 	// Bank saves last memory bank accessed by read/write ops.
 	Bank uint8
-	rx   Packet
+	// rx contains information of the current packet being read. Read returns EOF if finished with packet.
+	rx packet
 	// Houses ERDPTL register data pointing to next packet position in buffer.
 	nextPacketPtr uint16
 	// tcursor points to the current octet in the TX buffer.

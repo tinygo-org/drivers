@@ -7,7 +7,8 @@ import (
 	swtch "github.com/soypat/ether-swtch"
 )
 
-type Packet struct {
+// packet implements the Reader interface from ether-swtch library for datagram parsing.
+type packet struct {
 	ic     *Dev
 	cursor uint16
 	end    uint16
@@ -53,7 +54,7 @@ func (d *Dev) NextPacket(deadline time.Time) (swtch.Reader, error) {
 
 // Discard drops the remaining packet data to be read. Any subsequent call
 // to Read will return io.EOF error. This implements ether-swtch's Reader interface.
-func (p *Packet) Discard() error {
+func (p *packet) Discard() error {
 	dbp("DiscardPacket")
 	if p.cursor != p.end {
 		p.cursor = p.end
@@ -64,7 +65,7 @@ func (p *Packet) Discard() error {
 
 // Read reads packet data into buffer returning the amound
 // of data read. io.EOF is returned when done with the packet.
-func (p *Packet) Read(buff []byte) (n uint16, err error) {
+func (p *packet) Read(buff []byte) (n uint16, err error) {
 	dbp("ReadPacket")
 	// total remaining packet length
 	plen := p.end - p.cursor
