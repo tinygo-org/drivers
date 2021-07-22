@@ -15,6 +15,7 @@ type RTL8720DN struct {
 	client         uint32
 	length         int
 	root_ca        *string
+	udpInfo        [6]byte // Port: [2]byte + IP: [4]byte
 }
 
 type ConnectionType int

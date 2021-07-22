@@ -342,6 +342,18 @@ func (a *TCPAddr) opAddr() Addr {
 
 // ParseIP parses s as an IP address, returning the result.
 func ParseIP(s string) IP {
+	b := strings.Split(s, ".")
+	if len(b) == 4 {
+		ip := make([]byte, 4)
+
+		for i := range ip {
+			x, _ := strconv.ParseUint(b[i], 10, 8)
+			ip[i] = byte(x)
+		}
+
+		return IP(ip)
+	}
+
 	return IP([]byte(s))
 }
 

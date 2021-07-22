@@ -152,9 +152,66 @@ func (r *RTL8720DN) ConnectSSLSocket(addr, port string) error {
 
 func (r *RTL8720DN) ConnectUDPSocket(addr, sendport, listenport string) error {
 	if r.debug {
-		fmt.Printf("ConnectUDPSocket(%q, %q, %q)\r\n", addr, sendport, listenport)
+		fmt.Printf("ConnectUDPSocket(\"%d.%d.%d.%d\", %q, %q)\r\n", byte(addr[0]), byte(addr[1]), byte(addr[2]), byte(addr[3]), sendport, listenport)
 	}
-	fmt.Printf("not implemented yet\r\n")
+
+	socket, err := r.Rpc_lwip_socket(0x02, 0x02, 0x00)
+	if err != nil {
+		return err
+	}
+	r.socket = socket
+	r.connectionType = ConnectionTypeUDP
+
+	optval := []byte{0x01, 0x00, 0x00, 0x00}
+	_, err = r.Rpc_lwip_setsockopt(socket, 0x00000FFF, 0x00000004, optval, uint32(len(optval)))
+	if err != nil {
+		return err
+	}
+
+	port, err := strconv.ParseUint(sendport, 10, 0)
+	if err != nil {
+		return err
+	}
+
+	ip := []byte(addr)
+
+	// remote info
+	r.udpInfo[0] = byte(port >> 8)
+	r.udpInfo[1] = byte(port)
+	r.udpInfo[2] = ip[0]
+	r.udpInfo[3] = ip[1]
+	r.udpInfo[4] = ip[2]
+	r.udpInfo[5] = ip[3]
+
+	port, err = strconv.ParseUint(listenport, 10, 0)
+	if err != nil {
+		return err
+	}
+
+	ip_info := make([]byte, 12)
+	_, err = r.Rpc_tcpip_adapter_get_ip_info(0, &ip_info)
+	if err != nil {
+		return err
+	}
+
+	name := []byte{0x00, 0x02, 0x0D, 0x05, 0xC0, 0xA8, 0x01, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	name[2] = byte(port >> 8)
+	name[3] = byte(port)
+	name[4] = ip_info[0]
+	name[5] = ip_info[1]
+	name[6] = ip_info[2]
+	name[7] = ip_info[3]
+
+	_, err = r.Rpc_lwip_bind(socket, name, uint32(len(name)))
+	if err != nil {
+		return err
+	}
+
+	_, err = r.Rpc_lwip_fcntl(socket, 0x00000004, 0x00000000)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -204,6 +261,14 @@ func (r *RTL8720DN) Write(b []byte) (n int, err error) {
 			return 0, err
 		}
 		n = int(sn)
+	case ConnectionTypeUDP:
+		to := []byte{0x00, 0x02, 0x0D, 0x05, 0xC0, 0xA8, 0x01, 0x76, 0xEB, 0x43, 0x00, 0x00, 0xD5, 0x27, 0x01, 0x00}
+		copy(to[2:], r.udpInfo[:])
+		sn, err := r.Rpc_lwip_sendto(r.socket, b, 0x00000000, to, uint32(len(to)))
+		if err != nil {
+			return 0, err
+		}
+		n = int(sn)
 	case ConnectionTypeTLS:
 		sn, err := r.Rpc_wifi_send_ssl_data(r.client, b, uint16(len(b)))
 		if err != nil {
@@ -240,6 +305,23 @@ func (r *RTL8720DN) ReadSocket(b []byte) (n int, err error) {
 			return 0, nil
 		} else if nn == 0 {
 			return 0, r.DisconnectSocket()
+		}
+		n = int(nn)
+	case ConnectionTypeUDP:
+		length := len(b)
+		if length > maxUartRecvSize-32 {
+			length = maxUartRecvSize - 32
+		}
+		buf := b[:length]
+		from := make([]byte, 16)
+		fromLen := uint32(len(from))
+		nn, err := r.Rpc_lwip_recvfrom(r.socket, &buf, uint32(length), 0x00000008, &from, &fromLen, 10000)
+		if err != nil {
+			return 0, err
+		}
+
+		if nn == -1 {
+			return 0, nil
 		}
 		n = int(nn)
 	case ConnectionTypeTLS:
