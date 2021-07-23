@@ -32,9 +32,13 @@ func (r *RTL8720DN) ConnectTCPSocket(addr, port string) error {
 	}
 
 	ipaddr := make([]byte, 4)
-	_, err := r.Rpc_netconn_gethostbyname(addr, &ipaddr)
-	if err != nil {
-		return err
+	if len(addr) == 4 {
+		copy(ipaddr, addr)
+	} else {
+		_, err := r.Rpc_netconn_gethostbyname(addr, &ipaddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	portNum, err := strconv.ParseUint(port, 0, 0)
