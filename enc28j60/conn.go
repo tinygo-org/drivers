@@ -3,8 +3,6 @@ package enc28j60
 import (
 	"io"
 	"time"
-
-	swtch "github.com/soypat/ether-swtch"
 )
 
 // packet implements the Reader interface from ether-swtch library for datagram parsing.
@@ -17,7 +15,7 @@ type packet struct {
 // NextPacket returns a Packet which reads data from the
 // next packet in the FIFO queue. When one is done reading packet data, call
 // Discard on said packet and NextPacket will return the next packet in the FIFO.
-func (d *Dev) NextPacket(deadline time.Time) (swtch.Reader, error) {
+func (d *Dev) NextPacket(deadline time.Time) (io.Reader, error) {
 	// first we discard the current packet if not already discarded:
 	dbp("NextPacket")
 	if d.rx.cursor != d.rx.end {
@@ -65,7 +63,7 @@ func (p *packet) Discard() error {
 
 // Read reads packet data into buffer returning the amound
 // of data read. io.EOF is returned when done with the packet.
-func (p *packet) Read(buff []byte) (n uint16, err error) {
+func (p *packet) Read(buff []byte) (n int, err error) {
 	dbp("ReadPacket")
 	// total remaining packet length
 	plen := p.end - p.cursor
@@ -89,7 +87,7 @@ func (p *packet) Read(buff []byte) (n uint16, err error) {
 		p.ic.writeOp(BIT_FIELD_SET, ECON2, ECON2_PKTDEC)
 		err = io.EOF
 	}
-	return plen, err
+	return int(plen), err
 }
 
 // Write writes data into ENC28J60's TX buffer. Data must not exceed the buffer bounds or
