@@ -3,6 +3,8 @@ package enc28j60
 import (
 	"io"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // packet implements the Reader interface from ether-swtch library for datagram parsing.
@@ -15,20 +17,18 @@ type packet struct {
 // NextPacket returns a Packet which reads data from the
 // next packet in the FIFO queue. When one is done reading packet data, call
 // Discard on said packet and NextPacket will return the next packet in the FIFO.
-func (d *Dev) NextPacket(deadline time.Time) (io.Reader, error) {
-	// first we discard the current packet if not already discarded:
-	dbp("NextPacket")
-	if d.rx.cursor != d.rx.end {
-		d.rx.Discard()
-	}
+func (d *Dev) NextPacket(deadline time.Time) (drivers.Packet, error) {
 	var err error
+	dbp("NextPacket")
+	// first we discard the current packet if not already discarded:
+	d.rx.Discard()
+
 	for d.read(EPKTCNT) == 0 { // loop until a packet is received.
 		if time.Since(deadline) > 0 {
 			return nil, ErrRXDeadlineExceeded
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	// p := &Packet{ic: d} // Weird bug when creating Packet before read loop. LLVM on AVR is buggy and ic will be nil afterwards.
 	p := &d.rx
 	// Set the read pointer to the start of the next packet
 	d.write16(ERDPTL, d.nextPacketPtr)
@@ -51,7 +51,7 @@ func (d *Dev) NextPacket(deadline time.Time) (io.Reader, error) {
 }
 
 // Discard drops the remaining packet data to be read. Any subsequent call
-// to Read will return io.EOF error. This implements ether-swtch's Reader interface.
+// to Read will return io.EOF error.
 func (p *packet) Discard() error {
 	dbp("DiscardPacket")
 	if p.cursor != p.end {
@@ -93,7 +93,7 @@ func (p *packet) Read(buff []byte) (n int, err error) {
 // Write writes data into ENC28J60's TX buffer. Data must not exceed the buffer bounds or
 // ErrBufferSize will be returned. Use Flush method to send data over network once
 // finished writing.
-func (d *Dev) Write(buff []byte) (uint16, error) {
+func (d *Dev) Write(buff []byte) (int, error) {
 	plen := uint16(len(buff))
 	if plen+d.tcursor > MAX_FRAMELEN {
 		d.tcursor = 0
@@ -109,13 +109,14 @@ func (d *Dev) Write(buff []byte) (uint16, error) {
 	// copy the packet into the transmit buffer
 	d.writeBuffer(buff)
 	d.tcursor += plen
-	return plen, nil
+	return int(plen), nil
 }
 
 // Flush sends the data written to the TX buffer with Write over the network
 // as a packet. Aftyer flush ENC28J60 is ready to start writing a new packet.
 func (d *Dev) Flush() error {
-	dbp("send response")
+	dbp("Flush")
+	// Set the TXND pointer to correspond to the packet size given
 	d.write16(ETXNDL, TXSTART_INIT+d.tcursor-1) // subtract WBM spurious increment
 	// send the contents of the transmit buffer onto the network
 	d.writeOp(BIT_FIELD_SET, ECON1, ECON1_TXRTS)

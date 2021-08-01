@@ -38,28 +38,26 @@ func (d *Dev) setBank(address uint8) {
 // the ENC28J60 Bank be set beforehand.
 func (d *Dev) readOp(op, address uint8) uint8 {
 	d.enableCS()
-	d.hbuf[0] = op | (address & ADDR_MASK)
-	d.hbuf[1] = 0
-	d.bus.Tx(d.hbuf[:2], d.buf[:2])
+	d.bus.Transfer(op | (address & ADDR_MASK))
+	read, _ := d.bus.Transfer(0)
 	// do dummy read if needed (for mac and mii, see datasheet page 29)
 	if address&SPRD_MASK != 0 {
-		d.bus.Tx(d.hbuf[:1], nil)
+		d.bus.Transfer(0)
 	}
 	d.disableCS()
-	return d.buf[1]
+	return read
 }
 
 // readOp writes to a register defined in registers.go. It requires
 // the ENC28J60 Bank be set beforehand.
 func (d *Dev) writeOp(op, address, data uint8) {
 	d.enableCS()
-	d.buf[0] = op | (address & ADDR_MASK)
-	d.buf[1] = data
-	err := d.bus.Tx(d.buf[:2], nil)
+	d.bus.Transfer(op | (address & ADDR_MASK))
+	_, err := d.bus.Transfer(data)
+	d.disableCS()
 	if err != nil {
 		dbp("writeOp", d.buf[:1])
 	}
-	d.disableCS()
 }
 
 func (d *Dev) read(address uint8) uint8 {
@@ -92,9 +90,7 @@ func (d *Dev) phyWrite(address uint8, data uint16) {
 	// write the PHY data
 	d.write16(MIWRL, data)
 	// wait until the PHY write completes
-	for d.read(MISTAT)&MISTAT_BUSY != 0 {
-		time.Sleep(time.Microsecond * 15)
-	}
+	d.waitOnMISTAT()
 }
 
 func (d *Dev) phyRead(address uint8) uint16 {
@@ -103,14 +99,26 @@ func (d *Dev) phyRead(address uint8) uint16 {
 	d.writeOp(BIT_FIELD_SET, MICMD, MICMD_MIIRD)
 	// Poll the MISTAT.BUSY bit to be
 	// certain that the operation is complete.
-	for d.read(MISTAT)&MISTAT_BUSY != 0 {
-		time.Sleep(time.Microsecond * 15)
+	if d.waitOnMISTAT() != nil {
+		return 0
 	}
 	// set bank 2 again
 	d.setBank(MICMD)
 	d.writeOp(BIT_FIELD_CLR, MICMD, MICMD_MIIRD)
 	// write the PHY data
 	return d.read16(MIRDL)
+}
+
+func (d *Dev) waitOnMISTAT() error {
+	stat := d.read(MISTAT)
+	for stat&MISTAT_BUSY != 0 {
+		time.Sleep(time.Microsecond * 15)
+		stat = d.read(MISTAT)
+		if stat == 0xff { // if read bits are all 1, then there's probably a connection issue
+			return ErrIO
+		}
+	}
+	return nil
 }
 
 // enableCS enables SPI communication on bus. Disables Interrupts.

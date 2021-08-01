@@ -14,6 +14,8 @@ const (
 	ErrRXDeadlineExceeded
 	// CRC checksum fail
 	ErrCRC
+	// IO error
+	ErrIO
 )
 
 // Implements error interface.
@@ -29,6 +31,8 @@ func (err ErrorCode) Error() string {
 		return "rx deadline exceeded"
 	case ErrCRC:
 		return "CRC error"
+	case ErrIO:
+		return "IO error"
 	}
 	return "undefined"
 }
