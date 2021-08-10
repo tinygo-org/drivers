@@ -224,7 +224,7 @@ func (c *Client) doResp(conn net.Conn, req *Request) (*Response, error) {
 							resp.Header.Add(header[0], header[1])
 						}
 
-						if header[0] == "Content-Length" {
+						if strings.ToLower(header[0]) == "content-length" {
 							resp.ContentLength, err = strconv.ParseInt(header[1], 10, 64)
 							if err != nil {
 								conn.Close()
