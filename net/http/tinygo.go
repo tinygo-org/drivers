@@ -56,6 +56,9 @@ func (c *Client) doHTTP(req *Request) (*Response, error) {
 	if p == "" {
 		p = "/"
 	}
+	if req.URL.RawQuery != "" {
+		p += "?" + req.URL.RawQuery
+	}
 	fmt.Fprintln(conn, req.Method+" "+p+" HTTP/1.1")
 	fmt.Fprintln(conn, "Host:", req.URL.Host)
 
@@ -113,6 +116,9 @@ func (c *Client) doHTTPS(req *Request) (*Response, error) {
 	p := req.URL.Path
 	if p == "" {
 		p = "/"
+	}
+	if req.URL.RawQuery != "" {
+		p += "?" + req.URL.RawQuery
 	}
 	fmt.Fprintln(conn, req.Method+" "+p+" HTTP/1.1")
 	fmt.Fprintln(conn, "Host:", req.URL.Host)
