@@ -35,7 +35,7 @@ import (
 // from wp.josh.com seem to be fine for the ws2812.
 
 // Clock frequencies to support, in MHz.
-var clockFrequencies = []int{16, 48, 64, 120}
+var clockFrequencies = []int{16, 48, 64, 120, 168}
 
 func writeImplementation(f *os.File, megahertz int) error {
 	cycleTimeNS := 1 / float64(megahertz)
