@@ -28,8 +28,8 @@ func main() {
 
 	for {
 
-		h, _ := sensor.ReadTemperature()
-		t, _ := sensor.ReadHumidity()
+		h, _ := sensor.ReadHumidity()
+		t, _ := sensor.ReadTemperature()
 		println("h =", float32(h)/1000.0, "/ t =", float32(t)/1000.0)
 		time.Sleep(time.Second)
 
