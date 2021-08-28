@@ -64,7 +64,7 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 	d.bus.ReadRegister(d.Address, LPS22HB_PRESS_OUT_REG+2, data[2:])
 	pValue := float32(uint32(data[2])<<16|uint32(data[1])<<8|uint32(data[0])) / 4096.0
 
-	return int32(pValue * 1000000), nil
+	return int32(pValue * 1000), nil
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
@@ -77,7 +77,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	d.bus.ReadRegister(d.Address, LPS22HB_TEMP_OUT_REG+1, data[1:])
 	tValue := float32(int16(uint16(data[1])<<8|uint16(data[0]))) / 100.0
 
-	return int32(tValue * 1000000), nil
+	return int32(tValue * 1000), nil
 }
 
 // private functions
