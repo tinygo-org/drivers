@@ -91,7 +91,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	hValue := readInt(data[1], data[0])
 	hValueCalib := float32(hValue)*d.humiditySlope + d.humidityZero
 
-	return int32(hValueCalib * 1000), nil
+	return int32(hValueCalib * 1000000), nil
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
@@ -109,7 +109,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	tValue := readInt(data[1], data[0])
 	tValueCalib := float32(tValue)*d.temperatureSlope + d.temperatureZero
 
-	return int32(tValueCalib * 1000), nil
+	return int32(tValueCalib * 1000000), nil
 }
 
 // Resolution sets the HTS221's resolution mode.
