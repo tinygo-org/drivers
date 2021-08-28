@@ -75,7 +75,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	data := []byte{0, 0}
 	d.bus.ReadRegister(d.Address, LPS22HB_TEMP_OUT_REG, data[:1])
 	d.bus.ReadRegister(d.Address, LPS22HB_TEMP_OUT_REG+1, data[1:])
-	tValue := float32(uint16(data[1])<<8|uint16(data[0])) / 100.0
+	tValue := float32(int16(uint16(data[1])<<8|uint16(data[0]))) / 100.0
 
 	return int32(tValue * 1000000), nil
 }
