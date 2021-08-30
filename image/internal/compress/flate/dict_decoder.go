@@ -33,6 +33,10 @@ type dictDecoder struct {
 	full  bool // Has a full window length been written yet?
 }
 
+// To minimize the memory usage in TinyGo, it is defined as a fixed array
+// instead of a make().
+var ddHistBuf [1 << 15]byte
+
 // init initializes dictDecoder to have a sliding window dictionary of the given
 // size. If a preset dict is provided, it will initialize the dictionary with
 // the contents of dict.
@@ -40,7 +44,7 @@ func (dd *dictDecoder) init(size int, dict []byte) {
 	*dd = dictDecoder{hist: dd.hist}
 
 	if cap(dd.hist) < size {
-		dd.hist = make([]byte, size)
+		dd.hist = ddHistBuf[:size]
 	}
 	dd.hist = dd.hist[:size]
 

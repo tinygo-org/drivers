@@ -10,8 +10,9 @@ package jpeg
 import (
 	"image"
 	"image/color"
-	"image/internal/imageutil"
 	"io"
+
+	"tinygo.org/x/drivers/image/internal/imageutil"
 )
 
 // A FormatError reports that the input is not a valid JPEG.
@@ -770,10 +771,12 @@ func (d *decoder) convertToRGB() (image.Image, error) {
 	return img, nil
 }
 
-// Decode reads a JPEG image from r and returns it as an image.Image.
-func Decode(r io.Reader) (image.Image, error) {
+// Decode reads a JPEG image from r. Different from the standard package, the
+// decoded result will be received by the callback set by SetCallback().
+func Decode(r io.Reader) error {
 	var d decoder
-	return d.decode(r, false)
+	_, err := d.decode(r, false)
+	return err
 }
 
 // DecodeConfig returns the color model and dimensions of a JPEG image without
@@ -808,8 +811,4 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		}, nil
 	}
 	return image.Config{}, FormatError("missing SOF marker")
-}
-
-func init() {
-	image.RegisterFormat("jpeg", "\xff\xd8", Decode, DecodeConfig)
 }

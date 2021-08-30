@@ -8,7 +8,6 @@
 package png
 
 import (
-	"compress/zlib"
 	"encoding/binary"
 	"fmt"
 	"hash"
@@ -16,6 +15,8 @@ import (
 	"image"
 	"image/color"
 	"io"
+
+	"tinygo.org/x/drivers/image/internal/compress/zlib"
 )
 
 // Color type, as per the PNG spec.
@@ -435,6 +436,12 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 			return nil, nil
 		}
 	}
+
+	// Minimizes memory usage in order to run on TinyGo. In order to keep the
+	// amount of code changes down, the image is created as a 1 x 1 image at
+	// this point.
+	width2, height2 := width, height
+	width, height = 1, 1
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
 		bitsPerPixel = d.depth
@@ -493,6 +500,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, width, height))
 		img = nrgba64
 	}
+	width, height = width2, height2
 	if allocateOnly {
 		return img, nil
 	}
@@ -662,15 +670,13 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				}
 				pixOffset += nrgba.Stride
 			} else {
-				pix, i, j := rgba.Pix, pixOffset, 0
 				for x := 0; x < width; x++ {
-					pix[i+0] = cdat[j+0]
-					pix[i+1] = cdat[j+1]
-					pix[i+2] = cdat[j+2]
-					pix[i+3] = 0xff
-					i += 4
-					j += 3
+					r := uint16(cdat[x*3+0]) << 8
+					g := uint16(cdat[x*3+1]) << 8
+					b := uint16(cdat[x*3+2]) << 8
+					callbackBuf[x] = uint16((r & 0xF800) + ((g & 0xFC00) >> 5) + ((b & 0xF800) >> 11))
 				}
+				callback(callbackBuf[:width*1], 0, int16(y), int16(width), 1, int16(width), int16(height))
 				pixOffset += rgba.Stride
 			}
 		case cbP1:
@@ -720,7 +726,14 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 			copy(paletted.Pix[pixOffset:], cdat)
 			pixOffset += paletted.Stride
 		case cbTCA8:
-			copy(nrgba.Pix[pixOffset:], cdat)
+			copy(nrgba.Pix[:], cdat)
+			for x := 0; x < width; x++ {
+				r := uint16(cdat[x*3+0]) << 8
+				g := uint16(cdat[x*3+1]) << 8
+				b := uint16(cdat[x*3+2]) << 8
+				callbackBuf[x] = uint16((r & 0xF800) + ((g & 0xFC00) >> 5) + ((b & 0xF800) >> 11))
+			}
+			callback(callbackBuf[:width*1], 0, int16(y), int16(width), 1, int16(width), int16(height))
 			pixOffset += nrgba.Stride
 		case cbG16:
 			if d.useTransparent {
@@ -950,9 +963,9 @@ func (d *decoder) checkHeader() error {
 	return nil
 }
 
-// Decode reads a PNG image from r and returns it as an image.Image.
-// The type of Image returned depends on the PNG contents.
-func Decode(r io.Reader) (image.Image, error) {
+// Decode reads a PNG image from r. Different from the standard package, the
+// decoded result will be received by the callback set by SetCallback().
+func Decode(r io.Reader) error {
 	d := &decoder{
 		r:   r,
 		crc: crc32.NewIEEE(),
@@ -961,17 +974,17 @@ func Decode(r io.Reader) (image.Image, error) {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return nil, err
+		return err
 	}
 	for d.stage != dsSeenIEND {
 		if err := d.parseChunk(); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
-			return nil, err
+			return err
 		}
 	}
-	return d.img, nil
+	return nil
 }
 
 // DecodeConfig returns the color model and dimensions of a PNG image without
@@ -1028,8 +1041,4 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		Width:      d.width,
 		Height:     d.height,
 	}, nil
-}
-
-func init() {
-	image.RegisterFormat("png", pngHeader, Decode, DecodeConfig)
 }

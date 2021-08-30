@@ -25,11 +25,12 @@ package zlib
 
 import (
 	"bufio"
-	"compress/flate"
 	"errors"
 	"hash"
 	"hash/adler32"
 	"io"
+
+	"tinygo.org/x/drivers/image/internal/compress/flate"
 )
 
 const zlibDeflate = 8
