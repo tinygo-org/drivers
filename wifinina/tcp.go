@@ -12,8 +12,33 @@ const (
 	ReadBufferSize = 128
 )
 
-func (d *Device) NewDriver() net.DeviceDriver {
-	return &Driver{dev: d, sock: NoSocketAvail}
+// Configure resets wifinina device, creates network driver and tells network stack to use it.
+// Wifi connection can either be handled esplicitly in user code or transparently by using WithAccessPoint.
+func (d *Device) Configure() *Driver {
+	d.Reset()
+	drv := &Driver{dev: d, sock: NoSocketAvail}
+	net.UseDriver(drv)
+	return drv
+}
+
+// WithAccessPoint instructs the driver to establish and maintain access point connection transparently for the user.
+// Multiple access points can be configured.
+// In such case and when multiple access points available, active access point is selected in random.
+// Each access point has an individual timeout after which connection attempt deemed failed and reconnect shall be tried.
+func (drv *Driver) WithAccessPoint(ssid, password string, timeout time.Duration) *Driver {
+	if drv.accessPoints == nil {
+		drv.accessPoints = make([]accessPoint, 1)
+	}
+	drv.accessPoints = append(drv.accessPoints, accessPoint{ssid, password, timeout})
+	return drv
+}
+
+// WithTimeout configures global timeout for transparent access point connection handling.
+// Once this timeout elapses, no more connection and scan retries attempted and network operation returns with timeout error.
+// When timeout not set, driver tries reconnect to access points forever.
+func (drv *Driver) WithTimeout(timeout time.Duration) *Driver {
+	drv.timeout = timeout
+	return drv
 }
 
 type Driver struct {
@@ -24,6 +49,9 @@ type Driver struct {
 	proto uint8
 	ip    uint32
 	port  uint16
+
+	accessPoints []accessPoint
+	timeout      time.Duration
 }
 
 type readBuffer struct {
@@ -32,7 +60,97 @@ type readBuffer struct {
 	size int
 }
 
+type accessPoint struct {
+	ssid     string
+	password string
+	timeout  time.Duration
+}
+
+// HandleWifi ensures device is connected to an access point (if any) and is called before any network operation
+func (drv *Driver) HandleWifi() error {
+
+	// return fast when no access points configured
+	if drv.accessPoints == nil {
+		return nil
+	}
+
+	var activeAccessPoint *accessPoint
+	var reconnectTime time.Time
+	var stopTime time.Time
+
+	if drv.timeout != 0 {
+		stopTime = time.Now().Add(drv.timeout)
+	}
+
+	for {
+
+		// global timeout elapsed, throw
+		if !stopTime.IsZero() && time.Now().After(stopTime) {
+			return errors.New("global wifi timeout elapsed")
+		}
+
+		st, err := drv.dev.GetConnectionStatus()
+		// problems communicating with the device, reset device
+		if err != nil {
+			drv.dev.Reset()
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// already connected, return
+		if st == StatusConnected {
+			return nil
+		}
+
+		// not connected and connection timeout not expired yet, just wait
+		if st == StatusNoSSIDAvail && activeAccessPoint != nil && time.Now().Before(reconnectTime) {
+			time.Sleep(time.Second)
+			continue
+		}
+
+		// search for any known access point and if not found, just loop around
+		activeAccessPoint = drv.searchAccessPoint()
+		if activeAccessPoint == nil {
+			continue
+		}
+
+		// try connect to the access point
+		reconnectTime = time.Now().Add(activeAccessPoint.timeout)
+		err = drv.dev.SetPassphrase(activeAccessPoint.ssid, activeAccessPoint.password)
+		// problems communicating with the device, reset device
+		if err != nil {
+			drv.dev.Reset()
+			time.Sleep(time.Second)
+		}
+
+	}
+
+}
+
+// TODO: check RSSI and select best AP?
+func (drv *Driver) searchAccessPoint() *accessPoint {
+	count, err := drv.dev.ScanNetworks()
+	// problems communicating with the device, reset device
+	if err != nil {
+		drv.dev.Reset()
+		time.Sleep(time.Second)
+		return nil
+	}
+	for i := 0; i < int(count); i++ {
+		ssid := drv.dev.GetNetworkSSID(i)
+		for _, ap := range drv.accessPoints {
+			if ap.ssid == ssid {
+				return &ap
+			}
+		}
+	}
+	return nil
+}
+
 func (drv *Driver) GetDNS(domain string) (string, error) {
+	if err := drv.HandleWifi(); err != nil {
+		return "", errors.New("could not connect to AP: " + err.Error())
+	}
 	ipAddr, err := drv.dev.GetHostByName(domain)
 	return ipAddr.String(), err
 }
@@ -46,6 +164,10 @@ func (drv *Driver) ConnectSSLSocket(addr, portStr string) error {
 }
 
 func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
+
+	if err := drv.HandleWifi(); err != nil {
+		return errors.New("could not connect to WiFi: " + err.Error())
+	}
 
 	drv.proto, drv.ip, drv.port = mode, 0, 0
 
@@ -111,6 +233,10 @@ func convertPort(portStr string) (uint16, error) {
 
 func (drv *Driver) ConnectUDPSocket(addr, portStr, lportStr string) (err error) {
 
+	if err := drv.HandleWifi(); err != nil {
+		return errors.New("could not connect to WiFi: " + err.Error())
+	}
+
 	drv.proto, drv.ip, drv.port = ProtoModeUDP, 0, 0
 
 	// convert remote port to uint16
@@ -167,6 +293,9 @@ func (drv *Driver) Response(timeout int) ([]byte, error) {
 }
 
 func (drv *Driver) Write(b []byte) (n int, err error) {
+	if err := drv.HandleWifi(); err != nil {
+		return 0, errors.New("could not connect to WiFi: " + err.Error())
+	}
 	if drv.sock == NoSocketAvail {
 		return 0, ErrNoSocketAvail
 	}
@@ -195,13 +324,14 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 		if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
 			return 0, ErrCheckDataError
 		}
-		return len(b), nil
+		return int(written), nil
 	}
-
-	return len(b), nil
 }
 
 func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
+	if err := drv.HandleWifi(); err != nil {
+		return 0, errors.New("could not connect to WiFi: " + err.Error())
+	}
 	avail, err := drv.available()
 	if err != nil {
 		println("ReadSocket error: " + err.Error())
@@ -222,6 +352,9 @@ func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 
 // IsSocketDataAvailable returns of there is socket data available
 func (drv *Driver) IsSocketDataAvailable() bool {
+	if err := drv.HandleWifi(); err != nil {
+		return false
+	}
 	n, err := drv.available()
 	return err == nil && n > 0
 }

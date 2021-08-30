@@ -27,23 +27,21 @@ import (
 // access point info
 const ssid = ""
 const pass = ""
+const timeout = time.Minute
 
-// IP address of the server aka "hub". Replace with your own info.
 // Can specify a URL starting with http or https
-const url = "http://tinygo.org/"
+const url = "https://raw.githubusercontent.com/tinygo-org/tinygo/release/LICENSE"
 
-// these are the default pins for the Arduino Nano33 IoT.
-// change these to connect to a different UART or pins for the ESP8266/ESP32
 var (
-
-	// these are the default pins for the Arduino Nano33 IoT.
+	// these are the default pins for the Arduino Nano connected boards.
+	// change these to connect to a different UART or pins for the ESP8266/ESP32
 	spi = machine.NINA_SPI
 
 	// this is the ESP chip that has the WIFININA firmware flashed on it
-	adaptor *wifinina.Device
+	device *wifinina.Device
 )
 
-var buf [0x400]byte
+var buf [0x1000]byte
 
 var lastRequestTime time.Time
 var conn net.Conn
@@ -57,22 +55,27 @@ func setup() {
 		SCK:       machine.NINA_SCK,
 	})
 
-	adaptor = wifinina.New(spi,
+	device = wifinina.New(spi,
 		machine.NINA_CS,
 		machine.NINA_ACK,
 		machine.NINA_GPIO0,
 		machine.NINA_RESETN)
-	adaptor.Configure()
+	device.Configure().WithAccessPoint(ssid, pass, timeout)
 }
 
 func main() {
+
+	if len(ssid) == 0 || len(pass) == 0 {
+		for {
+			println("Please set ssid and password for this example to work")
+			time.Sleep(10 * time.Second)
+		}
+	}
 
 	setup()
 	http.SetBuf(buf[:])
 
 	waitSerial()
-
-	connectToAP()
 
 	// You can send and receive cookies in the following way
 	// 	import "tinygo.org/x/drivers/net/http/cookiejar"
@@ -128,34 +131,4 @@ func waitSerial() {
 	for !machine.Serial.DTR() {
 		time.Sleep(100 * time.Millisecond)
 	}
-}
-
-// connect to access point
-func connectToAP() {
-	if len(ssid) == 0 || len(pass) == 0 {
-		for {
-			println("Connection failed: Either ssid or password not set")
-			time.Sleep(10 * time.Second)
-		}
-	}
-	time.Sleep(2 * time.Second)
-	message("Connecting to " + ssid)
-	adaptor.SetPassphrase(ssid, pass)
-	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		message("Connection status: " + st.String())
-		time.Sleep(1 * time.Second)
-		st, _ = adaptor.GetConnectionStatus()
-	}
-	message("Connected.")
-	time.Sleep(2 * time.Second)
-	ip, _, _, err := adaptor.GetIP()
-	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
-		message(err.Error())
-		time.Sleep(1 * time.Second)
-	}
-	message(ip.String())
-}
-
-func message(msg string) {
-	println(msg, "\r")
 }
