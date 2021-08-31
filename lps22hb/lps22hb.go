@@ -7,7 +7,7 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-// Device wraps an I2C connection to a HTS221 device.
+// Device wraps an I2C connection to a LPS22HB device.
 type Device struct {
 	bus         drivers.I2C
 	Address     uint8
