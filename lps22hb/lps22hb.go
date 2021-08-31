@@ -20,7 +20,7 @@ type Device struct {
 // This function only creates the Device object, it does not touch the device.
 //
 // For Nano 33 BLE Sense, use machine.P0_15 (SCL1) and machine.P0_14 (SDA1),
-// and set onNano33BLE as hts221.ON_NANO_33_BLE.
+// and set onNano33BLE as lps22hb.ON_NANO_33_BLE.
 func New(bus drivers.I2C, deviceType uint8) Device {
 	return Device{bus: bus, Address: LPS22HB_ADDRESS, OnNano33BLE: deviceType == 1}
 }
