@@ -32,6 +32,16 @@ Latest firmware binary file for your board can be downloaded from their [release
 Verify correct version flashed with "Examples/WiFiNINA/Tools/CheckFirmwareVersion" sketch in Arduino IDE.
 
 ### Update Arduino Boards without Arduino IDE
+
+#### Download nina-fw firmware binary
+
+```shell
+# wget
+wget https://github.com/arduino/nina-fw/releases/download/1.4.8/NINA_W102-v1.4.8.bin
+# curl
+curl -LO https://github.com/arduino/nina-fw/releases/download/1.4.8/NINA_W102-v1.4.8.bin
+```
+
 #### Install esptool to flash nina-fw firmware
 
 In order to flash the firmware, you need to use Python to install the `esptool` package.
@@ -46,7 +56,10 @@ On macOS you can also use brew
 brew install esptool
 ```
 
-Once you have installed `esptool` you can follow the correct procedure for flashing your board.
+Once you have installed `esptool` you can follow the procedure below for flashing your board.
+
+Note: We use `esptool` executable in the rest of the document, you may find yourself using `esptool.py` instead, depends on OS and way you install it.
+Note: Port `/dev/ttyACM0` is valid for Linux; on macOS it shall be something like `/dev/tty.usbmodem14101`; on Windows expect to see `COM1` or alike.
 
 #### Update nina-fw on the Arduino Nano33 IoT
 
@@ -55,7 +68,6 @@ In the `updater` directory we have a precompiled binary of the "passthrough" cod
 This is what needs to be done. There is also a bash script that performs the same steps also located in the `updater` directory.
 
 ```shell
-mkdir -p ../build
 
 # reset board into bootloader mode using 1200 baud
 stty -F /dev/ttyACM0 ispeed 1200 ospeed 1200
@@ -64,14 +76,27 @@ stty -F /dev/ttyACM0 ispeed 1200 ospeed 1200
 # code from https://github.com/arduino-libraries/WiFiNINA/blob/master/examples/Tools/SerialNINAPassthrough/SerialNINAPassthrough.ino
 bossac -d -i -e -w -v -R --port=/dev/ttyACM0 --offset=0x2000 ./SerialNINAPassthrough.ino.nano_33_iot.bin
 
-# download the nina-fw binary
-wget -P ../build/ https://github.com/arduino/nina-fw/releases/download/1.4.8/NINA_W102-v1.4.8.bin 
-
 # flash the nina-fw binary to the ESP32 using esptool
-esptool --port /dev/ttyACM0 --before default_reset --baud 115200 write_flash 0 ../build/NINA_W102-v1.4.8.bin
+esptool --port /dev/ttyACM0 --before default_reset --baud 115200 write_flash 0 ./NINA_W102-v1.4.8.bin
 ```
 
 You only need to do this one time, and then the correct nina-fw firmware will be on the NINA ESP32 chip, and you can just flash the Arduino Nano33 IoT board using TinyGo.
+
+#### Update nina-fw on the Arduino Nano RP2040 Connect
+
+In the `updater` directory we have a precompiled binary of the "passthrough" code you will need to flash first, in order to update the ESP32 co-processor on your board.
+
+Put Nano RP2040 Connect into Mass Storage Device mode by shorting REC and GND pins while plugging it in. Alternatively you can short the pins and press button on top side of the board while keeping the board connected to your computer. Release the pins and "RPI-RP2" storage device shall appear mounted.
+
+Copy `SerialNINAPassthrough.ino.nano_rp2040_connect.uf2` file over to storage device and it must eject rebooting.
+
+Now you can use `esptool` to flash nina-fw to ESP32 chip on the board.
+
+```shell
+esptool --port /dev/ttyACM0 --before no_reset --baud 115200 write_flash 0 ./NINA_W102-v1.4.8.bin
+```
+
+Verify correct version of nina-fw installed by flasing `CheckFirmwareVersion.ino.uf2` on the board the same way you flashed `SerialNINAPassthrough.ino.nano_rp2040_connect.uf2` before. You must connect to the board with a serial monitor, for example Arduino IDE, alternatively `screen` or `picocom` cli commands.
 
 ### Update Adafruit ESP32 WiFi Boards
 
