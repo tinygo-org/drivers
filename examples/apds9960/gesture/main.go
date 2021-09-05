@@ -32,8 +32,7 @@ func main() {
 
 	for {
 
-		// wave your hand not too slow
-		// abount 10 cm above the sensor
+		// wave your hand (not too slow) about 10 cm above the sensor
 		if sensor.GestureAvailable() {
 
 			gesture := sensor.ReadGesture()
