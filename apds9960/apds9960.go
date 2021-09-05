@@ -1,3 +1,8 @@
+// Package apds9960 implements a driver for APDS-9960,
+// a digital proximity, ambient light, RGB and gesture sensor.
+//
+// Datasheet: https://cdn.sparkfun.com/assets/learn_tutorials/3/2/1/Avago-APDS-9960-datasheet.pdf
+//
 package apds9960
 
 import (
@@ -31,6 +36,7 @@ type Configuration struct {
 	sensitivity          uint8
 }
 
+// for gesture-related data
 type gestureData struct {
 	detected    uint8
 	threshold   uint8
@@ -42,6 +48,7 @@ type gestureData struct {
 	received    bool
 }
 
+// for enabling various device function
 type enableConfig struct {
 	GEN  bool
 	PIEN bool
@@ -93,13 +100,13 @@ func (d *Device) Configure(cfg Configuration) {
 		cfg.ProximityPulseLength = 16
 	}
 	if cfg.ProximityPulseCount == 0 {
-		cfg.ProximityPulseLength = 64
+		cfg.ProximityPulseCount = 64
 	}
 	if cfg.GesturePulseLength == 0 {
 		cfg.GesturePulseLength = 16
 	}
 	if cfg.GesturePulseCount == 0 {
-		cfg.GesturePulseLength = 64
+		cfg.GesturePulseCount = 64
 	}
 	if cfg.ProximityGain == 0 {
 		cfg.ProximityGain = 1
@@ -108,7 +115,7 @@ func (d *Device) Configure(cfg Configuration) {
 		cfg.GestureGain = 1
 	}
 	if cfg.ColorGain == 0 {
-		cfg.ColorGain = 64
+		cfg.ColorGain = 4
 	}
 	if cfg.ADCIntegrationCycles == 0 {
 		cfg.ADCIntegrationCycles = 4
@@ -144,11 +151,13 @@ func (d *Device) DisableAll() {
 }
 
 // SetProximityPulse sets proximity pulse length (4, 8, 16, 32) and count (1~64)
+// default: 16, 64
 func (d *Device) SetProximityPulse(length, count uint8) {
 	d.bus.WriteRegister(d.Address, APDS9960_PPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
 }
 
 // SetGesturePulse sets gesture pulse length (4, 8, 16, 32) and count (1~64)
+// default: 16, 64
 func (d *Device) SetGesturePulse(length, count uint8) {
 	d.bus.WriteRegister(d.Address, APDS9960_GPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
 }
@@ -162,13 +171,15 @@ func (d *Device) SetADCIntegrationCycles(cycles uint16) {
 	d.bus.WriteRegister(d.Address, APDS9960_ATIME_REG, []byte{uint8(256 - cycles)})
 }
 
-// SetGains sets proximity and gesture gain (1, 2, 4, 8x) as well as ALS/color gain (1, 4, 16, 64x)
+// SetGains sets proximity/gesture gain (1, 2, 4, 8x) and ALS/color gain (1, 4, 16, 64x)
+// default: 1, 1, 4
 func (d *Device) SetGains(proximityGain, gestureGain, colorGain uint8) {
 	d.bus.WriteRegister(d.Address, APDS9960_CONTROL_REG, []byte{getProximityGain(proximityGain)<<2 | getALSGain(colorGain)})
 	d.bus.WriteRegister(d.Address, APDS9960_GCONF2_REG, []byte{getProximityGain(gestureGain) << 5})
 }
 
 // LEDBoost sets proximity and gesture LED current level (100, 150, 200, 300 (%))
+// default: 100
 func (d *Device) LEDBoost(percent uint16) {
 	var v uint8
 	switch percent {
