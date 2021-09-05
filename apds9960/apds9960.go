@@ -339,7 +339,7 @@ func (d *Device) GestureAvailable() bool {
 			if d.gesture.gXPrevDelta != 0 && d.gesture.gYPrevDelta != 0 {
 				totalX := d.gesture.gXPrevDelta - d.gesture.gXDelta
 				totalY := d.gesture.gYPrevDelta - d.gesture.gYDelta
-				// if previous and current movement are in opposite directions
+				// if previous and current movement are in opposite directions (pass through one led then next)
 				// and the difference is big enough, the gesture is recorded
 				switch {
 				case totalX < -int16(d.gesture.sensitivity):
