@@ -48,6 +48,8 @@ func main() {
 				println("Right")
 			}
 		}
+		// the delay shouldn't be too long, or new gesture data could be lost
+		// before you can read them
 		time.Sleep(time.Millisecond * 250)
 	}
 
