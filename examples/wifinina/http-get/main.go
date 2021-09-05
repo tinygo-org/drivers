@@ -4,6 +4,12 @@
 //
 // https://github.com/arduino-libraries/WiFiNINA/blob/master/examples/WiFiWebClientRepeating/
 //
+// This example will not work with samd21 or other systems with less than 32KB
+// of RAM.  Use the following if you want to run wifinina on samd21, etc.
+//
+// examples/wifinina/webclient
+// examples/wifinina/tlsclient
+//
 package main
 
 import (
@@ -23,6 +29,7 @@ const ssid = ""
 const pass = ""
 
 // IP address of the server aka "hub". Replace with your own info.
+// Can specify a URL starting with http or https
 const url = "http://tinygo.org/"
 
 // these are the default pins for the Arduino Nano33 IoT.
