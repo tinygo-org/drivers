@@ -43,8 +43,8 @@ type gestureData struct {
 	sensitivity uint8
 	gXDelta     int16
 	gYDelta     int16
-	gXDir       int16
-	gYDir       int16
+	gXPrevDelta int16
+	gYPrevDelta int16
 	received    bool
 }
 
@@ -285,8 +285,8 @@ func (d *Device) EnableGesture() {
 	d.gesture.detected = GESTURE_NONE
 	d.gesture.gXDelta = 0
 	d.gesture.gYDelta = 0
-	d.gesture.gXDir = 0
-	d.gesture.gYDir = 0
+	d.gesture.gXPrevDelta = 0
+	d.gesture.gYPrevDelta = 0
 	d.gesture.received = false
 }
 
@@ -323,7 +323,7 @@ func (d *Device) GestureAvailable() bool {
 		}
 	}
 
-	// gesture detection
+	// gesture detection process
 	d.gesture.detected = GESTURE_NONE
 	for i := uint8(0); i < availableDataSets; i++ {
 		U := dataSets[i][0]
@@ -331,35 +331,41 @@ func (d *Device) GestureAvailable() bool {
 		L := dataSets[i][2]
 		R := dataSets[i][3]
 
+		// if all readings fall below threshold, it's possible that
+		// a movement's just been made
 		if U < d.gesture.threshold && D < d.gesture.threshold && L < d.gesture.threshold && R < d.gesture.threshold {
 			d.gesture.received = true
-			if d.gesture.gXDir != 0 && d.gesture.gYDir != 0 {
-				totalX := d.gesture.gXDir - d.gesture.gXDelta
-				totalY := d.gesture.gYDir - d.gesture.gYDelta
+			// if there were movement in the previous step (including the last data sets)
+			if d.gesture.gXPrevDelta != 0 && d.gesture.gYPrevDelta != 0 {
+				totalX := d.gesture.gXPrevDelta - d.gesture.gXDelta
+				totalY := d.gesture.gYPrevDelta - d.gesture.gYDelta
+				// if previous and current movement are in opposite directions
+				// and the difference is big enough, the gesture is recorded
 				switch {
 				case totalX < -int16(d.gesture.sensitivity):
 					d.gesture.detected = GESTURE_LEFT
 				case totalX > int16(d.gesture.sensitivity):
 					d.gesture.detected = GESTURE_RIGHT
-				case totalY < -int16(d.gesture.sensitivity):
-					d.gesture.detected = GESTURE_DOWN
 				case totalY > int16(d.gesture.sensitivity):
+					d.gesture.detected = GESTURE_DOWN
+				case totalY < -int16(d.gesture.sensitivity):
 					d.gesture.detected = GESTURE_UP
 				}
 				d.gesture.gXDelta = 0
 				d.gesture.gYDelta = 0
-				d.gesture.gXDir = 0
-				d.gesture.gYDir = 0
+				d.gesture.gXPrevDelta = 0
+				d.gesture.gYPrevDelta = 0
 			}
 			continue
 		}
 
+		// recording current movement
 		d.gesture.gXDelta = int16(R) - int16(L)
-		d.gesture.gYDelta = int16(U) - int16(D)
+		d.gesture.gYDelta = int16(D) - int16(U)
 		if d.gesture.received {
 			d.gesture.received = false
-			d.gesture.gXDir = d.gesture.gXDelta
-			d.gesture.gYDir = d.gesture.gYDelta
+			d.gesture.gXPrevDelta = d.gesture.gXDelta
+			d.gesture.gYPrevDelta = d.gesture.gYDelta
 		}
 	}
 
