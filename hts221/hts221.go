@@ -7,8 +7,6 @@ package hts221
 
 import (
 	"errors"
-	"machine"
-	"time"
 
 	"tinygo.org/x/drivers"
 )
@@ -17,41 +15,15 @@ import (
 type Device struct {
 	bus              drivers.I2C
 	Address          uint8
-	OnNano33BLE      bool
 	humiditySlope    float32
 	humidityZero     float32
 	temperatureSlope float32
 	temperatureZero  float32
 }
 
-// New creates a new HTS221 connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the Device object, it does not touch the device.
-//
-// For Nano 33 BLE Sense, use machine.P0_15 (SCL1) and machine.P0_14 (SDA1),
-// and set onNano33BLE as hts221.ON_NANO_33_BLE.
-func New(bus drivers.I2C, deviceType uint8) Device {
-	return Device{bus: bus, Address: HTS221_ADDRESS, OnNano33BLE: deviceType == 1}
-}
-
 // Connected returns whether HTS221 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-
-	// if the HTS221 is on Nano 33 BLE Sense,
-	// turn on power pin (machine.P0_22) and I2C1 pullups power pin (machine.P1_00)
-	// and wait a moment.
-	if d.OnNano33BLE {
-		ENV := machine.Pin(22)
-		ENV.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		ENV.High()
-		R := machine.Pin(32)
-		R.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		R.High()
-		time.Sleep(time.Millisecond * 10)
-	}
-
 	data := []byte{0}
 	d.bus.ReadRegister(d.Address, HTS221_WHO_AM_I_REG, data)
 	return data[0] == 0xBC
@@ -63,8 +35,6 @@ func (d *Device) Configure() {
 	d.calibration()
 	// activate device and use block data update mode
 	d.Power(true)
-
-	time.Sleep(time.Millisecond * 10)
 }
 
 // Power is for turn on/off the HTS221 device
@@ -76,7 +46,7 @@ func (d *Device) Power(status bool) {
 	d.bus.WriteRegister(d.Address, HTS221_CTRL1_REG, data)
 }
 
-// ReadHumidity returns the relative humidity in hundredths of a percent.
+// ReadHumidity returns the relative humidity in percent * 100.
 // Returns an error if the device is not turned on.
 func (d *Device) ReadHumidity() (humidity int32, err error) {
 	err = d.waitForOneShot(0x02)
