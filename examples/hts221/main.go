@@ -15,9 +15,7 @@ func main() {
 		Frequency: machine.TWI_FREQ_400KHZ,
 	})
 
-	sensor := hts221.New(machine.I2C1, hts221.ON_NANO_33_BLE)
-	// for normal sensor module, use
-	// sensor := hts221.New(machine.I2C1, hts221.STANDARD)
+	sensor := hts221.New(machine.I2C1)
 
 	if !sensor.Connected() {
 		println("HTS221 not connected!")
