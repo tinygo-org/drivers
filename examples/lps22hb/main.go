@@ -15,9 +15,7 @@ func main() {
 		Frequency: machine.TWI_FREQ_400KHZ,
 	})
 
-	sensor := lps22hb.New(machine.I2C1, lps22hb.ON_NANO_33_BLE)
-	// for normal sensor module, use
-	// sensor := lps22hb.New(machine.I2C1, lps22hb.STANDARD)
+	sensor := lps22hb.New(machine.I2C1)
 
 	if !sensor.Connected() {
 		println("LPS22HB not connected!")
@@ -30,9 +28,9 @@ func main() {
 
 		p, _ := sensor.ReadPressure()
 		t, _ := sensor.ReadTemperature()
-		println("p =", float32(p)/1000.0, "/ t =", float32(t)/1000.0)
+		println("p =", float32(p)/1000.0, "hPa / t =", float32(t)/1000.0, "*C")
 		time.Sleep(time.Second)
-		// the device would power down itself after each query
+		// note: the device would power down itself after each query
 
 	}
 
