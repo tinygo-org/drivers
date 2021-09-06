@@ -1,12 +1,6 @@
 package apds9960
 
 const (
-	// device type
-	STANDARD = iota
-	ON_NANO_33_BLE
-)
-
-const (
 
 	// I2C address
 	ADPS9960_ADDRESS = 0x39
