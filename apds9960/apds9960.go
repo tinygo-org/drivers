@@ -6,7 +6,6 @@
 package apds9960
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -14,11 +13,10 @@ import (
 
 // Device wraps an I2C connection to a APDS-9960 device.
 type Device struct {
-	bus         drivers.I2C
-	Address     uint8
-	OnNano33BLE bool
-	mode        uint8
-	gesture     gestureData
+	bus     drivers.I2C
+	Address uint8
+	mode    uint8
+	gesture gestureData
 }
 
 // Configuration for APDS-9960 device.
@@ -59,34 +57,9 @@ type enableConfig struct {
 	PON  bool
 }
 
-// New creates a new APDS-9960 connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the Device object, it does not touch the device.
-//
-// For Nano 33 BLE Sense, use machine.P0_15 (SCL1) and machine.P0_14 (SDA1),
-// and set onNano33BLE as apds9960.ON_NANO_33_BLE.
-func New(bus drivers.I2C, deviceType uint8) Device {
-	return Device{bus: bus, Address: ADPS9960_ADDRESS, OnNano33BLE: deviceType == 1, mode: MODE_NONE}
-}
-
 // Connected returns whether APDS-9960 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-
-	// if the APDS-9960 is on Nano 33 BLE Sense,
-	// turn on power pin (machine.P0_22) and I2C1 pullups power pin (machine.P1_00)
-	// and wait a moment.
-	if d.OnNano33BLE {
-		ENV := machine.Pin(22)
-		ENV.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		ENV.High()
-		R := machine.Pin(32)
-		R.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		R.High()
-		time.Sleep(time.Millisecond * 10)
-	}
-
 	data := []byte{0}
 	d.bus.ReadRegister(d.Address, APDS9960_ID_REG, data)
 	return data[0] == 0xAB
