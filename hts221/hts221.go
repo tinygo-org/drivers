@@ -76,7 +76,7 @@ func (d *Device) Power(status bool) {
 	d.bus.WriteRegister(d.Address, HTS221_CTRL1_REG, data)
 }
 
-// ReadHumidity returns the relative humidity in percent * 1000.
+// ReadHumidity returns the relative humidity in hundredths of a percent.
 // Returns an error if the device is not turned on.
 func (d *Device) ReadHumidity() (humidity int32, err error) {
 	err = d.waitForOneShot(0x02)
@@ -91,7 +91,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	hValue := readInt(data[1], data[0])
 	hValueCalib := float32(hValue)*d.humiditySlope + d.humidityZero
 
-	return int32(hValueCalib * 1000), nil
+	return int32(hValueCalib * 100), nil
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
