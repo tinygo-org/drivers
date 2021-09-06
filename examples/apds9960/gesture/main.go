@@ -15,20 +15,16 @@ func main() {
 		Frequency: machine.TWI_FREQ_400KHZ,
 	})
 
-	sensor := apds9960.New(machine.I2C1, apds9960.ON_NANO_33_BLE)
-	// for normal sensor module, use
-	// sensor := apds9960.New(machine.I2C1, apds9960.STANDARD)
+	sensor := apds9960.New(machine.I2C1)
 
 	if !sensor.Connected() {
 		println("APDS-9960 not connected!")
 		return
 	}
 
-	// use default settings
-	sensor.Configure(apds9960.Configuration{})
+	sensor.Configure(apds9960.Configuration{}) // use default settings
 
-	// enable gesture engine
-	sensor.EnableGesture()
+	sensor.EnableGesture() // enable gesture engine
 
 	for {
 
@@ -48,8 +44,7 @@ func main() {
 				println("Right")
 			}
 		}
-		// the delay shouldn't be too long, or new gesture data could be lost
-		// before you can read them
+		// note: the delay shouldn't be too long, otherwise new gesture data might be lost
 		time.Sleep(time.Millisecond * 250)
 	}
 
