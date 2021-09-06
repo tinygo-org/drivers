@@ -76,7 +76,7 @@ func (d *Device) Power(status bool) {
 	d.bus.WriteRegister(d.Address, HTS221_CTRL1_REG, data)
 }
 
-// ReadPressure returns the relative humidity in percent * 1000.
+// ReadHumidity returns the relative humidity in percent * 1000.
 // Returns an error if the device is not turned on.
 func (d *Device) ReadHumidity() (humidity int32, err error) {
 	err = d.waitForOneShot(0x02)
