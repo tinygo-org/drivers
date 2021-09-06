@@ -1,12 +1,6 @@
 package lps22hb
 
 const (
-	// device type
-	STANDARD = iota
-	ON_NANO_33_BLE
-)
-
-const (
 
 	// I2C address
 	LPS22HB_ADDRESS = 0x5C
