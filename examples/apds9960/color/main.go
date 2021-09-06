@@ -15,20 +15,16 @@ func main() {
 		Frequency: machine.TWI_FREQ_400KHZ,
 	})
 
-	sensor := apds9960.New(machine.I2C1, apds9960.ON_NANO_33_BLE)
-	// for normal sensor module, use
-	// sensor := apds9960.New(machine.I2C1, apds9960.STANDARD)
+	sensor := apds9960.New(machine.I2C1)
 
 	if !sensor.Connected() {
 		println("APDS-9960 not connected!")
 		return
 	}
 
-	// use default settings
-	sensor.Configure(apds9960.Configuration{})
+	sensor.Configure(apds9960.Configuration{}) // use default settings
 
-	// enable color engine
-	sensor.EnableColor()
+	sensor.EnableColor() // enable color engine
 
 	for {
 
