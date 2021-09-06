@@ -69,6 +69,7 @@ func (d *Device) Connected() bool {
 func (d *Device) Configure(cfg Configuration) {
 	d.DisableAll() // turn off everything
 
+	// "default" settings
 	if cfg.ProximityPulseLength == 0 {
 		cfg.ProximityPulseLength = 16
 	}
@@ -93,9 +94,6 @@ func (d *Device) Configure(cfg Configuration) {
 	if cfg.ADCIntegrationCycles == 0 {
 		cfg.ADCIntegrationCycles = 4
 	}
-	if cfg.LEDBoost == 0 {
-		cfg.LEDBoost = 100
-	}
 	if cfg.threshold == 0 {
 		d.gesture.threshold = 30
 	}
@@ -107,7 +105,10 @@ func (d *Device) Configure(cfg Configuration) {
 	d.SetGesturePulse(cfg.GesturePulseLength, cfg.GesturePulseCount)
 	d.SetGains(cfg.ProximityGain, cfg.GestureGain, cfg.ColorGain)
 	d.SetADCIntegrationCycles(cfg.ADCIntegrationCycles)
-	d.LEDBoost(cfg.LEDBoost)
+
+	if cfg.LEDBoost > 0 {
+		d.LEDBoost(cfg.LEDBoost)
+	}
 }
 
 // GetMode returns current engine mode
