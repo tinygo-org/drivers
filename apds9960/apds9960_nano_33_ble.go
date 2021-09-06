@@ -13,7 +13,7 @@ import (
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C, deviceType uint8) Device {
+func New(bus drivers.I2C) Device {
 	// turn on internal power pin (machine.P0_22) and I2C1 pullups power pin (machine.P1_00)
 	// and wait a moment.
 	ENV := machine.P0_15
