@@ -8,6 +8,6 @@ import "tinygo.org/x/drivers"
 // configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C, deviceType uint8) Device {
+func New(bus drivers.I2C) Device {
 	return Device{bus: bus, Address: ADPS9960_ADDRESS, mode: MODE_NONE}
 }
