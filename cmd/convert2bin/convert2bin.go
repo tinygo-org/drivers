@@ -5,7 +5,10 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
+
+// See ../../image/README.md for the usage.
 
 func main() {
 	err := run(os.Args)
@@ -23,6 +26,8 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("const %s = \"\" +\n", strings.Replace(args[1], ".", "_", -1))
 
 	i := 0
 	max := 32

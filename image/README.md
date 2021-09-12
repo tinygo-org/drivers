@@ -49,7 +49,7 @@ func drawJpeg(display *ili9341.Device) error {
 The following program will output an image binary like the one in [images.go](./examples/ili9341/slideshow/images.go).  
 
 ```
-go run ./examples/ili9341/slideshow/convert2bin ./path/to/png_or_jpg.png
+go run ./cmd/convert2bin ./path/to/png_or_jpg.png
 ```
 
 ## Examples
