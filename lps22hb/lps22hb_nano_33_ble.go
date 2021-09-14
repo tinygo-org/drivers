@@ -16,10 +16,10 @@ import (
 func New(bus drivers.I2C) Device {
 	// turn on internal power pin (machine.P0_22) and I2C1 pullups power pin (machine.P1_00)
 	// and wait a moment.
-	ENV := machine.P0_15
+	ENV := machine.P0_22
 	ENV.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	ENV.High()
-	R := machine.P0_14
+	R := machine.P1_00
 	R.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	R.High()
 	time.Sleep(time.Millisecond * 10)
