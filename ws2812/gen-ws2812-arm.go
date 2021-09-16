@@ -164,7 +164,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	f.WriteString(`// +build cortexm
+	f.WriteString(`//go:build cortexm
+// +build cortexm
 
 package ws2812
 
