@@ -26,6 +26,13 @@ import (
 //   (possibly including some branch prediction).
 // It is certainly possible to extend this to other architectures, such as AVR
 // and RISC-V if needed.
+//
+// Here are two important resources. For the timings:
+// https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
+// For the assembly (more or less):
+// https://cpldcpu.wordpress.com/2014/01/19/light_ws2812-library-v2-0/
+// The timings deviate a little bit from the code here, but so far the timings
+// from wp.josh.com seem to be fine for the ws2812.
 
 // Clock frequencies to support, in MHz.
 var clockFrequencies = []int{16, 48, 64, 120}
@@ -41,15 +48,29 @@ func writeImplementation(f *os.File, megahertz int) error {
 	//   T1H      1 code, high voltage time    550       700   5500   ns
 	//   TLD      data, low voltage time       450       600   5000   ns
 	//   TLL      latch, low voltage time     6000                    ns
+	// The equivalent table for WS2811 LEDs would be the following:
+	//   Symbol   Parameter                    Min   Typical    Max   Units
+	//   T0H      0 code, high voltage time    350       500    650   ns
+	//   T1H      1 code, high voltage time   1050      1200   5500   ns
+	//   TLD      data, low voltage time      1150      1300   5000   ns
+	//   TLL      latch, low voltage time     6000                    ns
+	// Combining the two (min and max) leads to the following table:
+	//   Symbol   Parameter                    Min   Typical    Max   Units
+	//   T0H      0 code, high voltage time    350         -    500   ns
+	//   T1H      1 code, high voltage time   1050         -   5500   ns
+	//   TLD      data, low voltage time      1150         -   5000   ns
+	//   TLL      latch, low voltage time     6000                    ns
+	// These comined timings are used so that the ws2812 package is compatible
+	// with both WS2812 and with WS2811 chips.
 	// T0H is the time the pin should be high to send a "0" bit.
 	// T1H is the time the pin should be high to send a "1" bit.
 	// TLD is the time the pin should be low between bits.
 	// TLL is the time the pin should be low to apply (latch) the new colors.
-	minCyclesT0H := int(math.Ceil(0.200 / cycleTimeNS))
+	minCyclesT0H := int(math.Ceil(0.350 / cycleTimeNS))
 	maxCyclesT0H := int(math.Floor(0.500 / cycleTimeNS))
-	minCyclesT1H := int(math.Ceil(0.550 / cycleTimeNS))
+	minCyclesT1H := int(math.Ceil(1.050 / cycleTimeNS))
 	maxCyclesT1H := int(math.Floor(5.500 / cycleTimeNS))
-	minCyclesTLD := int(math.Ceil(0.450 / cycleTimeNS))
+	minCyclesTLD := int(math.Ceil(1.150 / cycleTimeNS))
 
 	// Assembly template:
 	// 1: @ send_bit
