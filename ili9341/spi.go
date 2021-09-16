@@ -1,3 +1,4 @@
+//go:build !atsamd51 && !atsamd21
 // +build !atsamd51,!atsamd21
 
 package ili9341

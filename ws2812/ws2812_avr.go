@@ -1,3 +1,4 @@
+//go:build avr
 // +build avr
 
 package ws2812

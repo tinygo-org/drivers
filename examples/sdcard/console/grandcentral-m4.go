@@ -1,4 +1,5 @@
-// +build grandcentral-m4
+//go:build ignore
+// +build ignore
 
 package main
 
