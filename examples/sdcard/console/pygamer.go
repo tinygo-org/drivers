@@ -1,3 +1,4 @@
+//go:build pygamer
 // +build pygamer
 
 package main
