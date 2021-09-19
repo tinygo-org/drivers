@@ -169,7 +169,7 @@ func (c *UDPSerialConn) LocalAddr() Addr {
 
 // RemoteAddr returns the remote network address.
 func (c *UDPSerialConn) RemoteAddr() Addr {
-	return c.laddr.opAddr()
+	return c.raddr.opAddr()
 }
 
 func (c *UDPSerialConn) opConn() Conn {
