@@ -1,3 +1,4 @@
+//go:build !digispark && !arduino && !qtpy
 // +build !digispark,!arduino,!qtpy
 
 package main

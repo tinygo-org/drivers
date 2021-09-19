@@ -1,4 +1,5 @@
-// +build arduino atmega1284p nrf52840 digispark nrf52 arduino_nano nrf51 atsamd21 fe310 arduino_nano33 circuitplay_express arduino_mega2560
+//go:build !mimxrt1062 && !stm32f405 && !atsamd51 && !stm32f103xx && !k210 && !stm32f407
+// +build !mimxrt1062,!stm32f405,!atsamd51,!stm32f103xx,!k210,!stm32f407
 
 package dht // import "tinygo.org/x/drivers/dht"
 

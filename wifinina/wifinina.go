@@ -298,10 +298,10 @@ func (d *Device) Configure() {
 
 	net.UseDriver(d.NewDriver())
 
-	d.CS.Configure(machine.PinConfig{machine.PinOutput})
-	d.ACK.Configure(machine.PinConfig{machine.PinInput})
-	d.RESET.Configure(machine.PinConfig{machine.PinOutput})
-	d.GPIO0.Configure(machine.PinConfig{machine.PinOutput})
+	d.CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.ACK.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.RESET.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	d.GPIO0.High()
 	d.CS.High()
@@ -311,7 +311,7 @@ func (d *Device) Configure() {
 	time.Sleep(1 * time.Millisecond)
 
 	d.GPIO0.Low()
-	d.GPIO0.Configure(machine.PinConfig{machine.PinInput})
+	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinInput})
 
 }
 
@@ -1140,7 +1140,7 @@ func (d *Device) readAndCheckByte(check byte, read *byte) bool {
 // readParamLen16 reads 2 bytes from the SPI bus (MSB first), returning uint16
 func (d *Device) readParamLen16() (v uint16, err error) {
 	if b, err := d.SPI.Transfer(0xFF); err == nil {
-		v |= uint16(b << 8)
+		v |= uint16(b) << 8
 		if b, err = d.SPI.Transfer(0xFF); err == nil {
 			v |= uint16(b)
 		}

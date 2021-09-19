@@ -2,7 +2,7 @@
 clean:
 	@rm -rf build
 
-FMT_PATHS = ./*.go ./examples/**/*.go
+FMT_PATHS = ./
 
 fmt-check:
 	@unformatted=$$(gofmt -l $(FMT_PATHS)); [ -z "$$unformatted" ] && exit 0; echo "Unformatted:"; for fn in $$unformatted; do echo "  $$fn"; done; exit 1
@@ -74,6 +74,8 @@ smoke-test:
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/scroll
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/ili9341/scroll
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/slideshow
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis3dh/main.go
 	@md5sum ./build/test.hex
@@ -210,7 +212,8 @@ DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
 		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
 		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x dht keypad4x4 max72xx p1am tone tm1637 \
-		pcf8563 mcp2515 servo sdcard rtl8720dn lps22hb
+		pcf8563 mcp2515 servo sdcard rtl8720dn image cmdlps22hb
+
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:

@@ -1,18 +1,21 @@
+//go:build !atsamd51 && !atsamd21
 // +build !atsamd51,!atsamd21
 
 package ili9341
 
 import (
 	"machine"
+
+	"tinygo.org/x/drivers"
 )
 
 var buf [64]byte
 
 type spiDriver struct {
-	bus machine.SPI
+	bus drivers.SPI
 }
 
-func NewSPI(bus machine.SPI, dc, cs, rst machine.Pin) *Device {
+func NewSPI(bus drivers.SPI, dc, cs, rst machine.Pin) *Device {
 	return &Device{
 		dc:  dc,
 		cs:  cs,
