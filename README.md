@@ -80,6 +80,7 @@ The following 67 devices are supported.
 | [HC-SR04 Ultrasonic distance sensor](https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf) | GPIO |
 | [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO/I2C |
 | [HUB75 RGB led matrix](https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf) | SPI |
+| [software I2C driver](https://www.ti.com/lit/an/slva704/slva704.pdf) | GPIO |
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
 | [INA260 Volt/Amp/Power meter](https://www.ti.com/lit/ds/symlink/ina260.pdf) | I2C |
 | [4x4 Membrane Keypad](https://cdn.sparkfun.com/assets/f/f/a/5/0/DS-16038.pdf) | GPIO |
