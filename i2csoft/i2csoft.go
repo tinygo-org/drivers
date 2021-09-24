@@ -33,7 +33,7 @@ func New(sclPin, sdaPin machine.Pin) *I2C {
 	return &I2C{
 		scl:      sclPin,
 		sda:      sdaPin,
-		baudrate: 100 * 1e3,
+		baudrate: 100e3,
 	}
 }
 
@@ -41,7 +41,7 @@ func New(sclPin, sdaPin machine.Pin) *I2C {
 func (i2c *I2C) Configure(config I2CConfig) error {
 	// Default I2C bus speed is 100 kHz.
 	if config.Frequency != 0 {
-		i2c.baudrate = config.Frequency
+		i2c.SetBaudRate(config.Frequency)
 	}
 
 	// This exists for compatibility with machine.I2CConfig. SCL and SDA must
@@ -51,8 +51,6 @@ func (i2c *I2C) Configure(config I2CConfig) error {
 		i2c.scl = config.SCL
 		i2c.sda = config.SDA
 	}
-
-	i2c.SetBaudRate(config.Frequency)
 
 	// enable pins
 	i2c.sda.High()
@@ -65,6 +63,8 @@ func (i2c *I2C) Configure(config I2CConfig) error {
 
 // SetBaudRate sets the communication speed for the I2C.
 func (i2c *I2C) SetBaudRate(br uint32) {
+	// At this time, the value of i2c.baudrate is ignored because it is fixed
+	// at 100 kHz. SetBaudrate() is exist for compatibility with machine.I2C.
 	i2c.baudrate = br
 }
 
