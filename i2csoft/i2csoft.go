@@ -72,7 +72,6 @@ func (i2c *I2C) SetBaudRate(br uint32) {
 // It clocks out the given address, writes the bytes in w, reads back len(r)
 // bytes and stores them in r, and generates a stop condition on the bus.
 func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
-	var err error
 	i2c.nack = false
 	if len(w) != 0 {
 		// send start/address for write
@@ -88,16 +87,10 @@ func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 
 		// write data
 		for _, b := range w {
-			err = i2c.WriteByte(b)
-			if err != nil {
-				return err
-			}
+			i2c.writeByte(b)
 		}
 
-		err = i2c.signalStop()
-		if err != nil {
-			return err
-		}
+		i2c.signalStop()
 	}
 	if len(r) != 0 {
 		// send start/address for read
@@ -125,17 +118,14 @@ func (i2c *I2C) Tx(addr uint16, w, r []byte) error {
 		// Send NACK to end transmission
 		i2c.sendNack()
 
-		err = i2c.signalStop()
-		if err != nil {
-			return err
-		}
+		i2c.signalStop()
 	}
 
 	return nil
 }
 
-// WriteByte writes a single byte to the I2C bus.
-func (i2c *I2C) WriteByte(data byte) error {
+// writeByte writes a single byte to the I2C bus.
+func (i2c *I2C) writeByte(data byte) {
 	// Send data byte
 	i2c.scl.Low()
 	i2c.sda.High()
@@ -168,12 +158,10 @@ func (i2c *I2C) WriteByte(data byte) error {
 	i2c.wait()
 
 	// wait until transmission successful
-
-	return nil
 }
 
 // sendAddress sends the address and start signal
-func (i2c *I2C) sendAddress(address uint16, write bool) error {
+func (i2c *I2C) sendAddress(address uint16, write bool) {
 	data := (address << 1)
 	if !write {
 		data |= 1 // set read flag
@@ -209,11 +197,9 @@ func (i2c *I2C) sendAddress(address uint16, write bool) error {
 	i2c.wait()
 
 	// wait until bus ready
-
-	return nil
 }
 
-func (i2c *I2C) signalStop() error {
+func (i2c *I2C) signalStop() {
 	i2c.scl.Low()
 	i2c.sda.Low()
 	i2c.sda.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -225,10 +211,9 @@ func (i2c *I2C) signalStop() error {
 	i2c.sda.High()
 	i2c.wait()
 	i2c.wait()
-	return nil
 }
 
-func (i2c *I2C) signalRead() error {
+func (i2c *I2C) signalRead() {
 	i2c.wait()
 	i2c.wait()
 	i2c.scl.Low()
@@ -239,7 +224,6 @@ func (i2c *I2C) signalRead() error {
 	i2c.scl.High()
 	i2c.wait()
 	i2c.wait()
-	return nil
 }
 
 func (i2c *I2C) readByte() byte {
@@ -259,7 +243,7 @@ func (i2c *I2C) readByte() byte {
 	return data
 }
 
-func (i2c *I2C) sendNack() error {
+func (i2c *I2C) sendNack() {
 	i2c.wait()
 	i2c.wait()
 	i2c.scl.Low()
@@ -270,7 +254,6 @@ func (i2c *I2C) sendNack() error {
 	i2c.scl.High()
 	i2c.wait()
 	i2c.wait()
-	return nil
 }
 
 // WriteRegister transmits first the register and then the data to the
