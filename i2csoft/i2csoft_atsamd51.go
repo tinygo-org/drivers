@@ -4,20 +4,14 @@
 package i2csoft
 
 import (
-	"device/arm"
+	"device"
 )
 
+// wait waits for half the time of the SCL operation interval. It is set to
+// about 100 kHz.
 func (i2c *I2C) wait() {
-	// atsamd51
-	//  1 : about 388kHz
-	// 17 : about 97kHz
-
-	wait := 1
-	if i2c.baudrate < 400*1e3 {
-		wait = 17
-	}
-
+	wait := 20
 	for i := 0; i < wait; i++ {
-		arm.Asm(`nop`)
+		device.Asm(`nop`)
 	}
 }
