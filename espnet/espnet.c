@@ -70,6 +70,7 @@ static void *_mutex_create(void) {
 	return NULL;
 }
 
+// simplified mutex to continue with call stack
 unsigned int mutx = 0;
 
 static void *_recursive_mutex_create(void) {
@@ -80,12 +81,14 @@ static void _mutex_delete(void *mutex) {
     printf("called: _mutex_delete: %p\n", mutex);
 }
 static int32_t _mutex_lock(void *mutex) {
-    printf("called: _mutex_lock: %p\n", mutex);
+    printf("called: _mutex_lock: %p (%d)\n", mutex, *(unsigned int*)mutex);
+	// simplified mutex to continue with call stack
 	*(unsigned int*)mutex = 1;
 	return 0;
 }
 static int32_t _mutex_unlock(void *mutex) {
-    printf("called: _mutex_unlock: %p\n", mutex);
+    printf("called: _mutex_unlock: %p (%d)\n", mutex, *(unsigned int*)mutex);
+	// simplified mutex to continue with call stack
 	*(unsigned int*)mutex = 0;
 	return 0;
 }
