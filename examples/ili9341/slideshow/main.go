@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"machine"
 	"strings"
 	"time"
 
+	"tinygo.org/x/drivers/examples/ili9341/initdisplay"
 	"tinygo.org/x/drivers/ili9341"
 	"tinygo.org/x/drivers/image/jpeg"
 	"tinygo.org/x/drivers/image/png"
@@ -20,6 +20,10 @@ var (
 	green = color.RGBA{0, 255, 0, 255}
 )
 
+var (
+	display *ili9341.Device
+)
+
 func main() {
 	err := run()
 	for err != nil {
@@ -28,9 +32,7 @@ func main() {
 }
 
 func run() error {
-	backlight.Configure(machine.PinConfig{machine.PinOutput})
-
-	display.Configure(ili9341.Config{})
+	display = initdisplay.InitDisplay()
 
 	width, height := display.Size()
 	if width < 320 || height < 240 {
@@ -38,7 +40,6 @@ func run() error {
 	}
 
 	display.FillScreen(black)
-	backlight.High()
 
 	for {
 		err := drawJpeg(display)
