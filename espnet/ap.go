@@ -17,6 +17,8 @@ package espnet
 */
 import "C"
 
+import _ "compat/freertos"
+
 type ESPWiFi struct {
 }
 

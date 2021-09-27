@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdio.h>
 #include "espnet.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 // Stub functions, to know which functions need to be implemented for OS
 // functionality.
@@ -70,27 +72,17 @@ static void *_mutex_create(void) {
 	return NULL;
 }
 
-// simplified mutex to continue with call stack
-unsigned int mutx = 0;
-
 static void *_recursive_mutex_create(void) {
-	printf("called: _recursive_mutex_create. ret=%p\n", &mutx);
-	return &mutx;
+	return xSemaphoreCreateRecursiveMutex();
 }
 static void _mutex_delete(void *mutex) {
-	printf("called: _mutex_delete: %p\n", mutex);
+	return vSemaphoreDelete(mutex);
 }
 static int32_t _mutex_lock(void *mutex) {
-	printf("called: _mutex_lock: %p (%d)\n", mutex, *(unsigned int*)mutex);
-	// simplified mutex to continue with call stack
-	*(unsigned int*)mutex = 1;
-	return 0;
+	return (int32_t)xSemaphoreTakeRecursive(mutex, portMAX_DELAY);
 }
 static int32_t _mutex_unlock(void *mutex) {
-	printf("called: _mutex_unlock: %p (%d)\n", mutex, *(unsigned int*)mutex);
-	// simplified mutex to continue with call stack
-	*(unsigned int*)mutex = 0;
-	return 0;
+	return (int32_t)xSemaphoreGiveRecursive(mutex);
 }
 static void * _queue_create(uint32_t queue_len, uint32_t item_size) {
 	printf("called: _queue_create\n");
