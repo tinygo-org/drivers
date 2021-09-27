@@ -33,11 +33,13 @@ static bool _is_from_isr(void) {
 	return false;
 }
 static void * _spin_lock_create(void) {
-	printf("called: _spin_lock_create\n");
-	return NULL;
+	// It looks like the only thing these libraries do, is create and delete
+	// spin locks. So creating this as a stub for now.
+	return malloc(1);
 }
 static void _spin_lock_delete(void *lock) {
-	printf("called: _spin_lock_delete\n");
+	// See _spin_lock_create.
+	free(lock);
 }
 static uint32_t _wifi_int_disable(void *wifi_int_mux) {
 	printf("called: _wifi_int_disable\n");
