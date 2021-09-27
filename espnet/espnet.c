@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "espnet.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -162,13 +163,6 @@ static void* _task_get_current_task(void) {
 static int32_t _task_get_max_priority() {
 	P(_task_get_max_priority)
 	return 0;
-}
-static void* _malloc(unsigned int size) {
-	P(_malloc)
-	return NULL;
-}
-static void _free(void *p) {
-	P(_free)
 }
 static int32_t _event_post(const char* event_base, int32_t event_id, void* event_data, size_t event_data_size, uint32_t ticks_to_wait) {
 	P(_event_post)
@@ -335,20 +329,17 @@ static void* _zalloc_internal(size_t size) {
 	return NULL;
 }
 static void* _wifi_malloc(size_t size) {
-	P(_wifi_malloc)
-	return NULL;
+	return malloc(size);
 }
 static void* _wifi_realloc(void *ptr, size_t size) {
 	P(_wifi_realloc)
 	return NULL;
 }
 static void* _wifi_calloc(size_t n, size_t size) {
-	P(_wifi_calloc)
-	return NULL;
+	return calloc(n, size);
 }
 static void* _wifi_zalloc(size_t size) {
-	P(_wifi_zalloc)
-	return NULL;
+	return calloc(1, size);
 }
 static void* _wifi_create_queue(int queue_len, int item_size) {
 	P(_wifi_create_queue)
@@ -475,8 +466,8 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._task_ms_to_tick = _task_ms_to_tick,
 	._task_get_current_task = _task_get_current_task,
 	._task_get_max_priority = _task_get_max_priority,
-	._malloc = _malloc,
-	._free = _free,
+	._malloc = malloc,
+	._free = free,
 	._event_post = _event_post,
 	._get_free_heap_size = _get_free_heap_size,
 	._rand = _rand,
