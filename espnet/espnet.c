@@ -5,6 +5,7 @@
 #include "espnet.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 // Stub functions, to know which functions need to be implemented for OS
 // functionality.
@@ -157,10 +158,6 @@ static void _task_delay(uint32_t tick) {
 static int32_t _task_ms_to_tick(uint32_t ms) {
 	P(_task_ms_to_tick)
 	return 0;
-}
-static void* _task_get_current_task(void) {
-	P(_task_get_current_task)
-	return NULL;
 }
 static int32_t _task_get_max_priority() {
 	P(_task_get_max_priority)
@@ -466,7 +463,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._task_delete = _task_delete,
 	._task_delay = _task_delay,
 	._task_ms_to_tick = _task_ms_to_tick,
-	._task_get_current_task = _task_get_current_task,
+	._task_get_current_task = (void *(*)(void))xTaskGetCurrentTaskHandle,
 	._task_get_max_priority = _task_get_max_priority,
 	._malloc = malloc,
 	._free = free,
