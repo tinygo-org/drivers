@@ -2,9 +2,9 @@ package main
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/examples/ili9341/initdisplay"
 	"tinygo.org/x/drivers/ili9341"
 )
 
@@ -16,15 +16,14 @@ var (
 	white = color.RGBA{255, 255, 255, 255}
 )
 
+var (
+	display *ili9341.Device
+)
+
 func main() {
+	display := initdisplay.InitDisplay()
 
-	backlight.Configure(machine.PinConfig{machine.PinOutput})
-
-	display.Configure(ili9341.Config{})
 	width, height := display.Size()
-
-	display.FillScreen(black)
-	backlight.High()
 
 	display.FillRectangle(0, 0, width/2, height/2, white)
 	display.FillRectangle(width/2, 0, width/2, height/2, red)
