@@ -336,13 +336,13 @@ static void _log_write(uint32_t level, const char* tag, const char* format, ...)
 	va_list argList;
 	printf("[%s] ", tag);
 	va_start(argList, format);
-	printf(format, argList);
+	vprintf(format, argList);
 	va_end(argList);
 	printf("\n");
 }
 static void _log_writev(uint32_t level, const char* tag, const char* format, va_list args) {
 	printf("[%s] ", tag);
-	printf(format, args);
+	vprintf(format, args);
 	printf("\n");
 }
 
@@ -549,7 +549,9 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._get_random = _get_random,
 	._get_time = _get_time,
 	._random = _random,
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3
 	._slowclk_cal_get = _slowclk_cal_get,
+#endif
 	._log_write = _log_write,
 	._log_writev = _log_writev,
 	._log_timestamp = _log_timestamp,
@@ -707,7 +709,8 @@ static int aes_128_cbc_decrypt(const unsigned char *key, const unsigned char *iv
 	P(aes_128_cbc_decrypt)
 	return -1;
 }
-static const wpa_crypto_funcs_t wifi_wifi_default_wpa_crypto_funcs = {
+
+const wpa_crypto_funcs_t g_wifi_default_wpa_crypto_funcs = {
 	.size = sizeof(wpa_crypto_funcs_t),
 	.version = ESP_WIFI_CRYPTO_VERSION,
 	.aes_wrap = (esp_aes_wrap_t)esp_aes_wrap,
@@ -735,32 +738,6 @@ static const wpa_crypto_funcs_t wifi_wifi_default_wpa_crypto_funcs = {
 	.ccmp_decrypt = (esp_ccmp_decrypt_t)ccmp_decrypt,
 	.ccmp_encrypt = (esp_ccmp_encrypt_t)ccmp_encrypt
 };
-
-void wifi_init_default(void* ptr) {
-	wifi_init_config_t* cfg = (wifi_init_config_t*)ptr;
-	cfg->event_handler = NULL;
-	cfg->osi_funcs = &g_wifi_osi_funcs;
-	cfg->wpa_crypto_funcs = wifi_wifi_default_wpa_crypto_funcs;
-	cfg->static_rx_buf_num = 0;	  /**< WiFi static RX buffer number */
-	cfg->dynamic_rx_buf_num = 0;	 /**< WiFi dynamic RX buffer number */
-	cfg->tx_buf_type = 0;			/**< WiFi TX buffer type */
-	cfg->static_tx_buf_num = 0;	  /**< WiFi static TX buffer number */
-	cfg->dynamic_tx_buf_num = 0;	 /**< WiFi dynamic TX buffer number */
-	cfg->cache_tx_buf_num = 0;	   /**< WiFi TX cache buffer number */
-	cfg->csi_enable = 0;			 /**< WiFi channel state information enable flag */
-	cfg->ampdu_rx_enable = 0;		/**< WiFi AMPDU RX feature enable flag */
-	cfg->ampdu_tx_enable = 0;		/**< WiFi AMPDU TX feature enable flag */
-	cfg->amsdu_tx_enable = 0;		/**< WiFi AMSDU TX feature enable flag */
-	cfg->nvs_enable = 0;			 /**< WiFi NVS flash enable flag */
-	cfg->nano_enable = 0;			/**< Nano option for printf/scan family enable flag */
-	cfg->rx_ba_win = 0;			  /**< WiFi Block Ack RX window size */
-	cfg->wifi_task_core_id = 0;	  /**< WiFi Task Core ID */
-	cfg->beacon_max_len = 0;		 /**< WiFi softAP maximum length of the beacon */
-	cfg->mgmt_sbuf_num = 0;		  /**< WiFi management short buffer number, the minimum value is 6, the maximum value is 32 */
-	cfg->feature_caps = 0;
-	cfg->sta_disconnected_pm = 1;
-	cfg->magic = WIFI_INIT_CONFIG_MAGIC;
-}
 
 // This is a string constant that is used all over ESP-IDF and is also used by
 // libnet80211.a. The main purpose is to be a fixed pointer that can be compared
