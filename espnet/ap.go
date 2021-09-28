@@ -28,10 +28,17 @@ type Config struct {
 }
 
 var internalConfig = C.wifi_init_config_t{
-	osi_funcs: &C.g_wifi_osi_funcs,
+	osi_funcs:           &C.g_wifi_osi_funcs,
+	wpa_crypto_funcs:    C.g_wifi_default_wpa_crypto_funcs,
+	static_rx_buf_num:   10,
+	static_tx_buf_num:   10,
+	mgmt_sbuf_num:       6,
+	sta_disconnected_pm: true,
+	magic:               C.WIFI_INIT_CONFIG_MAGIC,
 }
 
 func (wifi ESPWiFi) Configure(config Config) error {
+	C.esp_wifi_internal_set_log_level(5)
 	return makeError(C.esp_wifi_init_internal(&internalConfig))
 }
 
