@@ -2,10 +2,13 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "espnet.h"
+#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+
 
 // Stub functions, to know which functions need to be implemented for OS
 // functionality.
@@ -33,13 +36,45 @@ static bool _is_from_isr(void) {
 	printf("called: _is_from_isr\n");
 	return false;
 }
+
+// Having conflict between when include 
+// #include "freertos/portmacro.h" 
+
+typedef struct {
+	/* owner field values:
+	 * 0				- Uninitialized (invalid)
+	 * portMUX_FREE_VAL - Mux is free, can be locked by either CPU
+	 * CORE_ID_REGVAL_PRO / CORE_ID_REGVAL_APP - Mux is locked to the particular core
+	 *
+	 *
+	 * Any value other than portMUX_FREE_VAL, CORE_ID_REGVAL_PRO, CORE_ID_REGVAL_APP indicates corruption
+	 */
+	uint32_t owner;
+	/* count field:
+	 * If mux is unlocked, count should be zero.
+	 * If mux is locked, count is non-zero & represents the number of recursive locks on the mux.
+	 */
+	uint32_t count;
+} portMUX_TYPE;
+
+#define portMUX_FREE_VAL	SPINLOCK_FREE
+#define SPINLOCK_FREE	   0xB33FFFFF
+
+#define portMUX_INITIALIZER_UNLOCKED {					\
+		.owner = portMUX_FREE_VAL,						\
+		.count = 0,										\
+	}
+
 static void * _spin_lock_create(void) {
-	// It looks like the only thing these libraries do, is create and delete
-	// spin locks. So creating this as a stub for now.
-	return malloc(1);
+	portMUX_TYPE tmp = portMUX_INITIALIZER_UNLOCKED;
+	void *mux = malloc(sizeof(portMUX_TYPE));
+	if (mux) {
+		memcpy(mux,&tmp,sizeof(portMUX_TYPE));
+		return mux;
+	}
+	return NULL;
 }
 static void _spin_lock_delete(void *lock) {
-	// See _spin_lock_create.
 	free(lock);
 }
 static uint32_t _wifi_int_disable(void *wifi_int_mux) {
@@ -193,10 +228,6 @@ static void _phy_disable(void) {
 static void _phy_enable(void) {
 	P(_phy_enable)
 }
-// #if CONFIG_IDF_TARGET_ESP32
-//     void (* _phy_common_clock_enable(void)
-//     void (* _phy_common_clock_disable(void)
-// #endif
 static int _phy_update_country_info(const char* country) {
 	P(_phy_update_country_info)
 	return 0;
@@ -299,39 +330,48 @@ static unsigned long _random(void) {
 	return 0;
 }
 // #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3
-//     uint32_t (* _slowclk_cal_get(void)
+//	 uint32_t (* _slowclk_cal_get(void)
 // #endif
 static void _log_write(uint32_t level, const char* tag, const char* format, ...) {
-	P(_log_write)
+	va_list argList;
+	printf("[%s] ", tag);
+	va_start(argList, format);
+	printf(format, argList);
+	va_end(argList);
+	printf("\n");
 }
 static void _log_writev(uint32_t level, const char* tag, const char* format, va_list args) {
-	P(_log_writev)
+	printf("[%s] ", tag);
+	printf(format, args);
+	printf("\n");
 }
+
 static uint32_t  _log_timestamp(void) {
 	P(_log_timestamp)
 	return 0;
 }
 static void* _malloc_internal(size_t size) {
-	P(_malloc_internal)
-	return NULL;
+	printf("called: _malloc_internal(%d)\n", size);
+	return malloc(size);
 }
 static void* _realloc_internal(void *ptr, size_t size) {
-	P(_realloc_internal)
+	printf("called: _realloc_internal(%p,%d)\n", ptr, size);
 	return NULL;
 }
+
 static void* _calloc_internal(size_t n, size_t size) {
-	P(_calloc_internal)
-	return NULL;
+	printf("called: _calloc_internal(%d,%d)\n", n, size);
+	return malloc(n * size);
 }
 static void* _zalloc_internal(size_t size) {
-	P(_zalloc_internal)
+	printf("called: _zalloc_internal(%d)\n", size);
 	return NULL;
 }
 static void* _wifi_malloc(size_t size) {
 	return malloc(size);
 }
 static void* _wifi_realloc(void *ptr, size_t size) {
-	P(_wifi_realloc)
+	printf("called: _wifi_realloc(%d)\n", size);
 	return NULL;
 }
 static void* _wifi_calloc(size_t n, size_t size) {
@@ -419,6 +459,11 @@ static int _coex_schm_curr_phase_idx_get(void) {
 	return 0;
 }
 
+
+uint32_t _slowclk_cal_get(void) {
+	return 0;
+}
+
 // OS adapter functions.
 // See: esp-idf/components/esp_wifi/include/esp_private/wifi_os_adapter.h
 wifi_osi_funcs_t g_wifi_osi_funcs = {
@@ -476,10 +521,6 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._wifi_apb80m_release = _wifi_apb80m_release,
 	._phy_disable = _phy_disable,
 	._phy_enable = _phy_enable,
-// #if CONFIG_IDF_TARGET_ESP32
-//     void (* _phy_common_clock_enable
-//     void (* _phy_common_clock_disable
-// #endif
 	._phy_update_country_info = _phy_update_country_info,
 	._read_mac = _read_mac,
 	._timer_arm = _timer_arm,
@@ -508,9 +549,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._get_random = _get_random,
 	._get_time = _get_time,
 	._random = _random,
-// #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3
-//     uint32_t (* _slowclk_cal_get
-// #endif
+	._slowclk_cal_get = _slowclk_cal_get,
 	._log_write = _log_write,
 	._log_writev = _log_writev,
 	._log_timestamp = _log_timestamp,
@@ -546,6 +585,182 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 
 	._magic = ESP_WIFI_OS_ADAPTER_MAGIC,
 };
+
+static int esp_aes_wrap(const unsigned char *kek, int n, const unsigned char *plain, unsigned char *cipher) {
+	P(aes_wrap)
+	return -1;
+}
+static int esp_aes_unwrap(const unsigned char *kek, int n, const unsigned char *cipher, unsigned char *plain) {
+	P(aes_unwrap)
+	return -1;	
+}
+static int hmac_sha256_vector(const unsigned char *key, int key_len, int num_elem,
+	const unsigned char *addr[], const int *len, unsigned char *mac) {
+	return -1;
+}
+static int sha256_prf(const unsigned char *key, int key_len, const char *label,
+								   const unsigned char *data, int data_len, unsigned char *buf, int buf_len) {
+	P(sha256_prf)
+	return -1;
+}
+static int hmac_md5(const unsigned char *key, unsigned int key_len, const unsigned char *data,
+							  unsigned int data_len, unsigned char *mac) {
+	P(hmac_md5)
+	return -1;
+}
+static int hamc_md5_vector(const unsigned char *key, unsigned int key_len, unsigned int num_elem,
+							  const unsigned char *addr[], const unsigned int *len, unsigned char *mac) {
+	P(hamc_md5_vector)
+	return -1;							
+}
+static int hmac_sha1(const unsigned char *key, unsigned int key_len, const unsigned char *data,
+							  unsigned int data_len, unsigned char *mac) {
+	P(hmac_sha1)
+	return -1;
+}
+static int hmac_sha1_vector(const unsigned char *key, unsigned int key_len, unsigned int num_elem,
+							  const unsigned char *addr[], const unsigned int *len, unsigned char *mac) {
+	P(hmac_sha1_vector)
+	return -1;
+}
+static int sha1_prf(const unsigned char *key, unsigned int key_len, const char *label,
+							  const unsigned char *data, unsigned int data_len, unsigned char *buf, unsigned int buf_len) {
+	P(sha1_prf)
+	return -1;
+}
+static int sha1_vector(unsigned int num_elem, const unsigned char *addr[], const unsigned int *len,
+							  unsigned char *mac) {
+	P(sha1_vector)
+	return -1;
+}
+static int pbkdf2_sha1(const char *passphrase, const char *ssid, unsigned int ssid_len,
+							  int iterations, unsigned char *buf, unsigned int buflen) {
+	P(pbkdf2_sha1)
+	return -1;
+}
+static int rc4_skip(const unsigned char *key, unsigned int keylen, unsigned int skip,
+							  unsigned char *data, unsigned int data_len) {
+	P(rc4_skip)
+	return -1;
+}
+static int md5_vector(unsigned int num_elem, const unsigned char *addr[], const unsigned int *len,
+							  unsigned char *mac) {
+	P(md5_vector)
+	return -1;
+}
+static void aes_encrypt(void *ctx, const unsigned char *plain, unsigned char *crypt) {
+	P(aes_encrypt)
+}
+static void * aes_encrypt_init(const unsigned char *key,  unsigned int len) {
+	P(aes_encrypt_init)
+	return NULL;
+}
+static void aes_encrypt_deinit(void *ctx) {
+	P(aes_encrypt_deinit)
+}
+static void aes_decrypt(void *ctx, const unsigned char *crypt, unsigned char *plain) {
+	P(aes_decrypt)
+}
+static void * aes_decrypt_init(const unsigned char *key, unsigned int len) {
+	P(aes_decrypt_init)
+	return NULL;
+}
+static void aes_decrypt_deinit(void *ctx) {
+	P(aes_decrypt_deinit)
+}
+static int aes_128_decrypt(const unsigned char *key, const unsigned char *iv, unsigned char *data, int data_len) {
+	P(aes_128_decrypt)
+	return -1;
+}
+static int omac1_aes_128(const uint8_t *key, const uint8_t *data, size_t data_len,
+								   uint8_t *mic) {
+	P(omac1_aes_128)
+	return -1;
+}
+static uint8_t * ccmp_decrypt(const uint8_t *tk, const uint8_t *ieee80211_hdr,
+										const uint8_t *data, size_t data_len,
+										size_t *decrypted_len, bool espnow_pkt) {
+	P(ccmp_decrypt)
+	return NULL;
+}
+static uint8_t * ccmp_encrypt(const uint8_t *tk, uint8_t *frame, size_t len, size_t hdrlen,
+										uint8_t *pn, int keyid, size_t *encrypted_len) {
+	P(ccmp_encrypt)
+	return NULL;
+}
+static int hmac_md5_vector(const unsigned char *key, unsigned int key_len, unsigned int num_elem,
+							  const unsigned char *addr[], const unsigned int *len, unsigned char *mac) {
+	P(hmac_md5_vector)
+	return -1;
+}
+static void esp_aes_encrypt(void *ctx, const unsigned char *plain, unsigned char *crypt) {
+	P(esp_aes_encrypt)
+}
+static void esp_aes_decrypt(void *ctx, const unsigned char *crypt, unsigned char *plain) {
+	P(esp_aes_decrypt)
+}
+static int aes_128_cbc_encrypt(const unsigned char *key, const unsigned char *iv, unsigned char *data, int data_len) {
+	P(aes_128_cbc_encrypt)
+	return -1;
+}
+static int aes_128_cbc_decrypt(const unsigned char *key, const unsigned char *iv, unsigned char *data, int data_len) {
+	P(aes_128_cbc_decrypt)
+	return -1;
+}
+static const wpa_crypto_funcs_t wifi_wifi_default_wpa_crypto_funcs = {
+	.size = sizeof(wpa_crypto_funcs_t),
+	.version = ESP_WIFI_CRYPTO_VERSION,
+	.aes_wrap = (esp_aes_wrap_t)esp_aes_wrap,
+	.aes_unwrap = (esp_aes_unwrap_t)esp_aes_unwrap,
+	.hmac_sha256_vector = (esp_hmac_sha256_vector_t)hmac_sha256_vector,
+	.sha256_prf = (esp_sha256_prf_t)sha256_prf,
+	.hmac_md5 = (esp_hmac_md5_t)hmac_md5,
+	.hamc_md5_vector = (esp_hmac_md5_vector_t)hmac_md5_vector,
+	.hmac_sha1 = (esp_hmac_sha1_t)hmac_sha1,
+	.hmac_sha1_vector = (esp_hmac_sha1_vector_t)hmac_sha1_vector,
+	.sha1_prf = (esp_sha1_prf_t)sha1_prf,
+	.sha1_vector = (esp_sha1_vector_t)sha1_vector,
+	.pbkdf2_sha1 = (esp_pbkdf2_sha1_t)pbkdf2_sha1,
+	.rc4_skip = (esp_rc4_skip_t)rc4_skip,
+	.md5_vector = (esp_md5_vector_t)md5_vector,
+	.aes_encrypt = (esp_aes_encrypt_t)esp_aes_encrypt,
+	.aes_encrypt_init = (esp_aes_encrypt_init_t)aes_encrypt_init,
+	.aes_encrypt_deinit = (esp_aes_encrypt_deinit_t)aes_encrypt_deinit,
+	.aes_decrypt = (esp_aes_decrypt_t)esp_aes_decrypt,
+	.aes_decrypt_init = (esp_aes_decrypt_init_t)aes_decrypt_init,
+	.aes_decrypt_deinit = (esp_aes_decrypt_deinit_t)aes_decrypt_deinit,
+	.aes_128_encrypt = (esp_aes_128_encrypt_t)aes_128_cbc_encrypt,
+	.aes_128_decrypt = (esp_aes_128_decrypt_t)aes_128_cbc_decrypt,
+	.omac1_aes_128 = (esp_omac1_aes_128_t)omac1_aes_128,
+	.ccmp_decrypt = (esp_ccmp_decrypt_t)ccmp_decrypt,
+	.ccmp_encrypt = (esp_ccmp_encrypt_t)ccmp_encrypt
+};
+
+void wifi_init_default(void* ptr) {
+	wifi_init_config_t* cfg = (wifi_init_config_t*)ptr;
+	cfg->event_handler = NULL;
+	cfg->osi_funcs = &g_wifi_osi_funcs;
+	cfg->wpa_crypto_funcs = wifi_wifi_default_wpa_crypto_funcs;
+	cfg->static_rx_buf_num = 0;	  /**< WiFi static RX buffer number */
+	cfg->dynamic_rx_buf_num = 0;	 /**< WiFi dynamic RX buffer number */
+	cfg->tx_buf_type = 0;			/**< WiFi TX buffer type */
+	cfg->static_tx_buf_num = 0;	  /**< WiFi static TX buffer number */
+	cfg->dynamic_tx_buf_num = 0;	 /**< WiFi dynamic TX buffer number */
+	cfg->cache_tx_buf_num = 0;	   /**< WiFi TX cache buffer number */
+	cfg->csi_enable = 0;			 /**< WiFi channel state information enable flag */
+	cfg->ampdu_rx_enable = 0;		/**< WiFi AMPDU RX feature enable flag */
+	cfg->ampdu_tx_enable = 0;		/**< WiFi AMPDU TX feature enable flag */
+	cfg->amsdu_tx_enable = 0;		/**< WiFi AMSDU TX feature enable flag */
+	cfg->nvs_enable = 0;			 /**< WiFi NVS flash enable flag */
+	cfg->nano_enable = 0;			/**< Nano option for printf/scan family enable flag */
+	cfg->rx_ba_win = 0;			  /**< WiFi Block Ack RX window size */
+	cfg->wifi_task_core_id = 0;	  /**< WiFi Task Core ID */
+	cfg->beacon_max_len = 0;		 /**< WiFi softAP maximum length of the beacon */
+	cfg->mgmt_sbuf_num = 0;		  /**< WiFi management short buffer number, the minimum value is 6, the maximum value is 32 */
+	cfg->feature_caps = 0;
+	cfg->sta_disconnected_pm = 1;
+	cfg->magic = WIFI_INIT_CONFIG_MAGIC;
+}
 
 // This is a string constant that is used all over ESP-IDF and is also used by
 // libnet80211.a. The main purpose is to be a fixed pointer that can be compared
