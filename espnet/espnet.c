@@ -5,6 +5,7 @@
 #include <string.h>
 #include "espnet.h"
 #include "esp_wifi.h"
+#include "esp_private/wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -88,23 +89,27 @@ static void _task_yield_from_isr(void) {
 	printf("called: _task_yield_from_isr\n");
 }
 static void *_semphr_create(uint32_t max, uint32_t init) {
-	printf("called: _semphr_create\n");
-	return NULL;
+	return (void *)xSemaphoreCreateCounting(max, init);
 }
 static void _semphr_delete(void *semphr) {
-	printf("called: _semphr_delete\n");
+	vSemaphoreDelete(semphr);
 }
 static int32_t _semphr_take(void *semphr, uint32_t block_time_tick) {
-	printf("called: _semphr_take\n");
-	return 0;
+	if (block_time_tick == OSI_FUNCS_TIME_BLOCKING) {
+		return (int32_t)xSemaphoreTake(semphr, portMAX_DELAY);
+	} else {
+		return (int32_t)xSemaphoreTake(semphr, block_time_tick);
+	}
 }
 static int32_t _semphr_give(void *semphr) {
-	printf("called: _semphr_give\n");
-	return 0;
+	return (int32_t)xSemaphoreGive(semphr);
 }
 static void *_wifi_thread_semphr_get(void) {
-	printf("called: _wifi_thread_semphr_get\n");
-	return NULL;
+	static SemaphoreHandle_t sem = NULL;
+	if (!sem) {
+		sem = xSemaphoreCreateCounting(1, 0);
+	}
+	return (void*)sem;
 }
 static void *_mutex_create(void) {
 	printf("called: _mutex_create\n");
@@ -131,8 +136,11 @@ static void _queue_delete(void *queue) {
 	printf("called: _queue_delete\n");
 }
 static int32_t _queue_send(void *queue, void *item, uint32_t block_time_tick) {
-	printf("called: _queue_send\n");
-	return 0;
+	if (block_time_tick == OSI_FUNCS_TIME_BLOCKING) {
+		return (int32_t)xQueueSend(queue, item, portMAX_DELAY);
+	} else {
+		return (int32_t)xQueueSend(queue, item, block_time_tick);
+	}
 }
 static int32_t _queue_send_from_isr(void *queue, void *item, void *hptw) {
 	printf("called: _queue_send_from_isr\n");
@@ -147,12 +155,11 @@ static int32_t _queue_send_to_front(void *queue, void *item, uint32_t block_time
 	return 0;
 }
 static int32_t _queue_recv(void *queue, void *item, uint32_t block_time_tick) {
-	printf("called: _queue_recv\n");
-	return 0;
-}
-static uint32_t _queue_msg_waiting(void *queue) {
-	printf("called: _queue_msg_waiting\n");
-	return 0;
+	if (block_time_tick == OSI_FUNCS_TIME_BLOCKING) {
+		return (int32_t)xQueueReceive(queue, item, portMAX_DELAY);
+	} else {
+		return (int32_t)xQueueReceive(queue, item, block_time_tick);
+	}
 }
 static void * _event_group_create(void) {
 	printf("called: _event_group_create\n");
@@ -177,8 +184,8 @@ static uint32_t _event_group_wait_bits(void *event, uint32_t bits_to_wait_for, i
 #define P(x) printf("called: "#x"\n");
 
 static int32_t _task_create_pinned_to_core(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle, uint32_t core_id) {
-	P(_task_create_pinned_to_core)
-	return 0;
+	// Note: using xTaskCreate instead of xTaskCreatePinnedToCore.
+	return (uint32_t)xTaskCreate(task_func, name, stack_depth, param, prio, task_handle);
 }
 static int32_t _task_create(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle) {
 	P(_task_create)
@@ -187,16 +194,11 @@ static int32_t _task_create(void *task_func, const char *name, uint32_t stack_de
 static void _task_delete(void *task_handle) {
 	P(_task_delete)
 }
-static void _task_delay(uint32_t tick) {
-	P(_task_delay)
-}
 static int32_t _task_ms_to_tick(uint32_t ms) {
-	P(_task_ms_to_tick)
-	return 0;
+	return (int32_t)(ms / portTICK_PERIOD_MS);
 }
 static int32_t _task_get_max_priority() {
-	P(_task_get_max_priority)
-	return 0;
+	return configMAX_PRIORITIES;
 }
 static int32_t _event_post(const char* event_base, int32_t event_id, void* event_data, size_t event_data_size, uint32_t ticks_to_wait) {
 	P(_event_post)
@@ -381,11 +383,12 @@ static void* _wifi_zalloc(size_t size) {
 	return calloc(1, size);
 }
 static void* _wifi_create_queue(int queue_len, int item_size) {
-	P(_wifi_create_queue)
-	return NULL;
+	wifi_static_queue_t *queue = (wifi_static_queue_t*)malloc(sizeof(wifi_static_queue_t));
+	queue->handle = xQueueCreate( queue_len, item_size);
+	return queue;
 }
 static void _wifi_delete_queue(void * queue) {
-	P(_wifi_delete_queue)
+	vQueueDelete(queue);
 }
 static int _coex_init(void) {
 	P(_coex_init)
@@ -497,7 +500,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._queue_send_to_back = _queue_send_to_back,
 	._queue_send_to_front = _queue_send_to_front,
 	._queue_recv = _queue_recv,
-	._queue_msg_waiting = _queue_msg_waiting,
+	._queue_msg_waiting = (uint32_t(*)(void *))uxQueueMessagesWaiting,
 	._event_group_create = _event_group_create,
 	._event_group_delete = _event_group_delete,
 	._event_group_set_bits = _event_group_set_bits,
@@ -506,7 +509,7 @@ wifi_osi_funcs_t g_wifi_osi_funcs = {
 	._task_create_pinned_to_core = _task_create_pinned_to_core,
 	._task_create = _task_create,
 	._task_delete = _task_delete,
-	._task_delay = _task_delay,
+	._task_delay = vTaskDelay,
 	._task_ms_to_tick = _task_ms_to_tick,
 	._task_get_current_task = (void *(*)(void))xTaskGetCurrentTaskHandle,
 	._task_get_max_priority = _task_get_max_priority,
