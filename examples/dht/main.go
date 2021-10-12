@@ -12,7 +12,7 @@ func main() {
 	dhtSensor := dht.New(pin, dht.DHT11)
 	for {
 		temp, hum, err := dhtSensor.Measurements()
-		if err != nil {
+		if err == nil {
 			fmt.Printf("Temperature: %02d.%d°C, Humidity: %02d.%d%%\n", temp/10, temp%10, hum/10, hum%10)
 		} else {
 			fmt.Printf("Could not take measurements from the sensor: %s\n", err.Error())
