@@ -87,7 +87,8 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	}
 
 	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
-	for t := newTimer(4 * time.Second); !t.Expired(); {
+	start := time.Now()
+	for time.Since(start) < 4*time.Second {
 		connected, err := drv.IsConnected()
 		if err != nil {
 			return err
@@ -95,7 +96,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 		if connected {
 			return nil
 		}
-		wait(1 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 
 	return ErrConnectionTimeout
@@ -272,15 +273,13 @@ func (drv *Driver) stop() error {
 		return nil
 	}
 	drv.dev.StopClient(drv.sock)
-	for t := newTimer(5 * time.Second); !t.Expired(); {
+	start := time.Now()
+	for time.Since(start) < 5*time.Second {
 		st, _ := drv.status()
 		if st == TCPStateClosed {
 			break
 		}
-		// FIXME: without the time.Sleep below this blocks until TCPStateClosed,
-		// however with it got goroutine stack overflows; not sure if this is still
-		// an issue so should investigate further
-		//time.Sleep(1 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 	drv.sock = NoSocketAvail
 	return nil
