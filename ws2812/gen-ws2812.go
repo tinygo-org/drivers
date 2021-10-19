@@ -5,9 +5,11 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -34,10 +36,47 @@ import (
 // The timings deviate a little bit from the code here, but so far the timings
 // from wp.josh.com seem to be fine for the ws2812.
 
-// Clock frequencies to support, in MHz.
-var clockFrequencies = []int{16, 48, 64, 120, 168}
+// Architecture implementation. Describes the template and the timings of the
+// blocks of instructions so that most code can remain architecture-independent.
+type architectureImpl struct {
+	buildTag         string
+	minBaseCyclesT0H int
+	maxBaseCyclesT0H int
+	minBaseCyclesT1H int
+	maxBaseCyclesT1H int
+	minBaseCyclesTLD int
+	template         string
+}
 
-func writeImplementation(f *os.File, megahertz int) error {
+var architectures = map[string]architectureImpl{
+	"cortexm": {
+		// Assume that a branch is 1 to 3 cycles, no matter whether it's taken
+		// or not. This is a rather conservative estimate, for Cortex-M+ for
+		// example the instruction cycles are precisely known.
+		buildTag:         "cortexm",
+		minBaseCyclesT0H: 1 + 1 + 2, // shift + branch (not taken) + store
+		maxBaseCyclesT0H: 1 + 3 + 2, // shift + branch (not taken) + store
+		minBaseCyclesT1H: 1 + 1 + 2, // shift + branch (taken) + store
+		maxBaseCyclesT1H: 1 + 3 + 2, // shift + branch (taken) + store
+		minBaseCyclesTLD: 1 + 1 + 2, // subtraction + branch + store (in next cycle)
+		template: `
+1: @ send_bit
+  str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
+  @DELAY1
+  lsls  {value}, #1              @ [1]
+  bcs.n 2f                       @ [1/3] skip_store
+  str   {maskClear}, {portClear} @ [2]   T0H -> T0L transition
+2: @ skip_store
+  @DELAY2
+  str   {maskClear}, {portClear} @ [2]   T1H -> T1L transition
+  @DELAY3
+  subs  {i}, #1                  @ [1]
+  bne.n 1b                       @ [1/3] send_bit
+`,
+	},
+}
+
+func writeImplementation(f *os.File, arch string, megahertz int) error {
 	cycleTimeNS := 1 / float64(megahertz)
 	// These timings are taken from the table "Updated simplified timing
 	// constraints for NeoPixel strings" at:
@@ -72,7 +111,7 @@ func writeImplementation(f *os.File, megahertz int) error {
 	maxCyclesT1H := int(math.Floor(5.500 / cycleTimeNS))
 	minCyclesTLD := int(math.Ceil(1.150 / cycleTimeNS))
 
-	// Assembly template:
+	// The assembly template looks something like this:
 	// 1: @ send_bit
 	//   str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
 	//   ...delay 1
@@ -87,29 +126,31 @@ func writeImplementation(f *os.File, megahertz int) error {
 	//   bne.n 1b                       @ [1/3] send_bit
 	//
 	// We need to calculate the number of nop instructions in the three delays.
+	archImpl, ok := architectures[arch]
+	if !ok {
+		return fmt.Errorf("unknown architecture: %s", arch)
+	}
 
 	// Determine number of nops for delay1. This is primarily based on the T0H
 	// delay, which is relatively short (<500ns).
-	minBaseCyclesT0H := 1 + 1 + 2 // shift + branch + store
-	maxBaseCyclesT0H := 1 + 3 + 2 // shift + branch + store
-	delay1 := minCyclesT0H - minBaseCyclesT0H
+	delay1 := minCyclesT0H - archImpl.minBaseCyclesT0H
 	if delay1 < 0 {
 		// The minCyclesT0H constraint could not be satisfied. Don't insert
 		// nops, in the hope that it isn't too long.
 		delay1 = 0
 	}
-	if delay1+maxBaseCyclesT0H > maxCyclesT0H {
+	if delay1+archImpl.maxBaseCyclesT0H > maxCyclesT0H {
 		return fmt.Errorf("MCU appears to be too slow to satisfy minimum requirements for the T0H signal")
 	}
-	actualMinCyclesT0H := minBaseCyclesT0H + delay1
-	actualMaxCyclesT0H := maxBaseCyclesT0H + delay1
+	actualMinCyclesT0H := archImpl.minBaseCyclesT0H + delay1
+	actualMaxCyclesT0H := archImpl.maxBaseCyclesT0H + delay1
 	actualMinNanosecondsT0H := float64(actualMinCyclesT0H) / float64(megahertz) * 1000
 	actualMaxNanosecondsT0H := float64(actualMaxCyclesT0H) / float64(megahertz) * 1000
 
 	// Determine number of nops for delay2. This is delay1 plus some extra time
 	// so that the pulse is long enough for T1H.
-	minBaseCyclesT1H := delay1 + 1 + 1 + 2 // delay1 + shift + branch + store
-	maxBaseCyclesT1H := delay1 + 1 + 3 + 2 // delay1 + shift + branch + store
+	minBaseCyclesT1H := delay1 + archImpl.minBaseCyclesT1H // delay1 + asssembly cycles
+	maxBaseCyclesT1H := delay1 + archImpl.maxBaseCyclesT1H // delay1 + asssembly cycles
 	delay2 := minCyclesT1H - minBaseCyclesT1H
 	if delay2 < 0 {
 		delay2 = 0
@@ -125,12 +166,11 @@ func writeImplementation(f *os.File, megahertz int) error {
 
 	// Determine number of nops for delay3. This is based on the TLD delay, the
 	// time between two high pulses.
-	minBaseCyclesTLD := 1 + 1 + 2 // subtraction + branch + store (in next cycle)
-	delay3 := minCyclesTLD - minBaseCyclesTLD
+	delay3 := minCyclesTLD - archImpl.minBaseCyclesTLD
 	if delay3 < 0 {
 		delay3 = 0
 	}
-	actualMinCyclesTLD := minBaseCyclesTLD + delay3
+	actualMinCyclesTLD := archImpl.minBaseCyclesTLD + delay3
 	actualMinNanosecondsTLD := float64(actualMinCyclesTLD) / float64(megahertz) * 1000
 
 	// Create the Go function in a buffer. Using a buffer here to be able to
@@ -147,20 +187,12 @@ func writeImplementation(f *os.File, megahertz int) error {
 	fmt.Fprintf(buf, "	// TLD: %2d -    cycles or %.1fns -\n", actualMinCyclesTLD, actualMinNanosecondsTLD)
 	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
 	fmt.Fprintf(buf, "	value := uint32(c) << 24\n")
-	fmt.Fprintf(buf, "	device.AsmFull(`\n")
-	fmt.Fprintf(buf, "	1: @ send_bit\n")
-	fmt.Fprintf(buf, "	  str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here\n")
-	buf.WriteString(strings.Repeat("	  nop\n", delay1))
-	fmt.Fprintf(buf, "	  lsls  {value}, #1              @ [1]\n")
-	fmt.Fprintf(buf, "	  bcs.n 2f                       @ [1/3] skip_store\n")
-	fmt.Fprintf(buf, "	  str   {maskClear}, {portClear} @ [2]   T0H -> T0L transition\n")
-	fmt.Fprintf(buf, "	2: @ skip_store\n")
-	buf.WriteString(strings.Repeat("	  nop\n", delay2))
-	fmt.Fprintf(buf, "	  str   {maskClear}, {portClear} @ [2]   T1H -> T1L transition\n")
-	buf.WriteString(strings.Repeat("	  nop\n", delay3))
-	fmt.Fprintf(buf, "	  subs  {i}, #1                  @ [1]\n")
-	fmt.Fprintf(buf, "	  bne.n 1b                       @ [1/3] send_bit\n")
-	fmt.Fprintf(buf, "	`, map[string]interface{}{")
+	asm := archImpl.template
+	asm = strings.ReplaceAll(asm, "  @DELAY1\n", strings.Repeat("  nop\n", delay1))
+	asm = strings.ReplaceAll(asm, "  @DELAY2\n", strings.Repeat("  nop\n", delay2))
+	asm = strings.ReplaceAll(asm, "  @DELAY3\n", strings.Repeat("  nop\n", delay3))
+	asm = strings.ReplaceAll(asm, "\n", "\n\t")
+	fmt.Fprintf(buf, "	device.AsmFull(`%s`, map[string]interface{}{", asm)
 	buf.WriteString(`
 		"value":     value,
 		"i":         8,
@@ -179,19 +211,33 @@ func writeImplementation(f *os.File, megahertz int) error {
 }
 
 func main() {
-	f, err := os.Create("ws2812-asm_cortexm.go")
+	arch := flag.String("arch", "cortexm", "architecture to output to")
+	flag.Parse()
+
+	// Remaining parameters are all clock frequencies.
+	var clockFrequencies []int
+	for _, s := range flag.Args() {
+		freq, err := strconv.Atoi(s)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cannot parse frequency:", s)
+			os.Exit(1)
+		}
+		clockFrequencies = append(clockFrequencies, freq)
+	}
+
+	f, err := os.Create("ws2812-asm_" + *arch + ".go")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "could not generate WS2812 assembly code:", err)
 		os.Exit(1)
 	}
 	defer f.Close()
-	f.WriteString(`//go:build cortexm
-// +build cortexm
-
+	fmt.Fprintln(f, "//go:build", architectures[*arch].buildTag)
+	fmt.Fprintln(f, "// +build", architectures[*arch].buildTag)
+	f.WriteString(`
 package ws2812
 
 // Warning: autogenerated file. Instead of modifying this file, change
-// gen-ws2812-arm.go and run "go generate".
+// gen-ws2812.go and run "go generate".
 
 import (
 	"device"
@@ -199,9 +245,9 @@ import (
 )
 `)
 	for _, megahertz := range clockFrequencies {
-		err := writeImplementation(f, megahertz)
+		err := writeImplementation(f, *arch, megahertz)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not generate WS2812 assembly code for %dMHz: %s\n", megahertz, err)
+			fmt.Fprintf(os.Stderr, "could not generate WS2812 assembly code for %s and %dMHz: %s\n", *arch, megahertz, err)
 			os.Exit(1)
 		}
 	}
