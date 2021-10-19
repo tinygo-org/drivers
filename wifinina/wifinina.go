@@ -379,7 +379,7 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 		if sent > 0 {
 			return true, nil
 		}
-		wait(100 * time.Microsecond)
+		time.Sleep(100 * time.Microsecond)
 	}
 	return false, lastErr
 }
@@ -1023,8 +1023,7 @@ func (d *Device) checkStartCmd() (bool, error) {
 }
 
 func (d *Device) waitForChipSelect() (err error) {
-	err = d.waitForChipReady()
-	if err == nil {
+	if err = d.waitForChipReady(); err == nil {
 		err = d.spiChipSelect()
 	}
 	return
@@ -1034,12 +1033,14 @@ func (d *Device) waitForChipReady() error {
 	if _debug {
 		println("waitForChipReady()\r")
 	}
-	for t := newTimer(10 * time.Second); !(d.ACK.Get() == false); {
-		if t.Expired() {
-			return ErrTimeoutChipReady
+	start := time.Now()
+	for time.Since(start) < 10*time.Second {
+		if !d.ACK.Get() {
+			return nil
 		}
+		time.Sleep(1 * time.Millisecond)
 	}
-	return nil
+	return ErrTimeoutChipReady
 }
 
 func (d *Device) spiChipSelect() error {
@@ -1047,10 +1048,12 @@ func (d *Device) spiChipSelect() error {
 		println("spiChipSelect()\r")
 	}
 	d.CS.Low()
-	for t := newTimer(5 * time.Millisecond); !t.Expired(); {
+	start := time.Now()
+	for time.Since(start) < 5*time.Millisecond {
 		if d.ACK.Get() {
 			return nil
 		}
+		time.Sleep(100 * time.Microsecond)
 	}
 	return ErrTimeoutChipSelect
 }
