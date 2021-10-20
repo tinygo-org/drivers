@@ -45,7 +45,8 @@ type architectureImpl struct {
 	minBaseCyclesT1H int
 	maxBaseCyclesT1H int
 	minBaseCyclesTLD int
-	template         string
+	valueTemplate    string // template for how to pass the 'c' byte to assembly
+	template         string // assembly template
 }
 
 var architectures = map[string]architectureImpl{
@@ -59,6 +60,7 @@ var architectures = map[string]architectureImpl{
 		minBaseCyclesT1H: 1 + 1 + 2, // shift + branch (taken) + store
 		maxBaseCyclesT1H: 1 + 3 + 2, // shift + branch (taken) + store
 		minBaseCyclesTLD: 1 + 1 + 2, // subtraction + branch + store (in next cycle)
+		valueTemplate:    "uint32(c) << 24",
 		template: `
 1: @ send_bit
   str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
@@ -72,6 +74,34 @@ var architectures = map[string]architectureImpl{
   @DELAY3
   subs  {i}, #1                  @ [1]
   bne.n 1b                       @ [1/3] send_bit
+`,
+	},
+	"tinygoriscv": {
+		// Largely based on the SiFive FE310 CPU:
+		// - stores are 1 cycle
+		// - branches are 1 or 3 cycles, depending on branch prediction
+		// - ALU operations are 1 cycle (as on most CPUs)
+		// Hopefully this generalizes to other chips.
+		buildTag:         "tinygo.riscv32",
+		minBaseCyclesT0H: 1 + 1 + 1, // shift + branch (not taken) + store
+		maxBaseCyclesT0H: 1 + 3 + 1, // shift + branch (not taken) + store
+		minBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
+		maxBaseCyclesT1H: 1 + 3 + 1, // shift + branch (taken) + store
+		minBaseCyclesTLD: 1 + 1 + 1, // subtraction + branch + store (in next cycle)
+		valueTemplate:    "uint32(c) << 23",
+		template: `
+1: // send_bit
+  sw    {maskSet}, {portSet}     // [1]   T0H and T0L start here
+  @DELAY1
+  slli  {value}, {value}, 1      // [1]   shift value left by 1
+  bltz  {value}, 2f              // [1/3] skip_store
+  sw    {maskClear}, {portClear} // [1]   T0H -> T0L transition
+2: // skip_store
+  @DELAY2
+  sw    {maskClear}, {portClear} // [1]   T1H -> T1L transition
+  @DELAY3
+  addi  {i}, {i}, -1             // [1]
+  bnez  {i}, 1b                  // [1/3] send_bit
 `,
 	},
 }
@@ -186,7 +216,7 @@ func writeImplementation(f *os.File, arch string, megahertz int) error {
 	fmt.Fprintf(buf, "	// T1H: %2d - %2d cycles or %.1fns - %.1fns\n", actualMinCyclesT1H, actualMaxCyclesT1H, actualMinNanosecondsT1H, actualMaxNanosecondsT1H)
 	fmt.Fprintf(buf, "	// TLD: %2d -    cycles or %.1fns -\n", actualMinCyclesTLD, actualMinNanosecondsTLD)
 	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
-	fmt.Fprintf(buf, "	value := uint32(c) << 24\n")
+	fmt.Fprintf(buf, "	value := %s\n", archImpl.valueTemplate)
 	asm := archImpl.template
 	asm = strings.ReplaceAll(asm, "  @DELAY1\n", strings.Repeat("  nop\n", delay1))
 	asm = strings.ReplaceAll(asm, "  @DELAY2\n", strings.Repeat("  nop\n", delay2))
