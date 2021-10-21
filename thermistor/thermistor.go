@@ -29,6 +29,8 @@ package thermistor // import "tinygo.org/x/drivers/thermistor"
 import (
 	"machine"
 	"math"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device holds the ADC pin and the needed settings for calculating the
@@ -61,7 +63,7 @@ func (d *Device) Configure() {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (temperature int32, err error) {
+func (d *Device) ReadTemperature() (temperature drivers.Temperature, err error) {
 	var reading uint32
 	if d.HighSide {
 		// Thermistor connected from analog input to high logic level.
@@ -82,5 +84,5 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	steinhart = 1.0 / steinhart                                 // Invert
 	steinhart -= 273.15                                         // convert to C
 
-	return int32(steinhart * 1000), nil
+	return drivers.Temperature(steinhart * 1000), nil
 }

@@ -38,13 +38,13 @@ func main() {
 	}
 
 	for {
-		temp, err := sensor.ReadTemperature() // returns the temperature in centicelsius
+		temp, err := sensor.ReadTemperature() // returns the temperature in millicelsius
 		press, err := sensor.ReadPressure()   // returns the pressure in centipascals
 
 		if err != nil {
 			println(err)
 		} else {
-			println("Temperature: " + strconv.FormatInt(int64(temp), 10) + " cC")
+			println("Temperature:", temp/1000, "C")
 			println("Pressure:    " + strconv.FormatInt(int64(press), 10) + " cPa\n")
 		}
 

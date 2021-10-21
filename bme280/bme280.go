@@ -114,14 +114,14 @@ func (d *Device) Reset() {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (int32, error) {
+func (d *Device) ReadTemperature() (drivers.Temperature, error) {
 	data, err := d.readData()
 	if err != nil {
 		return 0, err
 	}
 
 	temp, _ := d.calculateTemp(data)
-	return temp, nil
+	return drivers.Temperature(temp), nil
 }
 
 // ReadPressure returns the pressure in milli pascals mPa

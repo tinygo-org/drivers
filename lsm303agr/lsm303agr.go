@@ -191,14 +191,14 @@ func (d *Device) ReadCompass() (h int32) {
 }
 
 // ReadTemperature returns the temperature in Celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (c int32, e error) {
+func (d *Device) ReadTemperature() (c drivers.Temperature, e error) {
 
 	data1, data2 := []byte{0}, []byte{0}
 	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_H_A, data1)
 	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L_A, data2)
 
 	t := int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4 // temperature offsef from 25 °C
-	c = int32((float32(25) + float32(t)/8) * 1000)
+	c = drivers.Temperature(t)*125 + 25000
 	e = nil
 	return
 }

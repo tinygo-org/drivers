@@ -31,9 +31,9 @@ func New(bus drivers.I2C) Device {
 }
 
 // Read returns the temperature in celsius milli degrees (°C/1000).
-func (d *Device) ReadTemperature() (tempMilliCelsius int32, err error) {
+func (d *Device) ReadTemperature() (tempMilliCelsius drivers.Temperature, err error) {
 	tempMilliCelsius, _, err = d.ReadTemperatureHumidity()
-	return tempMilliCelsius, err
+	return drivers.Temperature(tempMilliCelsius), err
 }
 
 // Read returns the relative humidity in hundredths of a percent.
@@ -43,15 +43,15 @@ func (d *Device) ReadHumidity() (relativeHumidity int16, err error) {
 }
 
 // Read returns both the temperature and relative humidity.
-func (d *Device) ReadTemperatureHumidity() (tempMilliCelsius int32, relativeHumidity int16, err error) {
+func (d *Device) ReadTemperatureHumidity() (tempMilliCelsius drivers.Temperature, relativeHumidity int16, err error) {
 	var rawTemp, rawHum, errx = d.rawReadings()
 	if errx != nil {
 		err = errx
 		return
 	}
-	tempMilliCelsius = (35000 * int32(rawTemp) / 13107) - 45000
+	tempMilliCelsius = drivers.Temperature((35000 * int32(rawTemp) / 13107) - 45000)
 	relativeHumidity = int16(2000 * int32(rawHum) / 13107)
-	return tempMilliCelsius, relativeHumidity, err
+	return
 }
 
 // rawReadings returns the sensor's raw values of the temperature and humidity

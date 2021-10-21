@@ -60,19 +60,8 @@ func (d *Device) Connected() bool {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (temperature int32, err error) {
-	return (int32(d.readUint16(RegTempValueMSB)) * 1000) / 128, nil
-}
-
-// ReadTempC returns the value in the temperature value register, in Celsius.
-func (d *Device) ReadTempC() float32 {
-	t := d.readUint16(RegTempValueMSB)
-	return float32(int(t)) / 128.0
-}
-
-// ReadTempF returns the value in the temperature value register, in Fahrenheit.
-func (d *Device) ReadTempF() float32 {
-	return d.ReadTempC()*1.8 + 32.0
+func (d *Device) ReadTemperature() (temperature drivers.Temperature, err error) {
+	return (drivers.Temperature(d.readUint16(RegTempValueMSB)) * 1000) / 128, nil
 }
 
 func (d *Device) writeByte(reg uint8, data byte) {

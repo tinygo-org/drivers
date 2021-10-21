@@ -81,7 +81,7 @@ func (d *DeviceSPI) Reset() error {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
-func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
+func (d *DeviceSPI) ReadTemperature() (temperature drivers.Temperature, err error) {
 	data := d.buf[:3]
 	data[0] = 0x80 | reg_TEMPERATURE_0
 	data[1] = 0
@@ -109,7 +109,7 @@ func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
 	//    rawTemperature * 1000 * 64 / 0x8000 + 23000
 	//    rawTemperature * 64000 / 0x8000 + 23000
 	//    rawTemperature * 125 / 64 + 23000
-	temperature = int32(rawTemperature)*125/64 + 23000
+	temperature = drivers.Temperature(rawTemperature)*125/64 + 23000
 	return
 }
 

@@ -6,6 +6,7 @@ import (
 	"machine"
 	"time"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/lsm6dsox"
 )
 
@@ -76,7 +77,7 @@ func calibrateGyro(device *lsm6dsox.Device) {
 }
 
 // Arduino IDE's Serial Plotter
-func printPlotter(ax, ay, az, gx, gy, gz, t int32) {
+func printPlotter(ax, ay, az, gx, gy, gz int32, t drivers.Temperature) {
 	if SHOW_ACCELERATION {
 		fmt.Printf("AX:%f, AY:%f, AZ:%f,", axis(ax, 0), axis(ay, 0), axis(az, 0))
 	}
@@ -84,7 +85,7 @@ func printPlotter(ax, ay, az, gx, gy, gz, t int32) {
 		fmt.Printf("GX:%f, GY:%f, GZ:%f,", axis(gx, cal[0]), axis(gy, cal[1]), axis(gz, cal[2]))
 	}
 	if SHOW_TEMPERATURE {
-		fmt.Printf("T:%f", float32(t)/1000)
+		fmt.Printf("T:%f", t.Celsius())
 	}
 	println()
 }

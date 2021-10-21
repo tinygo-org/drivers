@@ -49,8 +49,8 @@ func (d Device) ReadMagnetic() (x int16, y int16, z int16) {
 
 // ReadTemperature reads and returns the current die temperature in
 // celsius milli degrees (°C/1000).
-func (d Device) ReadTemperature() (int32, error) {
+func (d Device) ReadTemperature() (drivers.Temperature, error) {
 	data := make([]byte, 1)
 	d.bus.ReadRegister(uint8(d.Address), DIE_TEMP, data)
-	return int32(data[0]) * 1000, nil
+	return drivers.Temperature(data[0]) * 1000, nil
 }

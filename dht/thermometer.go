@@ -9,14 +9,15 @@ package dht // import "tinygo.org/x/drivers/dht"
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // DummyDevice provides a basic interface for DHT devices.
 type DummyDevice interface {
 	ReadMeasurements() error
 	Measurements() (temperature int16, humidity uint16, err error)
-	Temperature() (int16, error)
-	TemperatureFloat(scale TemperatureScale) (float32, error)
+	Temperature() (drivers.Temperature, error)
 	Humidity() (uint16, error)
 	HumidityFloat() (float32, error)
 }
@@ -49,23 +50,13 @@ func (t *device) ReadMeasurements() error {
 	return err
 }
 
-// Getter for temperature. Temperature method returns temperature as it is sent by device.
-// The temperature is measured temperature in Celsius multiplied by 10.
+// Getter for temperature. The temperature is returned in milli degrees Celsius.
 // If no successful measurements for this device was performed, returns UninitializedDataError.
-func (t *device) Temperature() (int16, error) {
+func (t *device) Temperature() (drivers.Temperature, error) {
 	if !t.initialized {
 		return 0, UninitializedDataError
 	}
-	return t.temperature, nil
-}
-
-// Getter for temperature. TemperatureFloat returns temperature in a given scale.
-// If no successful measurements for this device was performed, returns UninitializedDataError.
-func (t *device) TemperatureFloat(scale TemperatureScale) (float32, error) {
-	if !t.initialized {
-		return 0, UninitializedDataError
-	}
-	return scale.convertToFloat(t.temperature), nil
+	return drivers.Temperature(t.temperature) * 100, nil
 }
 
 // Getter for humidity. Humidity returns humidity as it is sent by device.
