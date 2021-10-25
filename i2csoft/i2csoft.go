@@ -53,10 +53,10 @@ func (i2c *I2C) Configure(config I2CConfig) error {
 	}
 
 	// enable pins
-	i2c.sda.High()
 	i2c.sda.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	i2c.scl.High()
+	i2c.sda.High()
 	i2c.scl.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	i2c.scl.High()
 
 	return nil
 }
