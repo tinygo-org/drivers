@@ -58,6 +58,7 @@ func main() {
 	backlight.High()
 
 	display.SetRotation(ili9341.Rotation270)
+	time.Sleep(50 * time.Millisecond)
 	DrawBackground()
 
 	startTime = time.Now().UnixNano()
