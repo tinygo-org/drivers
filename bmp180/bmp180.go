@@ -36,6 +36,8 @@ type Device struct {
 	Address                 uint16
 	mode                    OversamplingMode
 	calibrationCoefficients calibrationCoefficients
+	temp                    int32
+	pressure                int32
 }
 
 // New creates a new BMP180 connection. The I2C bus must already be
@@ -78,6 +80,58 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.mb = readInt(data[16], data[17])
 	d.calibrationCoefficients.mc = readInt(data[18], data[19])
 	d.calibrationCoefficients.md = readInt(data[20], data[21])
+}
+
+// Pressure returns the pressure in milli pascal (mPa).
+func (d *Device) Pressure() int32 { return d.pressure }
+
+// Temperature returns the temperature in celsius milli degrees (°C/1000).
+func (d *Device) Temperature() int32 { return d.temp }
+
+func (d *Device) Update(which drivers.Measurement) (err error) {
+	// Temperature is needed for presssure calculation.
+	if which|drivers.Temperature|drivers.Pressure == 0 {
+		return nil
+	}
+	// Temperature calculation.
+	rawTemp, err := d.rawTemp()
+	if err != nil {
+		return err
+	}
+	b5 := d.calculateB5(rawTemp)
+	t := (b5 + 8) >> 4
+	d.temp = 100 * t
+
+	// Pressure calculation.
+	if which|drivers.Pressure == 0 {
+		return nil
+	}
+	rawPressure, err := d.rawPressure(d.mode)
+	if err != nil {
+		return err
+	}
+
+	b6 := b5 - 4000
+	x1 := (int32(d.calibrationCoefficients.b2) * (b6 * b6 >> 12)) >> 11
+	x2 := (int32(d.calibrationCoefficients.ac2) * b6) >> 11
+	x3 := x1 + x2
+	b3 := (((int32(d.calibrationCoefficients.ac1)*4 + x3) << uint(d.mode)) + 2) >> 2
+	x1 = (int32(d.calibrationCoefficients.ac3) * b6) >> 13
+	x2 = (int32(d.calibrationCoefficients.b1) * ((b6 * b6) >> 12)) >> 16
+	x3 = ((x1 + x2) + 2) >> 2
+	b4 := (uint32(d.calibrationCoefficients.ac4) * uint32(x3+32768)) >> 15
+	b7 := uint32(rawPressure-b3) * (50000 >> uint(d.mode))
+	var p int32
+	if b7 < 0x80000000 {
+		p = int32((b7 << 1) / b4)
+	} else {
+		p = int32((b7 / b4) << 1)
+	}
+	x1 = (p >> 8) * (p >> 8)
+	x1 = (x1 * 3038) >> 16
+	x2 = (-7357 * p) >> 16
+	d.pressure = 1000 * (p + ((x1 + x2 + 3791) >> 4))
+	return nil
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).

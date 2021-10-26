@@ -6,7 +6,8 @@ type Measurement uint32
 
 // Sensor measurements
 const (
-	Temperature Measurement = 1 << iota
+	Voltage Measurement = 1 << iota
+	Temperature
 	Humidity
 	Pressure
 	Distance
@@ -16,7 +17,9 @@ const (
 	Luminosity
 	Time
 
-	AllMeasurements Measurement = 0xffffffff
+	// All Measurements is the OR of all Measurement defined in drivers package. This
+	// may change over time. Let user-defined Measurement flags be the MSB bits of Measurement.
+	AllMeasurements Measurement = 1<<iota - 1
 )
 
 // Sensor represents an object capable of making one
