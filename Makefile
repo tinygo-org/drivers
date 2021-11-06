@@ -63,6 +63,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/hd44780i2c/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=nano-33-ble ./examples/hts221/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hub75/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/basic
@@ -207,13 +209,14 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/mqttsub/
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/i2csoft/adt7410/
+	@md5sum ./build/test.hex
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
 		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
 		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x dht keypad4x4 max72xx p1am tone tm1637 \
-		pcf8563 mcp2515 servo sdcard rtl8720dn image cmdlps22hb
-
+		pcf8563 mcp2515 servo sdcard rtl8720dn image cmd i2csoft hts221 lps22hb
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:

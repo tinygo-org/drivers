@@ -3,9 +3,9 @@
 package main
 
 import (
-	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/examples/ili9341/initdisplay"
 	"tinygo.org/x/drivers/examples/ili9341/pyportal_boing/graphics"
 	"tinygo.org/x/drivers/ili9341"
 )
@@ -44,20 +44,17 @@ var (
 	palette [16]uint16
 )
 
+var (
+	display *ili9341.Device
+)
+
 func main() {
+	display = initdisplay.InitDisplay()
 
-	// configure backlight
-	backlight.Configure(machine.PinConfig{machine.PinOutput})
-
-	// configure display
-	display.Configure(ili9341.Config{})
 	print("width, height == ")
 	width, height := display.Size()
 	println(width, height)
 
-	backlight.High()
-
-	display.SetRotation(ili9341.Rotation270)
 	DrawBackground()
 
 	startTime = time.Now().UnixNano()
