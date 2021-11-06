@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 67 devices are supported.
+The following 72 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -61,6 +61,7 @@ The following 67 devices are supported.
 | [AHT20 I2C Temperature and Humidity Sensor](http://www.aosong.com/userfiles/files/media/AHT20%20%E8%8B%B1%E6%96%87%E7%89%88%E8%AF%B4%E6%98%8E%E4%B9%A6%20A0%2020201222.pdf) | I2C |
 | [AMG88xx 8x8 Thermal camera sensor](https://cdn-learn.adafruit.com/assets/assets/000/043/261/original/Grid-EYE_SPECIFICATIONS%28Reference%29.pdf) | I2C |
 | [APA102 RGB LED](https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf) | SPI |
+| [APDS9960 Digital proximity, ambient light, RGB and gesture sensor](https://cdn.sparkfun.com/assets/learn_tutorials/3/2/1/Avago-APDS-9960-datasheet.pdf) | I2C |
 | [AT24CX 2-wire serial EEPROM](https://www.openimpulse.com/blog/wp-content/uploads/wpsc/downloadables/24C32-Datasheet.pdf) | I2C |
 | [BBC micro:bit LED matrix](https://github.com/bbcmicrobit/hardware/blob/master/SCH_BBC-Microbit_V1.3B.pdf) | GPIO |
 | [BH1750 ambient light sensor](https://www.mouser.com/ds/2/348/bh1750fvi-e-186247.pdf) | I2C |
@@ -79,6 +80,7 @@ The following 67 devices are supported.
 | [GPS module](https://www.u-blox.com/en/product/neo-6-series) | I2C/UART |
 | [HC-SR04 Ultrasonic distance sensor](https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf) | GPIO |
 | [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO/I2C |
+| [HTS221 digital humidity and temperature sensor](https://www.st.com/resource/en/datasheet/hts221.pdf) | I2C |
 | [HUB75 RGB led matrix](https://cdn-learn.adafruit.com/downloads/pdf/32x16-32x32-rgb-led-matrix.pdf) | SPI |
 | [software I2C driver](https://www.ti.com/lit/an/slva704/slva704.pdf) | GPIO |
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
@@ -88,12 +90,15 @@ The following 67 devices are supported.
 | [L9110x motor driver](https://www.elecrow.com/download/datasheet-l9110.pdf) | GPIO/PWM |
 | [LIS2MDL magnetometer](https://www.st.com/resource/en/datasheet/lis2mdl.pdf) | I2C |
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf) | I2C |
+| [LPS22HB MEMS nano pressure sensor](https://www.st.com/resource/en/datasheet/dm00140895.pdf) | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
+| [LSM6DSOX accelerometer](https://www.st.com/resource/en/datasheet/lsm6dsox.pdf) | I2C |
+| [LSM303AGR accelerometer](https://www.st.com/resource/en/datasheet/lsm303agr.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
 | [MAX7219 & MAX7221 display driver](https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf) | SPI |
-| [MCP23017 port expander](https://ww1.microchip.com/downloads/en/DeviceDoc/20001952C.pdf) | I2C |
-| [MCP3008 analog to digital converter (ADC)](http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf) | SPI |
 | [MCP2515 Stand-Alone CAN Controller with SPI Interface](https://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Family-Data-Sheet-DS20001801K.pdf) | SPI |
+| [MCP3008 analog to digital converter (ADC)](http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf) | SPI |
+| [MCP23017 port expander](https://ww1.microchip.com/downloads/en/DeviceDoc/20001952C.pdf) | I2C |
 | [Microphone - PDM](https://cdn-learn.adafruit.com/assets/assets/000/049/977/original/MP34DT01-M.pdf) | I2S/PDM |
 | [MMA8653 accelerometer](https://www.nxp.com/docs/en/data-sheet/MMA8653FC.pdf) | I2C |
 | [MPU6050 accelerometer/gyroscope](https://store.invensense.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf) | I2C |
