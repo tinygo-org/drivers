@@ -186,7 +186,7 @@ func (c *TCPSerialConn) LocalAddr() Addr {
 
 // RemoteAddr returns the remote network address.
 func (c *TCPSerialConn) RemoteAddr() Addr {
-	return c.laddr.opAddr()
+	return c.raddr.opAddr()
 }
 
 func (c *TCPSerialConn) opConn() Conn {
