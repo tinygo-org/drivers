@@ -83,7 +83,7 @@ func (p ADCPin) Get() uint16 {
 	p.d.bus.Tx(p.d.tx, p.d.rx)
 
 	// scale result to 16bit value like other ADCs
-	result := uint16((p.d.rx[1]&0x3))<<8 + uint16(p.d.rx[2])<<6
+	result := uint16((p.d.rx[1]&0x3))<<(8+6) + uint16(p.d.rx[2])<<6
 	p.d.cs.High()
 
 	return result
