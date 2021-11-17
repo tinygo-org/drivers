@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Width    int16
-	Height   int16
-	Rotation Rotation
+	Width            int16
+	Height           int16
+	Rotation         Rotation
+	DisplayInversion bool
 }
 
 type Device struct {
@@ -103,10 +104,19 @@ func (d *Device) Configure(config Config) {
 		0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
 		GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
 		0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+	}
+
+	if config.DisplayInversion {
+		initCmd = append(initCmd, []byte{
+			INVON, 0x80,
+		}...)
+	}
+
+	initCmd = append(initCmd, []byte{
 		SLPOUT, 0x80, // Exit Sleep
 		DISPON, 0x80, // Display on
 		0x00, // End of list
-	}
+	}...)
 	for i, c := 0, len(initCmd); i < c; {
 		cmd := initCmd[i]
 		if cmd == 0x00 {
@@ -239,14 +249,22 @@ func (d *Device) GetRotation() Rotation {
 // SetRotation changes the rotation of the device (clock-wise)
 func (d *Device) SetRotation(rotation Rotation) {
 	madctl := uint8(0)
-	switch rotation % 4 {
-	case 0:
+	switch rotation % 8 {
+	case Rotation0:
 		madctl = MADCTL_MX | MADCTL_BGR
-	case 1:
+	case Rotation90:
 		madctl = MADCTL_MV | MADCTL_BGR
-	case 2:
+	case Rotation180:
 		madctl = MADCTL_MY | MADCTL_BGR
-	case 3:
+	case Rotation270:
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+	case Rotation0Mirror:
+		madctl = MADCTL_BGR
+	case Rotation90Mirror:
+		madctl = MADCTL_MY | MADCTL_MV | MADCTL_BGR
+	case Rotation180Mirror:
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_BGR
+	case Rotation270Mirror:
 		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
 	}
 	d.sendCommand(MADCTL, []uint8{madctl})
