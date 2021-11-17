@@ -81,4 +81,9 @@ const (
 	Rotation90  Rotation = 1 // 90 degrees clock-wise rotation
 	Rotation180 Rotation = 2
 	Rotation270 Rotation = 3
+
+	Rotation0Mirror   Rotation = 4
+	Rotation90Mirror  Rotation = 5
+	Rotation180Mirror Rotation = 6
+	Rotation270Mirror Rotation = 7
 )
