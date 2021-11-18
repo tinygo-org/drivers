@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 73 devices are supported.
+The following 74 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -95,6 +95,7 @@ The following 73 devices are supported.
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf) | I2C |
 | [LSM6DSOX accelerometer](https://www.st.com/resource/en/datasheet/lsm6dsox.pdf) | I2C |
 | [LSM303AGR accelerometer](https://www.st.com/resource/en/datasheet/lsm303agr.pdf) | I2C |
+| [LSM9DS1 accelerometer](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf) | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf) | I2C |
 | [MAX7219 & MAX7221 display driver](https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf) | SPI |
 | [MCP2515 Stand-Alone CAN Controller with SPI Interface](https://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Family-Data-Sheet-DS20001801K.pdf) | SPI |
