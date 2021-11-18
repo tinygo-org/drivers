@@ -1,3 +1,35 @@
+0.18.0
+---
+- **new devices**
+    - apds9960: add support for APDS-9960 Digital Proximity sensor
+    - axp192: add support for AXP192 single Cell Li-Battery and power system management IC
+    - hts221: add support for HTS221 capacitive digital sensor for relative humidity and temperature
+    - i2csoft: add support for software I2C
+    - image: add support for image/jpeg and image/png
+    - lps22hb: add support for LPS22HB MEMS nano pressure sensor
+    - lsm6dox: add support for lsm6dox accelerometer
+    - lsm9ds1: add support for lsm9ds1 accelerometer
+- **enhancements**
+    - ili9341: change to use drivers.SPI interface
+    - **ws2812**
+        - generate assembly instead of handwriting it
+        - improve timings to be compatible with the WS2811
+        - add support for 168MHz (e.g. Adafruit Feather STM32F405)
+        - add support for RISC-V
+    - wifinina: control nina pins, for example leds
+- **docs**
+    - rtl8720dn: examples for tcpclient, udpstation, mqtt, and webserver
+    - **wifinina** 
+        - nina-fw update docs
+        - examples/wifinina/http-get
+    - ili9341: refactor examples
+    - Fix broken link for SHT3x datasheet
+- **core**
+    - all: use build directives for both Go1.17 and earlier versions
+- **bugfixes**
+    - net: fix raddr of tcp conn
+    - mcp3008: fix bitshift bug
+
 0.17.1
 ---
 - To correct an error in the release process. Same as 0.17.0.
