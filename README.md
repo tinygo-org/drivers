@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 77 devices are supported.
+The following 78 devices are supported.
 
 | Device Name | Interface Type |
 |----------|-------------|
@@ -78,6 +78,7 @@ The following 77 devices are supported.
 | [DS3231 real time clock](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf) | I2C |
 | [ESP32 as WiFi Coprocessor with Arduino nina-fw](https://github.com/arduino/nina-fw) | SPI |
 | [ESP8266/ESP32 AT Command set for WiFi/TCP/UDP](https://github.com/espressif/esp32-at) | UART |
+| [FT6336 touch controller](https://focuslcds.com/content/FT6236.pdf) | I2C |
 | [GPS module](https://www.u-blox.com/en/product/neo-6-series) | I2C/UART |
 | [HC-SR04 Ultrasonic distance sensor](https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf) | GPIO |
 | [HD44780 LCD controller](https://www.sparkfun.com/datasheets/LCD/HD44780.pdf) | GPIO/I2C |

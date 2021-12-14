@@ -1,0 +1,49 @@
+package ft6336
+
+// 0x00  DEV_MODE
+// 0x01  GEST_ID
+// 0x02  TD_STATUS
+// 0x03  P1_XH
+// 0x04  P1_XL
+// 0x05  P1_YH
+// 0x06  P1_YL
+// 0x07  P1_WEIGHT
+// 0x08  P1_MISC
+// 0x09  P2_XH
+// 0x0A  P2_XL
+// 0x0B  P2_YH
+// 0x0C  P2_YL
+// 0x0D  P2_WEIGHT
+// 0x0E  P2_MISC
+// 0x80  TH_GROUP
+// 0x85  TH_DIFF
+// 0x86  CTRL
+// 0x87  TIMEENTERMONITOR
+// 0x88  PERIODACTIVE
+// 0x89  PERIODMONITOR
+// 0x91  RADIAN_VALUE
+// 0x92  OFFSET_LEFT_RIGHT
+// 0x93  OFFSET_UP_D
+// 0x94  DISTANCE_LE
+// 0x95  DISTANCE_UP
+// 0x96  DISTANCE_ZO
+// ...
+// 0xA1  LIB_VER_H
+// 0xA2  LIB_VER_L
+// 0xA3  CIPHER
+// 0xA4  G_MODE
+// 0xA5  PWR_MODE
+// 0xA6  FIRMID
+// 0xA8  FOCALTECH_ID
+// ...
+// 0xAF  RELEASE_CODE_ID
+// ...
+// 0xBC  STATE
+
+const (
+	Address = 0x38
+
+	RegPeriodActive = 0x88
+	RegGMode        = 0xA4
+	RegFirmid       = 0xA6
+)
