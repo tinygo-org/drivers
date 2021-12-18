@@ -21,20 +21,20 @@ type Device struct {
 	temperatureZero  float32
 }
 
+// New creates a new HTS221 connection. The I2C bus must already be
+// configured.
+//
+// This function only creates the Device object, it does not touch the device.
+func New(bus drivers.I2C) Device {
+	return Device{bus: bus, Address: HTS221_ADDRESS}
+}
+
 // Connected returns whether HTS221 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
 	d.bus.ReadRegister(d.Address, HTS221_WHO_AM_I_REG, data)
 	return data[0] == 0xBC
-}
-
-// Configure sets up the HTS221 device for communication.
-func (d *Device) Configure() {
-	// read calibration data
-	d.calibration()
-	// activate device and use block data update mode
-	d.Power(true)
 }
 
 // Power is for turn on/off the HTS221 device
