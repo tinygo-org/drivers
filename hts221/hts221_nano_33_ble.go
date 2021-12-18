@@ -11,8 +11,8 @@ import (
 // Configure sets up the HTS221 device for communication.
 func (d *Device) Configure() {
 	// Following lines are Nano 33 BLE specific, they have nothing to do with sensor per se
-	machine.LSM_PWR.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.LSM_PWR.High()
+	machine.HTS_PWR.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.HTS_PWR.High()
 	machine.I2C_PULLUP.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	machine.I2C_PULLUP.High()
 	// Wait a moment
