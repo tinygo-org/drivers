@@ -57,58 +57,20 @@ type enableConfig struct {
 	PON  bool
 }
 
+// New creates a new APDS-9960 connection. The I2C bus must already be
+// configured.
+//
+// This function only creates the Device object, it does not touch the device.
+func New(bus drivers.I2C) Device {
+	return Device{bus: bus, Address: ADPS9960_ADDRESS, mode: MODE_NONE}
+}
+
 // Connected returns whether APDS-9960 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
 	d.bus.ReadRegister(d.Address, APDS9960_ID_REG, data)
 	return data[0] == 0xAB
-}
-
-// Configure sets up the APDS-9960 device.
-func (d *Device) Configure(cfg Configuration) {
-	d.DisableAll() // turn off everything
-
-	// "default" settings
-	if cfg.ProximityPulseLength == 0 {
-		cfg.ProximityPulseLength = 16
-	}
-	if cfg.ProximityPulseCount == 0 {
-		cfg.ProximityPulseCount = 64
-	}
-	if cfg.GesturePulseLength == 0 {
-		cfg.GesturePulseLength = 16
-	}
-	if cfg.GesturePulseCount == 0 {
-		cfg.GesturePulseCount = 64
-	}
-	if cfg.ProximityGain == 0 {
-		cfg.ProximityGain = 1
-	}
-	if cfg.GestureGain == 0 {
-		cfg.GestureGain = 1
-	}
-	if cfg.ColorGain == 0 {
-		cfg.ColorGain = 4
-	}
-	if cfg.ADCIntegrationCycles == 0 {
-		cfg.ADCIntegrationCycles = 4
-	}
-	if cfg.threshold == 0 {
-		d.gesture.threshold = 30
-	}
-	if cfg.sensitivity == 0 {
-		d.gesture.sensitivity = 20
-	}
-
-	d.SetProximityPulse(cfg.ProximityPulseLength, cfg.ProximityPulseCount)
-	d.SetGesturePulse(cfg.GesturePulseLength, cfg.GesturePulseCount)
-	d.SetGains(cfg.ProximityGain, cfg.GestureGain, cfg.ColorGain)
-	d.SetADCIntegrationCycles(cfg.ADCIntegrationCycles)
-
-	if cfg.LEDBoost > 0 {
-		d.LEDBoost(cfg.LEDBoost)
-	}
 }
 
 // GetMode returns current engine mode
@@ -352,6 +314,51 @@ func (d *Device) ReadGesture() (gesture int32) {
 }
 
 // private functions
+
+func (d *Device) configureDevice(cfg Configuration) {
+	d.DisableAll() // turn off everything
+
+	// "default" settings
+	if cfg.ProximityPulseLength == 0 {
+		cfg.ProximityPulseLength = 16
+	}
+	if cfg.ProximityPulseCount == 0 {
+		cfg.ProximityPulseCount = 64
+	}
+	if cfg.GesturePulseLength == 0 {
+		cfg.GesturePulseLength = 16
+	}
+	if cfg.GesturePulseCount == 0 {
+		cfg.GesturePulseCount = 64
+	}
+	if cfg.ProximityGain == 0 {
+		cfg.ProximityGain = 1
+	}
+	if cfg.GestureGain == 0 {
+		cfg.GestureGain = 1
+	}
+	if cfg.ColorGain == 0 {
+		cfg.ColorGain = 4
+	}
+	if cfg.ADCIntegrationCycles == 0 {
+		cfg.ADCIntegrationCycles = 4
+	}
+	if cfg.threshold == 0 {
+		d.gesture.threshold = 30
+	}
+	if cfg.sensitivity == 0 {
+		d.gesture.sensitivity = 20
+	}
+
+	d.SetProximityPulse(cfg.ProximityPulseLength, cfg.ProximityPulseCount)
+	d.SetGesturePulse(cfg.GesturePulseLength, cfg.GesturePulseCount)
+	d.SetGains(cfg.ProximityGain, cfg.GestureGain, cfg.ColorGain)
+	d.SetADCIntegrationCycles(cfg.ADCIntegrationCycles)
+
+	if cfg.LEDBoost > 0 {
+		d.LEDBoost(cfg.LEDBoost)
+	}
+}
 
 func (d *Device) enable(cfg enableConfig) {
 	var gen, pien, aien, wen, pen, aen, pon uint8

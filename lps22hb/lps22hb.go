@@ -14,18 +14,12 @@ type Device struct {
 	Address uint8
 }
 
-// Connected returns whether LPS22HB has been found.
-// It does a "who am I" request and checks the response.
-func (d *Device) Connected() bool {
-	data := []byte{0}
-	d.bus.ReadRegister(d.Address, LPS22HB_WHO_AM_I_REG, data)
-	return data[0] == 0xB1
-}
-
-// Configure sets up the LPS22HB device for communication.
-func (d *Device) Configure() {
-	// set to block update mode
-	d.bus.WriteRegister(d.Address, LPS22HB_CTRL1_REG, []byte{0x02})
+// New creates a new LPS22HB connection. The I2C bus must already be
+// configured.
+//
+// This function only creates the Device object, it does not touch the device.
+func New(bus drivers.I2C) Device {
+	return Device{bus: bus, Address: LPS22HB_ADDRESS}
 }
 
 // ReadPressure returns the pressure in milli pascals (mPa).
@@ -40,6 +34,14 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 	pValue := float32(uint32(data[2])<<16|uint32(data[1])<<8|uint32(data[0])) / 4096.0
 
 	return int32(pValue * 1000), nil
+}
+
+// Connected returns whether LPS22HB has been found.
+// It does a "who am I" request and checks the response.
+func (d *Device) Connected() bool {
+	data := []byte{0}
+	d.bus.ReadRegister(d.Address, LPS22HB_WHO_AM_I_REG, data)
+	return data[0] == 0xB1
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).

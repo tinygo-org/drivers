@@ -5,10 +5,10 @@ package hts221
 
 import "tinygo.org/x/drivers"
 
-// New creates a new HTS221 connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C) Device {
-	return Device{bus: bus, Address: HTS221_ADDRESS}
+// Configure sets up the HTS221 device for communication.
+func (d *Device) Configure() {
+	// read calibration data
+	d.calibration()
+	// activate device and use block data update mode
+	d.Power(true)
 }

@@ -6,24 +6,20 @@ package hts221
 import (
 	"machine"
 	"time"
-
-	"tinygo.org/x/drivers"
 )
 
-// New creates a new HTS221 connection. The I2C bus must already be
-// configured.
-//
-// This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C) Device {
-	// turn on internal power pin (machine.P0_22) and I2C1 pullups power pin (machine.P1_00)
-	// and wait a moment.
-	ENV := machine.P0_22
-	ENV.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	ENV.High()
-	R := machine.P1_00
-	R.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	R.High()
-	time.Sleep(time.Millisecond * 10)
+// Configure sets up the HTS221 device for communication.
+func (d *Device) Configure() {
+	// Following lines are Nano 33 BLE specific, they have nothing to do with sensor per se
+	machine.HTS_PWR.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.HTS_PWR.High()
+	machine.I2C_PULLUP.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.I2C_PULLUP.High()
+	// Wait a moment
+	time.Sleep(10 * time.Millisecond)
 
-	return Device{bus: bus, Address: HTS221_ADDRESS}
+	// read calibration data
+	d.calibration()
+	// activate device and use block data update mode
+	d.Power(true)
 }
