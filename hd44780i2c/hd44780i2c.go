@@ -101,7 +101,7 @@ func (d *Device) Configure(cfg Config) error {
 	return nil
 }
 
-// ClearDisplay clears all texts on the display.
+// ClearDisplay clears all texts on the display and sets the cursor back to position (0, 0).
 func (d *Device) ClearDisplay() {
 	d.sendCommand(DISPLAY_CLEAR)
 	d.cursor.x = 0
@@ -117,9 +117,10 @@ func (d *Device) Home() {
 	delayus(2000)
 }
 
-// SetCursor sets the cursor to a specific position (x, y).
+// SetCursor sets the cursor to a specific position (x, y). 
 //
-// if y (row) is set larger than actual rows, it would be set to 0.
+// For example, on 16x2 LCDs the range of x (column) is 0~15 and y (row) is 0~1.
+// if y is larger than actual rows, it would be set to 0 (restart from first row).
 func (d *Device) SetCursor(x, y uint8) {
 	rowOffset := []uint8{0x0, 0x40, 0x14, 0x54}
 	if y > (d.height - 1) {
@@ -139,11 +140,11 @@ func (d *Device) Print(data []byte) {
 		if chr == '\n' {
 			d.newLine()
 		} else {
-			d.cursor.x++
 			if d.cursor.x >= d.width {
 				d.newLine()
 			}
 			d.sendData(uint8(rune(chr)))
+			d.cursor.x++
 		}
 	}
 }
