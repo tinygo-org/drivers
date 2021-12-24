@@ -117,7 +117,7 @@ func (d *Device) Home() {
 	delayus(2000)
 }
 
-// SetCursor sets the cursor to a specific position (x, y). 
+// SetCursor sets the cursor to a specific position (x, y).
 //
 // For example, on 16x2 LCDs the range of x (column) is 0~15 and y (row) is 0~1.
 // if y is larger than actual rows, it would be set to 0 (restart from first row).
