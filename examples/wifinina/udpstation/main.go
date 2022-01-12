@@ -76,15 +76,17 @@ func main() {
 // connect to access point
 func connectToAP() {
 	time.Sleep(2 * time.Second)
-	message("Connecting to " + ssid)
-	adaptor.SetPassphrase(ssid, pass)
-	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		message("Connection status: " + st.String())
-		time.Sleep(1 * time.Second)
-		st, _ = adaptor.GetConnectionStatus()
+	println("Connecting to " + ssid)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+	if err != nil { // error connecting to AP
+		for {
+			println(err)
+			time.Sleep(1 * time.Second)
+		}
 	}
-	message("Connected.")
-	time.Sleep(2 * time.Second)
+
+	println("Connected.")
+
 	ip, _, _, err := adaptor.GetIP()
 	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
 		message(err.Error())

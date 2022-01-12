@@ -104,14 +104,16 @@ func main() {
 func connectToAP() {
 	time.Sleep(2 * time.Second)
 	println("Connecting to " + ssid)
-	adaptor.SetPassphrase(ssid, pass)
-	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		println("Connection status: " + st.String())
-		time.Sleep(1 * time.Second)
-		st, _ = adaptor.GetConnectionStatus()
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+	if err != nil { // error connecting to AP
+		for {
+			println(err)
+			time.Sleep(1 * time.Second)
+		}
 	}
+
 	println("Connected.")
-	time.Sleep(2 * time.Second)
+
 	ip, _, _, err := adaptor.GetIP()
 	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
 		println(err.Error())

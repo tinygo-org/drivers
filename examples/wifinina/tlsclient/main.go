@@ -122,21 +122,18 @@ func makeHTTPSRequest() {
 
 // connect to access point
 func connectToAP() {
-	if len(ssid) == 0 || len(pass) == 0 {
+	time.Sleep(2 * time.Second)
+	println("Connecting to " + ssid)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+	if err != nil { // error connecting to AP
 		for {
-			println("Connection failed: Either ssid or password not set")
-			time.Sleep(10 * time.Second)
+			println(err)
+			time.Sleep(1 * time.Second)
 		}
 	}
-	time.Sleep(2 * time.Second)
-	message("Connecting to " + ssid)
-	adaptor.SetPassphrase(ssid, pass)
-	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		message("Connection status: " + st.String())
-		time.Sleep(1 * time.Second)
-		st, _ = adaptor.GetConnectionStatus()
-	}
-	message("Connected.")
+
+	println("Connected.")
+
 	time.Sleep(2 * time.Second)
 	ip, _, _, err := adaptor.GetIP()
 	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
