@@ -43,7 +43,7 @@ func run() error {
 	}
 	http.UseDriver(rtl)
 
-	err = rtl.ConnectToAP(ssid, password)
+	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}

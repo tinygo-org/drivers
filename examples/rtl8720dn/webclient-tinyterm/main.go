@@ -74,7 +74,7 @@ func run() error {
 	http.SetBuf(buf[:])
 
 	fmt.Fprintf(terminal, "ConnectToAP()\r\n")
-	err = rtl.ConnectToAP(ssid, password)
+	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}

@@ -128,19 +128,15 @@ func waitSerial() {
 
 // connect to access point
 func connectToAP() {
-	if len(ssid) == 0 || len(pass) == 0 {
-		for {
-			println("Connection failed: Either ssid or password not set")
-			time.Sleep(10 * time.Second)
-		}
-	}
 	time.Sleep(2 * time.Second)
 	println("Connecting to " + ssid)
-	adaptor.SetPassphrase(ssid, pass)
-	for st, _ := adaptor.GetConnectionStatus(); st != wifinina.StatusConnected; {
-		println("Connection status: " + st.String())
-		time.Sleep(1 * time.Second)
-		st, _ = adaptor.GetConnectionStatus()
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+	if err != nil { // error connecting to AP
+		for {
+			println(err)
+			time.Sleep(1 * time.Second)
+		}
 	}
+
 	println("Connected.")
 }
