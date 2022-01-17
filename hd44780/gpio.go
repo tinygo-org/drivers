@@ -105,7 +105,8 @@ func (g *GPIO) Read(data []byte) (n int, err error) {
 		data[i] = g.read()
 		n++
 	}
-	g.reconfigureGPIOMode(machine.PinInput)
+	g.rw.Low()
+	g.reconfigureGPIOMode(machine.PinOutput)
 	return n, nil
 }
 
@@ -113,6 +114,7 @@ func (g *GPIO) read4BitMode() byte {
 	g.en.High()
 	data := (g.pins() << 4 & 0xF0)
 	g.en.Low()
+
 	g.en.High()
 	data |= (g.pins() & 0x0F)
 	g.en.Low()
