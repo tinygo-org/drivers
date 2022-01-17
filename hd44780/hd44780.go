@@ -126,7 +126,7 @@ func (d *Device) Configure(cfg Config) error {
 	}
 
 	if d.datalength == DATA_LENGTH_4BIT {
-		d.bus.Write([]byte{DATA_LENGTH_4BIT >> 4})
+		d.bus.Write([]byte{DATA_LENGTH_4BIT})
 	}
 
 	// Busy flag is now accessible
