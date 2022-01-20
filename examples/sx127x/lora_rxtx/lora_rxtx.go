@@ -1,6 +1,7 @@
 package main
 
-// This example code enable continuous Wave/Preamble
+// This example code demonstrates Lora RX/TX.
+// It has been tested with bluepill and SX1276 (RFM95W board)
 
 import (
 	"machine"
@@ -10,7 +11,9 @@ import (
 )
 
 const (
-	FREQ = 868100000
+	FREQ                      = 868100000
+	LORA_DEFAULT_RXTIMEOUT_MS = 1000
+	LORA_DEFAULT_TXTIMEOUT_MS = 5000
 )
 
 var (
@@ -21,104 +24,76 @@ var (
 	SX127X_PIN_CS   = machine.PB8
 	SX127X_PIN_DIO0 = machine.PA0
 	SX127X_SPI      = machine.SPI0
+
+	txmsg = []byte("Hello TinyGO")
 )
 
 func main() {
 	println("\n# TinyGo Lora continuous Wave/Preamble test")
 	println("# -----------------------------------------")
 
+	println("main: configuring LED/SPI/DIO/IRQ")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
-	// SPI, RESET, CS configuration
 	SX127X_PIN_RST.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	SX127X_PIN_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	SX127X_PIN_DIO0.Configure(machine.PinConfig{Mode: machine.PinInputPulldown}) // Checkthat
+	SX127X_PIN_DIO0.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
 	SX127X_SPI.Configure(machine.SPIConfig{Frequency: 500000, Mode: 0})
-
-	// Create the driver
-	loraRadio = sx127x.New(SX127X_SPI, SX127X_PIN_CS, SX127X_PIN_RST)
-
-	err := SX127X_PIN_DIO0.SetInterrupt(machine.PinRising, func(machine.Pin) {
+	err := SX127X_PIN_DIO0.SetInterrupt(machine.PinRising, func(machine.Pin) { // Int handler
 		loraRadio.HandleInterrupt()
 	})
 	if err != nil {
-		panic("Can't configure DIO int handler")
+		panic("main: Can't configure DIO int handler")
 	}
 
-	// Reset the radio module
+	println("main: create and start SX127x driver")
+	loraRadio = sx127x.New(SX127X_SPI, SX127X_PIN_CS, SX127X_PIN_RST)
 	loraRadio.Reset()
-
-	println("Try to detect sx127x radio")
 	state := loraRadio.DetectDevice()
 	if !state {
-		panic("sx127x not detected. ")
+		panic("main: sx127x NOT FOUND !!!")
 	} else {
-		println("sx127x detected")
+		println("main: sx127x found")
 	}
 
-	/*
-		// Prepare for Lora operation
-			loraConf := sx126x.LoraConfig{
-				Freq:           FREQ,
-				Bw:             sx126x.SX126X_LORA_BW_500_0,
-				Sf:             sx126x.SX126X_LORA_SF9,
-				Cr:             sx126x.SX126X_LORA_CR_4_7,
-				HeaderType:     sx126x.SX126X_LORA_HEADER_EXPLICIT,
-				Preamble:       12,
-				Ldr:            sx126x.SX126X_LORA_LOW_DATA_RATE_OPTIMIZE_OFF,
-				Iq:             sx126x.SX126X_LORA_IQ_STANDARD,
-				Crc:            sx126x.SX126X_LORA_CRC_ON,
-				SyncWord:       sx126x.SX126X_LORA_MAC_PRIVATE_SYNCWORD,
-				LoraTxPowerDBm: 14,
-			}
-			loraRadio.LoraConfig(loraConf)
-	*/
-
-	println("Start Configure Lora")
+	println("main: Configure lora modulation")
 	loraRadio.SetOpModeLora()
 	loraRadio.SetOpMode(sx127x.SX127X_OPMODE_SLEEP)
 	loraRadio.SetTxPower(11, true)
-	loraRadio.SetFrequency(FREQ)
-	loraRadio.SetBandwidth(sx127x.SX127X_LORA_BW_125_0)
-	loraRadio.SetCodingRate(sx127x.SX127X_LORA_CR_4_5)
-	loraRadio.SetRxPayloadCrc(sx127x.SX127X_LORA_CRC_ON)
-	loraRadio.SetHeaderMode(sx127x.SX127X_LORA_HEADER_EXPLICIT)
+	loraRadio.SetLoraFrequency(FREQ)
+	loraRadio.SetLoraBandwidth(sx127x.SX127X_LORA_BW_125_0)
+	loraRadio.SetLoraSpreadingFactor(sx127x.SX127X_LORA_SF11)
+	loraRadio.SetLoraCodingRate(sx127x.SX127X_LORA_CR_4_5)
+	loraRadio.SetLoraIqMode(sx127x.SX127X_LORA_IQ_STANDARD)
+	loraRadio.SetLoraCrc(true)
+	loraRadio.SetLoraHeaderMode(sx127x.SX127X_LORA_HEADER_EXPLICIT)
 	loraRadio.SetLowDataRateOptim(sx127x.SX127X_LOW_DATARATE_OPTIM_OFF)
-	println("End Configure Lora")
 
+	// Get uint32 from RSSI
+	rand32 := loraRadio.RandomU32()
+	println("main: Get random 32bit from RSSI:", rand32)
+
+	var count uint
 	for {
-		loraRadio.TxLora([]byte("Hello"))
+		tStart := time.Now()
 		machine.LED.Set(!machine.LED.Get())
-		time.Sleep(time.Second * 2)
-	}
-	/*
 
-
-		// Although LoraConfig has already configured most of Lora settings,
-		// the following lines are still required to enable Continuous Preamble/Wave
-		loraRadio.SetPacketType(sx126x.SX126X_PACKET_TYPE_LORA)
-		loraRadio.SetRfFrequency(loraConf.Freq)
-		loraRadio.SetModulationParams(loraConf.Sf, loraConf.Bw, loraConf.Cr, loraConf.Ldr)
-		loraRadio.SetTxParams(loraConf.LoraTxPowerDBm, sx126x.SX126X_PA_RAMP_200U)
-
-		for {
-			println("2 seconds in Continuous Preamble")
-			loraRadio.SetStandby()
-			loraRadio.SetTxContinuousPreamble()
-			time.Sleep(2 * time.Second)
-			println("Continuous Preamble Stopped")
-
-			loraRadio.SetStandby()
-			time.Sleep(10 * time.Second)
-
-			println("2 seconds in Continuous Wave")
-			loraRadio.SetTxContinuousWave()
-			time.Sleep(2 * time.Second)
-			println(" Continuous Wave Stopped")
-
-			loraRadio.SetStandby()
-			time.Sleep(60 * time.Second)
-
+		println("main: Receiving Lora for 10 seconds")
+		for int(time.Now().Sub(tStart).Seconds()) < 60 {
+			buf, err := loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
+			if err != nil {
+				println("RX Error: ", err)
+			} else if buf != nil {
+				println("Packet Received: len=", len(buf), string(buf))
+			}
 		}
-	*/
+		println("main: End Lora RX")
+
+		println("LORA TX size=", len(txmsg), " -> ", string(txmsg))
+		err := loraRadio.LoraTx(txmsg, LORA_DEFAULT_TXTIMEOUT_MS)
+		if err != nil {
+			println("TX Error:", err)
+		}
+		count++
+	}
+
 }
