@@ -108,7 +108,6 @@ func connectToESP() bool {
 func connectToAP() {
 	println("Connecting to wifi network '" + ssid + "'")
 
-	adaptor.SetWifiMode(espat.WifiModeClient)
 	if err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second); err != nil {
 		failMessage(err.Error())
 	}
