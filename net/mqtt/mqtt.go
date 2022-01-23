@@ -23,7 +23,7 @@ func NewClient(o *ClientOptions) Client {
 }
 
 type mqttclient struct {
-	adaptor         net.DeviceDriver
+	adaptor         net.Adapter
 	conn            net.Conn
 	connected       bool
 	opts            *ClientOptions

@@ -3,12 +3,12 @@ package wifinina
 import (
 	"time"
 
-	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/net"
 )
 
 func (d *Device) ConnectToAccessPoint(ssid, pass string, timeout time.Duration) error {
 	if len(ssid) == 0 {
-		return drivers.ErrWiFiMissingSSID
+		return net.ErrWiFiMissingSSID
 	}
 
 	start := time.Now()
@@ -22,5 +22,10 @@ func (d *Device) ConnectToAccessPoint(ssid, pass string, timeout time.Duration) 
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	return drivers.ErrWiFiConnectTimeout
+	return net.ErrWiFiConnectTimeout
+}
+
+func (d *Device) GetClientIP() (string, error) {
+	ip, _, _, err := d.GetIP()
+	return ip.String(), err
 }

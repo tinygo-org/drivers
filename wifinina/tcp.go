@@ -4,27 +4,11 @@ import (
 	"errors"
 	"strconv"
 	"time"
-
-	"tinygo.org/x/drivers/net"
 )
 
 const (
 	ReadBufferSize = 128
 )
-
-func (d *Device) NewDriver() net.DeviceDriver {
-	return &Driver{dev: d, sock: NoSocketAvail}
-}
-
-type Driver struct {
-	dev     *Device
-	sock    uint8
-	readBuf readBuffer
-
-	proto uint8
-	ip    uint32
-	port  uint16
-}
 
 type readBuffer struct {
 	data [ReadBufferSize]byte
@@ -32,22 +16,22 @@ type readBuffer struct {
 	size int
 }
 
-func (drv *Driver) GetDNS(domain string) (string, error) {
-	ipAddr, err := drv.dev.GetHostByName(domain)
+func (d *Device) GetDNS(domain string) (string, error) {
+	ipAddr, err := d.GetHostByName(domain)
 	return ipAddr.String(), err
 }
 
-func (drv *Driver) ConnectTCPSocket(addr, portStr string) error {
-	return drv.connectSocket(addr, portStr, ProtoModeTCP)
+func (d *Device) ConnectTCPSocket(addr, portStr string) error {
+	return d.connectSocket(addr, portStr, ProtoModeTCP)
 }
 
-func (drv *Driver) ConnectSSLSocket(addr, portStr string) error {
-	return drv.connectSocket(addr, portStr, ProtoModeTLS)
+func (d *Device) ConnectSSLSocket(addr, portStr string) error {
+	return d.connectSocket(addr, portStr, ProtoModeTLS)
 }
 
-func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
+func (d *Device) connectSocket(addr, portStr string, mode uint8) error {
 
-	drv.proto, drv.ip, drv.port = mode, 0, 0
+	d.proto, d.ip, d.port = mode, 0, 0
 
 	// convert port to uint16
 	port, err := convertPort(portStr)
@@ -61,7 +45,7 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	if mode != ProtoModeTLS {
 		// look up the hostname if necessary; if an IP address was specified, the
 		// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
-		ipAddr, err := drv.dev.GetHostByName(addr)
+		ipAddr, err := d.GetHostByName(addr)
 		if err != nil {
 			return err
 		}
@@ -70,26 +54,26 @@ func (drv *Driver) connectSocket(addr, portStr string, mode uint8) error {
 	}
 
 	// check to see if socket is already set; if so, stop it
-	if drv.sock != NoSocketAvail {
-		if err := drv.stop(); err != nil {
+	if d.sock != NoSocketAvail {
+		if err := d.stop(); err != nil {
 			return err
 		}
 	}
 
 	// get a socket from the device
-	if drv.sock, err = drv.dev.GetSocket(); err != nil {
+	if d.sock, err = d.GetSocket(); err != nil {
 		return err
 	}
 
 	// attempt to start the client
-	if err := drv.dev.StartClient(hostname, ip, port, drv.sock, mode); err != nil {
+	if err := d.StartClient(hostname, ip, port, d.sock, mode); err != nil {
 		return err
 	}
 
 	// FIXME: this 4 second timeout is simply mimicking the Arduino driver
 	start := time.Now()
 	for time.Since(start) < 4*time.Second {
-		connected, err := drv.IsConnected()
+		connected, err := d.IsConnected()
 		if err != nil {
 			return err
 		}
@@ -110,12 +94,12 @@ func convertPort(portStr string) (uint16, error) {
 	return uint16(p64), nil
 }
 
-func (drv *Driver) ConnectUDPSocket(addr, portStr, lportStr string) (err error) {
+func (d *Device) ConnectUDPSocket(addr, portStr, lportStr string) (err error) {
 
-	drv.proto, drv.ip, drv.port = ProtoModeUDP, 0, 0
+	d.proto, d.ip, d.port = ProtoModeUDP, 0, 0
 
 	// convert remote port to uint16
-	if drv.port, err = convertPort(portStr); err != nil {
+	if d.port, err = convertPort(portStr); err != nil {
 		return err
 	}
 
@@ -127,73 +111,73 @@ func (drv *Driver) ConnectUDPSocket(addr, portStr, lportStr string) (err error) 
 
 	// look up the hostname if necessary; if an IP address was specified, the
 	// same will be returned.  Otherwise, an IPv4 for the hostname is returned.
-	ipAddr, err := drv.dev.GetHostByName(addr)
+	ipAddr, err := d.GetHostByName(addr)
 	if err != nil {
 		return err
 	}
-	drv.ip = ipAddr.AsUint32()
+	d.ip = ipAddr.AsUint32()
 
 	// check to see if socket is already set; if so, stop it
 	// TODO: we can probably have more than one socket at once right?
-	if drv.sock != NoSocketAvail {
-		if err := drv.stop(); err != nil {
+	if d.sock != NoSocketAvail {
+		if err := d.stop(); err != nil {
 			return err
 		}
 	}
 
 	// get a socket from the device
-	if drv.sock, err = drv.dev.GetSocket(); err != nil {
+	if d.sock, err = d.GetSocket(); err != nil {
 		return err
 	}
 
 	// start listening for UDP packets on the local port
-	if err := drv.dev.StartServer(lport, drv.sock, drv.proto); err != nil {
+	if err := d.StartServer(lport, d.sock, d.proto); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (drv *Driver) DisconnectSocket() error {
-	return drv.stop()
+func (d *Device) DisconnectSocket() error {
+	return d.stop()
 }
 
-func (drv *Driver) StartSocketSend(size int) error {
+func (d *Device) StartSocketSend(size int) error {
 	// not needed for WiFiNINA???
 	return nil
 }
 
-func (drv *Driver) Response(timeout int) ([]byte, error) {
+func (d *Device) Response(timeout int) ([]byte, error) {
 	return nil, nil
 }
 
-func (drv *Driver) Write(b []byte) (n int, err error) {
-	if drv.sock == NoSocketAvail {
+func (d *Device) Write(b []byte) (n int, err error) {
+	if d.sock == NoSocketAvail {
 		return 0, ErrNoSocketAvail
 	}
 	if len(b) == 0 {
 		return 0, ErrNoData
 	}
-	if drv.proto == ProtoModeUDP {
-		if err := drv.dev.StartClient("", drv.ip, drv.port, drv.sock, drv.proto); err != nil {
+	if d.proto == ProtoModeUDP {
+		if err := d.StartClient("", d.ip, d.port, d.sock, d.proto); err != nil {
 			return 0, errors.New("error in startClient: " + err.Error())
 		}
-		if _, err := drv.dev.InsertDataBuf(b, drv.sock); err != nil {
+		if _, err := d.InsertDataBuf(b, d.sock); err != nil {
 			return 0, errors.New("error in insertDataBuf: " + err.Error())
 		}
-		if _, err := drv.dev.SendUDPData(drv.sock); err != nil {
+		if _, err := d.SendUDPData(d.sock); err != nil {
 			return 0, errors.New("error in sendUDPData: " + err.Error())
 		}
 		return len(b), nil
 	} else {
-		written, err := drv.dev.SendData(b, drv.sock)
+		written, err := d.SendData(b, d.sock)
 		if err != nil {
 			return 0, err
 		}
 		if written == 0 {
 			return 0, ErrDataNotWritten
 		}
-		if sent, _ := drv.dev.CheckDataSent(drv.sock); !sent {
+		if sent, _ := d.CheckDataSent(d.sock); !sent {
 			return 0, ErrCheckDataError
 		}
 		return len(b), nil
@@ -202,8 +186,8 @@ func (drv *Driver) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
-	avail, err := drv.available()
+func (d *Device) ReadSocket(b []byte) (n int, err error) {
+	avail, err := d.available()
 	if err != nil {
 		println("ReadSocket error: " + err.Error())
 		return 0, err
@@ -215,37 +199,37 @@ func (drv *Driver) ReadSocket(b []byte) (n int, err error) {
 	if avail < length {
 		length = avail
 	}
-	copy(b, drv.readBuf.data[drv.readBuf.head:drv.readBuf.head+length])
-	drv.readBuf.head += length
-	drv.readBuf.size -= length
+	copy(b, d.readBuf.data[d.readBuf.head:d.readBuf.head+length])
+	d.readBuf.head += length
+	d.readBuf.size -= length
 	return length, nil
 }
 
 // IsSocketDataAvailable returns of there is socket data available
-func (drv *Driver) IsSocketDataAvailable() bool {
-	n, err := drv.available()
+func (d *Device) IsSocketDataAvailable() bool {
+	n, err := d.available()
 	return err == nil && n > 0
 }
 
-func (drv *Driver) available() (int, error) {
-	if drv.readBuf.size == 0 {
-		n, err := drv.dev.GetDataBuf(drv.sock, drv.readBuf.data[:])
+func (d *Device) available() (int, error) {
+	if d.readBuf.size == 0 {
+		n, err := d.GetDataBuf(d.sock, d.readBuf.data[:])
 		if n > 0 {
-			drv.readBuf.head = 0
-			drv.readBuf.size = n
+			d.readBuf.head = 0
+			d.readBuf.size = n
 		}
 		if err != nil {
 			return int(n), err
 		}
 	}
-	return drv.readBuf.size, nil
+	return d.readBuf.size, nil
 }
 
-func (drv *Driver) IsConnected() (bool, error) {
-	if drv.sock == NoSocketAvail {
+func (d *Device) IsConnected() (bool, error) {
+	if d.sock == NoSocketAvail {
 		return false, nil
 	}
-	s, err := drv.status()
+	s, err := d.status()
 	if err != nil {
 		return false, err
 	}
@@ -261,26 +245,26 @@ func (drv *Driver) IsConnected() (bool, error) {
 	return isConnected, nil
 }
 
-func (drv *Driver) status() (uint8, error) {
-	if drv.sock == NoSocketAvail {
+func (d *Device) status() (uint8, error) {
+	if d.sock == NoSocketAvail {
 		return TCPStateClosed, nil
 	}
-	return drv.dev.GetClientState(drv.sock)
+	return d.GetClientState(d.sock)
 }
 
-func (drv *Driver) stop() error {
-	if drv.sock == NoSocketAvail {
+func (d *Device) stop() error {
+	if d.sock == NoSocketAvail {
 		return nil
 	}
-	drv.dev.StopClient(drv.sock)
+	d.StopClient(d.sock)
 	start := time.Now()
 	for time.Since(start) < 5*time.Second {
-		st, _ := drv.status()
+		st, _ := d.status()
 		if st == TCPStateClosed {
 			break
 		}
 		time.Sleep(1 * time.Millisecond)
 	}
-	drv.sock = NoSocketAvail
+	d.sock = NoSocketAvail
 	return nil
 }

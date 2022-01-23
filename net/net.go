@@ -94,7 +94,7 @@ func Dial(network, address string) (Conn, error) {
 
 // SerialConn is a loosely net.Conn compatible implementation
 type SerialConn struct {
-	Adaptor DeviceDriver
+	Adaptor Adapter
 }
 
 // UDPSerialConn is a loosely net.Conn compatible intended to support

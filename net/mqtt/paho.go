@@ -175,7 +175,7 @@ type ClientOptionsReader struct {
 
 // ClientOptions contains configurable options for an MQTT Client.
 type ClientOptions struct {
-	Adaptor net.DeviceDriver
+	Adaptor net.Adapter
 
 	//Servers                 []*url.URL
 	Servers  string

@@ -281,9 +281,16 @@ type Device struct {
 
 	buf   [64]byte
 	ssids [10]string
+
+	sock    uint8
+	readBuf readBuffer
+
+	proto uint8
+	ip    uint32
+	port  uint16
 }
 
-// New returns a new Wifinina driver.
+// New returns a new Wifinina device.
 func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device {
 	return &Device{
 		SPI:   bus,
@@ -295,8 +302,7 @@ func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device
 }
 
 func (d *Device) Configure() {
-
-	net.UseDriver(d.NewDriver())
+	net.UseDriver(d)
 	pinUseDevice(d)
 
 	d.CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
