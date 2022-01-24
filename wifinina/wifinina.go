@@ -969,7 +969,9 @@ func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
 func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
 	l = len(p)
 	d.SPI.Transfer(uint8(l))
-	d.SPI.Tx([]byte(p), nil)
+	if l > 0 {
+		d.SPI.Tx([]byte(p), nil)
+	}
 	if isLastParam {
 		d.SPI.Transfer(CmdEnd)
 		l += 1
