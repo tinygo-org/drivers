@@ -1,3 +1,29 @@
+0.19.0
+---
+- **new devices**
+    - ft6336: add support for ft6336
+    - pca9685: PCA9685 driver
+    - shtc3: Sensirion SHTC3 Relative Humidity / Temperature i2c sensor
+    - sx126x: Driver for Semtech sx126x radio modules
+    - xpt2046: XPT2046 Touch driver (#350)
+- **enhancements**
+    - **hd44780i2c** 
+        - clean up for go fmt
+        - Needed fixes and update hd44780i2c.go
+    - **ili9341, ili9342**
+        - add support for m5stack
+        - add support for m5stack-core2
+    - **wifi**
+        - modify to use shared net.Adapter interface for all supported wifi devices
+    - wifinina: remove busy wait
+- **bugfixes**
+    - **hd44780** 
+        - fix 4-bit data length flag
+        - Reset data pins to output mode after reading
+    - Nano 33 BLE drivers (#351)
+- **docs**
+    - examples/wifi: add unified example for tcpclient that compiles for all supported wifi adaptors
+
 0.18.0
 ---
 - **new devices**
