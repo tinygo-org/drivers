@@ -19,7 +19,7 @@ func (d *Device) Configure(cfg Configuration) error {
 	machine.I2C_PULLUP.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	machine.I2C_PULLUP.High()
 	// Wait a moment
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	// Common initialisation code
 	return d.doConfigure(cfg)
 }

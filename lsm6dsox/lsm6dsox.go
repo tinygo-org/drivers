@@ -5,7 +5,11 @@
 //
 package lsm6dsox // import "tinygo.org/x/drivers/lsm6dsox"
 
-import "tinygo.org/x/drivers"
+import (
+	"errors"
+
+	"tinygo.org/x/drivers"
+)
 
 type AccelRange uint8
 type AccelSampleRate uint8
@@ -17,10 +21,9 @@ type GyroSampleRate uint8
 type Device struct {
 	bus             drivers.I2C
 	Address         uint16
-	dataBufferSix   []uint8
-	dataBufferTwo   []uint8
 	accelMultiplier int32
 	gyroMultiplier  int32
+	buf             [6]uint8
 }
 
 // Configuration for LSM6DSOX device.
@@ -31,20 +34,25 @@ type Configuration struct {
 	GyroSampleRate  GyroSampleRate
 }
 
+var errNotConnected = errors.New("lsm6dsox: failed to communicate with acel/gyro sensor")
+
 // New creates a new LSM6DSOX connection. The I2C bus must already be configured.
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) *Device {
 	return &Device{
-		bus:           bus,
-		Address:       Address,
-		dataBufferSix: make([]uint8, 6),
-		dataBufferTwo: make([]uint8, 2),
+		bus:     bus,
+		Address: Address,
 	}
 }
 
 // Configure sets up the device for communication.
-func (d *Device) Configure(cfg Configuration) {
+func (d *Device) Configure(cfg Configuration) (err error) {
+
+	// Verify unit communication
+	if !d.Connected() {
+		return errNotConnected
+	}
 
 	// Multipliers come from "Table 2. Mechanical characteristics" of the datasheet * 1000
 	switch cfg.AccelRange {
@@ -68,19 +76,27 @@ func (d *Device) Configure(cfg Configuration) {
 		d.gyroMultiplier = 70000
 	}
 
-	data := make([]uint8, 1)
+	data := d.buf[:1]
 	// Configure accelerometer
 	data[0] = uint8(cfg.AccelRange) | uint8(cfg.AccelSampleRate)
-	d.bus.WriteRegister(uint8(d.Address), CTRL1_XL, data)
+	err = d.bus.WriteRegister(uint8(d.Address), CTRL1_XL, data)
+	if err != nil {
+		return
+	}
 	// Configure gyroscope
 	data[0] = uint8(cfg.GyroRange) | uint8(cfg.GyroSampleRate)
-	d.bus.WriteRegister(uint8(d.Address), CTRL2_G, data)
+	err = d.bus.WriteRegister(uint8(d.Address), CTRL2_G, data)
+	if err != nil {
+		return
+	}
+
+	return nil
 }
 
 // Connected returns whether a LSM6DSOX has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	data := []byte{0}
+	data := d.buf[:1]
 	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x6C
 }
@@ -89,11 +105,15 @@ func (d *Device) Connected() bool {
 // it in µg (micro-gravity). When one of the axes is pointing straight to Earth
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
-func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
-	d.bus.ReadRegister(uint8(d.Address), OUTX_L_A, d.dataBufferSix)
-	x = int32(int16((uint16(d.dataBufferSix[1])<<8)|uint16(d.dataBufferSix[0]))) * d.accelMultiplier
-	y = int32(int16((uint16(d.dataBufferSix[3])<<8)|uint16(d.dataBufferSix[2]))) * d.accelMultiplier
-	z = int32(int16((uint16(d.dataBufferSix[5])<<8)|uint16(d.dataBufferSix[4]))) * d.accelMultiplier
+func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_A, data)
+	if err != nil {
+		return
+	}
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * d.accelMultiplier
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * d.accelMultiplier
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * d.accelMultiplier
 	return
 }
 
@@ -101,20 +121,27 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 // µ°/s (micro-degrees/sec). This means that if you were to do a complete
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
-func (d *Device) ReadRotation() (x int32, y int32, z int32) {
-	d.bus.ReadRegister(uint8(d.Address), OUTX_L_G, d.dataBufferSix)
-	x = int32(int16((uint16(d.dataBufferSix[1])<<8)|uint16(d.dataBufferSix[0]))) * d.gyroMultiplier
-	y = int32(int16((uint16(d.dataBufferSix[3])<<8)|uint16(d.dataBufferSix[2]))) * d.gyroMultiplier
-	z = int32(int16((uint16(d.dataBufferSix[5])<<8)|uint16(d.dataBufferSix[4]))) * d.gyroMultiplier
+func (d *Device) ReadRotation() (x, y, z int32, err error) {
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_G, data)
+	if err != nil {
+		return
+	}
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * d.gyroMultiplier
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * d.gyroMultiplier
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * d.gyroMultiplier
 	return
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (int32, error) {
-	d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, d.dataBufferTwo)
-
+func (d *Device) ReadTemperature() (t int32, err error) {
+	data := d.buf[:2]
+	err = d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, data)
+	if err != nil {
+		return
+	}
 	// From "Table 4. Temperature sensor characteristics"
 	// temp = value/256 + 25
-	t := 25000 + (int32(int16((int16(d.dataBufferTwo[1])<<8)|int16(d.dataBufferTwo[0])))*125)/32
-	return t, nil
+	t = 25000 + (int32(int16((int16(data[1])<<8)|int16(data[0])))*125)/32
+	return
 }

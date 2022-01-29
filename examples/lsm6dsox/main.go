@@ -26,12 +26,18 @@ func main() {
 	machine.I2C0.Configure(machine.I2CConfig{})
 
 	device := lsm6dsox.New(machine.I2C0)
-	device.Configure(lsm6dsox.Configuration{
+	err := device.Configure(lsm6dsox.Configuration{
 		AccelRange:      lsm6dsox.ACCEL_2G,
 		AccelSampleRate: lsm6dsox.ACCEL_SR_104,
 		GyroRange:       lsm6dsox.GYRO_250DPS,
 		GyroSampleRate:  lsm6dsox.GYRO_SR_104,
 	})
+	if err != nil {
+		for {
+			println("Failed to configure", err.Error())
+			time.Sleep(time.Second)
+		}
+	}
 
 	for {
 
@@ -46,8 +52,8 @@ func main() {
 			calibrateGyro(device)
 		}
 
-		ax, ay, az := device.ReadAcceleration()
-		gx, gy, gz := device.ReadRotation()
+		ax, ay, az, _ := device.ReadAcceleration()
+		gx, gy, gz, _ := device.ReadRotation()
 		t, _ := device.ReadTemperature()
 
 		if PLOTTER {
@@ -64,7 +70,7 @@ func main() {
 
 func calibrateGyro(device *lsm6dsox.Device) {
 	for i := 0; i < 100; i++ {
-		gx, gy, gz := device.ReadRotation()
+		gx, gy, gz, _ := device.ReadRotation()
 		cal[0] += float32(gx) / 1000000
 		cal[1] += float32(gy) / 1000000
 		cal[2] += float32(gz) / 1000000

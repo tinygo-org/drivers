@@ -13,7 +13,13 @@ func main() {
 	machine.I2C0.Configure(machine.I2CConfig{})
 
 	sensor := lsm303agr.New(machine.I2C0)
-	sensor.Configure(lsm303agr.Configuration{}) //default settings
+	err := sensor.Configure(lsm303agr.Configuration{}) //default settings
+	if err != nil {
+		for {
+			println("Failed to configure", err.Error())
+			time.Sleep(time.Second)
+		}
+	}
 
 	// you can specify the following options to adjust accuracy, sensor range or save power.
 	// see https://github.com/tinygo-org/drivers/blob/release/lsm303agr/registers.go for details:
@@ -28,22 +34,24 @@ func main() {
 		})
 	*/
 
-	if !sensor.Connected() {
-		println("LSM303AGR/MAG not connected!")
-		return
-	}
-
 	for {
+
+		if !sensor.Connected() {
+			println("LSM303AGR/MAG not connected!")
+			time.Sleep(time.Second)
+			continue
+		}
+
 		// accel_x, accel_y, accel_z := sensor.ReadAcceleration()
 		// println("ACCEL_X:", accel_x/100000, " ACCEL_Y:", accel_y/100000, " ACCEL_Z:", accel_z/100000)
 
 		// mag_x, mag_y, mag_z := sensor.ReadMagneticField()
 		// println("MAG_X:", mag_x/100000, " MAG_Y:", mag_y/100000, " MAG_Z:", mag_z/100000)
 
-		pitch, roll := sensor.ReadPitchRoll()
+		pitch, roll, _ := sensor.ReadPitchRoll()
 		println("Pitch:", float32(pitch)/100000, " Roll:", float32(roll)/100000)
 
-		heading := sensor.ReadCompass()
+		heading, _ := sensor.ReadCompass()
 		println("Heading:", float32(heading)/100000, "degrees")
 
 		temp, _ := sensor.ReadTemperature()
