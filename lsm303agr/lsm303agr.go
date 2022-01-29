@@ -6,6 +6,7 @@
 package lsm303agr // import "tinygo.org/x/drivers/lsm303agr"
 
 import (
+	"errors"
 	"math"
 
 	"tinygo.org/x/drivers"
@@ -22,6 +23,7 @@ type Device struct {
 	MagPowerMode   uint8
 	MagSystemMode  uint8
 	MagDataRate    uint8
+	buf            [6]uint8
 }
 
 // Configuration for LSM303AGR device.
@@ -34,12 +36,17 @@ type Configuration struct {
 	MagDataRate    uint8
 }
 
-// New creates a new LSM303AGR connection. The I2C bus must already be
-// configured.
+var errNotConnected = errors.New("lsm303agr: failed to communicate with either acel or magnet sensor")
+
+// New creates a new LSM303AGR connection. The I2C bus must already be configured.
 //
 // This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C) Device {
-	return Device{bus: bus, AccelAddress: ACCEL_ADDRESS, MagAddress: MAG_ADDRESS}
+func New(bus drivers.I2C) *Device {
+	return &Device{
+		bus:          bus,
+		AccelAddress: ACCEL_ADDRESS,
+		MagAddress:   MAG_ADDRESS,
+	}
 }
 
 // Connected returns whether both sensor on LSM303AGR has been found.
@@ -52,7 +59,12 @@ func (d *Device) Connected() bool {
 }
 
 // Configure sets up the LSM303AGR device for communication.
-func (d *Device) Configure(cfg Configuration) {
+func (d *Device) Configure(cfg Configuration) (err error) {
+
+	// Verify unit communication
+	if !d.Connected() {
+		return errNotConnected
+	}
 
 	if cfg.AccelDataRate != 0 {
 		d.AccelDataRate = cfg.AccelDataRate
@@ -90,36 +102,46 @@ func (d *Device) Configure(cfg Configuration) {
 		d.MagSystemMode = MAG_SYSTEM_CONTINUOUS
 	}
 
-	cmd := []byte{0}
+	data := d.buf[:1]
 
-	cmd[0] = byte(d.AccelDataRate<<4 | d.AccelPowerMode | 0x07)
-	d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG1_A, cmd)
+	data[0] = byte(d.AccelDataRate<<4 | d.AccelPowerMode | 0x07)
+	err = d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG1_A, data)
+	if err != nil {
+		return
+	}
 
-	cmd[0] = byte(0x80 | d.AccelRange<<4)
-	d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG4_A, cmd)
+	data[0] = byte(0x80 | d.AccelRange<<4)
+	err = d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG4_A, data)
+	if err != nil {
+		return
+	}
 
-	cmd[0] = byte(0xC0)
-	d.bus.WriteRegister(uint8(d.AccelAddress), TEMP_CFG_REG_A, cmd)
+	data[0] = byte(0xC0)
+	err = d.bus.WriteRegister(uint8(d.AccelAddress), TEMP_CFG_REG_A, data)
+	if err != nil {
+		return
+	}
 
 	// Temperature compensation is on for magnetic sensor
-	cmd[0] = byte(0x80 | d.MagPowerMode<<4 | d.MagDataRate<<2 | d.MagSystemMode)
-	d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, cmd)
+	data[0] = byte(0x80 | d.MagPowerMode<<4 | d.MagDataRate<<2 | d.MagSystemMode)
+	err = d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, data)
+	if err != nil {
+		return
+	}
 
+	return nil
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
 // it in µg (micro-gravity). When one of the axes is pointing straight to Earth
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
-func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
-
-	data1, data2, data3, data4, data5, data6 := []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_X_H_A, data1)
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_X_L_A, data2)
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_Y_H_A, data3)
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_Y_L_A, data4)
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_Z_H_A, data5)
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_Z_L_A, data6)
+func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_X_L_A, data)
+	if err != nil {
+		return
+	}
 
 	rangeFactor := int16(0)
 	switch d.AccelRange {
@@ -133,18 +155,21 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32) {
 		rangeFactor = 12 // the readings in 16G are a bit lower
 	}
 
-	x = int32(int32(int16((uint16(data1[0])<<8|uint16(data2[0])))>>4*rangeFactor) * 1000000 / 1024)
-	y = int32(int32(int16((uint16(data3[0])<<8|uint16(data4[0])))>>4*rangeFactor) * 1000000 / 1024)
-	z = int32(int32(int16((uint16(data5[0])<<8|uint16(data6[0])))>>4*rangeFactor) * 1000000 / 1024)
+	x = int32(int32(int16((uint16(data[1])<<8|uint16(data[0])))>>4*rangeFactor) * 1000000 / 1024)
+	y = int32(int32(int16((uint16(data[3])<<8|uint16(data[2])))>>4*rangeFactor) * 1000000 / 1024)
+	z = int32(int32(int16((uint16(data[5])<<8|uint16(data[4])))>>4*rangeFactor) * 1000000 / 1024)
 	return
 }
 
 // ReadPitchRoll reads the current pitch and roll angles from the device and
 // returns it in micro-degrees. When the z axis is pointing straight to Earth
 // the returned values of pitch and roll would be zero.
-func (d *Device) ReadPitchRoll() (pitch int32, roll int32) {
+func (d *Device) ReadPitchRoll() (pitch, roll int32, err error) {
 
-	x, y, z := d.ReadAcceleration()
+	x, y, z, err := d.ReadAcceleration()
+	if err != nil {
+		return
+	}
 	xf, yf, zf := float64(x), float64(y), float64(z)
 	pitch = int32((math.Round(math.Atan2(yf, math.Sqrt(math.Pow(xf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100) * 1000000)
 	roll = int32((math.Round(math.Atan2(xf, math.Sqrt(math.Pow(yf, 2)+math.Pow(zf, 2)))*(180/math.Pi)*100) / 100) * 1000000)
@@ -154,25 +179,23 @@ func (d *Device) ReadPitchRoll() (pitch int32, roll int32) {
 
 // ReadMagneticField reads the current magnetic field from the device and returns
 // it in mG (milligauss). 1 mG = 0.1 µT (microtesla).
-func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
+func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 
 	if d.MagSystemMode == MAG_SYSTEM_SINGLE {
-		cmd := []byte{0}
+		cmd := d.buf[:1]
 		cmd[0] = byte(0x80 | d.MagPowerMode<<4 | d.MagDataRate<<2 | d.MagSystemMode)
-		d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, cmd)
+		err = d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, cmd)
+		if err != nil {
+			return
+		}
 	}
 
-	data1, data2, data3, data4, data5, data6 := []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}, []byte{0}
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_X_H_M, data1)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_X_L_M, data2)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Y_H_M, data3)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Y_L_M, data4)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Z_H_M, data5)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_Z_L_M, data6)
+	data := d.buf[0:6]
+	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_X_L_M, data)
 
-	x = int32(int16((uint16(data1[0])<<8 | uint16(data2[0]))))
-	y = int32(int16((uint16(data3[0])<<8 | uint16(data4[0]))))
-	z = int32(int16((uint16(data5[0])<<8 | uint16(data6[0]))))
+	x = int32(int16((uint16(data[1])<<8 | uint16(data[0]))))
+	y = int32(int16((uint16(data[3])<<8 | uint16(data[2]))))
+	z = int32(int16((uint16(data[5])<<8 | uint16(data[4]))))
 	return
 }
 
@@ -182,23 +205,27 @@ func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 //
 // However, the heading may be off due to electronic compasses would be effected
 // by strong magnetic fields and require constant calibration.
-func (d *Device) ReadCompass() (h int32) {
+func (d *Device) ReadCompass() (h int32, err error) {
 
-	x, y, _ := d.ReadMagneticField()
+	x, y, _, err := d.ReadMagneticField()
+	if err != nil {
+		return
+	}
 	xf, yf := float64(x), float64(y)
 	h = int32(float32((180/math.Pi)*math.Atan2(yf, xf)) * 1000000)
 	return
 }
 
 // ReadTemperature returns the temperature in Celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (c int32, e error) {
+func (d *Device) ReadTemperature() (t int32, err error) {
 
-	data1, data2 := []byte{0}, []byte{0}
-	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_H_A, data1)
-	d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L_A, data2)
+	data := d.buf[:2]
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L_A, data)
+	if err != nil {
+		return
+	}
 
-	t := int16((uint16(data1[0])<<8 | uint16(data2[0]))) >> 4 // temperature offsef from 25 °C
-	c = int32((float32(25) + float32(t)/8) * 1000)
-	e = nil
+	r := int16((uint16(data[1])<<8 | uint16(data[0]))) >> 4 // temperature offset from 25 °C
+	t = 25000 + int32((float32(r)/8)*1000)
 	return
 }

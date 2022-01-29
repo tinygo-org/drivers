@@ -28,8 +28,7 @@ type Device struct {
 	accelMultiplier int32
 	gyroMultiplier  int32
 	magMultiplier   int32
-	dataBufferSix   []uint8
-	dataBufferTwo   []uint8
+	buf             [6]uint8
 }
 
 // Configuration for LSM9DS1 device.
@@ -50,11 +49,9 @@ var errNotConnected = errors.New("lsm9ds1: failed to communicate with either ace
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) *Device {
 	return &Device{
-		bus:           bus,
-		AccelAddress:  ACCEL_ADDRESS,
-		MagAddress:    MAG_ADDRESS,
-		dataBufferSix: make([]uint8, 6),
-		dataBufferTwo: make([]uint8, 2),
+		bus:          bus,
+		AccelAddress: ACCEL_ADDRESS,
+		MagAddress:   MAG_ADDRESS,
 	}
 }
 
@@ -63,17 +60,11 @@ func New(bus drivers.I2C) *Device {
 // In a rare case of an I2C bus issue, it can also return an error.
 // Case of boolean false and error nil means I2C is up,
 // but "who am I" responses have unexpected values.
-func (d *Device) Connected() (connected bool, err error) {
-	data1, data2 := []byte{0}, []byte{0}
-	err = d.bus.ReadRegister(d.AccelAddress, WHO_AM_I, data1)
-	if err != nil {
-		return false, err
-	}
-	err = d.bus.ReadRegister(d.MagAddress, WHO_AM_I_M, data2)
-	if err != nil {
-		return false, err
-	}
-	return data1[0] == 0x68 && data2[0] == 0x3D, nil
+func (d *Device) Connected() bool {
+	data1, data2 := d.buf[:1], d.buf[1:2]
+	d.bus.ReadRegister(d.AccelAddress, WHO_AM_I, data1)
+	d.bus.ReadRegister(d.MagAddress, WHO_AM_I_M, data2)
+	return data1[0] == 0x68 && data2[0] == 0x3D
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -81,13 +72,14 @@ func (d *Device) Connected() (connected bool, err error) {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_XL, d.dataBufferSix)
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_XL, data)
 	if err != nil {
 		return
 	}
-	x = int32(int16((uint16(d.dataBufferSix[1])<<8)|uint16(d.dataBufferSix[0]))) * d.accelMultiplier
-	y = int32(int16((uint16(d.dataBufferSix[3])<<8)|uint16(d.dataBufferSix[2]))) * d.accelMultiplier
-	z = int32(int16((uint16(d.dataBufferSix[5])<<8)|uint16(d.dataBufferSix[4]))) * d.accelMultiplier
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * d.accelMultiplier
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * d.accelMultiplier
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * d.accelMultiplier
 	return
 }
 
@@ -96,38 +88,41 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_G, d.dataBufferSix)
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_G, data)
 	if err != nil {
 		return
 	}
-	x = int32(int16((uint16(d.dataBufferSix[1])<<8)|uint16(d.dataBufferSix[0]))) * d.gyroMultiplier
-	y = int32(int16((uint16(d.dataBufferSix[3])<<8)|uint16(d.dataBufferSix[2]))) * d.gyroMultiplier
-	z = int32(int16((uint16(d.dataBufferSix[5])<<8)|uint16(d.dataBufferSix[4]))) * d.gyroMultiplier
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * d.gyroMultiplier
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * d.gyroMultiplier
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * d.gyroMultiplier
 	return
 }
 
 // ReadMagneticField reads the current magnetic field from the device and returns
 // it in nT (nanotesla). 1 G (gauss) = 100_000 nT (nanotesla).
 func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
-	err = d.bus.ReadRegister(uint8(d.MagAddress), OUT_X_L_M, d.dataBufferSix)
+	data := d.buf[:6]
+	err = d.bus.ReadRegister(uint8(d.MagAddress), OUT_X_L_M, data)
 	if err != nil {
 		return
 	}
-	x = int32(int16((int16(d.dataBufferSix[1])<<8)|int16(d.dataBufferSix[0]))) * d.magMultiplier
-	y = int32(int16((int16(d.dataBufferSix[3])<<8)|int16(d.dataBufferSix[2]))) * d.magMultiplier
-	z = int32(int16((int16(d.dataBufferSix[5])<<8)|int16(d.dataBufferSix[4]))) * d.magMultiplier
+	x = int32(int16((int16(data[1])<<8)|int16(data[0]))) * d.magMultiplier
+	y = int32(int16((int16(data[3])<<8)|int16(data[2]))) * d.magMultiplier
+	z = int32(int16((int16(data[5])<<8)|int16(data[4]))) * d.magMultiplier
 	return
 }
 
 // ReadTemperature returns the temperature in Celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L, d.dataBufferTwo)
+	data := d.buf[:2]
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L, data)
 	if err != nil {
 		return
 	}
 	// From "Table 5. Temperature sensor characteristics"
 	// temp = value/16 + 25
-	t = 25000 + (int32(int16((int16(d.dataBufferTwo[1])<<8)|int16(d.dataBufferTwo[0])))*125)/2
+	t = 25000 + (int32(int16((int16(data[1])<<8)|int16(data[0])))*125)/2
 	return
 }
 
@@ -138,7 +133,7 @@ func (d *Device) ReadTemperature() (t int32, err error) {
 func (d *Device) doConfigure(cfg Configuration) (err error) {
 
 	// Verify unit communication
-	if con, err := d.Connected(); !con || err != nil {
+	if !d.Connected() {
 		return errNotConnected
 	}
 
@@ -172,7 +167,7 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 		d.magMultiplier = 58
 	}
 
-	data := make([]byte, 1)
+	data := d.buf[:1]
 
 	// Configure accelerometer
 	// Sample rate & measurement range

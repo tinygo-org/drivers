@@ -41,7 +41,7 @@ func main() {
 
 	for {
 
-		if con, err := device.Connected(); !con || err != nil {
+		if !device.Connected() {
 			println("LSM9DS1 not connected")
 			time.Sleep(time.Second)
 			continue
