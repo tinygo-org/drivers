@@ -11,7 +11,10 @@ func (d *Device) ConnectToAccessPoint(ssid, pass string, timeout time.Duration) 
 		return net.ErrWiFiMissingSSID
 	}
 
-	d.SetWifiMode(WifiModeClient)
+	if err := d.SetWifiMode(WifiModeClient); err != nil {
+		return err
+	}
+
 	return d.ConnectToAP(ssid, pass, 10)
 }
 

@@ -36,7 +36,7 @@ func (d *Device) GetDNS(domain string) (string, error) {
 // Currently only supports single connection mode.
 func (d *Device) ConnectTCPSocket(addr, port string) error {
 	protocol := "TCP"
-	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
+	val := "\"" + protocol + "\"," + addr + "," + port + ",120"
 	err := d.Set(TCPConnect, val)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (d *Device) ConnectTCPSocket(addr, port string) error {
 // ConnectUDPSocket creates a new UDP connection for the ESP8266/ESP32.
 func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	protocol := "UDP"
-	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",2"
+	val := "\"" + protocol + "\"," + addr + "," + sendport + "," + listenport + ",2"
 	err := d.Set(TCPConnect, val)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 // Currently only supports single connection mode.
 func (d *Device) ConnectSSLSocket(addr, port string) error {
 	protocol := "SSL"
-	val := "\"" + protocol + "\",\"" + addr + "\"," + port + ",120"
+	val := "\"" + protocol + "\"," + addr + "," + port + ",120"
 	d.Set(TCPConnect, val)
 	// this operation takes longer, so wait up to 6 seconds to complete.
 	_, err := d.Response(6000)
@@ -123,7 +123,10 @@ func (d *Device) GetTCPTransferMode() ([]byte, error) {
 // StartSocketSend gets the ESP8266/ESP32 ready to receive TCP/UDP socket data.
 func (d *Device) StartSocketSend(size int) error {
 	val := strconv.Itoa(size)
-	d.Set(TCPSend, val)
+	err := d.Set(TCPSend, val)
+	if err != nil {
+		return err
+	}
 
 	// when ">" is received, it indicates
 	// ready to receive data

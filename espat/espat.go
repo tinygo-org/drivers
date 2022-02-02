@@ -152,17 +152,17 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 // The call will retry for up to timeout milliseconds before returning nothing.
 func (d *Device) Response(timeout int) ([]byte, error) {
 	// read data
-	var size int
 	var start, end int
-	pause := 100 // pause to wait for 100 ms
-	retries := timeout / pause
+	pause := 10 * time.Millisecond
+	starting := time.Now()
 
 	for {
-		size = d.bus.Buffered()
-
-		if size > 0 {
+		if size := d.bus.Buffered(); size > 0 {
 			end += size
-			d.bus.Read(d.response[start:end])
+			_, err := d.bus.Read(d.response[start:end])
+			if err != nil {
+				return nil, err
+			}
 
 			// if "+IPD" then read socket data
 			if strings.Contains(string(d.response[:end]), "+IPD") {
@@ -185,12 +185,11 @@ func (d *Device) Response(timeout int) ([]byte, error) {
 		}
 
 		// wait longer?
-		retries--
-		if retries == 0 {
+		if time.Since(starting) > time.Duration(timeout)*time.Millisecond {
 			return nil, errors.New("response timeout error:" + string(d.response[start:end]))
 		}
 
-		time.Sleep(time.Duration(pause) * time.Millisecond)
+		time.Sleep(pause)
 	}
 }
 
