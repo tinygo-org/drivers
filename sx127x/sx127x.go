@@ -381,14 +381,14 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.WriteRegister(SX127X_REG_LNA, SX127X_LNA_MAX_GAIN)                                // Set Low Noise Amplifier to MAX
 
 	d.SetLoraFrequency(d.loraConf.Freq)
-	d.SetLoraPreamble(d.loraConf.Preamble)  //OK
-	d.SetLoraSyncWord(d.loraConf.SyncWord)  // Should be ok
-	d.SetLoraBandwidth(d.loraConf.Bw)       // OK
-	d.SetLoraSpreadingFactor(d.loraConf.Sf) // OK
-	d.SetLoraIqMode(d.loraConf.Iq)          //OK
+	d.SetLoraPreamble(d.loraConf.Preamble)
+	d.SetLoraSyncWord(d.loraConf.SyncWord)
+	d.SetLoraBandwidth(d.loraConf.Bw)
+	d.SetLoraSpreadingFactor(d.loraConf.Sf)
+	d.SetLoraIqMode(d.loraConf.Iq)
 	d.SetLoraCodingRate(d.loraConf.Cr)
 	d.SetLoraCrc(d.loraConf.Crc == SX127X_LORA_CRC_ON)
-	d.SetTxPower(10, true)
+	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
 	d.SetLoraHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
@@ -417,7 +417,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 
 	msg := <-d.GetRadioEventChan()
 	if msg.EventType != RadioEventTxDone {
-		return errors.New("Unexpected Radio Event while TX")
+		return errors.New("Unexpected Radio Event while TX " + string(0x30+msg.EventType))
 	}
 	return nil
 }
@@ -445,31 +445,27 @@ func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 	d.SetLoraIqMode(d.loraConf.Iq)          //OK
 	d.SetLoraCodingRate(d.loraConf.Cr)
 	d.SetLoraCrc(d.loraConf.Crc == SX127X_LORA_CRC_ON)
-	d.SetTxPower(10, true)
+	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
 	d.SetLoraHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
-	// set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
-	d.WriteRegister(SX127X_REG_DIO_MAPPING_1, SX127X_MAP_DIO0_LORA_RXDONE|SX127X_MAP_DIO1_LORA_NOP|SX127X_MAP_DIO2_LORA_NOP)
+	// set the IRQ mapping DIO0=RxDone DIO1=RxTimeout DIO2=NOP
+	d.WriteRegister(SX127X_REG_DIO_MAPPING_1, SX127X_MAP_DIO0_LORA_RXDONE|SX127X_MAP_DIO1_LORA_RXTOUT|SX127X_MAP_DIO2_LORA_NOP)
 	// Clear all radio IRQ Flags
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS, 0xFF)
-	// Mask all but TxDone
-	d.WriteRegister(SX127X_REG_IRQ_FLAGS_MASK, ^SX127X_IRQ_LORA_RXDONE_MASK)
+	// Mask all but RxDone
+	d.WriteRegister(SX127X_REG_IRQ_FLAGS_MASK, ^(SX127X_IRQ_LORA_RXDONE_MASK | SX127X_IRQ_LORA_RXTOUT_MASK))
 	// Switch to RX Mode
-	d.SetOpMode(SX127X_OPMODE_RX)
+	d.SetOpMode(SX127X_OPMODE_RX_SINGLE) //
 	// Wait for Radio Event
 
 	radioCh := d.GetRadioEventChan()
-	go func() {
-		time.Sleep(time.Millisecond * time.Duration(timeoutMs))
-		radioCh <- NewRadioEvent(RadioEventTimeout, SX127X_IRQ_LORA_RXTOUT_MASK, nil)
-	}()
 
 	msg := <-radioCh
 	if msg.EventType == RadioEventTimeout {
 		return nil, nil
 	} else if msg.EventType != RadioEventRxDone {
-		return nil, errors.New("Unexpected Radio Event while RX")
+		return nil, errors.New("Unexpected Radio Event while RX " + string(0x30+msg.EventType))
 	}
 
 	d.WriteRegister(SX127X_REG_FIFO_RX_BASE_ADDR, 0)
