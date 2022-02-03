@@ -19,6 +19,9 @@ func (d *Device) GetDNS(domain string) (string, error) {
 	d.Set(TCPDNSLookup, "\""+domain+"\"")
 	resp, err := d.Response(1000)
 	if err != nil {
+		if d.Debug {
+			println(string(resp))
+		}
 		return "", err
 	}
 	if !strings.Contains(string(resp), ":") {
@@ -41,8 +44,12 @@ func (d *Device) ConnectTCPSocket(addr, port string) error {
 	if err != nil {
 		return err
 	}
-	_, e := d.Response(3000)
+	r, e := d.Response(3000)
 	if e != nil {
+		if d.Debug {
+			println(string(r))
+		}
+
 		return e
 	}
 	return nil
@@ -56,8 +63,12 @@ func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	if err != nil {
 		return err
 	}
-	_, e := d.Response(3000)
+	r, e := d.Response(3000)
 	if e != nil {
+		if d.Debug {
+			println(string(r))
+		}
+
 		return e
 	}
 	return nil
@@ -70,8 +81,12 @@ func (d *Device) ConnectSSLSocket(addr, port string) error {
 	val := "\"" + protocol + "\"," + addr + "," + port + ",120"
 	d.Set(TCPConnect, val)
 	// this operation takes longer, so wait up to 6 seconds to complete.
-	_, err := d.Response(6000)
+	r, err := d.Response(6000)
 	if err != nil {
+		if d.Debug {
+			println(string(r))
+		}
+
 		return err
 	}
 	return nil
@@ -83,8 +98,12 @@ func (d *Device) DisconnectSocket() error {
 	if err != nil {
 		return err
 	}
-	_, e := d.Response(pause)
+	r, e := d.Response(pause)
 	if e != nil {
+		if d.Debug {
+			println(string(r))
+		}
+
 		return e
 	}
 	return nil
@@ -95,7 +114,11 @@ func (d *Device) DisconnectSocket() error {
 func (d *Device) SetMux(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TCPMultiple, val)
-	_, err := d.Response(pause)
+	r, err := d.Response(pause)
+	if err != nil && d.Debug {
+		println(string(r))
+	}
+
 	return err
 }
 
@@ -110,7 +133,11 @@ func (d *Device) GetMux() ([]byte, error) {
 func (d *Device) SetTCPTransferMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(TransmissionMode, val)
-	_, err := d.Response(pause)
+	r, err := d.Response(pause)
+	if err != nil && d.Debug {
+		println(string(r))
+	}
+
 	return err
 }
 
@@ -130,8 +157,12 @@ func (d *Device) StartSocketSend(size int) error {
 
 	// when ">" is received, it indicates
 	// ready to receive data
-	r, err := d.Response(2000)
+	r, err := d.Response(500)
 	if err != nil {
+		if d.Debug {
+			println(string(r))
+		}
+
 		return err
 	}
 	if strings.Contains(string(r), ">") {
@@ -145,6 +176,10 @@ func (d *Device) StartSocketSend(size int) error {
 func (d *Device) EndSocketSend() error {
 	d.Write([]byte("+++"))
 
-	_, err := d.Response(pause)
+	r, err := d.Response(pause)
+	if err != nil && d.Debug {
+		println(string(r))
+	}
+
 	return err
 }

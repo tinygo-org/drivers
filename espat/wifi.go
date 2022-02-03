@@ -25,7 +25,11 @@ func (d *Device) GetWifiMode() ([]byte, error) {
 func (d *Device) SetWifiMode(mode int) error {
 	val := strconv.Itoa(mode)
 	d.Set(WifiMode, val)
-	_, err := d.Response(pause)
+	r, err := d.Response(pause)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
+
 	return err
 }
 
@@ -43,8 +47,12 @@ func (d *Device) ConnectToAP(ssid, pwd string, ws int) error {
 	val := "\"" + ssid + "\",\"" + pwd + "\""
 	d.Set(ConnectAP, val)
 
-	_, err := d.Response(ws * 1000)
+	r, err := d.Response(ws * 1000)
 	if err != nil {
+		if d.Debug {
+			debugprintln(string(r))
+		}
+
 		return err
 	}
 	return nil
@@ -53,7 +61,11 @@ func (d *Device) ConnectToAP(ssid, pwd string, ws int) error {
 // DisconnectFromAP disconnects the ESP8266/ESP32 from the current access point.
 func (d *Device) DisconnectFromAP() error {
 	d.Execute(Disconnect)
-	_, err := d.Response(1000)
+	r, err := d.Response(1000)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
+
 	return err
 }
 
@@ -68,7 +80,11 @@ func (d *Device) GetClientIP() (string, error) {
 func (d *Device) SetClientIP(ipaddr string) error {
 	val := "\"" + ipaddr + "\""
 	d.Set(ConnectAP, val)
-	_, err := d.Response(500)
+	r, err := d.Response(500)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
+
 	return err
 }
 
@@ -78,6 +94,10 @@ func (d *Device) SetClientIP(ipaddr string) error {
 func (d *Device) GetAPConfig() (string, error) {
 	d.Query(SoftAPConfigCurrent)
 	r, err := d.Response(100)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
+
 	return string(r), err
 }
 
@@ -89,7 +109,11 @@ func (d *Device) SetAPConfig(ssid, pwd string, ch, security int) error {
 	ecnval := strconv.Itoa(security)
 	val := "\"" + ssid + "\",\"" + pwd + "\"," + chval + "," + ecnval
 	d.Set(SoftAPConfigCurrent, val)
-	_, err := d.Response(1000)
+	r, err := d.Response(1000)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
+
 	return err
 }
 
@@ -97,6 +121,9 @@ func (d *Device) SetAPConfig(ssid, pwd string, ch, security int) error {
 func (d *Device) GetAPClients() (string, error) {
 	d.Query(ListConnectedIP)
 	r, err := d.Response(100)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return string(r), err
 }
 
@@ -104,6 +131,9 @@ func (d *Device) GetAPClients() (string, error) {
 func (d *Device) GetAPIP() (string, error) {
 	d.Query(SetSoftAPIPCurrent)
 	r, err := d.Response(100)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return string(r), err
 }
 
@@ -111,7 +141,10 @@ func (d *Device) GetAPIP() (string, error) {
 func (d *Device) SetAPIP(ipaddr string) error {
 	val := "\"" + ipaddr + "\""
 	d.Set(SetSoftAPIPCurrent, val)
-	_, err := d.Response(500)
+	r, err := d.Response(500)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return err
 }
 
@@ -120,6 +153,9 @@ func (d *Device) SetAPIP(ipaddr string) error {
 func (d *Device) GetAPConfigFlash() (string, error) {
 	d.Query(SoftAPConfigFlash)
 	r, err := d.Response(100)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return string(r), err
 }
 
@@ -132,7 +168,10 @@ func (d *Device) SetAPConfigFlash(ssid, pwd string, ch, security int) error {
 	ecnval := strconv.Itoa(security)
 	val := "\"" + ssid + "\",\"" + pwd + "\"," + chval + "," + ecnval
 	d.Set(SoftAPConfigFlash, val)
-	_, err := d.Response(1000)
+	r, err := d.Response(1000)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return err
 }
 
@@ -141,6 +180,9 @@ func (d *Device) SetAPConfigFlash(ssid, pwd string, ch, security int) error {
 func (d *Device) GetAPIPFlash() (string, error) {
 	d.Query(SetSoftAPIPFlash)
 	r, err := d.Response(100)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return string(r), err
 }
 
@@ -149,6 +191,9 @@ func (d *Device) GetAPIPFlash() (string, error) {
 func (d *Device) SetAPIPFlash(ipaddr string) error {
 	val := "\"" + ipaddr + "\""
 	d.Set(SetSoftAPIPFlash, val)
-	_, err := d.Response(500)
+	r, err := d.Response(500)
+	if err != nil && d.Debug {
+		debugprintln(string(r))
+	}
 	return err
 }

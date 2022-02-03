@@ -28,6 +28,8 @@ import (
 	"tinygo.org/x/drivers/net"
 )
 
+const CRLF = "\r\n"
+
 // Device wraps UART connection to the ESP8266/ESP32.
 type Device struct {
 	bus drivers.UART
@@ -37,10 +39,10 @@ type Device struct {
 
 	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
 	socketdata []byte
-}
 
-// ActiveDevice is the currently configured Device in use. There can only be one.
-var ActiveDevice *Device
+	// dump extra data to console?
+	Debug bool
+}
 
 // New returns a new espat driver. Pass in a fully configured UART bus.
 func New(b drivers.UART) *Device {
@@ -48,9 +50,9 @@ func New(b drivers.UART) *Device {
 }
 
 // Configure sets up the device for communication.
-func (d Device) Configure() {
-	ActiveDevice = &d
-	net.ActiveDevice = ActiveDevice
+func (d *Device) Configure() {
+	// set the configured Device in use. There can only be one.
+	net.UseDriver(d)
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.
@@ -59,10 +61,7 @@ func (d *Device) Connected() bool {
 
 	// handle response here, should include "OK"
 	_, err := d.Response(100)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // Write raw bytes to the UART.
@@ -80,21 +79,33 @@ const pause = 300
 
 // Execute sends an AT command to the ESP8266/ESP32.
 func (d Device) Execute(cmd string) error {
-	_, err := d.Write([]byte("AT" + cmd + "\r\n"))
+	data := "AT" + cmd
+	if d.Debug {
+		debugprintln(data)
+	}
+	_, err := d.Write([]byte(data + CRLF))
 	return err
 }
 
 // Query sends an AT command to the ESP8266/ESP32 that returns the
 // current value for some configuration parameter.
 func (d Device) Query(cmd string) (string, error) {
-	_, err := d.Write([]byte("AT" + cmd + "?\r\n"))
+	data := "AT" + cmd + "?"
+	if d.Debug {
+		debugprintln(data)
+	}
+	_, err := d.Write([]byte(data + CRLF))
 	return "", err
 }
 
 // Set sends an AT command with params to the ESP8266/ESP32 for a
 // configuration value to be set.
 func (d Device) Set(cmd, params string) error {
-	_, err := d.Write([]byte("AT" + cmd + "=" + params + "\r\n"))
+	data := "AT" + cmd + "=" + params
+	if d.Debug {
+		debugprintln(data)
+	}
+	_, err := d.Write([]byte(data + CRLF))
 	return err
 }
 
@@ -103,6 +114,10 @@ func (d Device) Version() []byte {
 	d.Execute(Version)
 	r, err := d.Response(100)
 	if err != nil {
+		if d.Debug {
+			debugprintln(string(r))
+		}
+
 		return []byte("unknown")
 	}
 	return r
@@ -172,12 +187,15 @@ func (d *Device) Response(timeout int) ([]byte, error) {
 
 			// if "OK" then the command worked
 			if strings.Contains(string(d.response[:end]), "OK") {
-				return d.response[start:end], nil
+				if d.Debug {
+					debugprintln(string(d.response[:end]))
+				}
+				return d.response[:end], nil
 			}
 
 			// if "Error" then the command failed
 			if strings.Contains(string(d.response[:end]), "ERROR") {
-				return d.response[start:end], errors.New("response error:" + string(d.response[start:end]))
+				return d.response[:end], errors.New("response error:" + string(d.response[:end]))
 			}
 
 			// if anything else, then keep reading data in?
@@ -186,7 +204,7 @@ func (d *Device) Response(timeout int) ([]byte, error) {
 
 		// wait longer?
 		if time.Since(starting) > time.Duration(timeout)*time.Millisecond {
-			return nil, errors.New("response timeout error:" + string(d.response[start:end]))
+			return nil, errors.New("response timeout error:" + string(d.response[:end]))
 		}
 
 		time.Sleep(pause)
@@ -218,4 +236,8 @@ func (d *Device) parseIPD(end int) error {
 // IsSocketDataAvailable returns of there is socket data available
 func (d *Device) IsSocketDataAvailable() bool {
 	return len(d.socketdata) > 0 || d.bus.Buffered() > 0
+}
+
+func debugprintln(msg string) {
+	println("[DEBUG] " + msg)
 }
