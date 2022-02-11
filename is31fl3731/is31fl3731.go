@@ -25,7 +25,6 @@ import (
 type Device struct {
 	Address uint8
 	bus     drivers.I2C
-	board   board
 
 	// Currently selected command register (one of the frame registers or the
 	// function register)
@@ -108,9 +107,8 @@ func (d *Device) writeFunctionRegister(operation uint8, data []byte) (err error)
 	return d.bus.WriteRegister(d.Address, operation, data)
 }
 
-// enableLEDs enables only LEDs that are soldered on the set board:
-// - 15x7 -- matrix for Adafruit CharlieWing
-// - 16x9 -- enable all leds
+// enableLEDs enables only LEDs that are soldered on the set board. Enabled
+// all 16x9 LEDs by default
 func (d *Device) enableLEDs() (err error) {
 	for frame := FRAME_0; frame <= FRAME_7; frame++ {
 		err = d.selectCommand(frame)
@@ -118,33 +116,11 @@ func (d *Device) enableLEDs() (err error) {
 			return err
 		}
 
-		if d.board == boardAdafruitCharlieWing15x7 {
-			// Enable left half
-			for i := uint8(0); i < 16; i += 2 {
-				err = d.bus.WriteRegister(d.Address, i, []byte{0b11111110})
-				if err != nil {
-					return err
-				}
-			}
-			// Enable right half
-			for i := uint8(3); i < 16; i += 2 {
-				err = d.bus.WriteRegister(d.Address, i, []byte{0b01111111})
-				if err != nil {
-					return err
-				}
-			}
-			// Disable invisible column on the right side
-			err = d.bus.WriteRegister(d.Address, 1, []byte{0b00000000})
+		// Enable every LED (16 columns x 9 rows)
+		for i := uint8(0); i < 16; i++ {
+			err = d.bus.WriteRegister(d.Address, i, []byte{0xFF})
 			if err != nil {
 				return err
-			}
-		} else {
-			// Enable every LED (16 columns x 9 rows)
-			for i := uint8(0); i < 16; i++ {
-				err = d.bus.WriteRegister(d.Address, i, []byte{0xFF})
-				if err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -213,53 +189,21 @@ func (d *Device) DrawPixelIndex(frame, index, value uint8) (err error) {
 }
 
 // DrawPixelXY draws a single pixel on the selected frame by its XY coordinates
-// with provided PWM value [0-255]
+// with provided PWM value [0-255]. Raw LEDs layout assumed to be a 16x9 matrix,
+// and can be used with any custom board that has IS31FL3731 driver.
 func (d *Device) DrawPixelXY(frame, x, y, value uint8) (err error) {
-	var index uint8
-
-	if d.board == boardAdafruitCharlieWing15x7 {
-		if x >= 15 {
-			return fmt.Errorf("invalid value: X is out of range [0, 15]")
-		} else if y >= 7 {
-			return fmt.Errorf("invalid value: Y is out of range [0, 7]")
-		}
-
-		// Board is one pixel shorter (7 vs 8 supported pixels)
-		if x < 8 {
-			index = 16*x + y + 1
-		} else {
-			index = 16*(16-x) - y - 1 - 1
-		}
-	} else {
-		index = 16*x + y
-	}
-
-	return d.setPixelPWD(frame, index, value)
+	return d.setPixelPWD(frame, 16*x+y, value)
 }
 
-// New creates a raw driver w/o any preset board layout
-func New(bus drivers.I2C, address uint8) (d Device, err error) {
-	d = Device{
+// New creates a raw driver w/o any preset board layout.
+// Addresses:
+// - 0x74 (AD pin connected to GND)
+// - 0x75 (AD pin connected to SCL)
+// - 0x76 (AD pin connected to SDA)
+// - 0x77 (AD pin connected to VCC)
+func New(bus drivers.I2C, address uint8) Device {
+	return Device{
 		Address: address,
 		bus:     bus,
-		board:   boardRaw,
 	}
-
-	err = d.configure()
-
-	return d, err
-}
-
-// NewAdafruitCharlieWing15x7 creates a new driver with Adafruit 15x7
-// CharliePlex LED Matrix FeatherWing (CharlieWing) layout
-func NewAdafruitCharlieWing15x7(bus drivers.I2C, address uint8) (d Device, err error) {
-	d = Device{
-		Address: address,
-		bus:     bus,
-		board:   boardAdafruitCharlieWing15x7,
-	}
-
-	err = d.configure()
-
-	return d, err
 }
