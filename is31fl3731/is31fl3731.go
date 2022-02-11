@@ -263,11 +263,12 @@ func (d *Device) DrawPixelXY(frame, x, y, value uint8) (err error) {
 			return fmt.Errorf("invalid value: Y is out of range [0, 7]")
 		}
 
+		// Board is one pixel shorter (7 vs 8 supported pixels)
 		if x < 8 {
 			index = 16*x + y + 1
-		} else { //          ^-- board is one pixel shorter (7 vs 8 pixels)
+		} else {
 			index = 16*(16-x) - y - 1 - 1
-		} //                      ^-- board is one pixel shorter (7 vs 8 pixels)
+		}
 	} else {
 		index = 16*x + y
 	}
