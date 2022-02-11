@@ -21,9 +21,11 @@ func main() {
 
 	// Create driver for Adafruit 15x7 CharliePlex LED Matrix FeatherWing
 	// (CharlieWing): https://www.adafruit.com/product/3163
-	ledMatrix, err := is31fl3731.NewAdafruitCharlieWing15x7(bus, I2CAddress)
+	ledMatrix := is31fl3731.NewAdafruitCharlieWing15x7(bus, I2CAddress)
+
+	err = ledMatrix.Configure()
 	if err != nil {
-		println("could not create driver:", err)
+		println("could not configure is31fl3731 driver:", err)
 		return
 	}
 

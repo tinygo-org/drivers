@@ -71,8 +71,8 @@ type Device struct {
 	selectedCommand uint8
 }
 
-// configure chip for operating as a LED matrix display
-func (d *Device) configure() (err error) {
+// Configure chip for operating as a LED matrix display
+func (d *Device) Configure() (err error) {
 	// Shutdown software
 	err = d.writeFunctionRegister(SET_SHUTDOWN, []byte{SOFTWARE_OFF})
 	if err != nil {
