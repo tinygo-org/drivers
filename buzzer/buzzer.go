@@ -69,3 +69,58 @@ func (l *Device) Tone(hz, duration float64) (err error) {
 
 	return
 }
+
+// PWM is the interface necessary for controlling typical servo motors.
+type PWM interface {
+	Configure(config machine.PWMConfig) error
+	Channel(pin machine.Pin) (channel uint8, err error)
+	Top() uint32
+	Set(channel uint8, value uint32)
+}
+
+// PWMDevice wraps a GPIO connection to a buzzer.
+type PWMDevice struct {
+	pin   machine.Pin
+	pwmCh uint8
+	pwm   PWM
+	High  bool
+	BPM   float64
+}
+
+// NewPWM returns a new buzzer driver given which pin to use
+func NewPWM(pin machine.Pin, pwm *machine.TCC) PWMDevice {
+	pwmCh, err := pwm.Channel(pin)
+	if err != nil {
+		panic(err)
+	}
+
+	return PWMDevice{
+		pin:   pin,
+		pwmCh: pwmCh,
+		pwm:   pwm,
+		High:  false,
+		BPM:   96.0,
+	}
+}
+
+// Tone plays a tone of the requested frequency and duration.
+func (l *PWMDevice) Tone(hz, duration float64) (err error) {
+	// calculation based off https://www.arduino.cc/en/Tutorial/Melody
+	tone := 1000000000.0 / hz
+
+	err = l.pwm.Configure(machine.PWMConfig{
+		Period: uint64(tone),
+	})
+	if err != nil {
+		return err
+	}
+
+	tempo := ((60 / l.BPM) * (duration * 1000))
+
+	l.pwm.Set(l.pwmCh, l.pwm.Top()/4)
+	time.Sleep(time.Duration(tempo*0.9) * time.Millisecond)
+	l.pwm.Set(l.pwmCh, 0)
+	time.Sleep(time.Duration(tempo*0.1) * time.Millisecond)
+
+	return
+}
