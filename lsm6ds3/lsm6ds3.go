@@ -165,13 +165,13 @@ func (d *Device) ReadRotation() (x int32, y int32, z int32) {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-func (d *Device) ReadTemperature() (int32, error) {
+func (d *Device) ReadTemperature() (drivers.Temperature, error) {
 	d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, d.dataBufferTwo)
 
 	// From "Table 5. Temperature sensor characteristics"
 	// temp = value/16 + 25
 	t := 25000 + (int32(int16((int16(d.dataBufferTwo[1])<<8)|int16(d.dataBufferTwo[0])))*125)/2
-	return t, nil
+	return drivers.Temperature(t), nil
 }
 
 // ReadSteps returns the steps of the pedometer

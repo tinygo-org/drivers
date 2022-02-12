@@ -35,18 +35,6 @@ func (d DeviceType) extractData(buf []byte) (temp int16, hum uint16) {
 	return
 }
 
-// Celsius and Fahrenheit temperature scales
-type TemperatureScale uint8
-
-func (t TemperatureScale) convertToFloat(temp int16) float32 {
-	if t == C {
-		return float32(temp) / 10
-	} else {
-		// Fahrenheit
-		return float32(temp)*(9.0/50.) + 32.
-	}
-}
-
 // All functions return ErrorCode instance as error. This class can be used for more efficient error processing
 type ErrorCode uint8
 
@@ -56,9 +44,6 @@ const (
 
 	DHT11 DeviceType = iota
 	DHT22
-
-	C TemperatureScale = iota
-	F
 
 	ChecksumError ErrorCode = iota
 	NoSignalError

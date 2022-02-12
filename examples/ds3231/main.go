@@ -38,7 +38,7 @@ func main() {
 			fmt.Printf("Date: %d/%s/%02d %02d:%02d:%02d \r\n", dt.Year(), dt.Month(), dt.Day(), dt.Hour(), dt.Minute(), dt.Second())
 		}
 		temp, _ := rtc.ReadTemperature()
-		fmt.Printf("Temperature: %.2f °C \r\n", float32(temp)/1000)
+		fmt.Printf("Temperature: %.2f °C \r\n", temp.Celsius())
 
 		time.Sleep(time.Second * 1)
 	}

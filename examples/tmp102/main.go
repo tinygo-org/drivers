@@ -20,7 +20,7 @@ func main() {
 
 		temp, _ := thermo.ReadTemperature()
 
-		print(fmt.Sprintf("%.2f°C\r\n", float32(temp)/1000.0))
+		print(fmt.Sprintf("%.2f°C\r\n", temp.Celsius()))
 
 		time.Sleep(time.Millisecond * 1000)
 	}

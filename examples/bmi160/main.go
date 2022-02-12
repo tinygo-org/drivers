@@ -27,7 +27,7 @@ func main() {
 			println("Error reading temperature", err)
 			continue
 		}
-		fmt.Printf("Temperature: %.2f °C\n", float32(t)/1000)
+		fmt.Printf("Temperature: %.2f °C\n", t.Celsius())
 
 		accelX, accelY, accelZ, err := sensor.ReadAcceleration()
 		if err != nil {

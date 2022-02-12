@@ -46,7 +46,7 @@ func (d *Device) Connected() bool {
 }
 
 // Reads the temperature from the sensor and returns it in celsius milli degrees (°C/1000).
-func (d *Device) ReadTemperature() (temperature int32, err error) {
+func (d *Device) ReadTemperature() (temperature drivers.Temperature, err error) {
 
 	tmpData := make([]byte, 2)
 
@@ -62,7 +62,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 		temperatureSum |= int32(0xf800)
 	}
 
-	temperature = temperatureSum * 625
+	temperature = drivers.Temperature(temperatureSum * 625 / 10)
 
-	return temperature / 10, nil
+	return temperature, nil
 }

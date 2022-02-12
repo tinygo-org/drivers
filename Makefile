@@ -235,6 +235,6 @@ NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 micropho
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:
-	@go test -v $(addprefix ./,$(TESTS)) 
+	@go test -v . $(addprefix ./,$(TESTS)) 
 
 test: clean fmt-check unit-test smoke-test

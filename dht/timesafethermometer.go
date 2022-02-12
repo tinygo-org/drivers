@@ -9,6 +9,8 @@ package dht // import "tinygo.org/x/drivers/dht"
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device interface provides main functionality of the DHTXX sensors.
@@ -35,10 +37,9 @@ func (m *managedDevice) Measurements() (temperature int16, humidity uint16, err 
 	return m.t.Measurements()
 }
 
-// Getter for temperature. Temperature method returns temperature as it is sent by device.
-// The temperature is measured temperature in Celsius multiplied by 10.
+// Getter for temperature. The temperature is returned in milli degrees Celsius.
 // Depending on the UpdatePolicy of the device may update cached measurements.
-func (m *managedDevice) Temperature() (temp int16, err error) {
+func (m *managedDevice) Temperature() (temp drivers.Temperature, err error) {
 	err = m.checkForUpdateOnDataRequest()
 	if err != nil {
 		return 0, err
@@ -62,16 +63,6 @@ func (m *managedDevice) checkForUpdateOnDataRequest() (err error) {
 		err = UninitializedDataError
 	}
 	return err
-}
-
-// Getter for temperature. TemperatureFloat returns temperature in a given scale.
-// Depending on the UpdatePolicy of the device may update cached measurements.
-func (m *managedDevice) TemperatureFloat(scale TemperatureScale) (float32, error) {
-	err := m.checkForUpdateOnDataRequest()
-	if err != nil {
-		return 0, err
-	}
-	return m.t.TemperatureFloat(scale)
 }
 
 // Getter for humidity. Humidity returns humidity as it is sent by device.

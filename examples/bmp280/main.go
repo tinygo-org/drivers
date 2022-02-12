@@ -30,7 +30,7 @@ func main() {
 			println("Error reading temperature")
 		}
 		// Temperature in degrees Celsius
-		fmt.Printf("Temperature: %.2f °C\n", float32(t)/1000)
+		fmt.Printf("Temperature: %.2f °C\n", t.Celsius())
 
 		p, err := sensor.ReadPressure()
 		if err != nil {

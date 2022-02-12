@@ -19,8 +19,8 @@ func main() {
 	sensor.Configure()
 
 	for {
-		temp := sensor.ReadTempF()
-		fmt.Printf("temperature: %f\r\n", temp)
+		temp, _ := sensor.ReadTemperature()
+		fmt.Printf("temperature: %f°C\r\n", temp.Celsius())
 		time.Sleep(time.Second)
 	}
 

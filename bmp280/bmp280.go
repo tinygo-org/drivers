@@ -132,7 +132,7 @@ func (d *Device) PrintCali() {
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
-func (d *Device) ReadTemperature() (temperature int32, err error) {
+func (d *Device) ReadTemperature() (temperature drivers.Temperature, err error) {
 	data, err := d.readData(REG_TEMP, 3)
 	if err != nil {
 		return
@@ -150,7 +150,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 
 	// Convert from degrees to milli degrees by multiplying by 10.
 	// Will output 30250 milli degrees celsius for 30.25 degrees celsius
-	temperature = 10 * ((tFine*5 + 128) >> 8)
+	temperature = drivers.Temperature(10 * ((tFine*5 + 128) >> 8))
 	return
 }
 

@@ -133,16 +133,16 @@ func (d *Device) tlinCompensate() (int64, error) {
 
 }
 
-// ReadTemperature returns the temperature in centicelsius, i.e 2426 / 100 = 24.26 C
-func (d *Device) ReadTemperature() (int32, error) {
+// ReadTemperature returns the temperature in milli degrees Celsius, i.e 24260 / 1000 = 24.26°C.
+func (d *Device) ReadTemperature() (drivers.Temperature, error) {
 
 	tlin, err := d.tlinCompensate()
 	if err != nil {
 		return 0, err
 	}
 
-	temp := (tlin * 25) / 16384
-	return int32(temp), nil
+	temp := (tlin * 125) / 8192
+	return drivers.Temperature(temp), nil
 }
 
 // ReadPressure returns the pressure in centipascals, i.e 10132520 / 100 = 101325.20 Pa

@@ -19,7 +19,7 @@ func main() {
 		println("Magnetic readings:", x, y, z)
 
 		c, _ := mag.ReadTemperature()
-		println("Temperature:", float32(c)/1000, "°C")
+		println("Temperature:", c.Celsius(), "°C")
 
 		time.Sleep(time.Millisecond * 100)
 	}

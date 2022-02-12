@@ -23,8 +23,8 @@ func main() {
 		println("Acceleration:", float32(x)/1000000, float32(y)/1000000, float32(z)/1000000)
 		x, y, z = accel.ReadRotation()
 		println("Gyroscope:", float32(x)/1000000, float32(y)/1000000, float32(z)/1000000)
-		x, _ = accel.ReadTemperature()
-		println("Degrees C", float32(x)/1000, "\n\n")
+		t, _ := accel.ReadTemperature()
+		println("Degrees C", t.Celsius(), "\n\n")
 		time.Sleep(time.Millisecond * 1000)
 	}
 }

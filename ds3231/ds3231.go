@@ -134,13 +134,13 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 }
 
 // ReadTemperature returns the temperature in millicelsius (mC)
-func (d *Device) ReadTemperature() (int32, error) {
+func (d *Device) ReadTemperature() (drivers.Temperature, error) {
 	data := make([]uint8, 2)
 	err := d.bus.ReadRegister(uint8(d.Address), REG_TEMP, data)
 	if err != nil {
 		return 0, err
 	}
-	return int32(data[0])*1000 + int32((data[1]>>6)*25)*10, nil
+	return drivers.Temperature(int32(data[0])*1000 + int32((data[1]>>6)*25)*10), nil
 }
 
 // uint8ToBCD converts a byte to BCD for the DS3231

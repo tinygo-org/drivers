@@ -22,7 +22,7 @@ func main() {
 
 	for {
 		temp, _ := sensor.ReadTemperature()
-		println("Temperature:", float32(temp)/1000, "°C")
+		println("Temperature:", temp.Celsius(), "°C")
 
 		pressure, _ := sensor.ReadPressure()
 		println("Pressure", float32(pressure)/100000, "hPa")
