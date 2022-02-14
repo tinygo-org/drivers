@@ -13,20 +13,6 @@ type DeviceAdafruitCharlieWing15x7 struct {
 	Device
 }
 
-// NewAdafruitCharlieWing15x7 creates a new driver with Adafruit 15x7
-// CharliePlex LED Matrix FeatherWing (CharlieWing) layout.
-// Available addresses:
-// - 0x74 (default)
-// - 0x77 (when the address jumper soldered)
-func NewAdafruitCharlieWing15x7(bus drivers.I2C, address uint8) DeviceAdafruitCharlieWing15x7 {
-	return DeviceAdafruitCharlieWing15x7{
-		Device: Device{
-			Address: address,
-			bus:     bus,
-		},
-	}
-}
-
 // enableLEDs enables only LEDs that are soldered on the Adafruit CharlieWing
 // board. The board has following LEDs matrix layout:
 //
@@ -103,4 +89,18 @@ func (d *DeviceAdafruitCharlieWing15x7) DrawPixelXY(frame, x, y, value uint8) (e
 	}
 
 	return d.setPixelPWD(frame, index, value)
+}
+
+// NewAdafruitCharlieWing15x7 creates a new driver with Adafruit 15x7
+// CharliePlex LED Matrix FeatherWing (CharlieWing) layout.
+// Available addresses:
+// - 0x74 (default)
+// - 0x77 (when the address jumper soldered)
+func NewAdafruitCharlieWing15x7(bus drivers.I2C, address uint8) DeviceAdafruitCharlieWing15x7 {
+	return DeviceAdafruitCharlieWing15x7{
+		Device: Device{
+			Address: address,
+			bus:     bus,
+		},
+	}
 }
