@@ -120,6 +120,7 @@ The following 90 devices are supported.
 | [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all)                                                                                                                              | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\))                                                                                               | GPIO |
 | [Shift registers (SIPO)](https://en.wikipedia.org/wiki/Shift_register#Serial-in_parallel-out_(SIPO))                                                                                                | GPIO |
+| [SH1106 OLED display](https://www.velleman.eu/downloads/29/infosheets/sh1106_datasheet.pdf) | I2C / SPI |
 | [SHT3x Digital Humidity Sensor](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Datasheets/Sensirion_Humidity_Sensors_SHT3x_Datasheet_digital.pdf) | I2C |
 | [SHTC3 Digital Humidity Sensor (RH/T)](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Datasheets/Sensirion_Humidity_Sensors_SHTC3_Datasheet.pdf)  | I2C |
 | [SPI NOR Flash Memory](https://en.wikipedia.org/wiki/Flash_memory#NOR_flash)                                                                                                                        | SPI/QSPI |
