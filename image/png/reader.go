@@ -965,7 +965,7 @@ func (d *decoder) checkHeader() error {
 
 // Decode reads a PNG image from r. Different from the standard package, the
 // decoded result will be received by the callback set by SetCallback().
-func Decode(r io.Reader) error {
+func Decode(r io.Reader) (image.Image, error) {
 	d := &decoder{
 		r:   r,
 		crc: crc32.NewIEEE(),
@@ -974,17 +974,17 @@ func Decode(r io.Reader) error {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		return err
+		return nil, err
 	}
 	for d.stage != dsSeenIEND {
 		if err := d.parseChunk(); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // DecodeConfig returns the color model and dimensions of a PNG image without

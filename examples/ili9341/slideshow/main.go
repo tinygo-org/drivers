@@ -72,7 +72,8 @@ func drawPng(display *ili9341.Device) error {
 		}
 	})
 
-	return png.Decode(p)
+	_, err := png.Decode(p)
+	return err
 }
 
 func drawJpeg(display *ili9341.Device) error {
@@ -84,7 +85,8 @@ func drawJpeg(display *ili9341.Device) error {
 		}
 	})
 
-	return jpeg.Decode(p)
+	_, err := jpeg.Decode(p)
+	return err
 }
 
 func errorMessage(err error) {
