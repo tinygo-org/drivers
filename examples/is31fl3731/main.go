@@ -9,7 +9,7 @@ import (
 )
 
 // I2CAddress -- address of led matrix
-var I2CAddress uint8 = 0x74
+var I2CAddress uint8 = is31fl3731.I2C_ADDRESS_74
 
 func main() {
 	bus := machine.I2C0
