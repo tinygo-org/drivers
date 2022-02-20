@@ -773,10 +773,10 @@ func (d *decoder) convertToRGB() (image.Image, error) {
 
 // Decode reads a JPEG image from r. Different from the standard package, the
 // decoded result will be received by the callback set by SetCallback().
-func Decode(r io.Reader) error {
+func Decode(r io.Reader) (image.Image, error) {
 	var d decoder
 	_, err := d.decode(r, false)
-	return err
+	return nil, err
 }
 
 // DecodeConfig returns the color model and dimensions of a JPEG image without
