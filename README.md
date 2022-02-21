@@ -87,6 +87,7 @@ The following 78 devices are supported.
 | [software I2C driver](https://www.ti.com/lit/an/slva704/slva704.pdf) | GPIO |
 | [ILI9341 TFT color display](https://cdn-shop.adafruit.com/datasheets/ILI9341.pdf) | SPI |
 | [INA260 Volt/Amp/Power meter](https://www.ti.com/lit/ds/symlink/ina260.pdf) | I2C |
+| [Infrared remote control](https://en.wikipedia.org/wiki/Consumer_IR) | GPIO |
 | [IS31FL3731 matrix LED driver](https://www.lumissil.com/assets/pdf/core/IS31FL3731_DS.pdf) | I2C |
 | [4x4 Membrane Keypad](https://cdn.sparkfun.com/assets/f/f/a/5/0/DS-16038.pdf) | GPIO |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf) | GPIO/PWM |
