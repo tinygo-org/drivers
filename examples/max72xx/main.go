@@ -29,6 +29,7 @@ func main() {
 	driver.StopDisplayTest()
 	driver.SetDecodeMode(4)
 	driver.SetScanLimit(4)
+	driver.SetIntensity(8)
 	driver.StopShutdownMode()
 
 	for i := 1; i < int(digitNumber); i++ {
