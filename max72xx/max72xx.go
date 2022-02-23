@@ -31,7 +31,16 @@ func (driver *Device) Configure() {
 // SetScanLimit sets the scan limit. Maximum is 8.
 // Example: a 4 digit 7SegmentDisplay has a scan limit of 4
 func (driver *Device) SetScanLimit(digitNumber uint8) {
-	driver.WriteCommand(byte(REG_SCANLIMIT), byte(digitNumber-1))
+	driver.WriteCommand(REG_SCANLIMIT, digitNumber-1)
+}
+
+// SetIntensity sets the intensity of the diplays.
+// There are 16 possible intensity levels. The valid range is 0x00-0x0F
+func (driver *Device) SetIntensity(intensity uint8) {
+	if intensity > 0x0F {
+		intensity = 0x0F
+	}
+	driver.WriteCommand(REG_INTENSITY, intensity)
 }
 
 // SetDecodeMode sets the decode mode for 7 segment displays.
