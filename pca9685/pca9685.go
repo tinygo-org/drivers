@@ -89,18 +89,14 @@ func (d Dev) Top() uint32 {
 }
 
 // Set sets the `on` value of a PWM channel in the range [0..15].
+// Max value `on` can take is 4095.
 // Example:
 //  d.Set(1, d.Top()/4)
 // sets the dutycycle of second (LED1) channel to 25%.
 func (d Dev) Set(channel uint8, on uint32) {
-	switch {
-	case on > maxtop:
-		panic("pca9685: value must be in range 0..4096")
-	case on == 0:
-		d.SetPhased(channel, 0, maxtop)
-		return
+	if on > maxtop {
+		panic("pca9685: value must be in range 0..4095")
 	}
-
 	d.SetPhased(channel, on, 0)
 }
 
