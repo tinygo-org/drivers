@@ -1,3 +1,6 @@
+//go:build tinygo
+// +build tinygo
+
 // Package dht provides a driver for DHTXX family temperature and humidity sensors.
 //
 // [1] Datasheet DHT11: https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf
@@ -7,33 +10,9 @@
 package dht // import "tinygo.org/x/drivers/dht"
 
 import (
-	"encoding/binary"
 	"machine"
 	"time"
 )
-
-// enum type for device type
-type DeviceType uint8
-
-// DeviceType specific parsing of information received from the sensor
-func (d DeviceType) extractData(buf []byte) (temp int16, hum uint16) {
-	if d == DHT11 {
-		temp = int16(buf[2])
-		if buf[3]&0x80 > 0 {
-			temp = -1 - temp
-		}
-		temp *= 10
-		temp += int16(buf[3] & 0x0f)
-		hum = 10*uint16(buf[0]) + uint16(buf[1])
-	} else {
-		hum = binary.LittleEndian.Uint16(buf[0:2])
-		temp = int16(buf[3])<<8 + int16(buf[2]&0x7f)
-		if buf[2]&0x80 > 0 {
-			temp = -temp
-		}
-	}
-	return
-}
 
 // Celsius and Fahrenheit temperature scales
 type TemperatureScale uint8
@@ -53,9 +32,6 @@ type ErrorCode uint8
 const (
 	startTimeout = time.Millisecond * 200
 	startingLow  = time.Millisecond * 20
-
-	DHT11 DeviceType = iota
-	DHT22
 
 	C TemperatureScale = iota
 	F

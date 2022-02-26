@@ -1,3 +1,6 @@
+//go:build tinygo
+// +build tinygo
+
 // Package dht provides a driver for DHTXX family temperature and humidity sensors.
 //
 // [1] Datasheet DHT11: https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf
