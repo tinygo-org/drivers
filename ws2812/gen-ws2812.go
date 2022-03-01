@@ -59,7 +59,7 @@ var architectures = map[string]architectureImpl{
 		maxBaseCyclesT0H: 1 + 3 + 2, // shift + branch (not taken) + store
 		minBaseCyclesT1H: 1 + 1 + 2, // shift + branch (taken) + store
 		maxBaseCyclesT1H: 1 + 3 + 2, // shift + branch (taken) + store
-		minBaseCyclesTLD: 1 + 1 + 2, // subtraction + branch + store (in next cycle)
+		minBaseCyclesTLD: 1 + 2 + 2, // subtraction + branch x2 + store (in next cycle)
 		valueTemplate:    "uint32(c) << 24",
 		template: `
 1: @ send_bit
@@ -73,7 +73,9 @@ var architectures = map[string]architectureImpl{
   str   {maskClear}, {portClear} @ [2]   T1H -> T1L transition
   @DELAY3
   subs  {i}, #1                  @ [1]
-  bne.n 1b                       @ [1/3] send_bit
+  beq.n 3f                       @ [1/3] end
+  b     1b                       @ [1/3] send_bit
+3: @ end
 `,
 	},
 	"tinygoriscv": {

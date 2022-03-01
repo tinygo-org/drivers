@@ -56,9 +56,10 @@ func (d Device) writeByte16(c byte) {
 	  nop
 	  nop
 	  nop
-	  nop
 	  subs  {i}, #1                  @ [1]
-	  bne.n 1b                       @ [1/3] send_bit
+	  beq.n 3f                       @ [1/3] end
+	  b     1b                       @ [1/3] send_bit
+	3: @ end
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
@@ -186,9 +187,10 @@ func (d Device) writeByte48(c byte) {
 	  nop
 	  nop
 	  nop
-	  nop
 	  subs  {i}, #1                  @ [1]
-	  bne.n 1b                       @ [1/3] send_bit
+	  beq.n 3f                       @ [1/3] end
+	  b     1b                       @ [1/3] send_bit
+	3: @ end
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
@@ -351,9 +353,10 @@ func (d Device) writeByte64(c byte) {
 	  nop
 	  nop
 	  nop
-	  nop
 	  subs  {i}, #1                  @ [1]
-	  bne.n 1b                       @ [1/3] send_bit
+	  beq.n 3f                       @ [1/3] end
+	  b     1b                       @ [1/3] send_bit
+	3: @ end
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
@@ -638,9 +641,10 @@ func (d Device) writeByte120(c byte) {
 	  nop
 	  nop
 	  nop
-	  nop
 	  subs  {i}, #1                  @ [1]
-	  bne.n 1b                       @ [1/3] send_bit
+	  beq.n 3f                       @ [1/3] end
+	  b     1b                       @ [1/3] send_bit
+	3: @ end
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
@@ -1032,9 +1036,10 @@ func (d Device) writeByte168(c byte) {
 	  nop
 	  nop
 	  nop
-	  nop
 	  subs  {i}, #1                  @ [1]
-	  bne.n 1b                       @ [1/3] send_bit
+	  beq.n 3f                       @ [1/3] end
+	  b     1b                       @ [1/3] send_bit
+	3: @ end
 	`, map[string]interface{}{
 		"value":     value,
 		"i":         8,
