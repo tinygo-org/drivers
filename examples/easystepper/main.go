@@ -13,11 +13,11 @@ func main() {
 
 	for {
 		println("CLOCKWISE")
-		motor.Move(2050)
+		motor.Move(2050) // Legacy API - uses easystepper.FourStepMode
 		time.Sleep(time.Millisecond * 1000)
 
 		println("COUNTERCLOCKWISE")
-		motor.Move(-2050)
+		motor.MoveStepsMode(-2050, easystepper.FourStepMode)
 		time.Sleep(time.Millisecond * 1000)
 	}
 }
