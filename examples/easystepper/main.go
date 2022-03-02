@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	motor := easystepper.New(machine.P13, machine.P15, machine.P14, machine.P16, 200, 75)
+	config := easystepper.DeviceConfig{
+		Pin1: machine.P13, Pin2: machine.P15, Pin3: machine.P14, Pin4: machine.P16,
+		StepCount: 200, RPM: 75, Mode: easystepper.ModeFour,
+	}
+	motor, _ := easystepper.New(config)
 	motor.Configure()
 
 	for {
