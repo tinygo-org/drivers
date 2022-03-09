@@ -157,6 +157,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples/is31fl3731/main.go
+	@md5sum ./build/test.hex
 ifneq ($(AVR), 0)
 	tinygo build -size short -o ./build/test.hex -target=arduino   ./examples/ws2812
 	@md5sum ./build/test.hex
