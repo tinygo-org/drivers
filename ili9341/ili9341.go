@@ -29,6 +29,33 @@ type Device struct {
 	rd  machine.Pin
 }
 
+var cmdBuf [6]byte
+
+var initCmd = []byte{
+	0xEF, 3, 0x03, 0x80, 0x02,
+	0xCF, 3, 0x00, 0xC1, 0x30,
+	0xED, 4, 0x64, 0x03, 0x12, 0x81,
+	0xE8, 3, 0x85, 0x00, 0x78,
+	0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
+	0xF7, 1, 0x20,
+	0xEA, 2, 0x00, 0x00,
+	PWCTR1, 1, 0x23, // Power control VRH[5:0]
+	PWCTR2, 1, 0x10, // Power control SAP[2:0];BT[3:0]
+	VMCTR1, 2, 0x3e, 0x28, // VCM control
+	VMCTR2, 1, 0x86, // VCM control2
+	MADCTL, 1, 0x48, // Memory Access Control
+	VSCRSADD, 1, 0x00, // Vertical scroll zero
+	PIXFMT, 1, 0x55,
+	FRMCTR1, 2, 0x00, 0x18,
+	DFUNCTR, 3, 0x08, 0x82, 0x27, // Display Function Control
+	0xF2, 1, 0x00, // 3Gamma Function Disable
+	GAMMASET, 1, 0x01, // Gamma curve selected
+	GMCTRP1, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, // Set Gamma
+	0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
+	GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
+	0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
+}
+
 // Configure prepares display for use
 func (d *Device) Configure(config Config) {
 
@@ -81,42 +108,15 @@ func (d *Device) Configure(config Config) {
 		delay(150)
 	}
 
-	initCmd := []byte{
-		0xEF, 3, 0x03, 0x80, 0x02,
-		0xCF, 3, 0x00, 0xC1, 0x30,
-		0xED, 4, 0x64, 0x03, 0x12, 0x81,
-		0xE8, 3, 0x85, 0x00, 0x78,
-		0xCB, 5, 0x39, 0x2C, 0x00, 0x34, 0x02,
-		0xF7, 1, 0x20,
-		0xEA, 2, 0x00, 0x00,
-		PWCTR1, 1, 0x23, // Power control VRH[5:0]
-		PWCTR2, 1, 0x10, // Power control SAP[2:0];BT[3:0]
-		VMCTR1, 2, 0x3e, 0x28, // VCM control
-		VMCTR2, 1, 0x86, // VCM control2
-		MADCTL, 1, 0x48, // Memory Access Control
-		VSCRSADD, 1, 0x00, // Vertical scroll zero
-		PIXFMT, 1, 0x55,
-		FRMCTR1, 2, 0x00, 0x18,
-		DFUNCTR, 3, 0x08, 0x82, 0x27, // Display Function Control
-		0xF2, 1, 0x00, // 3Gamma Function Disable
-		GAMMASET, 1, 0x01, // Gamma curve selected
-		GMCTRP1, 15, 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, // Set Gamma
-		0x4E, 0xF1, 0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00,
-		GMCTRN1, 15, 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, // Set Gamma
-		0x31, 0xC1, 0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F,
-	}
-
 	if config.DisplayInversion {
-		initCmd = append(initCmd, []byte{
-			INVON, 0x80,
-		}...)
+		initCmd = append(initCmd, INVON, 0x80)
 	}
 
-	initCmd = append(initCmd, []byte{
+	initCmd = append(initCmd,
 		SLPOUT, 0x80, // Exit Sleep
 		DISPON, 0x80, // Display on
 		0x00, // End of list
-	}...)
+	)
 	for i, c := 0, len(initCmd); i < c; {
 		cmd := initCmd[i]
 		if cmd == 0x00 {
@@ -267,24 +267,28 @@ func (d *Device) SetRotation(rotation Rotation) {
 	case Rotation270Mirror:
 		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
 	}
-	d.sendCommand(MADCTL, []uint8{madctl})
+	cmdBuf[0] = madctl
+	d.sendCommand(MADCTL, cmdBuf[:1])
 	d.rotation = rotation
 }
 
 // SetScrollArea sets an area to scroll with fixed top/bottom or left/right parts of the display
 // Rotation affects scroll direction
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
-	d.sendCommand(VSCRDEF, []uint8{
-		uint8(topFixedArea >> 8), uint8(topFixedArea),
-		uint8(d.height - topFixedArea - bottomFixedArea>>8),
-		uint8(d.height - topFixedArea - bottomFixedArea),
-		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea),
-	})
+	cmdBuf[0] = uint8(topFixedArea >> 8)
+	cmdBuf[1] = uint8(topFixedArea)
+	cmdBuf[2] = uint8(d.height - topFixedArea - bottomFixedArea>>8)
+	cmdBuf[3] = uint8(d.height - topFixedArea - bottomFixedArea)
+	cmdBuf[4] = uint8(bottomFixedArea >> 8)
+	cmdBuf[5] = uint8(bottomFixedArea)
+	d.sendCommand(VSCRDEF, cmdBuf[:6])
 }
 
 // SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
-	d.sendCommand(VSCRSADD, []uint8{uint8(line >> 8), uint8(line)})
+	cmdBuf[0] = uint8(line >> 8)
+	cmdBuf[1] = uint8(line)
+	d.sendCommand(VSCRSADD, cmdBuf[:2])
 }
 
 // StopScroll returns the display to its normal state
@@ -298,16 +302,20 @@ func (d *Device) setWindow(x, y, w, h int16) {
 	//y += d.rowOffset
 	x1 := x + w - 1
 	if x != d.x0 || x1 != d.x1 {
-		d.sendCommand(CASET, []uint8{
-			uint8(x >> 8), uint8(x), uint8(x1 >> 8), uint8(x1),
-		})
+		cmdBuf[0] = uint8(x >> 8)
+		cmdBuf[1] = uint8(x)
+		cmdBuf[2] = uint8(x1 >> 8)
+		cmdBuf[3] = uint8(x1)
+		d.sendCommand(CASET, cmdBuf[:4])
 		d.x0, d.x1 = x, x1
 	}
 	y1 := y + h - 1
 	if y != d.y0 || y1 != d.y1 {
-		d.sendCommand(PASET, []uint8{
-			uint8(y >> 8), uint8(y), uint8(y1 >> 8), uint8(y1),
-		})
+		cmdBuf[0] = uint8(y >> 8)
+		cmdBuf[1] = uint8(y)
+		cmdBuf[2] = uint8(y1 >> 8)
+		cmdBuf[3] = uint8(y1)
+		d.sendCommand(PASET, cmdBuf[:4])
 		d.y0, d.y1 = y, y1
 	}
 	d.sendCommand(RAMWR, nil)
