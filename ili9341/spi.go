@@ -1,5 +1,5 @@
-//go:build !atsamd51 && !atsamd21
-// +build !atsamd51,!atsamd21
+//go:build !atsamd51 && !atsame5x && !atsamd21
+// +build !atsamd51,!atsame5x,!atsamd21
 
 package ili9341
 
