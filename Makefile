@@ -107,6 +107,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=p1am-100 ./examples/p1am/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pico ./examples/pca9685/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setbuffer/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setpixel/main.go
