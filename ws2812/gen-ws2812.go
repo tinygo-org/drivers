@@ -60,21 +60,21 @@ var architectures = map[string]architectureImpl{
 		minBaseCyclesT1H: 1 + 1 + 2, // shift + branch (taken) + store
 		maxBaseCyclesT1H: 1 + 3 + 2, // shift + branch (taken) + store
 		minBaseCyclesTLD: 1 + 2 + 2, // subtraction + branch x2 + store (in next cycle)
-		valueTemplate:    "uint32(c) << 24",
+		valueTemplate:    "(uint32_t)c << 24",
 		template: `
 1: @ send_bit
-  str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
+  str   %[maskSet], %[portSet]     @ [2]   T0H and T0L start here
   @DELAY1
-  lsls  {value}, #1              @ [1]
-  bcs.n 2f                       @ [1/3] skip_store
-  str   {maskClear}, {portClear} @ [2]   T0H -> T0L transition
+  lsls  %[value], #1               @ [1]
+  bcs.n 2f                         @ [1/3] skip_store
+  str   %[maskClear], %[portClear] @ [2]   T0H -> T0L transition
 2: @ skip_store
   @DELAY2
-  str   {maskClear}, {portClear} @ [2]   T1H -> T1L transition
+  str   %[maskClear], %[portClear] @ [2]   T1H -> T1L transition
   @DELAY3
-  subs  {i}, #1                  @ [1]
-  beq.n 3f                       @ [1/3] end
-  b     1b                       @ [1/3] send_bit
+  subs  %[i], #1                   @ [1]
+  beq.n 3f                         @ [1/3] end
+  b     1b                         @ [1/3] send_bit
 3: @ end
 `,
 	},
@@ -90,25 +90,25 @@ var architectures = map[string]architectureImpl{
 		minBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
 		maxBaseCyclesT1H: 1 + 3 + 1, // shift + branch (taken) + store
 		minBaseCyclesTLD: 1 + 1 + 1, // subtraction + branch + store (in next cycle)
-		valueTemplate:    "uint32(c) << 23",
+		valueTemplate:    "(uint32_t)c << 23",
 		template: `
 1: // send_bit
-  sw    {maskSet}, {portSet}     // [1]   T0H and T0L start here
+  sw    %[maskSet], %[portSet]     // [1]   T0H and T0L start here
   @DELAY1
-  slli  {value}, {value}, 1      // [1]   shift value left by 1
-  bltz  {value}, 2f              // [1/3] skip_store
-  sw    {maskClear}, {portClear} // [1]   T0H -> T0L transition
+  slli  %[value], %[value], 1      // [1]   shift value left by 1
+  bltz  %[value], 2f               // [1/3] skip_store
+  sw    %[maskClear], %[portClear] // [1]   T0H -> T0L transition
 2: // skip_store
   @DELAY2
-  sw    {maskClear}, {portClear} // [1]   T1H -> T1L transition
+  sw    %[maskClear], %[portClear] // [1]   T1H -> T1L transition
   @DELAY3
-  addi  {i}, {i}, -1             // [1]
-  bnez  {i}, 1b                  // [1/3] send_bit
+  addi  %[i], %[i], -1             // [1]
+  bnez  %[i], 1b                   // [1/3] send_bit
 `,
 	},
 }
 
-func writeImplementation(f *os.File, arch string, megahertz int) error {
+func writeCAssembly(f *os.File, arch string, megahertz int) error {
 	cycleTimeNS := 1 / float64(megahertz)
 	// These timings are taken from the table "Updated simplified timing
 	// constraints for NeoPixel strings" at:
@@ -209,30 +209,51 @@ func writeImplementation(f *os.File, arch string, megahertz int) error {
 	// ignore I/O errors.
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "\n")
-	fmt.Fprintf(buf, "func (d Device) writeByte%d(c byte) {\n", megahertz)
-	fmt.Fprintf(buf, "	portSet, maskSet := d.Pin.PortMaskSet()\n")
-	fmt.Fprintf(buf, "	portClear, maskClear := d.Pin.PortMaskClear()\n")
-	fmt.Fprintf(buf, "\n")
+	fmt.Fprintf(buf, "__attribute__((always_inline))\nvoid ws2812_writeByte%d(char c, uint32_t *portSet, uint32_t *portClear, uint32_t maskSet, uint32_t maskClear) {\n", megahertz)
 	fmt.Fprintf(buf, "	// Timings:\n")
 	fmt.Fprintf(buf, "	// T0H: %2d - %2d cycles or %.1fns - %.1fns\n", actualMinCyclesT0H, actualMaxCyclesT0H, actualMinNanosecondsT0H, actualMaxNanosecondsT0H)
 	fmt.Fprintf(buf, "	// T1H: %2d - %2d cycles or %.1fns - %.1fns\n", actualMinCyclesT1H, actualMaxCyclesT1H, actualMinNanosecondsT1H, actualMaxNanosecondsT1H)
 	fmt.Fprintf(buf, "	// TLD: %2d -    cycles or %.1fns -\n", actualMinCyclesTLD, actualMinNanosecondsTLD)
-	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
-	fmt.Fprintf(buf, "	value := %s\n", archImpl.valueTemplate)
+	fmt.Fprintf(buf, "	uint32_t value = %s;\n", archImpl.valueTemplate)
 	asm := archImpl.template
+	asm = strings.TrimSpace(asm)
 	asm = strings.ReplaceAll(asm, "  @DELAY1\n", strings.Repeat("  nop\n", delay1))
 	asm = strings.ReplaceAll(asm, "  @DELAY2\n", strings.Repeat("  nop\n", delay2))
 	asm = strings.ReplaceAll(asm, "  @DELAY3\n", strings.Repeat("  nop\n", delay3))
 	asm = strings.ReplaceAll(asm, "\n", "\n\t")
-	fmt.Fprintf(buf, "	device.AsmFull(`%s`, map[string]interface{}{", asm)
+	fmt.Fprintf(buf, "	char i = 8;\n")
+	fmt.Fprintf(buf, "	__asm__ __volatile__(\n")
+	for _, line := range strings.Split(asm, "\n") {
+		fmt.Fprintf(buf, "\t\t%#v\n", line+"\n")
+	}
+	// Note: [value] and [i] must be input+output operands because they modify
+	// the value.
+	fmt.Fprintf(buf, `	: [value]"+r"(value),
+	  [i]"+r"(i)
+	: [maskSet]"r"(maskSet),
+	  [portSet]"m"(*portSet),
+	  [maskClear]"r"(maskClear),
+	  [portClear]"m"(*portClear));
+}
+`)
+
+	// Now write the buffer contents (with the assembly function) to a file.
+	_, err := f.Write(buf.Bytes())
+	return err
+}
+
+func writeGoWrapper(f *os.File, arch string, megahertz int) error {
+	// Create the Go function in a buffer. Using a buffer here to be able to
+	// ignore I/O errors.
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "\n")
+	fmt.Fprintf(buf, "func (d Device) writeByte%d(c byte) {\n", megahertz)
+	fmt.Fprintf(buf, "	portSet, maskSet := d.Pin.PortMaskSet()\n")
+	fmt.Fprintf(buf, "	portClear, maskClear := d.Pin.PortMaskClear()\n")
+	fmt.Fprintf(buf, "\n")
+	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
+	fmt.Fprintf(buf, "	C.ws2812_writeByte%d(C.char(c), portSet, portClear, maskSet, maskClear)\n", megahertz)
 	buf.WriteString(`
-		"value":     value,
-		"i":         8,
-		"maskSet":   maskSet,
-		"portSet":   portSet,
-		"maskClear": maskClear,
-		"portClear": portClear,
-	})
 	interrupt.Restore(mask)
 }
 `)
@@ -271,15 +292,25 @@ package ws2812
 // Warning: autogenerated file. Instead of modifying this file, change
 // gen-ws2812.go and run "go generate".
 
-import (
-	"device"
-	"runtime/interrupt"
-)
+import "runtime/interrupt"
+
+/*
+#include <stdint.h>
 `)
 	for _, megahertz := range clockFrequencies {
-		err := writeImplementation(f, *arch, megahertz)
+		err := writeCAssembly(f, *arch, megahertz)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "could not generate WS2812 assembly code for %s and %dMHz: %s\n", *arch, megahertz, err)
+			os.Exit(1)
+		}
+	}
+	f.WriteString(`*/
+import "C"
+`)
+	for _, megahertz := range clockFrequencies {
+		err := writeGoWrapper(f, *arch, megahertz)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "could not generate Go wrapper: %w\n", err)
 			os.Exit(1)
 		}
 	}
