@@ -12,7 +12,7 @@ func (d *Device) ConnectToAccessPoint(ssid, pass string, timeout time.Duration) 
 	}
 
 	d.SetWifiMode(WifiModeClient)
-	return d.ConnectToAP(ssid, pass, 10)
+	return d.ConnectToAP(ssid, pass, int(timeout.Seconds()))
 }
 
 func (d *Device) Disconnect() error {
