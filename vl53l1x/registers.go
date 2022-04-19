@@ -46,6 +46,8 @@ const (
 	SD_CONFIG_INITIAL_PHASE_SD1                             = 0x007B
 	SYSTEM_GROUPED_PARAMETER_HOLD_1                         = 0x007C
 	SD_CONFIG_QUANTIFIER                                    = 0x007E
+	ROI_CONFIG_USER_ROI_CENTRE_SPAD                         = 0x007F
+	ROI_CONFIG_USER_ROI_REQUESTED_GLOBAL_XY_SIZE            = 0x0080
 	SYSTEM_SEQUENCE_CONFIG                                  = 0x0081
 	SYSTEM_GROUPED_PARAMETER_HOLD                           = 0x0082
 	SYSTEM_INTERRUPT_CLEAR                                  = 0x0086

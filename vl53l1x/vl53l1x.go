@@ -10,6 +10,7 @@
 package vl53l1x // import "tinygo.org/x/drivers/vl53l1x"
 
 import (
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -415,6 +416,38 @@ func (d *Device) StopContinuous() {
 
 	// remove phasecal override
 	d.writeReg(PHASECAL_CONFIG_OVERRIDE, 0x00)
+}
+
+// SetROI sets the 'region of interest' for x and y coordinates. Valid ranges are from 4/4 to 16/16.
+func (d *Device) SetROI(x, y uint8) error {
+	if !validROIRange(x, y) {
+		return errors.New("ROI value out of range")
+	}
+
+	if x > 10 || y > 10 {
+		d.writeReg(ROI_CONFIG_USER_ROI_CENTRE_SPAD, 199)
+	}
+
+	d.writeReg(ROI_CONFIG_USER_ROI_REQUESTED_GLOBAL_XY_SIZE, (y-1)<<4|(x-1))
+	return nil
+}
+
+// GetROI returns the currently configured 'region of interest' for x and y coordinates.
+func (d *Device) GetROI() (x, y uint8, err error) {
+	reg := d.readReg(ROI_CONFIG_USER_ROI_REQUESTED_GLOBAL_XY_SIZE)
+
+	x = (reg & 0x0f) + 1
+	y = ((reg & 0xf0) >> 4) + 1
+
+	if !validROIRange(x, y) {
+		err = errors.New("ROI value out of range")
+	}
+
+	return
+}
+
+func validROIRange(x, y uint8) bool {
+	return x >= 4 && x <= 16 && y >= 4 && y <= 16
 }
 
 // writeReg sends a single byte to the specified register address
