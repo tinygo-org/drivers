@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	spi    machine.SPI
+	spi    *machine.SPI
 	sckPin machine.Pin
 	sdoPin machine.Pin
 	sdiPin machine.Pin
@@ -18,7 +18,6 @@ var (
 )
 
 func main() {
-	waitSerial()
 	fmt.Printf("sdcard console\r\n")
 
 	led := ledPin
@@ -40,12 +39,5 @@ func main() {
 		time.Sleep(200 * time.Millisecond)
 		led.Low()
 		time.Sleep(200 * time.Millisecond)
-	}
-}
-
-// Wait for user to open serial console
-func waitSerial() {
-	for !machine.Serial.DTR() {
-		time.Sleep(100 * time.Millisecond)
 	}
 }
