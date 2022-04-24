@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	spi = machine.SDCARD_SPI
+	spi = &machine.SDCARD_SPI
 	sckPin = machine.SDCARD_SCK_PIN
 	sdoPin = machine.SDCARD_SDO_PIN
 	sdiPin = machine.SDCARD_SDI_PIN

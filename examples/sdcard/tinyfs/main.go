@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	spi    machine.SPI
+	spi    *machine.SPI
 	sckPin machine.Pin
 	sdoPin machine.Pin
 	sdiPin machine.Pin
@@ -20,8 +20,6 @@ var (
 )
 
 func main() {
-	waitSerial()
-
 	sd := sdcard.New(spi, sckPin, sdoPin, sdiPin, csPin)
 	err := sd.Configure()
 	if err != nil {
@@ -39,11 +37,4 @@ func main() {
 	})
 
 	console.RunFor(&sd, filesystem)
-}
-
-// Wait for user to open serial console
-func waitSerial() {
-	for !machine.Serial.DTR() {
-		time.Sleep(100 * time.Millisecond)
-	}
 }

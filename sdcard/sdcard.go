@@ -28,7 +28,7 @@ var (
 )
 
 type Device struct {
-	bus        machine.SPI
+	bus        *machine.SPI
 	sck        machine.Pin
 	sdo        machine.Pin
 	sdi        machine.Pin
@@ -41,7 +41,7 @@ type Device struct {
 	CSD        *CSD
 }
 
-func New(b machine.SPI, sck, sdo, sdi, cs machine.Pin) Device {
+func New(b *machine.SPI, sck, sdo, sdi, cs machine.Pin) Device {
 	return Device{
 		bus:        b,
 		cs:         cs,
