@@ -7,6 +7,7 @@ const Address = 0x29 //0x52
 const (
 	CHIP_ID                                                 = 0xEACC
 	SOFT_RESET                                              = 0x0000
+	I2C_SLAVE_DEVICE_ADDRESS                                = 0x0001
 	OSC_MEASURED_FAST_OSC_FREQUENCY                         = 0x0006
 	VHV_CONFIG_TIMEOUT_MACROP_LOOP_BOUND                    = 0x0008
 	VHV_CONFIG_INIT                                         = 0x000B

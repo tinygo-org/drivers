@@ -133,6 +133,17 @@ func (d *Device) Configure(use2v8Mode bool) bool {
 	return true
 }
 
+// SetAddress sets the I2C address which this device listens to.
+func (d *Device) SetAddress(address uint8) {
+	d.writeReg(I2C_SLAVE_DEVICE_ADDRESS, address)
+	d.Address = uint16(address)
+}
+
+// GetAddress returns the I2C address which this device listens to.
+func (d *Device) GetAddress() uint8 {
+	return uint8(d.Address)
+}
+
 // SetTimeout configures the timeout
 func (d *Device) SetTimeout(timeout uint32) {
 	d.timeout = timeout
