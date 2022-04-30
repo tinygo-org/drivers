@@ -252,7 +252,7 @@ func writeGoWrapper(f *os.File, arch string, megahertz int) error {
 	fmt.Fprintf(buf, "	portClear, maskClear := d.Pin.PortMaskClear()\n")
 	fmt.Fprintf(buf, "\n")
 	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
-	fmt.Fprintf(buf, "	C.ws2812_writeByte%d(C.char(c), portSet, portClear, maskSet, maskClear)\n", megahertz)
+	fmt.Fprintf(buf, "	C.ws2812_writeByte%d(C.char(c), (*uint32)(unsafe.Pointer(portSet)), (*uint32)(unsafe.Pointer(portClear)), maskSet, maskClear)\n", megahertz)
 	buf.WriteString(`
 	interrupt.Restore(mask)
 }
@@ -293,6 +293,7 @@ package ws2812
 // gen-ws2812.go and run "go generate".
 
 import "runtime/interrupt"
+import "unsafe"
 
 /*
 #include <stdint.h>
