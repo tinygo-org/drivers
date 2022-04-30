@@ -235,6 +235,8 @@ endif
 	@md5sum ./build/test.uf2
 	tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/scd4x/main.go
+	@md5sum ./build/test.uf2
 
 DRIVERS = $(wildcard */)
 NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
