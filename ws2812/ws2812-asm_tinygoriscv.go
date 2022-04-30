@@ -7,6 +7,7 @@ package ws2812
 // gen-ws2812.go and run "go generate".
 
 import "runtime/interrupt"
+import "unsafe"
 
 /*
 #include <stdint.h>
@@ -1114,7 +1115,7 @@ func (d Device) writeByte160(c byte) {
 	portClear, maskClear := d.Pin.PortMaskClear()
 
 	mask := interrupt.Disable()
-	C.ws2812_writeByte160(C.char(c), portSet, portClear, maskSet, maskClear)
+	C.ws2812_writeByte160(C.char(c), (*uint32)(unsafe.Pointer(portSet)), (*uint32)(unsafe.Pointer(portClear)), maskSet, maskClear)
 
 	interrupt.Restore(mask)
 }
@@ -1124,7 +1125,7 @@ func (d Device) writeByte320(c byte) {
 	portClear, maskClear := d.Pin.PortMaskClear()
 
 	mask := interrupt.Disable()
-	C.ws2812_writeByte320(C.char(c), portSet, portClear, maskSet, maskClear)
+	C.ws2812_writeByte320(C.char(c), (*uint32)(unsafe.Pointer(portSet)), (*uint32)(unsafe.Pointer(portClear)), maskSet, maskClear)
 
 	interrupt.Restore(mask)
 }
