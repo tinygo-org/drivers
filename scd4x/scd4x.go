@@ -1,6 +1,6 @@
 // Package scd4x provides a driver for the scd4x I2C envrironment sensor.
 //
-// Datasheet: https://sensirion.com/media/documents/C4B87CE6/61652F80/Sensirion_CO2_Sensors_SCD4x_Datasheet.pdf
+// Datasheet: https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf
 //
 // This driver is heavily influenced by the scd4x code from Adafruit for CircuitPython:
 // https://github.com/adafruit/Adafruit_CircuitPython_SCD4X
@@ -115,7 +115,8 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
-	return (-1 * 45) + 175*(int32(d.temperature)/0x100000)*1000, err
+	// temp = -45 + 175 * value / 2¹⁶
+	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192), err
 }
 
 // ReadTempC returns the value in the temperature value in Celsius.
@@ -138,7 +139,8 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
-	return (100 * int32(d.humidity) / 0x100000), err
+	// humidity = 100 * value / 2¹⁶
+	return (25 * int32(d.humidity)) / 16384, err
 }
 
 func (d *Device) sendCommand(command uint16) error {
