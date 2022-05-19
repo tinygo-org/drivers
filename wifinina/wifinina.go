@@ -12,6 +12,7 @@ import (
 	"fmt" // used only in debug printouts and is optimized out when debugging is disabled
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"machine"
@@ -288,6 +289,7 @@ type Device struct {
 	proto uint8
 	ip    uint32
 	port  uint16
+	mu    sync.Mutex
 }
 
 // New returns a new Wifinina device.
@@ -363,6 +365,9 @@ func (d *Device) GetClientState(sock uint8) (uint8, error) {
 }
 
 func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return 0, err
@@ -376,6 +381,9 @@ func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
 }
 
 func (d *Device) CheckDataSent(sock uint8) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	var lastErr error
 	for timeout := 0; timeout < 10; timeout++ {
 		sent, err := d.getUint8(d.reqUint8(CmdDataSentTCP, sock))
@@ -391,6 +399,9 @@ func (d *Device) CheckDataSent(sock uint8) (bool, error) {
 }
 
 func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return 0, err
@@ -411,6 +422,9 @@ func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
 }
 
 func (d *Device) StopClient(sock uint8) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if _debug {
 		println("[StopClient] called StopClient()\r")
 	}
@@ -419,6 +433,9 @@ func (d *Device) StopClient(sock uint8) error {
 }
 
 func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return err
@@ -435,6 +452,9 @@ func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
 
 // InsertDataBuf adds data to the buffer used for sending UDP data
 func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return false, err
@@ -450,6 +470,9 @@ func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
 
 // SendUDPData sends the data previously added to the UDP buffer
 func (d *Device) SendUDPData(sock uint8) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
 		return false, err
