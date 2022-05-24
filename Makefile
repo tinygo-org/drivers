@@ -235,6 +235,8 @@ endif
 	@md5sum ./build/test.uf2
 	tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/uc8151/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/scd4x/main.go
 	@md5sum ./build/test.uf2
 
@@ -243,7 +245,7 @@ NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 micropho
 		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
 		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x keypad4x4 max72xx p1am tone tm1637 \
 		pcf8563 mcp2515 servo sdcard rtl8720dn image cmd i2csoft hts221 lps22hb apds9960 axp192 xpt2046 \
-		ft6336 sx126x ssd1289 irremote
+		ft6336 sx126x ssd1289 irremote uc8151
 TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
 
 unit-test:
