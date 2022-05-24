@@ -1068,6 +1068,305 @@ func (d Device) writeByte120(c byte) {
 	interrupt.Restore(mask)
 }
 
+func (d Device) writeByte125(c byte) {
+	portSet, maskSet := d.Pin.PortMaskSet()
+	portClear, maskClear := d.Pin.PortMaskClear()
+
+	// Timings:
+	// T0H: 44 - 46 cycles or 352.0ns - 368.0ns
+	// T1H: 132 - 134 cycles or 1056.0ns - 1072.0ns
+	// TLD: 144 -    cycles or 1152.0ns -
+	mask := interrupt.Disable()
+	value := uint32(c) << 24
+	device.AsmFull(`
+	1: @ send_bit
+	  str   {maskSet}, {portSet}     @ [2]   T0H and T0L start here
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  lsls  {value}, #1              @ [1]
+	  bcs.n 2f                       @ [1/3] skip_store
+	  str   {maskClear}, {portClear} @ [2]   T0H -> T0L transition
+	2: @ skip_store
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  str   {maskClear}, {portClear} @ [2]   T1H -> T1L transition
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  nop
+	  subs  {i}, #1                  @ [1]
+	  bne.n 1b                       @ [1/3] send_bit
+	`, map[string]interface{}{
+		"value":     value,
+		"i":         8,
+		"maskSet":   maskSet,
+		"portSet":   portSet,
+		"maskClear": maskClear,
+		"portClear": portClear,
+	})
+	interrupt.Restore(mask)
+}
+
 func (d Device) writeByte168(c byte) {
 	portSet, maskSet := d.Pin.PortMaskSet()
 	portClear, maskClear := d.Pin.PortMaskClear()
