@@ -103,7 +103,7 @@ func (d *Device) Configure(cfg Config) {
 	d.Command(SET_MUX_RATIO)
 	d.Data(0x7F)
 	d.Command(SET_REMAP_COLORDEPTH)
-	d.Data(0x72)
+	d.Data(0x62)
 	d.Command(SET_COLUMN_ADDRESS)
 	d.Data(0x00)
 	d.Data(0x7F)
