@@ -1,3 +1,24 @@
+0.21.0
+---
+- **new devices**
+    - lsm6ds3tr: initial implementation
+    - UC8151: used in Pimoroni's badger2040 e-paper (#416)
+    - scd4x: implement driver for CO2 sensor
+
+- **enhancements**
+    - easystepper: Add support for '8-step mode'
+    - vl53l1x: Add functions for setting the device address
+    - sdcard: support thingplus-rp2040
+    - wifinina: add mutex to prevent communication race problems
+    - **ws2812**
+        - support thingplus-rp2040 board
+        - Added 125 MHz rp2040 timing
+        - Added unsafe.Pointer for pointer conversion
+
+- **bugfixes**
+    - ssd1351: Fix mirrored text on OLED display
+
+
 0.20.0
 ---
 - **new devices**

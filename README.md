@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 78 devices are supported.
+The following 80 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -97,6 +97,7 @@ The following 78 devices are supported.
 | [LPS22HB MEMS nano pressure sensor](https://www.st.com/resource/en/datasheet/dm00140895.pdf)                                                                                                        | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf)                                                                                                                       | I2C |
 | [LSM6DSOX accelerometer](https://www.st.com/resource/en/datasheet/lsm6dsox.pdf)                                                                                                                     | I2C |
+| [LSM6DS3TR accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3tr.pdf)                                                                                                                     | I2C |
 | [LSM303AGR accelerometer](https://www.st.com/resource/en/datasheet/lsm303agr.pdf)                                                                                                                   | I2C |
 | [LSM9DS1 accelerometer](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf)                                                                                                                       | I2C |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf)                                                                                                                          | I2C |
@@ -112,6 +113,7 @@ The following 78 devices are supported.
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf)                                                                                                                       | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf)                                                                                                        | GPIO |
 | [RTL8720DN 2.4G/5G Dual Bands Wireless and BLE5.0](https://www.seeedstudio.com/Realtek8720DN-2-4G-5G-Dual-Bands-Wireless-and-BLE5-0-Combo-Module-p-4442.html)                                       | UART |
+| [SCD4x CO2 Sensor](https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf) | I2C |
 | [Semihosting](https://wiki.segger.com/Semihosting)                                                                                                                                                  | Debug |
 | [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all)                                                                                                                              | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\))                                                                                               | GPIO |
