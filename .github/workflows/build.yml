@@ -1,0 +1,25 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - release
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: tinygo/tinygo-dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: TinyGo version check
+        run: tinygo version
+      - name: Enforce Go Formatted Code
+        run: make fmt-check
+      - name: Run unit tests
+        run: make unit-test
+      - name: Run build and smoke tests
+        run: make smoke-test
