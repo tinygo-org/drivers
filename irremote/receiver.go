@@ -151,7 +151,7 @@ func (ir *ReceiverDevice) pinChange(pin machine.Pin) {
 			ir.resetStateMachine()
 		} else {
 			// 562.5µs OR 1687.5µs space detected
-			mask := uint32((1 << (31 - ir.bitIndex)))
+			mask := uint32(1 << ir.bitIndex)
 			if duration > time.Microsecond*1000 {
 				// 1687.5µs space detected (logic 1) - Set bit
 				ir.data.Code |= mask
@@ -201,16 +201,16 @@ const (
 
 func (ir *ReceiverDevice) decode() irDecodeError {
 	// Decode cmd and inverse cmd and perform validation check
-	cmd := uint8((ir.data.Code & 0xff00) >> 8)
-	invCmd := uint8(ir.data.Code & 0xff)
+	cmd := uint8((ir.data.Code & 0x00ff0000) >> 16)
+	invCmd := uint8((ir.data.Code & 0xff000000) >> 24)
 	if cmd != ^invCmd {
 		// Validation failure. cmd and inverse cmd do not match
 		return irDecodeErrorInverseCheckFail
 	}
 	// cmd validation pass, decode address
 	ir.data.Command = uint16(cmd)
-	addrLow := uint8((ir.data.Code & 0xff000000) >> 24)
-	addrHigh := uint8((ir.data.Code & 0x00ff0000) >> 16)
+	addrLow := uint8(ir.data.Code & 0xff)
+	addrHigh := uint8((ir.data.Code & 0xff00) >> 8)
 	if addrHigh == ^addrLow {
 		// addrHigh is inverse of addrLow. This is not a valid 16-bit address in extended NEC coding
 		// since it is indistinguishable from 8-bit address with inverse validation. Use the 8-bit address
