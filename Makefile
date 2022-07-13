@@ -242,13 +242,14 @@ endif
 	tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examples/makeybutton/main.go
 	@md5sum ./build/test.uf2
 
-DRIVERS = $(wildcard */)
-NOTESTS = build examples flash semihosting pcd8544 shiftregister st7789 microphone mcp3008 gps microbitmatrix \
-		hcsr04 ssd1331 ws2812 thermistor apa102 easystepper ssd1351 ili9341 wifinina shifter hub75 \
-		hd44780 buzzer ssd1306 espat l9110x st7735 bmi160 l293x keypad4x4 max72xx p1am tone tm1637 \
-		pcf8563 mcp2515 servo sdcard rtl8720dn image cmd i2csoft hts221 lps22hb apds9960 axp192 xpt2046 \
-		ft6336 sx126x ssd1289 irremote uc8151 makeybutton
-TESTS = $(filter-out $(addsuffix /%,$(NOTESTS)),$(DRIVERS))
+# rwildcard is a recursive version of $(wildcard) 
+# https://blog.jgc.org/2011/07/gnu-make-recursive-wildcard-function.html
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+# Recursively find all *_test.go files from cwd & reduce to unique dir names
+HAS_TESTS = $(sort $(dir $(call rwildcard,,*_test.go)))
+# Exclude anything we explicitly don't want to test for whatever reason
+EXCLUDE_TESTS = image
+TESTS = $(filter-out $(addsuffix /%,$(EXCLUDE_TESTS)),$(HAS_TESTS))
 
 unit-test:
 	@go test -v $(addprefix ./,$(TESTS))
