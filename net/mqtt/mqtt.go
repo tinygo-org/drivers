@@ -146,6 +146,7 @@ func (c *mqttclient) Publish(topic string, qos byte, retained bool, payload inte
 	pub := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
 	pub.Qos = qos
 	pub.TopicName = topic
+	pub.Retain = retained
 	switch payload.(type) {
 	case string:
 		pub.Payload = []byte(payload.(string))
