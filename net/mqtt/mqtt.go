@@ -100,6 +100,12 @@ func (c *mqttclient) Connect() Token {
 	connectPkt.ProtocolName = "MQTT"
 	connectPkt.Keepalive = 60
 
+	connectPkt.WillFlag = c.opts.WillEnabled
+	connectPkt.WillTopic = c.opts.WillTopic
+	connectPkt.WillMessage = c.opts.WillPayload
+	connectPkt.WillQos = c.opts.WillQos
+	connectPkt.WillRetain = c.opts.WillRetained
+
 	err = connectPkt.Write(c.conn)
 	if err != nil {
 		return &mqtttoken{err: err}
