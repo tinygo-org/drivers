@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 81 devices are supported.
+The following 82 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -137,6 +137,7 @@ The following 81 devices are supported.
 | [VL53L1X time-of-flight distance sensor](https://www.st.com/resource/en/datasheet/vl53l1x.pdf)                                                                                                      | I2C |
 | [Waveshare 2.13" (B & C) e-paper display](https://www.waveshare.com/w/upload/d/d3/2.13inch-e-paper-b-Specification.pdf)                                                                             | SPI |
 | [Waveshare 2.13" e-paper display](https://www.waveshare.com/w/upload/e/e6/2.13inch_e-Paper_Datasheet.pdf)                                                                                           | SPI |
+| [Waveshare 2.9" e-paper display (V1)](https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf)                                                                                           | SPI |
 | [Waveshare 4.2" e-paper B/W display](https://www.waveshare.com/w/upload/6/6a/4.2inch-e-paper-specification.pdf)                                                                                     | SPI |
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf)                                                                                                                               | GPIO |
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
