@@ -38,8 +38,16 @@ func (c *Client) doHTTP(req *Request) (*Response, error) {
 	}
 
 	// make TCP connection
-	ip := net.ParseIP(req.URL.Host)
-	raddr := &net.TCPAddr{IP: ip, Port: 80}
+	ip := net.ParseIP(req.URL.Hostname())
+	port := 80
+	if req.URL.Port() != "" {
+		p, err := strconv.ParseUint(req.URL.Port(), 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		port = int(p)
+	}
+	raddr := &net.TCPAddr{IP: ip, Port: port}
 	laddr := &net.TCPAddr{Port: 8080}
 
 	conn, err := net.DialTCP("tcp", laddr, raddr)
