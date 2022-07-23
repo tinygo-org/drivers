@@ -4,10 +4,11 @@ package main
 // module will be in RX mode between two transmissions
 
 import (
-	"device/stm32"
 	"machine"
 	"runtime/interrupt"
 	"time"
+
+	"tinygo.org/x/device/stm32"
 
 	rfswitch "tinygo.org/x/drivers/examples/sx126x/rfswitch"
 

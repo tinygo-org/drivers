@@ -4,9 +4,9 @@
 package sx126x
 
 import (
-	"device/stm32"
 	"errors"
 	"machine"
+	"tinygo.org/x/device/stm32"
 	"tinygo.org/x/drivers"
 )
 
