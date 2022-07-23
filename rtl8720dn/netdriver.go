@@ -118,6 +118,9 @@ func (r *RTL8720DN) ConnectSSLSocket(addr, port string) error {
 	if r.debug {
 		fmt.Printf("ConnectSSLSocket(%q, %q)\r\n", addr, port)
 	}
+	if r.root_ca == nil {
+		return fmt.Errorf("root_ca is not set")
+	}
 
 	client, err := r.Rpc_wifi_ssl_client_create()
 	if err != nil {
