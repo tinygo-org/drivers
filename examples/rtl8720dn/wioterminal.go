@@ -9,12 +9,15 @@ import (
 	"runtime/interrupt"
 	"time"
 
+	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/net/http"
 	"tinygo.org/x/drivers/rtl8720dn"
 )
 
 var (
 	uart  UARTx
 	debug bool
+	buf   [0x1000]byte
 )
 
 func handleInterrupt(interrupt.Interrupt) {
@@ -51,6 +54,24 @@ func Setup() (*rtl8720dn.RTL8720DN, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return rtl, nil
+}
+
+func SetupAndConnectToAccessPoint(ssid, pass string, timeout time.Duration) (*rtl8720dn.RTL8720DN, error) {
+	rtl, err := Setup()
+	if err != nil {
+		return nil, err
+	}
+
+	err = rtl.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+	if err != nil {
+		return rtl, err
+	}
+
+	net.UseDriver(rtl)
+	http.UseDriver(rtl)
+	http.SetBuf(buf[:])
 
 	return rtl, nil
 }

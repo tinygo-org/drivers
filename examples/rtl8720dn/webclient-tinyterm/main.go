@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/examples/rtl8720dn"
 	"tinygo.org/x/drivers/net/http"
 	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
@@ -30,7 +30,7 @@ var (
 )
 
 var (
-	terminal = tinyterm.NewTerminal(display)
+	terminal *tinyterm.Terminal
 
 	black = color.RGBA{0, 0, 0, 255}
 	white = color.RGBA{255, 255, 255, 255}
@@ -41,12 +41,10 @@ var (
 	font = &proggy.TinySZ8pt7b
 )
 
-var buf [0x400]byte
-
 func main() {
 	display.FillScreen(black)
-	backlight.High()
 
+	terminal = tinyterm.NewTerminal(display)
 	terminal.Configure(&tinyterm.Config{
 		Font:       font,
 		FontHeight: 10,
@@ -65,28 +63,13 @@ func run() error {
 	if debug {
 		fmt.Fprintf(terminal, "Running in debug mode.\r\n")
 		fmt.Fprintf(terminal, "A serial connection is required to continue execution.\r\n")
+		rtl8720dn.Debug(true)
 	}
-	rtl, err := setupRTL8720DN()
-	if err != nil {
-		return err
-	}
-	net.UseDriver(rtl)
-	http.SetBuf(buf[:])
-
-	fmt.Fprintf(terminal, "ConnectToAP()\r\n")
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	_, err := rtl8720dn.SetupAndConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(terminal, "connected\r\n\r\n")
-
-	ip, subnet, gateway, err := rtl.GetIP()
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(terminal, "IP Address : %s\r\n", ip)
-	fmt.Fprintf(terminal, "Mask       : %s\r\n", subnet)
-	fmt.Fprintf(terminal, "Gateway    : %s\r\n", gateway)
 
 	// You can send and receive cookies in the following way
 	// 	import "tinygo.org/x/drivers/net/http/cookiejar"
