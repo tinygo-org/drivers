@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/examples/rtl8720dn"
 	"tinygo.org/x/drivers/net/http"
 )
 
@@ -25,8 +25,6 @@ var (
 	debug    = false
 )
 
-var buf [0x400]byte
-
 func main() {
 	err := run()
 	for err != nil {
@@ -36,25 +34,10 @@ func main() {
 }
 
 func run() error {
-	rtl, err := setupRTL8720DN()
+	_, err := rtl8720dn.SetupAndConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
-	net.UseDriver(rtl)
-	http.SetBuf(buf[:])
-
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
-	if err != nil {
-		return err
-	}
-
-	ip, subnet, gateway, err := rtl.GetIP()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("IP Address : %s\r\n", ip)
-	fmt.Printf("Mask       : %s\r\n", subnet)
-	fmt.Printf("Gateway    : %s\r\n", gateway)
 
 	// You can send and receive cookies in the following way
 	// 	import "tinygo.org/x/drivers/net/http/cookiejar"
