@@ -20,6 +20,11 @@ func SetBuf(b []byte) {
 }
 
 func (c *Client) Do(req *Request) (*Response, error) {
+	if c.Jar != nil {
+		for _, cookie := range c.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
+	}
 	switch req.URL.Scheme {
 	case "http":
 		return c.doHTTP(req)
@@ -31,12 +36,6 @@ func (c *Client) Do(req *Request) (*Response, error) {
 }
 
 func (c *Client) doHTTP(req *Request) (*Response, error) {
-	if c.Jar != nil {
-		for _, cookie := range c.Jar.Cookies(req.URL) {
-			req.AddCookie(cookie)
-		}
-	}
-
 	// make TCP connection
 	ip := net.ParseIP(req.URL.Hostname())
 	port := 80
