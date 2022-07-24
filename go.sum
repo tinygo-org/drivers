@@ -24,9 +24,11 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 tinygo.org/x/drivers v0.14.0/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
 tinygo.org/x/drivers v0.15.1/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
 tinygo.org/x/drivers v0.16.0/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
+tinygo.org/x/drivers v0.19.0/go.mod h1:uJD/l1qWzxzLx+vcxaW0eY464N5RAgFi1zTVzASFdqI=
 tinygo.org/x/tinyfont v0.2.1 h1:FAaemBzw8wsfhAtG6fWW+QjyWw/K8YqEeiWo4N1pv4o=
 tinygo.org/x/tinyfont v0.2.1/go.mod h1:eLqnYSrFRjt5STxWaMeOWJTzrKhXqpWw7nU3bPfKOAM=
-tinygo.org/x/tinyfs v0.1.0 h1:yx1Tq9L60rpCm6HURo45x+Tnag+O9RGSbQfgeCb6XYU=
 tinygo.org/x/tinyfs v0.1.0/go.mod h1:ysc8Y92iHfhTXeyEM9+c7zviUQ4fN9UCFgSOFfMWv20=
+tinygo.org/x/tinyfs v0.2.0 h1:M0lwZC/dEGFt16XYN5GTQsif/qCkAN2qUVNxELVD1xg=
+tinygo.org/x/tinyfs v0.2.0/go.mod h1:6ZHYdvB3sFYeMB3ypmXZCNEnFwceKc61ADYTYHpep1E=
 tinygo.org/x/tinyterm v0.1.0 h1:80i+j+KWoxCFa/Xfp6pWbh79x+8zUdMXC1vaKj2QhkY=
 tinygo.org/x/tinyterm v0.1.0/go.mod h1:/DDhNnGwNF2/tNgHywvyZuCGnbH3ov49Z/6e8LPLRR4=
