@@ -1,6 +1,6 @@
 package makeybutton
 
-const bufferSize = 10
+const bufferSize = 6
 
 // Buffer is a buffer to keep track of the most recent readings for a button.
 type Buffer struct {

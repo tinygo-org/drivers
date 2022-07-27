@@ -61,7 +61,7 @@ func (b *Button) Get() ButtonEvent {
 	b.readings.Put(pressed)
 
 	switch {
-	case pressed && avg > 0:
+	case pressed && avg > -1 * bufferSize - 2:
 		if b.state == Press {
 			return NotChanged
 		}
