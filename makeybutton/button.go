@@ -6,7 +6,10 @@
 //
 package makeybutton
 
-import "machine"
+import (
+	"machine"
+	"time"
+)
 
 // ButtonState represents the state of a MakeyButton.
 type ButtonState int
@@ -36,15 +39,24 @@ type Button struct {
 
 // NewButton creates a new Button.
 func NewButton(pin machine.Pin) *Button {
-	pin.Configure(machine.PinConfig{Mode: machine.PinInput})
-	pin.Set(false)
-
 	return &Button{
 		pin:              pin,
 		state:            NeverPressed,
 		readings:         NewBuffer(),
 		HighMeansPressed: false,
 	}
+}
+
+// Configure configures the Makey Button pin to have the correct settings to detect touches.
+func (b *Button) Configure() error {
+	// Note that we have to first turn on the pullup, and then turn off the pullup,
+	// in order for the pin to be properly floating.
+	b.pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	time.Sleep(10 * time.Millisecond)
+	b.pin.Configure(machine.PinConfig{Mode: machine.PinInput})
+	b.pin.Set(false)
+
+	return nil
 }
 
 // Get returns a ButtonEvent based on the most recent state of the button,
@@ -61,7 +73,7 @@ func (b *Button) Get() ButtonEvent {
 	b.readings.Put(pressed)
 
 	switch {
-	case pressed && avg > -1 * bufferSize - 2:
+	case pressed && avg > -1*bufferSize+2:
 		if b.state == Press {
 			return NotChanged
 		}

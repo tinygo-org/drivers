@@ -15,8 +15,8 @@ var (
 
 func main() {
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	button.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	key = makeybutton.NewButton(button)
+	key.Configure()
 
 	for {
 		switch key.Get() {
@@ -25,6 +25,6 @@ func main() {
 		case makeybutton.Released:
 			led.Low()
 		}
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
