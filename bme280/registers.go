@@ -20,6 +20,50 @@ const (
 	CHIP_ID  = 0x60
 )
 
+// Increasing sampling rate increases precision but also the wait time for measurements. The datasheet has a table of
+// suggested values for oversampling, output data rates, and iir filter coefficients by use case.
+const (
+	SamplingOff Oversampling = iota
+	Sampling1X
+	Sampling2X
+	Sampling4X
+	Sampling8X
+	Sampling16X
+)
+
+// In normal mode (the default) the sensor takes masurements periodically.  In forced
+// mode, the sensor takes a measurement only when requested.
+//
+// For use-cases with infrequent sampling, forced mode is more power efficient.
+const (
+	ModeNormal Mode = 0x03
+	ModeForced Mode = 0x01
+	ModeSleep  Mode = 0x00
+)
+
+// IIR filter coefficients, higher values means steadier measurements but slower reaction times
+const (
+	Coeff0 FilterCoefficient = iota
+	Coeff2
+	Coeff4
+	Coeff8
+	Coeff16
+)
+
+// Period of standby in normal mode which controls how often measurements are taken
+//
+// Note Period10ms and Period20ms are out of sequence, but are per the datasheet
+const (
+	Period0_5ms  Period = 0b000
+	Period62_5ms        = 0b001
+	Period125ms         = 0b010
+	Period250ms         = 0b011
+	Period500ms         = 0b100
+	Period1000ms        = 0b101
+	Period10ms          = 0b110
+	Period20ms          = 0b111
+)
+
 const (
 	SEALEVEL_PRESSURE float32 = 1013.25 // in hPa
 )
