@@ -1,6 +1,10 @@
 package rtl8720dn
 
-import "io"
+import (
+	"fmt"
+	"io"
+	"time"
+)
 
 const maxUartRecvSize = 128
 
@@ -36,6 +40,33 @@ func New(r io.ReadWriter) *RTL8720DN {
 	}
 
 	return ret
+}
+
+func (r *RTL8720DN) Rpc_tcpip_adapter_init_with_timeout(d time.Duration) (int32, error) {
+	timeout := make(chan bool)
+	go func() {
+		time.Sleep(d)
+		timeout <- true
+	}()
+
+	var ret int32
+	var err error
+	done := make(chan bool)
+	go func() {
+		ret, err = r.Rpc_tcpip_adapter_init()
+		done <- true
+	}()
+
+	select {
+	case <-timeout:
+		return ret, fmt.Errorf("Rpc_tcpip_adapter_init: timeout")
+	case <-done:
+		if err != nil {
+			return ret, err
+		}
+	}
+
+	return ret, nil
 }
 
 func (r *RTL8720DN) SetSeq(s uint64) {
