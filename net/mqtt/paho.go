@@ -210,7 +210,7 @@ type ClientOptions struct {
 
 // NewClientOptions returns a new ClientOptions struct.
 func NewClientOptions() *ClientOptions {
-	return &ClientOptions{Adaptor: net.ActiveDevice, ProtocolVersion: 4}
+	return &ClientOptions{Adaptor: net.ActiveDevice, ProtocolVersion: 4, KeepAlive: 60, PingTimeout: time.Second * 10}
 }
 
 // AddBroker adds a broker URI to the list of brokers to be used. The format should be
@@ -254,6 +254,23 @@ func (o *ClientOptions) SetUsername(u string) *ClientOptions {
 // be sent in plaintext accross the wire.
 func (o *ClientOptions) SetPassword(p string) *ClientOptions {
 	o.Password = p
+	return o
+}
+
+// SetKeepAlive will set the amount of time (in seconds) that the client
+// should wait before sending a PING request to the broker. This will
+// allow the client to know that a connection has not been lost with the
+// server.
+func (o *ClientOptions) SetKeepAlive(k time.Duration) *ClientOptions {
+	o.KeepAlive = int64(k / time.Second)
+	return o
+}
+
+// SetPingTimeout will set the amount of time (in seconds) that the client
+// will wait after sending a PING request to the broker, before deciding
+// that the connection has been lost. Default is 10 seconds.
+func (o *ClientOptions) SetPingTimeout(k time.Duration) *ClientOptions {
+	o.PingTimeout = k
 	return o
 }
 
