@@ -227,7 +227,7 @@ func (r *RTL8720DN) DisconnectSocket() error {
 		fmt.Printf("DisconnectSocket()\r\n")
 	}
 	switch r.connectionType {
-	case ConnectionTypeTCP:
+	case ConnectionTypeTCP, ConnectionTypeUDP:
 		_, err := r.Rpc_lwip_close(r.socket)
 		if err != nil {
 			return err
