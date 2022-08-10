@@ -1,21 +1,30 @@
 package bts7960
 
 import (
-	"machine"
 	"time"
+
+	"machine"
 )
 
+// PWM is the interface necessary for controlling the bts 7960 motor.
+type PWM interface {
+	Channel(pin machine.Pin) (channel uint8, err error)
+	Top() uint32
+	Set(channel uint8, value uint32)
+}
+
+// Device is the bts7960 device
 type Device struct {
 	lEn            machine.Pin
 	rEn            machine.Pin
 	lPwm           machine.Pin
 	rPwm           machine.Pin
 	rPwmCh, lPwmCh uint8
-	pwm            machine.PWM
+	pwm            PWM
 }
 
 // New returns a new motor driver.
-func New(lEn, rEn, lPwm, rPwm machine.Pin, pwm machine.PWM) *Device {
+func New(lEn, rEn, lPwm, rPwm machine.Pin, pwm PWM) *Device {
 	return &Device{lEn: lEn, rEn: rEn, lPwm: lPwm, rPwm: rPwm, pwm: pwm}
 }
 
