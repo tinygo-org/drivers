@@ -1,3 +1,37 @@
+0.22.0
+---
+- **new devices**
+    - epd: add waveshare 2.9in (v1)
+    - makeybutton: add driver for MakeyMakey-like button
+
+- **enhancements**
+    - **rtl8720dn**
+        - add UDP close function
+        - improve error handling
+    - **net/http**
+        - improve header parsing
+        - add last-will-and-testament to MQTT
+    - **net/mqtt**
+        - adds keepalive pinging, disconnect, and graceful goroutine cleanup
+        - support for cookies when https
+        - add support for retained messsages
+
+- **bugfixes**
+    - irremote: Fix irremote reporting incorrect NEC addresses and command codes (#422)
+    - net/http:  Fix http.Get() with port specification
+
+- **build**
+    - Makefile recursively finds unit-tests
+    - switching to GHA
+
+- **updates**
+    - update tinyfont to v0.3.0
+    - update tinyfs to v0.2.0
+
+- **examples**
+    - rtl8720dn: add ./examples/rtl8720dn/version
+
+
 0.21.0
 ---
 - **new devices**
