@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"machine"
 	"strconv"
 	"time"
 
+	"tinygo.org/x/drivers/examples/rtl8720dn"
 	"tinygo.org/x/drivers/net/http"
+	"tinygo.org/x/tinyfont"
+	"tinygo.org/x/tinyfont/freemono"
 )
 
 // You can override the setting with the init() in another source code.
@@ -23,11 +27,9 @@ var (
 )
 
 var led = machine.LED
-var backlight = machine.LCD_BACKLIGHT
 
 func main() {
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	backlight.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	err := run()
 	for err != nil {
@@ -37,13 +39,9 @@ func main() {
 }
 
 func run() error {
-	rtl, err := setupRTL8720DN()
-	if err != nil {
-		return err
-	}
-	http.UseDriver(rtl)
+	tinyfont.WriteLine(display, &freemono.Regular9pt7b, 5, 15, "setup...", color.RGBA{0x00, 0x00, 0x00, 0xFF})
 
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	rtl, err := rtl8720dn.SetupAndConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -55,6 +53,8 @@ func run() error {
 	fmt.Printf("IP Address : %s\r\n", ip)
 	fmt.Printf("Mask       : %s\r\n", subnet)
 	fmt.Printf("Gateway    : %s\r\n", gateway)
+	tinyfont.WriteLine(display, &freemono.Regular9pt7b, 5, 15, "setup...done", color.RGBA{0x00, 0x00, 0x00, 0xFF})
+	tinyfont.WriteLine(display, &freemono.Regular9pt7b, 5, 30, fmt.Sprintf("listen:\nhttp://%s/", ip), color.RGBA{0x00, 0x00, 0x00, 0xFF})
 
 	http.HandleFunc("/", root)
 	http.HandleFunc("/hello", hello)
@@ -154,14 +154,12 @@ func sixlines(w http.ResponseWriter, r *http.Request) {
 
 func LED_ON(w http.ResponseWriter, r *http.Request) {
 	led.High()
-	backlight.High()
 	w.Header().Set(`Content-Type`, `text/plain; charset=UTF-8`)
 	fmt.Fprintf(w, "led.High()")
 }
 
 func LED_OFF(w http.ResponseWriter, r *http.Request) {
 	led.Low()
-	backlight.Low()
 	w.Header().Set(`Content-Type`, `text/plain; charset=UTF-8`)
 	fmt.Fprintf(w, "led.Low()")
 }
