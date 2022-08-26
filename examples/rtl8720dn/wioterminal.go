@@ -47,7 +47,7 @@ func Setup() (*rtl8720dn.RTL8720DN, error) {
 	rtl := rtl8720dn.New(uart)
 	rtl.Debug(debug)
 
-	_, err := rtl.Rpc_tcpip_adapter_init()
+	_, err := rtl.Rpc_tcpip_adapter_init_with_timeout(10 * time.Second)
 	if err != nil {
 		return nil, err
 	}
