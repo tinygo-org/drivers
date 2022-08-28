@@ -1,6 +1,11 @@
 package rtl8720dn
 
-import "io"
+import (
+	"machine"
+
+	"io"
+	"time"
+)
 
 const maxUartRecvSize = 128
 
@@ -27,29 +32,38 @@ const (
 	ConnectionTypeTLS
 )
 
-func New(r io.ReadWriter) *RTL8720DN {
-	ret := &RTL8720DN{
-		port:  r,
-		seq:   1,
-		sema:  make(chan bool, 1),
-		debug: false,
+func (d *Driver) SetSeq(s uint64) {
+	d.seq = s
+}
+
+func (d *Driver) Debug(b bool) {
+	d.debug = b
+}
+
+func (d *Driver) SetRootCA(s *string) {
+	d.root_ca = s
+}
+
+func (d *Driver) Version() (string, error) {
+	return d.Rpc_system_version()
+}
+
+func enable(en machine.Pin) {
+	en.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	en.Low()
+	time.Sleep(100 * time.Millisecond)
+	en.High()
+	time.Sleep(1000 * time.Millisecond)
+}
+
+type UARTx struct {
+	*machine.UART
+}
+
+func (u *UARTx) Read(p []byte) (n int, err error) {
+	if u.Buffered() == 0 {
+		time.Sleep(1 * time.Millisecond)
+		return 0, nil
 	}
-
-	return ret
-}
-
-func (r *RTL8720DN) SetSeq(s uint64) {
-	r.seq = s
-}
-
-func (r *RTL8720DN) Debug(b bool) {
-	r.debug = b
-}
-
-func (r *RTL8720DN) SetRootCA(s *string) {
-	r.root_ca = s
-}
-
-func (r *RTL8720DN) Version() (string, error) {
-	return r.Rpc_system_version()
+	return u.UART.Read(p)
 }

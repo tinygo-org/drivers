@@ -7,15 +7,16 @@
 //
 // You must install the Paho MQTT package to build this program:
 //
-// 		go get -u github.com/eclipse/paho.mqtt.golang
+//	go get -u github.com/eclipse/paho.mqtt.golang
 //
 // You can check that mqttpub is running successfully with the following command.
 //
-// 		mosquitto_sub -h test.mosquitto.org -t tinygo
-//
+//	mosquitto_sub -h test.mosquitto.org -t tinygo
 package main
 
 import (
+	"machine"
+
 	"fmt"
 	"math/rand"
 	"time"
@@ -44,7 +45,7 @@ var buf [0x400]byte
 
 var lastRequestTime time.Time
 var conn net.Conn
-var adaptor *rtl8720dn.RTL8720DN
+var adaptor *rtl8720dn.Driver
 
 func main() {
 	err := run()
@@ -59,18 +60,17 @@ var (
 )
 
 func run() error {
-	rtl, err := setupRTL8720DN()
+	// change the UART and pins as needed for platforms other than the WioTerminal.
+	adaptor = rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Debug(debug)
+	adaptor.Configure()
+
+	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
-	net.UseDriver(rtl)
 
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
-	if err != nil {
-		return err
-	}
-
-	ip, subnet, gateway, err := rtl.GetIP()
+	ip, subnet, gateway, err := adaptor.GetIP()
 	if err != nil {
 		return err
 	}

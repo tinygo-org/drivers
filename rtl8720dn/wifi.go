@@ -5,21 +5,21 @@ import (
 	"time"
 )
 
-func (r *RTL8720DN) ConnectToAP(ssid string, password string) error {
+func (d *Driver) ConnectToAP(ssid string, password string) error {
 	if len(ssid) == 0 || len(password) == 0 {
 		return fmt.Errorf("connection failed: either ssid or password not set")
 	}
 
-	_, err := r.Rpc_wifi_off()
+	_, err := d.Rpc_wifi_off()
 	if err != nil {
 		return err
 	}
-	_, err = r.Rpc_wifi_on(0x00000001)
+	_, err = d.Rpc_wifi_on(0x00000001)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.Rpc_wifi_disconnect()
+	_, err = d.Rpc_wifi_disconnect()
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func (r *RTL8720DN) ConnectToAP(ssid string, password string) error {
 	numTry := 5
 	securityType := uint32(0x00400004)
 	for i := 0; i < numTry; i++ {
-		ret, err := r.Rpc_wifi_connect(ssid, password, securityType, -1, 0)
+		ret, err := d.Rpc_wifi_connect(ssid, password, securityType, -1, 0)
 		if err != nil {
 			return err
 		}
@@ -41,13 +41,13 @@ func (r *RTL8720DN) ConnectToAP(ssid string, password string) error {
 		}
 	}
 
-	_, err = r.Rpc_tcpip_adapter_dhcpc_start(0)
+	_, err = d.Rpc_tcpip_adapter_dhcpc_start(0)
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < 3; i++ {
-		_, err = r.Rpc_wifi_is_connected_to_ap()
+		_, err = d.Rpc_wifi_is_connected_to_ap()
 		if err != nil {
 			return err
 		}
@@ -57,9 +57,9 @@ func (r *RTL8720DN) ConnectToAP(ssid string, password string) error {
 	return nil
 }
 
-func (r *RTL8720DN) GetIP() (ip, subnet, gateway IPAddress, err error) {
+func (d *Driver) GetIP() (ip, subnet, gateway IPAddress, err error) {
 	ip_info := make([]byte, 12)
-	_, err = r.Rpc_tcpip_adapter_get_ip_info(0, &ip_info)
+	_, err = d.Rpc_tcpip_adapter_get_ip_info(0, &ip_info)
 	if err != nil {
 		return nil, nil, nil, err
 	}
