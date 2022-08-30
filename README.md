@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 82 devices are supported.
+The following 83 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -97,10 +97,10 @@ The following 82 devices are supported.
 | [LPS22HB MEMS nano pressure sensor](https://www.st.com/resource/en/datasheet/dm00140895.pdf)                                                                                                        | I2C |
 | [LSM6DS3 accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3.pdf)                                                                                                                       | I2C |
 | [LSM6DSOX accelerometer](https://www.st.com/resource/en/datasheet/lsm6dsox.pdf)                                                                                                                     | I2C |
-| [LSM6DS3TR accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3tr.pdf)                                                                                                                     | I2C |
+| [LSM6DS3TR accelerometer](https://www.st.com/resource/en/datasheet/lsm6ds3tr.pdf)                                                                                                                   | I2C |
 | [LSM303AGR accelerometer](https://www.st.com/resource/en/datasheet/lsm303agr.pdf)                                                                                                                   | I2C |
 | [LSM9DS1 accelerometer](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf)                                                                                                                       | I2C |
-| [Makey Button](https://makeymakey.com/)                                                                                                                   | GPIO |
+| [Makey Button](https://makeymakey.com/)                                                                                                                                                             | GPIO |
 | [MAG3110 magnetometer](https://www.nxp.com/docs/en/data-sheet/MAG3110.pdf)                                                                                                                          | I2C |
 | [MAX7219 & MAX7221 display driver](https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf)                                                                                                | SPI |
 | [MCP2515 Stand-Alone CAN Controller with SPI Interface](https://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Family-Data-Sheet-DS20001801K.pdf)                                                 | SPI |
@@ -114,7 +114,7 @@ The following 82 devices are supported.
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf)                                                                                                                       | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf)                                                                                                        | GPIO |
 | [RTL8720DN 2.4G/5G Dual Bands Wireless and BLE5.0](https://www.seeedstudio.com/Realtek8720DN-2-4G-5G-Dual-Bands-Wireless-and-BLE5-0-Combo-Module-p-4442.html)                                       | UART |
-| [SCD4x CO2 Sensor](https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf) | I2C |
+| [SCD4x CO2 Sensor](https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf)                                                                                      | I2C |
 | [Semihosting](https://wiki.segger.com/Semihosting)                                                                                                                                                  | Debug |
 | [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all)                                                                                                                              | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\))                                                                                               | GPIO |
@@ -132,12 +132,13 @@ The following 82 devices are supported.
 | [Thermistor](https://www.farnell.com/datasheets/33552.pdf)                                                                                                                                          | ADC |
 | [TM1637 7-segment LED display](https://www.mcielectronics.cl/website_MCI/static/documents/Datasheet_TM1637.pdf)                                                                                     | I2C |
 | [TMP102 I2C Temperature Sensor](https://download.mikroe.com/documents/datasheets/tmp102-data-sheet.pdf)                                                                                             | I2C |
-| [UC8151 All-in-one driver IC for ESL](https://www.buydisplay.com/download/ic/UC8151C.pdf)                                                                                          | I2C |
+| [UC8151 All-in-one driver IC for ESL](https://www.buydisplay.com/download/ic/UC8151C.pdf)                                                                                                           | I2C |
 | [VEML6070 UV light sensor](https://www.vishay.com/docs/84277/veml6070.pdf)                                                                                                                          | I2C |
 | [VL53L1X time-of-flight distance sensor](https://www.st.com/resource/en/datasheet/vl53l1x.pdf)                                                                                                      | I2C |
+| [VL6180X time-of-flight distance sensor](https://www.st.com/resource/en/datasheet/vl6180x.pdf)                                                                                                      | I2C |
 | [Waveshare 2.13" (B & C) e-paper display](https://www.waveshare.com/w/upload/d/d3/2.13inch-e-paper-b-Specification.pdf)                                                                             | SPI |
 | [Waveshare 2.13" e-paper display](https://www.waveshare.com/w/upload/e/e6/2.13inch_e-Paper_Datasheet.pdf)                                                                                           | SPI |
-| [Waveshare 2.9" e-paper display (V1)](https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf)                                                                                           | SPI |
+| [Waveshare 2.9" e-paper display (V1)](https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf)                                                                                        | SPI |
 | [Waveshare 4.2" e-paper B/W display](https://www.waveshare.com/w/upload/6/6a/4.2inch-e-paper-specification.pdf)                                                                                     | SPI |
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf)                                                                                                                               | GPIO |
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
