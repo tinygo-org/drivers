@@ -1,12 +1,15 @@
 package main
 
 import (
+	"machine"
+
 	"fmt"
 	"strconv"
 	"time"
 
 	"tinygo.org/x/drivers/net"
 	"tinygo.org/x/drivers/net/http"
+	"tinygo.org/x/drivers/rtl8720dn"
 )
 
 // IP address of the server aka "hub". Replace with your own info.
@@ -36,19 +39,17 @@ func main() {
 }
 
 func run() error {
-	rtl, err := setupRTL8720DN()
-	if err != nil {
-		return err
-	}
-	net.UseDriver(rtl)
+	adaptor := rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Configure()
+
 	http.SetBuf(buf[:])
 
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
 
-	ip, subnet, gateway, err := rtl.GetIP()
+	ip, subnet, gateway, err := adaptor.GetIP()
 	if err != nil {
 		return err
 	}
