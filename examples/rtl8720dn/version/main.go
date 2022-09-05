@@ -1,10 +1,12 @@
 package main
 
 import (
+	"machine"
+
 	"fmt"
 	"time"
 
-	"tinygo.org/x/drivers/examples/rtl8720dn"
+	"tinygo.org/x/drivers/rtl8720dn"
 )
 
 var (
@@ -20,13 +22,10 @@ func main() {
 }
 
 func run() error {
-	//rtl8720dn.Debug(true)
-	rtl, err := rtl8720dn.Setup()
-	if err != nil {
-		return err
-	}
+	adaptor := rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Configure()
 
-	ver, err := rtl.Version()
+	ver, err := adaptor.Version()
 	if err != nil {
 		return nil
 	}

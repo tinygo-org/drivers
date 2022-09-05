@@ -1,6 +1,8 @@
 package main
 
 import (
+	"machine"
+
 	"bufio"
 	"fmt"
 	"strings"
@@ -68,20 +70,18 @@ func main() {
 }
 
 func run() error {
-	rtl, err := setupRTL8720DN()
-	if err != nil {
-		return err
-	}
-	rtl.SetRootCA(&test_root_ca)
-	net.UseDriver(rtl)
+	adaptor := rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Configure()
+
+	adaptor.SetRootCA(&test_root_ca)
 	http.SetBuf(buf[:])
 
-	err = rtl.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
 	if err != nil {
 		return err
 	}
 
-	ip, subnet, gateway, err := rtl.GetIP()
+	ip, subnet, gateway, err := adaptor.GetIP()
 	if err != nil {
 		return err
 	}
