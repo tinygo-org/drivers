@@ -59,7 +59,6 @@ var buf [0x1000]byte
 
 var lastRequestTime time.Time
 var conn net.Conn
-var adaptor *rtl8720dn.RTL8720DN
 
 func main() {
 	err := run()
@@ -71,6 +70,7 @@ func main() {
 
 func run() error {
 	adaptor := rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Debug(debug)
 	adaptor.Configure()
 
 	adaptor.SetRootCA(&test_root_ca)

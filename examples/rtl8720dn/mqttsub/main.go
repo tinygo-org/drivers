@@ -71,6 +71,7 @@ func subHandler(client mqtt.Client, msg mqtt.Message) {
 func run() error {
 	// change the UART and pins as needed for platforms other than the WioTerminal.
 	adaptor = rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Debug(debug)
 	adaptor.Configure()
 
 	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)

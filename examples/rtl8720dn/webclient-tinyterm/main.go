@@ -81,8 +81,10 @@ func run() error {
 	}
 
 	adaptor := rtl8720dn.New(machine.UART3, machine.PB24, machine.PC24, machine.RTL8720D_CHIP_PU)
+	adaptor.Debug(debug)
 	adaptor.Configure()
 
+	http.UseDriver(adaptor)
 	http.SetBuf(buf[:])
 
 	fmt.Fprintf(terminal, "ConnectToAP()\r\n")
