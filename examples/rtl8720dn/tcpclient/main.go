@@ -19,8 +19,8 @@ import (
 
 // You can override the setting with the init() in another source code.
 // func init() {
-//    ssid = "sghome-gw"
-//    password = "3af25537b4524"
+//    ssid = "your-ssid"
+//    password = "your-password"
 //    serverIP = "192.168.1.119"
 //    debug = true
 // }
