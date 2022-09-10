@@ -27,29 +27,29 @@ type Device struct {
 	resetPin        machine.Pin
 	csPin           machine.Pin
 	blPin           machine.Pin
-	width           int32
-	height          int32
-	columnOffsetCfg int32
-	rowOffsetCfg    int32
-	columnOffset    int32
-	rowOffset       int32
+	width           int16
+	height          int16
+	columnOffsetCfg int16
+	rowOffsetCfg    int16
+	columnOffset    int16
+	rowOffset       int16
 	frameRate       FrameRate
 	isBGR           bool
-	vSyncLines      int32
+	vSyncLines      int16
 	orientation     Orientation
-	batchLength     int32
+	batchLength     int16
 	batchData       []uint8
 }
 
 // Config is the configuration for the display
 type Config struct {
 	Orientation  Orientation
-	RowOffset    int32
-	ColumnOffset int32
+	RowOffset    int16
+	ColumnOffset int16
 	FrameRate    FrameRate
-	VSyncLines   int32
-	Width        int32
-	Height       int32
+	VSyncLines   int16
+	Width        int16
+	Height       int16
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
@@ -97,7 +97,7 @@ func (d *Device) SetDeviceOrientation() {
 }
 
 // setWindow prepares the screen to be modified at a given rectangle
-func (d *Device) setWindow(x, y, w, h int32) {
+func (d *Device) setWindow(x, y, w, h int16) {
 	if d.orientation == HORIZONTAL {
 		x += d.columnOffset
 		y += d.rowOffset
@@ -118,10 +118,11 @@ func (d *Device) FillScreen(c color.RGBA) {
 }
 
 // FillRectangle fills a rectangle at a given coordinates with a color
-func (d *Device) FillRectangle(x, y, width, height int32, c color.RGBA) error {
-	k, i := d.Size()
+func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
+	k, j := d.Size()
+	var i int32
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
-		x >= k || (x+width) > k || y >= i || (y+height) > i {
+		x >= k || (x+width) > k || y >= j || (y+height) > j {
 		return errors.New("rectangle coordinates outside display area")
 	}
 	d.setWindow(x, y, width, height)
@@ -129,18 +130,19 @@ func (d *Device) FillRectangle(x, y, width, height int32, c color.RGBA) error {
 	c1 := uint8(c565 >> 8)
 	c2 := uint8(c565)
 
-	for i = 0; i < d.batchLength; i++ {
+	for i = 0; i < int32(d.batchLength); i++ {
 		d.batchData[i*2] = c1
 		d.batchData[i*2+1] = c2
 	}
-	i = width * height
+	i = int32(width) * int32(height)
+	batchLength := int32(d.batchLength)
 	for i > 0 {
-		if i >= d.batchLength {
+		if i >= batchLength {
 			d.Tx(d.batchData, false)
 		} else {
 			d.Tx(d.batchData[:i*2], false)
 		}
-		i -= d.batchLength
+		i -= batchLength
 	}
 	return nil
 }
@@ -151,14 +153,14 @@ func (d *Device) Display() error {
 }
 
 // FillRectangleWithBuffer fills buffer with a rectangle at a given coordinates.
-func (d *Device) FillRectangleWithBuffer(x, y, width, height int32, buffer []color.RGBA) error {
-	k, l := d.Size()
+func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
+	h, w := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
-		x >= k || (x+width) > k || y >= l || (y+height) > l {
+		x >= h || (x+width) > h || y >= w || (y+height) > w {
 		return errors.New("rectangle coordinates outside display area")
 	}
-	k = width * height
-	l = int32(len(buffer))
+	k := int32(width) * int32(height)
+	l := int32(len(buffer))
 	if k != l {
 		return errors.New("buffer length does not match with rectangle size")
 	}
@@ -166,8 +168,9 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int32, buffer []col
 	d.setWindow(x, y, width, height)
 
 	offset := int32(0)
+	batchLength := int32(d.batchLength)
 	for k > 0 {
-		for i := int32(0); i < d.batchLength; i++ {
+		for i := int32(0); i < batchLength; i++ {
 			if offset+i < l {
 				c565 := RGBATo565(buffer[offset+i])
 				c1 := uint8(c565 >> 8)
@@ -176,19 +179,19 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int32, buffer []col
 				d.batchData[i*2+1] = c2
 			}
 		}
-		if k >= d.batchLength {
+		if k >= batchLength {
 			d.Tx(d.batchData, false)
 		} else {
 			d.Tx(d.batchData[:k*2], false)
 		}
-		k -= d.batchLength
-		offset += d.batchLength
+		k -= batchLength
+		offset += batchLength
 	}
 	return nil
 }
 
 // DrawFastVLine draws a vertical line faster than using SetPixel
-func (d *Device) DrawFastVLine(x, y0, y1 int32, c color.RGBA) {
+func (d *Device) DrawFastVLine(x, y0, y1 int16, c color.RGBA) {
 	if y0 > y1 {
 		y0, y1 = y1, y0
 	}
@@ -196,7 +199,7 @@ func (d *Device) DrawFastVLine(x, y0, y1 int32, c color.RGBA) {
 }
 
 // DrawFastHLine draws a horizontal line faster than using SetPixel
-func (d *Device) DrawFastHLine(x0, x1, y int32, c color.RGBA) {
+func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
 	if x0 > x1 {
 		x0, x1 = x1, x0
 	}
@@ -204,7 +207,7 @@ func (d *Device) DrawFastHLine(x0, x1, y int32, c color.RGBA) {
 }
 
 // SetPixel sets a pixel in the screen
-func (d *Device) SetPixel(x, y int32, c color.RGBA) {
+func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 	w, h := d.Size()
 	if x < 0 || y < 0 || x >= w || y >= h {
 		return
@@ -241,7 +244,7 @@ func (d *Device) Rx(command uint8, data []byte) {
 }
 
 // Size returns the current size of the display.
-func (d *Device) Size() (w, h int32) {
+func (d *Device) Size() (w, h int16) {
 	return d.height, d.width
 }
 
@@ -269,7 +272,7 @@ func (d *Device) IsBGR(bgr bool) {
 }
 
 // SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
-func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int32) {
+func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 	d.Command(VSCRDEF)
 	d.Tx([]uint8{
 		uint8(topFixedArea >> 8), uint8(topFixedArea),

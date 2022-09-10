@@ -19,7 +19,7 @@ func main() {
 
 	white := color.RGBA{255, 255, 255, 255}
 	red := color.RGBA{255, 0, 0, 255}
-	blue := color.RGBA{219, 227, 235, 255}
+	blue := color.RGBA{0, 0, 255, 255}
 	green := color.RGBA{0, 255, 0, 255}
 	black := color.RGBA{0, 0, 0, 255}
 
