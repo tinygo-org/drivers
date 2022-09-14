@@ -9,7 +9,7 @@ import (
 
 var (
 	led    machine.Pin = machine.LED
-	button machine.Pin = machine.BUTTON
+	button machine.Pin = machine.D10
 	key    *makeybutton.Button
 )
 
@@ -25,6 +25,7 @@ func main() {
 		case makeybutton.Released:
 			led.Low()
 		}
-		time.Sleep(100 * time.Millisecond)
+		// the more frequent the more responsive
+		time.Sleep(50 * time.Millisecond)
 	}
 }

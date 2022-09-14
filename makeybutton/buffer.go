@@ -1,11 +1,17 @@
 package makeybutton
 
-const bufferSize = 6
+const (
+	bufferSize    = 3
+	maxSumAllowed = 4
+)
 
 // Buffer is a buffer to keep track of the most recent readings for a button.
+// in bit form.
 type Buffer struct {
-	readings [bufferSize]bool
-	index    int
+	data        [bufferSize]byte
+	byteCounter int
+	bitCounter  int
+	sum         int
 }
 
 // NewBuffer returns a new buffer.
@@ -13,34 +19,47 @@ func NewBuffer() *Buffer {
 	return &Buffer{}
 }
 
-// Used returns how many bytes in buffer have been used.
-func (b *Buffer) Used() int {
-	return b.index
+// Sum returns the sum of all measurements
+func (b *Buffer) Sum() int {
+	return b.sum
 }
 
-// Put stores a boolean in the buffer.
-func (b *Buffer) Put(val bool) bool {
-	b.index++
-	if b.index >= bufferSize {
-		b.index = 0
+// Put stores a boolean button state into the buffer.
+func (b *Buffer) Put(val bool) {
+	currentMeasurement, oldestMeasurement := b.updateData(val)
+	b.updateCounters()
+
+	if currentMeasurement != 0 && b.sum < maxSumAllowed {
+		b.sum++
 	}
 
-	b.readings[b.index] = val
-
-	return true
+	if oldestMeasurement != 0 && b.sum > 0 {
+		b.sum--
+	}
 }
 
-// Avg returns the "average" of all the readings in the buffer, by
-// treating a true as 1 and a false as -1.
-func (b *Buffer) Avg() int {
-	avg := 0
-	for i := 0; i < bufferSize; i++ {
-		if b.readings[i] {
-			avg += 1
-		} else {
-			avg -= 1
+func (b *Buffer) updateData(val bool) (byte, byte) {
+	currentByte := b.data[b.byteCounter]
+	oldestMeasurement := (currentByte >> b.bitCounter) & 0x01
+
+	if val {
+		currentByte |= (1 << b.bitCounter)
+	} else {
+		currentByte &= ^(1 << b.bitCounter)
+	}
+
+	b.data[b.byteCounter] = currentByte
+
+	return (currentByte >> b.bitCounter) & 0x01, oldestMeasurement
+}
+
+func (b *Buffer) updateCounters() {
+	b.bitCounter++
+	if b.bitCounter == 8 {
+		b.bitCounter = 0
+		b.byteCounter++
+		if b.byteCounter == bufferSize {
+			b.byteCounter = 0
 		}
 	}
-
-	return avg
 }
