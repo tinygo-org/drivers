@@ -233,6 +233,11 @@ func (d *Device) SetBuffer(buffer []byte) error {
 	return nil
 }
 
+// GetBuffer returns the whole buffer
+func (d *Device) GetBuffer() []byte {
+	return d.buffer
+}
+
 // Command sends a command to the display
 func (d *Device) Command(command uint8) {
 	d.bus.tx([]byte{command}, true)
