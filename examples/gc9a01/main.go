@@ -2,6 +2,7 @@ package main
 
 import (
 	"machine"
+	"time"
 
 	"image/color"
 
@@ -30,5 +31,9 @@ func main() {
 	display.FillRectangle(0, height/2, width/2, height/2, green)
 	display.FillRectangle(width/2, height/2, width/2, height/2, blue)
 	display.FillRectangle(width/4, height/4, width/2, height/2, black)
+
+	for {
+		time.Sleep(time.Hour)
+	}
 
 }
