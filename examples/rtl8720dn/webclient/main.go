@@ -15,16 +15,16 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    url = "http://tinygo.org/"
 //    debug = true
 // }
 
 var (
-	ssid     string
-	password string
-	url      = "http://tinygo.org/"
-	debug    = false
+	ssid  string
+	pass  string
+	url   = "http://tinygo.org/"
+	debug = false
 )
 
 var buf [0x400]byte
@@ -45,7 +45,7 @@ func run() error {
 	http.UseDriver(adaptor)
 	http.SetBuf(buf[:])
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

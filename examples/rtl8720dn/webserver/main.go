@@ -13,14 +13,14 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    debug = true
 // }
 
 var (
-	ssid     string
-	password string
-	debug    = false
+	ssid  string
+	pass  string
+	debug = false
 )
 
 var led = machine.LED
@@ -44,7 +44,7 @@ func run() error {
 
 	http.UseDriver(adaptor)
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

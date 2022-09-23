@@ -3,7 +3,6 @@
 //
 // In other words:
 // Your computer <--> UART0 <--> MCU <--> UART1 <--> ESP8266
-//
 package main
 
 import (
@@ -14,9 +13,11 @@ import (
 	"tinygo.org/x/drivers/net"
 )
 
-// access point info
-const ssid = "YOURSSID"
-const pass = "YOURPASS"
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the listener aka "hub". Replace with your own info.
 const hubIP = "0.0.0.0"

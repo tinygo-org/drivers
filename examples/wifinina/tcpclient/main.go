@@ -4,7 +4,6 @@
 // You can open a server to accept connections from this program using:
 //
 // nc -w 5 -lk 8080
-//
 package main
 
 import (
@@ -17,9 +16,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the server aka "hub". Replace with your own info.
 const serverIP = ""

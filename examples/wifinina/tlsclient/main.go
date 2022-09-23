@@ -4,7 +4,6 @@
 // You shall see "strict-transport-security" header in the response,
 // this confirms communication is indeed over HTTPS
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
-//
 package main
 
 import (
@@ -18,9 +17,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the server aka "hub". Replace with your own info.
 const server = "tinygo.org"

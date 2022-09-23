@@ -9,9 +9,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32

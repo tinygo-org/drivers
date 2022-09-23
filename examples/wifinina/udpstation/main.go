@@ -3,7 +3,6 @@
 //
 // In other words:
 // Your computer <--> UART0 <--> MCU <--> SPI <--> ESP32
-//
 package main
 
 import (
@@ -15,9 +14,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the server aka "hub". Replace with your own info.
 const hubIP = ""

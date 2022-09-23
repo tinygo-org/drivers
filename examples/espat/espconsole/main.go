@@ -6,7 +6,6 @@
 //
 // More information on the Espressif AT command set at:
 // https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
-//
 package main
 
 import (
@@ -19,9 +18,11 @@ import (
 // change actAsAP to true to act as an access point instead of connecting to one.
 const actAsAP = false
 
-// access point info
-const ssid = "YOURSSID"
-const pass = "YOURPASS"
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32

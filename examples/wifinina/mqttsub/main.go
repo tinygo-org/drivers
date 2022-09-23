@@ -7,8 +7,7 @@
 //
 // You must also install the Paho MQTT package to build this program:
 //
-// 		go get -u github.com/eclipse/paho.mqtt.golang
-//
+//	go get -u github.com/eclipse/paho.mqtt.golang
 package main
 
 import (
@@ -21,9 +20,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the MQTT broker to use. Replace with your own info.
 const server = "tcp://test.mosquitto.org:1883"
