@@ -29,16 +29,16 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    debug = true
 //    server = "tinygo.org"
 // }
 
 var (
-	ssid     string
-	password string
-	server   string = "tcp://test.mosquitto.org:1883"
-	debug           = false
+	ssid   string
+	pass   string
+	server string = "tcp://test.mosquitto.org:1883"
+	debug         = false
 )
 
 var buf [0x400]byte
@@ -65,7 +65,7 @@ func run() error {
 	adaptor.Debug(debug)
 	adaptor.Configure()
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

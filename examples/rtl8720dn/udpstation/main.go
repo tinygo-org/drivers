@@ -16,16 +16,16 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    hubIP = "192.168.1.118"
 //    debug = true
 // }
 
 var (
-	ssid     string
-	password string
-	hubIP    = ""
-	debug    = false
+	ssid  string
+	pass  string
+	hubIP = ""
+	debug = false
 )
 
 var buf [0x400]byte
@@ -45,7 +45,7 @@ func run() error {
 
 	http.SetBuf(buf[:])
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

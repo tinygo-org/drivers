@@ -21,16 +21,16 @@ import (
 // If debug is enabled, a serial connection is required.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    debug = false // true
 //    server = "tinygo.org"
 // }
 
 var (
-	ssid     string
-	password string
-	url      = "http://tinygo.org/"
-	debug    = false
+	ssid  string
+	pass  string
+	url   = "http://tinygo.org/"
+	debug = false
 )
 
 var (
@@ -88,7 +88,7 @@ func run() error {
 	http.SetBuf(buf[:])
 
 	fmt.Fprintf(terminal, "ConnectToAP()\r\n")
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

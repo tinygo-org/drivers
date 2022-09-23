@@ -19,16 +19,16 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    ntpHost = "129.6.15.29"
 //    debug = true
 // }
 
 var (
-	ssid     string
-	password string
-	ntpHost  = "129.6.15.29"
-	debug    = false
+	ssid    string
+	pass    string
+	ntpHost = "129.6.15.29"
+	debug   = false
 )
 
 const NTP_PACKET_SIZE = 48
@@ -48,7 +48,7 @@ func run() error {
 	adaptor.Debug(debug)
 	adaptor.Configure()
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

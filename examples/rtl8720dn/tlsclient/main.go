@@ -16,17 +16,17 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    debug = true
 //    url = "https://www.example.com"
 //    test_root_ca = "..."
 // }
 
 var (
-	ssid     string
-	password string
-	url      string = "https://www.example.com"
-	debug           = false
+	ssid  string
+	pass  string
+	url   string = "https://www.example.com"
+	debug        = false
 )
 
 // Set the test_root_ca created by the following command
@@ -76,7 +76,7 @@ func run() error {
 	adaptor.SetRootCA(&test_root_ca)
 	http.SetBuf(buf[:])
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}

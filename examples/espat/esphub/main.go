@@ -3,7 +3,6 @@
 //
 // In other words:
 // Your computer <--> UART0 <--> MCU <--> UART1 <--> ESP8266 <--> INTERNET
-//
 package main
 
 import (
@@ -17,9 +16,11 @@ import (
 // change actAsAP to true to act as an access point instead of connecting to one.
 const actAsAP = false
 
-// access point info
-const ssid = "YOURSSID"
-const pass = "YOURPASS"
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // these are the default pins for the Arduino Nano33 IoT.
 // change these to connect to a different UART or pins for the ESP8266/ESP32

@@ -9,7 +9,6 @@
 //
 // examples/wifinina/webclient
 // examples/wifinina/tlsclient
-//
 package main
 
 import (
@@ -24,9 +23,11 @@ import (
 	"tinygo.org/x/drivers/wifinina"
 )
 
-// access point info
-const ssid = ""
-const pass = ""
+var (
+	// access point info
+	ssid string
+	pass string
+)
 
 // IP address of the server aka "hub". Replace with your own info.
 // Can specify a URL starting with http or https

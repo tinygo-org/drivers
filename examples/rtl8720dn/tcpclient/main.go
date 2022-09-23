@@ -20,14 +20,14 @@ import (
 // You can override the setting with the init() in another source code.
 // func init() {
 //    ssid = "your-ssid"
-//    password = "your-password"
+//    pass = "your-password"
 //    serverIP = "192.168.1.119"
 //    debug = true
 // }
 
 var (
 	ssid     string
-	password string
+	pass     string
 	serverIP = ""
 	debug    = false
 )
@@ -47,7 +47,7 @@ func run() error {
 	adaptor.Debug(debug)
 	adaptor.Configure()
 
-	err := adaptor.ConnectToAccessPoint(ssid, password, 10*time.Second)
+	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
 	if err != nil {
 		return err
 	}
