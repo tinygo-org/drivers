@@ -28,9 +28,9 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 		return
 	}
 	if c.R != 0 || c.G != 0 || c.B != 0 {
-		d.buffer[matrixRotations[d.rotation][x][y][0]][matrixRotations[d.rotation][x][y][1]] = true
+		d.buffer[matrixRotations[d.rotation][y][x][0]][matrixRotations[d.rotation][y][x][1]] = true
 	} else {
-		d.buffer[matrixRotations[d.rotation][x][y][0]][matrixRotations[d.rotation][x][y][1]] = false
+		d.buffer[matrixRotations[d.rotation][y][x][0]][matrixRotations[d.rotation][y][x][1]] = false
 	}
 }
 
@@ -39,5 +39,5 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 	if x < 0 || x >= 5 || y < 0 || y >= 5 {
 		return false
 	}
-	return d.buffer[matrixRotations[d.rotation][x][y][0]][matrixRotations[d.rotation][x][y][1]]
+	return d.buffer[matrixRotations[d.rotation][y][x][0]][matrixRotations[d.rotation][y][x][1]]
 }
