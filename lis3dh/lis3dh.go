@@ -1,7 +1,6 @@
 // Package lis3dh provides a driver for the LIS3DH digital accelerometer.
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lis3dh.pdf
-//
 package lis3dh // import "tinygo.org/x/drivers/lis3dh"
 
 import "tinygo.org/x/drivers"

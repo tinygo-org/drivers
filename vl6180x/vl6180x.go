@@ -5,7 +5,6 @@
 // This driver was based on the library https://github.com/adafruit/Adafruit_VL6180X
 // and document 'AN4545 VL6180X basic ranging application note':
 // https://www.st.com/resource/en/application_note/an4545-vl6180x-basic-ranging-application-note-stmicroelectronics.pdf
-//
 package vl6180x // import "tinygo.org/x/drivers/vl6180x"
 
 import (

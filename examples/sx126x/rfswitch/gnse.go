@@ -2,13 +2,13 @@
 // +build gnse
 
 /*
- Generic Node Sensor Edition
- RFSwitch
+Generic Node Sensor Edition
+RFSwitch
 
- Disable Switch   :  PB8=OFF PA0=OFF  PA1=OFF
- Enable RX        :  PB8=ON  PA0=ON   PA1=OFF
- Enable TX RFO LP :  PB8=ON  PA0=ON   PA1=ON
- Enable TX RFO HP :  PB8=ON  PA0=OFF  PA1=ON
+Disable Switch   :  PB8=OFF PA0=OFF  PA1=OFF
+Enable RX        :  PB8=ON  PA0=ON   PA1=OFF
+Enable TX RFO LP :  PB8=ON  PA0=ON   PA1=ON
+Enable TX RFO HP :  PB8=ON  PA0=OFF  PA1=ON
 */
 package rfswitch
 

@@ -2,7 +2,6 @@
 // panel controller.
 //
 // Datasheet: https://focuslcds.com/content/FT6236.pdf
-//
 package ft6336
 
 import (
@@ -42,8 +41,9 @@ func (d *Device) Configure(config Config) error {
 }
 
 // SetGMode sets interrupt mode.
-//  0x00 : Interrupt Polling mode
-//  0x01 : Interrupt Trigger mode (default)
+//
+//	0x00 : Interrupt Polling mode
+//	0x01 : Interrupt Trigger mode (default)
 func (d *Device) SetGMode(v uint8) {
 	d.write1Byte(RegGMode, v)
 }

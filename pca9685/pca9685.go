@@ -51,7 +51,7 @@ func (d Dev) Configure(cfg PWMConfig) error {
 // SetPeriod updates the period of this PWM integrated circuit in nanoseconds.
 // To set a particular frequency, use the following formula:
 //
-//     period = 1e9 / frequency
+//	period = 1e9 / frequency
 //
 // In the equation above frequency is in Hertz.
 //
@@ -91,7 +91,9 @@ func (d Dev) Top() uint32 {
 // Set sets the `on` value of a PWM channel in the range [0..15].
 // Max value `on` can take is 4095.
 // Example:
-//  d.Set(1, d.Top()/4)
+//
+//	d.Set(1, d.Top()/4)
+//
 // sets the dutycycle of second (LED1) channel to 25%.
 func (d Dev) Set(channel uint8, on uint32) {
 	if on > maxtop {
@@ -101,7 +103,8 @@ func (d Dev) Set(channel uint8, on uint32) {
 }
 
 // SetAll sets all PWM signals to a ON value. Equivalent of calling
-//  Dev.Set(pca9685.ALLLED, value)
+//
+//	Dev.Set(pca9685.ALLLED, value)
 func (d Dev) SetAll(on uint32) {
 	d.Set(ALLLED, on)
 }
@@ -140,8 +143,9 @@ func (d Dev) SetAI(ai bool) error {
 }
 
 // SetDrive configures PWM output connection in MODE2 register.
-//  false: The 16 LEDn outputs are configured with an open-drain structure.
-//  true: The 16 LEDn outputs are configured with a totem pole structure.
+//
+//	false: The 16 LEDn outputs are configured with an open-drain structure.
+//	true: The 16 LEDn outputs are configured with a totem pole structure.
 func (d Dev) SetDrive(outdrv bool) error {
 	err := d.readReg(MODE2, d.buf[:1])
 	if err != nil {
@@ -156,10 +160,11 @@ func (d Dev) SetDrive(outdrv bool) error {
 }
 
 // Sleep sets/unsets SLEEP bit in MODE1.
-//  if sleepEnabled
-//    Stops PWM. Allows writing to PRE_SCALE register.
-//  else
-//    wakes PCA9685. Resumes PWM.
+//
+//	if sleepEnabled
+//	  Stops PWM. Allows writing to PRE_SCALE register.
+//	else
+//	  wakes PCA9685. Resumes PWM.
 func (d Dev) Sleep(sleepEnabled bool) error {
 	err := d.readReg(MODE1, d.buf[:1])
 	if err != nil {

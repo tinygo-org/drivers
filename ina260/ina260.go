@@ -43,7 +43,6 @@ func New(bus drivers.I2C) Device {
 // * VoltConvTime = CONVTIME_1100USEC
 // * CurrentConvTime = CONVTIME_1100USEC
 // * Mode = MODE_CONTINUOUS | MODE_VOLTAGE | MODE_CURRENT
-//
 func (d *Device) Configure(cfg Config) {
 	var val uint16
 

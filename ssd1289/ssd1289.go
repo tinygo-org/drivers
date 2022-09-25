@@ -1,7 +1,6 @@
 // Package ssd1289 implements a driver for the SSD1289 led matrix controller as packaged on the TFT_320QVT board
 //
 // Datasheet: http://aitendo3.sakura.ne.jp/aitendo_data/product_img/lcd/tft2/M032C1289TP/3.2-SSD1289.pdf
-//
 package ssd1289
 
 import (

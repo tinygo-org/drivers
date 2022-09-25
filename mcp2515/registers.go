@@ -1,7 +1,6 @@
 // Package mcp2515 implements a driver for the MCP2515 CAN Controller.
 //
 // Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Stand-Alone-CAN-Controller-with-SPI-20001801J.pdf
-//
 package mcp2515 // import "tinygo.org/x/drivers/mcp2515"
 
 const DebugEn = 0

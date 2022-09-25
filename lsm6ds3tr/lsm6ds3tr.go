@@ -2,7 +2,6 @@
 // a 6 axis Inertial Measurement Unit (IMU)
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lsm6ds3tr.pdf
-//
 package lsm6ds3tr // import "tinygo.org/x/drivers/lsm6ds3tr"
 
 import (

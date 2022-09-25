@@ -1,7 +1,6 @@
 // Package ssd1331 implements a driver for the SSD1331 TFT color displays.
 //
 // Datasheet: https://www.crystalfontz.com/controllers/SolomonSystech/SSD1331/381/
-//
 package ssd1331 // import "tinygo.org/x/drivers/ssd1331"
 
 import (

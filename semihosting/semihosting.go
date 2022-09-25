@@ -4,7 +4,7 @@
 // If you want to use it in OpenOCD, you have to enable it first with the
 // following command:
 //
-//     arm semihosting enable
+//	arm semihosting enable
 package semihosting
 
 import (

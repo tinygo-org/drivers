@@ -96,9 +96,11 @@ func timeoutMsToRtcSteps(timeoutMs uint32) uint32 {
 }
 
 // --------------------------------------------------
-//  Channel and events
+//
+//	Channel and events
+//
 // --------------------------------------------------
-//NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
+// NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
 func NewRadioEvent(eType int, irqStatus uint16, eData []byte) RadioEvent {
 	r := RadioEvent{EventType: eType, IRQStatus: irqStatus, EventData: eData}
 	return r
@@ -573,7 +575,7 @@ func (d *Device) SetLoraCrc(enable bool) {
 	}
 }
 
-//SetLoraSpreadingFactor setc surrent Lora Spreading Factor
+// SetLoraSpreadingFactor setc surrent Lora Spreading Factor
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetLoraSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf

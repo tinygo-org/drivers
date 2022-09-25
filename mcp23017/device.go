@@ -133,7 +133,7 @@ func (d *Device) GetPins() (Pins, error) {
 //
 // That is, it does the equivalent of:
 //
-// 	for i := 0; i < PinCount; i++ {
+//	for i := 0; i < PinCount; i++ {
 //		if mask.Get(i) {
 //			d.Pin(i).Set(pins.Get(i))
 //		}

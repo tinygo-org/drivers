@@ -93,7 +93,7 @@ func (devs Devices) GetPins(pins PinSlice) error {
 //
 // That is, it does the equivalent of:
 //
-// 	for i := 0; i < PinCount*len(devs); i++ {
+//	for i := 0; i < PinCount*len(devs); i++ {
 //		if mask.Get(i) {
 //			d.Pin(i).Set(pins.Get(i))
 //		}

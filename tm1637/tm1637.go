@@ -1,7 +1,6 @@
 // Package tm1637 provides a driver for the TM1637 4-digit 7-segment LED display.
 //
 // Datasheet: https://www.mcielectronics.cl/website_MCI/static/documents/Datasheet_TM1637.pdf
-//
 package tm1637
 
 import (

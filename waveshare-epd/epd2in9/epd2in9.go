@@ -3,12 +3,12 @@
 // Note: this is for the V1 device (using IL3820), the V2 device uses a different chipset.
 //
 // Datasheets:
-//   https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf
-//   https://www.smart-prototyping.com/image/data/9_Modules/EinkDisplay/GDE029A1/IL3820.pdf
+//
+//	https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf
+//	https://www.smart-prototyping.com/image/data/9_Modules/EinkDisplay/GDE029A1/IL3820.pdf
 //
 // This implementation is essentially a copy of the 2in13 driver with the correct LUTs and
 // default size for the 2.9in device.
-//
 package epd2in9 // import "tinygo.org/x/drivers/waveshare-epd/epd2in9"
 
 import (

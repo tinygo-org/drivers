@@ -1,7 +1,6 @@
 // Package adt7410 provides a driver for the adt7410 I2C Temperature Sensor.
 //
 // Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADT7410.pdf
-//
 package adt7410 // import "tinygo.org/x/drivers/adt7410"
 
 import (

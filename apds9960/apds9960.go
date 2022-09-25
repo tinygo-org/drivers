@@ -2,7 +2,6 @@
 // a digital proximity, ambient light, RGB and gesture sensor.
 //
 // Datasheet: https://cdn.sparkfun.com/assets/learn_tutorials/3/2/1/Avago-APDS-9960-datasheet.pdf
-//
 package apds9960
 
 import (

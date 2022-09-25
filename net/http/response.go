@@ -105,8 +105,11 @@ func (r *Response) Cookies() []*Cookie {
 }
 
 // RFC 7234, section 5.4: Should treat
+//
 //	Pragma: no-cache
+//
 // like
+//
 //	Cache-Control: no-cache
 func fixPragmaCacheControl(header Header) {
 	if hp, ok := header["Pragma"]; ok && len(hp) > 0 && hp[0] == "no-cache" {

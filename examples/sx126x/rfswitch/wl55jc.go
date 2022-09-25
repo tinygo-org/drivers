@@ -2,8 +2,8 @@
 // +build nucleowl55jc
 
 /*
- Nucleo WL55JC1
- RFSwitch
+	Nucleo WL55JC1
+	RFSwitch
 
 +-----------+---------+------------+------------+
 |           | FE_CTRL1 |  FE_CTRL2 |   FE_CTRL3 |

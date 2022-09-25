@@ -1,7 +1,6 @@
 // LSM9DS1, 9 axis Inertial Measurement Unit (IMU)
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lsm6ds3.pdf
-//
 package lsm9ds1 // import "tinygo.org/x/drivers/lsm9ds1"
 
 import (

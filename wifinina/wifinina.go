@@ -3,7 +3,6 @@
 //
 // In order to use this driver, the ESP32 must be flashed with specific firmware from Arduino.
 // For more information: https://github.com/arduino/nina-fw
-//
 package wifinina // import "tinygo.org/x/drivers/wifinina"
 
 import (
@@ -265,7 +264,6 @@ func (err Error) Error() string {
 // |___________|______|______|_________|___________|________|____|_________|
 // |   8 bit   | 1bit | 7bit |  8bit   |   8bit    | nbytes | .. |   8bit  |
 // |___________|______|______|_________|___________|________|____|_________|
-//
 type command struct {
 	cmd       uint8
 	reply     bool

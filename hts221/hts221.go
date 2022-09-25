@@ -2,7 +2,6 @@
 // a capacitive digital sensor for relative humidity and temperature.
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/hts221.pdf
-//
 package hts221
 
 import (
@@ -85,7 +84,6 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 // Resolution sets the HTS221's resolution mode.
 // The higher resolutions are more accurate but comsume more power (see datasheet).
 // The number of averaged samples will be (h + 2) ^ 2, (t + 1) ^ 2
-//
 func (d *Device) Resolution(h uint8, t uint8) {
 	if h > 7 {
 		h = 3 // default

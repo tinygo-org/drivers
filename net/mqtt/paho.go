@@ -42,9 +42,11 @@ const (
 // with an MQTT server using non-blocking methods that allow work
 // to be done in the background.
 // An application may connect to an MQTT server using:
-//   A plain TCP socket
-//   A secure SSL/TLS socket
-//   A websocket
+//
+//	A plain TCP socket
+//	A secure SSL/TLS socket
+//	A websocket
+//
 // To enable ensured message delivery at Quality of Service (QoS) levels
 // described in the MQTT spec, a message persistence mechanism must be
 // used. This is done by providing a type which implements the Store

@@ -1,7 +1,6 @@
 // Package ssd1306 implements a driver for the SSD1306 led matrix controller, it comes in various colors and screen sizes.
 //
 // Datasheet: https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf
-//
 package ssd1306 // import "tinygo.org/x/drivers/ssd1306"
 
 import (

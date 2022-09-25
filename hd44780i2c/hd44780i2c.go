@@ -2,7 +2,6 @@
 // with an I2C adapter.
 //
 // Datasheet: https://www.sparkfun.com/datasheets/LCD/HD44780.pdf
-//
 package hd44780i2c
 
 import (

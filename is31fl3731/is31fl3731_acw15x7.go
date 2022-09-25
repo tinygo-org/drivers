@@ -16,29 +16,28 @@ type DeviceAdafruitCharlieWing15x7 struct {
 // enableLEDs enables only LEDs that are soldered on the Adafruit CharlieWing
 // board. The board has following LEDs matrix layout:
 //
-//   "o" - connected (soldered) LEDs
-//   "x" - not connected LEDs
+//	"o" - connected (soldered) LEDs
+//	"x" - not connected LEDs
 //
-//     + - - - - - - - - - - - - - - +
-//     | + - - - - - - - - - - - - + |
-//     | |                         | |
-//     | |                         v v
-//   +---------------------------------+
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | o o o o o o o o o o o o o o o x |
-//   | x x x x x x x x x x x x x x x x |
-//   +---------------------------------+
-//     ^ ^                         | |
-//     | |                 ... - - + |
-//     | + - - - - - - - - - - - - - +
-//     |
-//     start (address 0x00)
-//
+//	  + - - - - - - - - - - - - - - +
+//	  | + - - - - - - - - - - - - + |
+//	  | |                         | |
+//	  | |                         v v
+//	+---------------------------------+
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| o o o o o o o o o o o o o o o x |
+//	| x x x x x x x x x x x x x x x x |
+//	+---------------------------------+
+//	  ^ ^                         | |
+//	  | |                 ... - - + |
+//	  | + - - - - - - - - - - - - - +
+//	  |
+//	  start (address 0x00)
 func (d *DeviceAdafruitCharlieWing15x7) enableLEDs() (err error) {
 	for frame := FRAME_0; frame <= FRAME_7; frame++ {
 		err = d.selectCommand(frame)

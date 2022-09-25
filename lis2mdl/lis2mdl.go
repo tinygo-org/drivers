@@ -2,7 +2,6 @@
 // a magnetic sensor which is included on BBC micro:bit v1.5.
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lis2mdl.pdf
-//
 package lis2mdl // import "tinygo.org/x/drivers/lis2mdl"
 
 import (
