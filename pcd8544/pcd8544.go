@@ -1,7 +1,6 @@
 // Package pcd8544 implements a driver for the PCD8544 48x84 pixels matrix LCD, used in Nokia's 5110 and 3310 phones.
 //
 // Datasheet: http://eia.udg.edu/~forest/PCD8544_1.pdf
-//
 package pcd8544 // import "tinygo.org/x/drivers/pcd8544"
 
 import (

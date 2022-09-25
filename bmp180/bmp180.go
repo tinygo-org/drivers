@@ -3,7 +3,6 @@
 //
 // Datasheet:
 // https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
-//
 package bmp180 // import "tinygo.org/x/drivers/bmp180"
 
 import (

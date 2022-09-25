@@ -234,7 +234,6 @@ func (c *SerialConn) SetWriteDeadline(t time.Time) error {
 // ResolveTCPAddr returns an address of TCP end point.
 //
 // The network must be a TCP network name.
-//
 func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 	// TODO: make sure network is 'tcp'
 	// separate domain from port, if any
@@ -257,7 +256,6 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
 // ResolveUDPAddr returns an address of UDP end point.
 //
 // The network must be a UDP network name.
-//
 func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	// TODO: make sure network is 'udp'
 	// separate domain from port, if any

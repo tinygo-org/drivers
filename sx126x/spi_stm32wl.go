@@ -26,7 +26,7 @@ func New(spi drivers.SPI) *Device {
 	return &d
 }
 
-//SpiSetNss Sets the NSS line
+// SpiSetNss Sets the NSS line
 func (d *Device) SpiSetNss(state bool) {
 	if state {
 		stm32.PWR.SUBGHZSPICR.SetBits(stm32.PWR_SUBGHZSPICR_NSS)

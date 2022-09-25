@@ -1,5 +1,4 @@
 // Package buzzer provides a very simplistic driver for a connected buzzer or low-fidelity speaker.
-//
 package buzzer // import "tinygo.org/x/drivers/buzzer"
 
 import (

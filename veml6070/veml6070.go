@@ -5,7 +5,6 @@
 // https://www.vishay.com/docs/84277/veml6070.pdf
 // Application Notes:
 // https://www.vishay.com/docs/84310/designingveml6070.pdf
-//
 package veml6070 // import "tinygo.org/x/drivers/veml6070"
 
 import (

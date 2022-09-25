@@ -9,8 +9,6 @@ import (
 	"tinygo.org/x/drivers/ili9341"
 )
 
-var ()
-
 func InitDisplay() *ili9341.Device {
 	machine.SPI0.Configure(machine.SPIConfig{
 		SCK:       machine.SPI0_SCK_PIN,

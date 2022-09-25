@@ -3,7 +3,6 @@
 //
 // Datasheet:
 // https://cdn-shop.adafruit.com/datasheets/BST-BME280_DS001-10.pdf
-//
 package bme280
 
 import (
@@ -149,7 +148,8 @@ func (d *Device) ReadHumidity() (int32, error) {
 // ReadAltitude returns the current altitude in meters based on the
 // current barometric pressure and estimated pressure at sea level.
 // Calculation is based on code from Adafruit BME280 library
-// 	https://github.com/adafruit/Adafruit_BME280_Library
+//
+//	https://github.com/adafruit/Adafruit_BME280_Library
 func (d *Device) ReadAltitude() (alt int32, err error) {
 	mPa, _ := d.ReadPressure()
 	atmP := float32(mPa) / 100000

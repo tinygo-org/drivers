@@ -13,17 +13,16 @@
 // To use with other thermistors adjust the BCoefficient and NominalTemperature
 // values to match the specific thermistor you wish to use.
 //
-//			sensor.NominalTemperature = 25
-//			sensor.BCoefficient = 3950
+//	sensor.NominalTemperature = 25
+//	sensor.BCoefficient = 3950
 //
 // Set the SeriesResistor and NominalResistance based on the microcontroller voltage and
 // circuit that you have in use. Set HighSide based on if the thermistor is connected from
 // the ADC pin to the powered side (true) or to ground (false).
 //
-//			sensor.SeriesResistor = 10000
-//			sensor.NominalResistance = 10000
-//			sensor.HighSide = true
-//
+//	sensor.SeriesResistor = 10000
+//	sensor.NominalResistance = 10000
+//	sensor.HighSide = true
 package thermistor // import "tinygo.org/x/drivers/thermistor"
 
 import (

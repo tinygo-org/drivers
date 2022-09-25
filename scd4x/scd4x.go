@@ -5,7 +5,6 @@
 // This driver is heavily influenced by the scd4x code from Adafruit for CircuitPython:
 // https://github.com/adafruit/Adafruit_CircuitPython_SCD4X
 // Thank you!
-//
 package scd4x // import "tinygo.org/x/drivers/scd4x"
 
 import (

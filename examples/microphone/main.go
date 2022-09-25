@@ -2,7 +2,6 @@
 // to read data from the onboard MEMS microphone.
 //
 // Uses ideas from the https://github.com/adafruit/Adafruit_CircuitPlayground repo.
-//
 package main
 
 import (

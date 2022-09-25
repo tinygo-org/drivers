@@ -7,11 +7,12 @@
 //     https://www.adafruit.com/product/3163
 //
 // Datasheet:
-//    https://www.lumissil.com/assets/pdf/core/IS31FL3731_DS.pdf
+//
+//	https://www.lumissil.com/assets/pdf/core/IS31FL3731_DS.pdf
 //
 // This driver inspired by Adafruit Python driver:
-//    https://github.com/adafruit/Adafruit_CircuitPython_IS31FL3731
 //
+//	https://github.com/adafruit/Adafruit_CircuitPython_IS31FL3731
 package is31fl3731
 
 import (

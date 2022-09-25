@@ -1,7 +1,6 @@
 // Package lps22hb implements a driver for LPS22HB, a MEMS nano pressure sensor.
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/dm00140895.pdf
-//
 package lps22hb
 
 import (

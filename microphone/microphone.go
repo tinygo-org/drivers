@@ -2,7 +2,6 @@
 // For example, the Adafruit PDM MEMS breakout board (https://www.adafruit.com/product/3492)
 //
 // Datasheet: https://cdn-learn.adafruit.com/assets/assets/000/049/977/original/MP34DT01-M.pdf
-//
 package microphone // import "tinygo.org/x/drivers/microphone"
 
 import (
@@ -141,7 +140,6 @@ func (d *Device) GetSoundPressure() (int32, int32) {
 // for that sample.
 //
 // For more information: https://en.wikipedia.org/wiki/Sinc_filter
-//
 var sincfilter = [quantizeSteps]uint16{
 	0, 2, 9, 21, 39, 63, 94, 132,
 	179, 236, 302, 379, 467, 565, 674, 792,

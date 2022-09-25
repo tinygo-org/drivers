@@ -2,7 +2,6 @@
 // Measurement Unit (IMU)
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lsm6ds3.pdf
-//
 package lsm6ds3 // import "tinygo.org/x/drivers/lsm6ds3"
 
 import (

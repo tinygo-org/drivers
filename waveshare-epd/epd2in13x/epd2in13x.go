@@ -1,7 +1,6 @@
 // Package epd2in13x implements a driver for Waveshare 2.13in (B & C versions) tri-color e-paper device.
 //
 // Datasheet: https://www.waveshare.com/w/upload/d/d3/2.13inch-e-paper-b-Specification.pdf
-//
 package epd2in13x // import "tinygo.org/x/drivers/waveshare-epd/epd2in13x"
 
 import (

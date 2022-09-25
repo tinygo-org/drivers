@@ -2,7 +2,6 @@
 // typically used to control DC motors.
 //
 // Datasheet: https://www.ti.com/lit/ds/symlink/l293d.pdf
-//
 package l293x // import "tinygo.org/x/drivers/l293x"
 
 import (

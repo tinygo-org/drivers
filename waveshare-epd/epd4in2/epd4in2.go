@@ -1,11 +1,11 @@
 // Package epd4in2 implements a driver for Waveshare 4.2in black and white e-paper device.
 //
 // Derived from:
-//   https://github.com/tinygo-org/drivers/tree/master/waveshare-epd
-//   https://github.com/waveshare/e-Paper/blob/master/Arduino/epd4in2/epd4in2.cpp
+//
+//	https://github.com/tinygo-org/drivers/tree/master/waveshare-epd
+//	https://github.com/waveshare/e-Paper/blob/master/Arduino/epd4in2/epd4in2.cpp
 //
 // Datasheet: https://www.waveshare.com/wiki/4.2inch_e-Paper_Module
-//
 package epd4in2
 
 import (

@@ -1,8 +1,8 @@
 // Package st7789 implements a driver for the ST7789 TFT displays, it comes in various screen sizes.
 //
 // Datasheets: https://cdn-shop.adafruit.com/product-files/3787/3787_tft_QT154H2201__________20190228182902.pdf
-//             http://www.newhavendisplay.com/appnotes/datasheets/LCDs/ST7789V.pdf
 //
+//	http://www.newhavendisplay.com/appnotes/datasheets/LCDs/ST7789V.pdf
 package st7789 // import "tinygo.org/x/drivers/st7789"
 
 import (
@@ -176,7 +176,6 @@ func (d *Device) Sync() {
 // NOTE: Use GetHighestScanLine and GetLowestScanLine to obtain the highest
 // and lowest useful values. Values are affected by front and back porch
 // vsync settings (derived from VSyncLines configuration option).
-//
 func (d *Device) SyncToScanLine(scanline uint16) {
 	scan := d.GetScanLine()
 

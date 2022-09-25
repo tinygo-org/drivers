@@ -45,7 +45,7 @@ func (s Speaker) Stop() {
 // SetPeriod sets the period for the signal in nanoseconds. Use the following
 // formula to convert frequency to period:
 //
-//     period = 1e9 / frequency
+//	period = 1e9 / frequency
 //
 // You can also use s.SetNote() instead for MIDI note numbers.
 func (s Speaker) SetPeriod(period uint64) {

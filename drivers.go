@@ -3,22 +3,22 @@
 //
 // Here is an example in TinyGo that uses the BMP180 digital barometer:
 //
-// 	package main
+//	package main
 //
-// 	import (
+//	import (
 //		"time"
 //		"machine"
 //
-// 		"tinygo.org/x/drivers/bmp180"
-// 	)
+//		"tinygo.org/x/drivers/bmp180"
+//	)
 //
-// 	func main() {
+//	func main() {
 //		machine.I2C0.Configure(machine.I2CConfig{})
 //		sensor := bmp180.New(machine.I2C0)
 //		sensor.Configure()
 //
-// 		connected := sensor.Connected()
-// 		if !connected {
+//		connected := sensor.Connected()
+//		if !connected {
 //			println("BMP180 not detected")
 //			return
 //		}
@@ -38,5 +38,4 @@
 // Each individual driver is contained within its own sub-package within this package and
 // there are no interdependencies in order to minimize the final size of compiled code that
 // uses any of these drivers.
-//
 package drivers // import "tinygo.org/x/drivers"
