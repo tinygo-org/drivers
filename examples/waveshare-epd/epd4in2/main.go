@@ -18,7 +18,7 @@ func main() {
 		Mode:      0,
 	})
 
-	display = epd4in2.New(machine.SPI0, machine.P6, machine.P7, machine.P8, machine.P9)
+	display = epd4in2.New(machine.SPI0, machine.GPIO6, machine.GPIO7, machine.GPIO8, machine.GPIO9)
 	display.Configure(epd4in2.Config{})
 
 	black := color.RGBA{1, 1, 1, 255}

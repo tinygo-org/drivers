@@ -16,7 +16,7 @@ func main() {
 		Mode:      0,
 	})
 
-	display = epd2in13x.New(machine.SPI0, machine.P6, machine.P7, machine.P8, machine.P9)
+	display = epd2in13x.New(machine.SPI0, machine.GPIO6, machine.GPIO7, machine.GPIO8, machine.GPIO9)
 	display.Configure(epd2in13x.Config{})
 
 	white := color.RGBA{0, 0, 0, 255}
