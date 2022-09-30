@@ -106,7 +106,6 @@ func sendBatch() {
 		println("error:", err.Error(), "\r")
 	}
 
-	// Right now this code is never reached. Need a way to trigger it...
 	println("Disconnecting TCP...")
 	conn.Close()
 }
