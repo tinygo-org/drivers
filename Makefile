@@ -209,6 +209,8 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/timer/
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pico ./examples/qmi8658c/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/ina260/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=nucleo-l432kc ./examples/aht20/main.go
