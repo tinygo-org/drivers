@@ -1,3 +1,34 @@
+0.23.0
+---
+- **new devices**
+    - Add GC9A01 Driver (#452)
+    - Initial support for VL6180x sensor
+
+- **enhancements**
+    - **rtl8720dn**
+        - refactor by bringing this driver more in line with wifinina and espat
+    - **ssd1306**
+        - add getter method to the current buffer
+    - **makeybutton**
+        - revise to better match the algorithm defined by the original
+    - **espat,wifinina,rtl8720dn**
+        - change ssid/pass from const to var
+
+- **bugfixes**
+    - **microbitmatrix**
+        - fix inverted axis
+    - **espat**
+        - Trim quotes from IP returned by espat's GetDNS()
+    - **all**
+        - correct go fmt
+
+- **examples**
+    - **rtl8720dn**
+        - remove wifi setting
+        - add call to optional debug setting
+        - update all remaining examples for refactored API
+
+
 0.22.0
 ---
 - **new devices**
