@@ -69,7 +69,7 @@ func DefaultConfig() (cfg Config) {
 	}
 }
 
-// Check if the usar has defined a desired configuration, if not uses the
+// Check if the user has defined a desired configuration, if not uses the
 // DefaultConfig, then defines the AccLsbDiv and GyroLsbDiv based on the
 // configurations and, finally, send the commands and configure the IMU.
 func (d *Device) Configure(cfg Config) {
@@ -164,13 +164,17 @@ func (d *Device) ReadRotation() (x int32, y int32, z int32) {
 	return x, y, z
 }
 
-// Read the temperature from the sensor, the values returned are in Celsius.
-func (d *Device) ReadTemperature() (t float32) {
+// Read the temperature from the sensor, the values returned are in
+// millidegrees Celsius.
+func (d *Device) ReadTemperature() (int32, error) {
 	data := make([]byte, 2)
-	d.ReadRegister(TEMP_OUT_L, data)
+	err := d.ReadRegister(TEMP_OUT_L, data)
+	if err != nil {
+		return 0, err
+	}
 	raw := uint16(data[1])<<8 | uint16(data[0])
-	t = float32(raw) / 256
-	return t
+	t := int32(raw) * 1000 / 256
+	return t, err
 }
 
 // Convenience method to read the register and avoid repetition.

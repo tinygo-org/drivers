@@ -56,7 +56,7 @@ func main() {
 	for {
 		acc_x, acc_y, acc_z := d.ReadAcceleration()
 		gyro_x, gyro_y, gyro_z := d.ReadRotation()
-		temp := d.ReadTemperature()
+		temp, _ := d.ReadTemperature()
 		println("-------------------------------")
 		println("acc:", acc_x, acc_y, acc_z)
 		println("gyro:", gyro_x, gyro_y, gyro_z)
