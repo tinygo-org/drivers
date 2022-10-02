@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 83 devices are supported.
+The following 90 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -112,6 +112,7 @@ The following 83 devices are supported.
 | [P1AM-100 Base Controller](https://facts-engineering.github.io/modules/P1AM-100/P1AM-100.html)                                                                                                      | SPI |
 | [PCD8544 display](http://eia.udg.edu/~forest/PCD8544_1.pdf)                                                                                                                                         | SPI |
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf)                                                                                                                       | I2C |
+| [QMI8658C accelerometer/gyroscope](https://www.qstcorp.com/upload/pdf/202202/%EF%BC%88%E5%B7%B2%E4%BC%A0%EF%BC%89QMI8658C%20datasheet%20rev%200.9.pdf)                                                                                                                       | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf)                                                                                                        | GPIO |
 | [RTL8720DN 2.4G/5G Dual Bands Wireless and BLE5.0](https://www.seeedstudio.com/Realtek8720DN-2-4G-5G-Dual-Bands-Wireless-and-BLE5-0-Combo-Module-p-4442.html)                                       | UART |
 | [SCD4x CO2 Sensor](https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf)                                                                                      | I2C |
