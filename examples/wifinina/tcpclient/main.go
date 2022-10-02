@@ -67,7 +67,7 @@ func main() {
 func sendBatch() {
 
 	// make TCP connection
-	ip := net.ParseIP(serverIP)
+	ip := net.IP([]byte(serverIP))
 	raddr := &net.TCPAddr{IP: ip, Port: 8080}
 	laddr := &net.TCPAddr{Port: 8080}
 
