@@ -70,7 +70,6 @@ func (d *Device) Display() error {
 			if d.buffer[row][col] {
 				d.pin[col].Low()
 			}
-
 		}
 		time.Sleep(time.Millisecond * 2)
 	}
@@ -104,9 +103,4 @@ func (d *Device) EnableAll() {
 	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
 		d.pin[i-machine.LED_COL_1].High()
 	}
-}
-
-// Size returns the current size of the display.
-func (d *Device) Size() (w, h int16) {
-	return 5, 5
 }

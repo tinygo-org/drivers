@@ -114,8 +114,3 @@ func (d *Device) EnableAll() {
 		d.pin[5+i].High()
 	}
 }
-
-// Size returns the current size of the display.
-func (d *Device) Size() (w, h int16) {
-	return 5, 5
-}
