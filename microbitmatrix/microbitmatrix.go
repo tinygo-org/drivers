@@ -40,3 +40,8 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 	}
 	return d.buffer[matrixRotations[d.rotation][y][x][0]][matrixRotations[d.rotation][y][x][1]]
 }
+
+// Size returns the current size of the display.
+func (d *Device) Size() (w, h int16) {
+	return 5, 5
+}
