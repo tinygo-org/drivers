@@ -3,7 +3,7 @@
 
 // Package microbitmatrix implements a driver for the BBC micro:bit version 2 LED matrix.
 //
-// Schematic:
+// Schematic: https://github.com/microbit-foundation/microbit-v2-hardware/blob/main/V2.00/MicroBit_V2.0.0_S_schematic.PDF
 package microbitmatrix // import "tinygo.org/x/drivers/microbitmatrix"
 
 import (
@@ -84,7 +84,6 @@ func (d *Device) Display() error {
 			} else {
 				d.pin[5+y].Low()
 			}
-
 		}
 		time.Sleep(time.Millisecond * 4)
 	}
