@@ -52,7 +52,7 @@ const (
 
 type Device struct {
 	pin      [ledCols + ledRows]machine.Pin
-	buffer   [ledRows][ledCols]bool
+	buffer   [ledRows][ledCols]int8
 	rotation uint8
 }
 
