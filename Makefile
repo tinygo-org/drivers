@@ -103,6 +103,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/microbitmatrix/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=microbit-v2 ./examples/microbitmatrix/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mma8653/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mpu6050/main.go
