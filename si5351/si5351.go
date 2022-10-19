@@ -142,7 +142,6 @@ func (d *Device) DisableOutputs() (err error) {
 // (only use the a part, setting b to '0' and c to '1').
 //
 // See: http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
-//
 func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) (err error) {
 
 	// Basic validation
@@ -236,23 +235,26 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) (
 // output    The output channel to use (0..2)
 //
 // pll       The PLL input source to use, which must be one of:
-//           - PLL_A
-//           - PLL_B
+//   - PLL_A
+//   - PLL_B
 //
 // div       The integer divider for the Multisynth output.
-//           If pure integer values are used, this value must be one of:
-//           - MULTISYNTH_DIV_4
-//           - MULTISYNTH_DIV_6
-//           - MULTISYNTH_DIV_8
-//           If fractional output is used, this value must be between 8 and 900.
+//
+//	If pure integer values are used, this value must be one of:
+//	- MULTISYNTH_DIV_4
+//	- MULTISYNTH_DIV_6
+//	- MULTISYNTH_DIV_8
+//	If fractional output is used, this value must be between 8 and 900.
 //
 // num       The 20-bit numerator for fractional output (0..1,048,575).
-//           Set this to '0' for integer output.
+//
+//	Set this to '0' for integer output.
 //
 // denom     The 20-bit denominator for fractional output (1..1,048,575).
-//           Set this to '1' or higher to avoid divide by zero errors.
 //
-// Output Clock Configuration
+//	Set this to '1' or higher to avoid divide by zero errors.
+//
+// # Output Clock Configuration
 //
 // The multisynth dividers are applied to the specified PLL output,
 // and are used to reduce the PLL output to a valid range (500kHz
@@ -273,12 +275,14 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) (
 //
 // NOTE: Try to use integers whenever possible to avoid clock jitter
 // NOTE: For output frequencies > 150MHz, you must set the divider
-//       to 4 and adjust to PLL to generate the frequency (for example
-//       a PLL of 640 to generate a 160MHz output clock). This is not
-//       yet supported in the driver, which limits frequencies to 500kHz .. 150MHz.
-// NOTE: For frequencies below 500kHz (down to 8kHz) Rx_DIV must be
-//       used, but this isn't currently implemented in the driver.
 //
+//	to 4 and adjust to PLL to generate the frequency (for example
+//	a PLL of 640 to generate a 160MHz output clock). This is not
+//	yet supported in the driver, which limits frequencies to 500kHz .. 150MHz.
+//
+// NOTE: For frequencies below 500kHz (down to 8kHz) Rx_DIV must be
+//
+//	used, but this isn't currently implemented in the driver.
 func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num uint32, denom uint32) (err error) {
 
 	// Basic validation
