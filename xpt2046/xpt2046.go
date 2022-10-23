@@ -27,6 +27,7 @@ type Config struct {
 
 func New(t_clk, t_cs, t_din, t_dout, t_irq machine.Pin) Device {
 	return Device{
+		bus:       nil,
 		precision: 10,
 		t_clk:     t_clk,
 		t_cs:      t_cs,
