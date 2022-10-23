@@ -166,15 +166,18 @@ func (d *Device) ReadTouchPoint() touch.Point {
 	tx := uint32(0)
 	ty := uint32(0)
 	tz := uint32(0)
+	rx := uint32(0)
+	ry := uint32(0)
+	rz := uint32(0)
 	sampleCount := uint8(0)
 
 	d.t_cs.Low()
 
 	for ; sampleCount < d.precision && d.Touched(); sampleCount++ {
-		if d.SPI != nil {
-			rx, ry, rz := d.readRawSPI()
+		if d.bus != nil {
+			rx, ry, rz = d.readRawSPI()
 		} else {
-			rx, ry, rz := d.readRaw()
+			rx, ry, rz = d.readRaw()
 		}
 		tx += uint32(rx)
 		ty += uint32(ry)
