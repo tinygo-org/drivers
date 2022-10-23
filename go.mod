@@ -1,4 +1,5 @@
-module tinygo.org/x/drivers
+// module tinygo.org/x/drivers
+module github.com/gregoster/tinygo-drivers
 
 go 1.15
 
