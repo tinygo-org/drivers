@@ -72,7 +72,7 @@ func (d *Device) Configure(config *Config) error {
 	return nil
 }
 
-func (d *Device) Configure(config *Config) error {
+func (d *Device) ConfigureSPI(config *Config) error {
 
 	if config.Precision == 0 {
 		d.precision = 10
