@@ -180,14 +180,17 @@ func (d *Device) ReadTouchPoint() touch.Point {
 	}
 
 	for ; sampleCount < d.precision && d.Touched(); sampleCount++ {
-		if d.bus != nil {
-			rx, ry, rz = d.readRawSPI()
-		} else {
+		if d.bus == nil {
 			rx, ry, rz = d.readRaw()
+		} else {
+			rx, ry, rz = d.readRawSPI()
 		}
 		tx += uint32(rx)
 		ty += uint32(ry)
 		tz += uint32(rz)
+		if d.bus != nil {
+			time.Sleep(200*time.Microsecond)
+		}
 	}
 	if d.bus == nil {
 		d.t_cs.High()
