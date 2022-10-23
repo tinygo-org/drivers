@@ -11,12 +11,12 @@ import (
 )
 
 type Device struct {
-	bus    drivers.SPI
+	bus drivers.SPI
 	//	t_clk  machine.Pin - Using SPI
-	t_cs   machine.Pin
+	t_cs machine.Pin
 	//	t_din  machine.Pin - Using SPI
 	//	t_dout machine.Pin - Using SPI
-	t_irq  machine.Pin
+	t_irq machine.Pin
 
 	precision uint8
 }
@@ -28,7 +28,7 @@ type Config struct {
 func New(bus drivers.SPI, t_cs, t_irq machine.Pin) Device {
 	t_cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	t_irq.Configure(machine.PinConfig{Mode: machine.PinInput})
-	
+
 	return Device{
 		bus:       bus,
 		precision: 10,
@@ -68,10 +68,10 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 
 // Rx reads data from the touchpad
 func (d *Device) Rx(command uint8, data []byte) {
-	cmd := make([]byte,len(data))
+	cmd := make([]byte, len(data))
 	cmd[0] = command
 	d.t_cs.Low()
-	d.bus.Tx(cmd,data)
+	d.bus.Tx(cmd, data)
 	d.t_cs.High()
 }
 
@@ -91,13 +91,13 @@ func (d *Device) ReadTouchPoint() touch.Point {
 	ty := uint32(0)
 	tz := uint32(0)
 	sampleCount := uint8(0)
-	
+
 	for ; sampleCount < d.precision && d.Touched(); sampleCount++ {
 		rx, ry, rz := d.readRaw()
 		tx += uint32(rx)
 		ty += uint32(ry)
 		tz += uint32(rz)
-		time.Sleep(200*time.Microsecond)
+		time.Sleep(200 * time.Microsecond)
 	}
 	if sampleCount > 0 {
 		x := int(tx / uint32(sampleCount))
@@ -124,7 +124,7 @@ func (d *Device) Touched() bool {
 
 func (d *Device) readRaw() (int32, int32, int32) {
 
-	data := make([]byte,4)
+	data := make([]byte, 4)
 
 	//S       = 1    --> Required Control bit
 	//A2-A0   = 101  --> X-Position
@@ -132,17 +132,17 @@ func (d *Device) readRaw() (int32, int32, int32) {
 	//SER/DFR = 0    --> Differential preferred for X,Y position
 	//PD1-PD0 = 00   --> Powerdown and enable PEN_IRQ
 
-	d.Rx(0xD0,data)
-	tx := int32((uint16(data[1])<<8 | uint16(data[2])) >>3) // 7 bits come from data[1], remaining 5 from top of data[2]
-	
+	d.Rx(0xD0, data)
+	tx := int32((uint16(data[1])<<8 | uint16(data[2])) >> 3) // 7 bits come from data[1], remaining 5 from top of data[2]
+
 	//S       = 1    --> Required Control bit
 	//A2-A0   = 001  --> Y-Position
 	//MODE    = 0    --> 12 bit conversion
 	//SER/DFR = 0    --> Differential preferred for X,Y position
 	//PD1-PD0 = 00   --> Powerdown and enable PEN_IRQ
 
-	d.Rx(0x90,data)
-	ty := int32((uint16(data[1])<<8 | uint16(data[2])) >>3) // 7 bits come from data[0], remaining 5 from top of data[1]
+	d.Rx(0x90, data)
+	ty := int32((uint16(data[1])<<8 | uint16(data[2])) >> 3) // 7 bits come from data[0], remaining 5 from top of data[1]
 
 	//S       = 1    --> Required Control bit
 	//A2-A0   = 011  --> Z1-position (pressure)
@@ -150,8 +150,8 @@ func (d *Device) readRaw() (int32, int32, int32) {
 	//SER/DFR = 0    --> Differential preferred for pressure
 	//PD1-PD0 = 00   --> Powerdown and enable PEN_IRQ
 
-	d.Rx(0xB0,data)
-	tz1 := int32((uint16(data[1])<<8 | uint16(data[2])) >>3) // 7 bits come from data[0], remaining 5 from top of data[1]
+	d.Rx(0xB0, data)
+	tz1 := int32((uint16(data[1])<<8 | uint16(data[2])) >> 3) // 7 bits come from data[0], remaining 5 from top of data[1]
 
 	//S       = 1    --> Required Control bit
 	//A2-A0   = 100  --> Z2-position (pressure)
@@ -159,8 +159,8 @@ func (d *Device) readRaw() (int32, int32, int32) {
 	//SER/DFR = 0    --> Differential preferred for pressure
 	//PD1-PD0 = 00   --> Powerdown and enable PEN_IRQ
 
-	d.Rx(0xC0,data)
-	tz2 := int32((uint16(data[1])<<8 | uint16(data[2])) >>3) // 7 bits come from data[0], remaining 5 from top of data[1]
+	d.Rx(0xC0, data)
+	tz2 := int32((uint16(data[1])<<8 | uint16(data[2])) >> 3) // 7 bits come from data[0], remaining 5 from top of data[1]
 
 	tz := int32(0)
 	if tz1 != 0 {
