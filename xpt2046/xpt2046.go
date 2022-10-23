@@ -168,7 +168,7 @@ func (d *Device) ReadTouchPoint() touch.Point {
 	tz := uint32(0)
 	rx := int32(0)
 	ry := int32(0)
-	rz := uint32(0)
+	rz := int32(0)
 	sampleCount := uint8(0)
 
 	d.t_cs.Low()
