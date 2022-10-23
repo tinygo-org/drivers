@@ -104,7 +104,8 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 }
 
 // Rx reads data from the touchpad
-func (d *Device) Rx(command uint8, data []byte) {
+func (d *Device) Rx(command uint8, data []byte) {	
+	// XXX only valid for SPI
 	cmd := make([]byte,len(data))
 	cmd[0] = command
 	d.t_cs.Low()
@@ -114,11 +115,13 @@ func (d *Device) Rx(command uint8, data []byte) {
 
 // Command sends a command to the touch screen.
 func (d *Device) Command(command uint8) {
+	// XXX only valid for SPI
 	d.Tx([]byte{command}, true)
 }
 
 // Data sends data to the touch screen. // XXX needed?
 func (d *Device) Data(data uint8) {
+	// XXX only valid for SPI
 	d.Tx([]byte{data}, false)
 }
 
@@ -172,7 +175,9 @@ func (d *Device) ReadTouchPoint() touch.Point {
 	rz := int32(0)
 	sampleCount := uint8(0)
 
-	d.t_cs.Low()
+	if d.bus == nil {
+		d.t_cs.Low()
+	}
 
 	for ; sampleCount < d.precision && d.Touched(); sampleCount++ {
 		if d.bus != nil {
@@ -184,7 +189,9 @@ func (d *Device) ReadTouchPoint() touch.Point {
 		ty += uint32(ry)
 		tz += uint32(rz)
 	}
-	d.t_cs.High()
+	if d.bus == nil {
+		d.t_cs.High()
+	}
 
 	if sampleCount > 0 {
 		x := int(tx / uint32(sampleCount))
