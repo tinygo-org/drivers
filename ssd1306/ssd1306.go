@@ -45,9 +45,9 @@ type SPIBus struct {
 }
 
 type Buser interface {
-	configure()
-	tx(data []byte, isCommand bool)
-	setAddress(address uint16)
+	configure() error
+	tx(data []byte, isCommand bool) error
+	setAddress(address uint16) error
 }
 
 type VccMode uint8
@@ -193,8 +193,7 @@ func (d *Device) Display() error {
 		d.Command(uint8(d.height/8) - 1)
 	}
 
-	d.Tx(d.buffer, false)
-	return nil
+	return d.Tx(d.buffer, false)
 }
 
 // SetPixel enables or disables a pixel in the buffer
@@ -244,21 +243,23 @@ func (d *Device) Command(command uint8) {
 }
 
 // setAddress sets the address to the I2C bus
-func (b *I2CBus) setAddress(address uint16) {
+func (b *I2CBus) setAddress(address uint16) error {
 	b.Address = address
+	return nil
 }
 
 // setAddress does nothing, but it's required to avoid reflection
-func (b *SPIBus) setAddress(address uint16) {
+func (b *SPIBus) setAddress(address uint16) error {
 	// do nothing
 	println("trying to Configure an address on a SPI device")
+	return nil
 }
 
 // configure does nothing, but it's required to avoid reflection
-func (b *I2CBus) configure() {}
+func (b *I2CBus) configure() error { return nil }
 
 // configure configures some pins with the SPI bus
-func (b *SPIBus) configure() {
+func (b *SPIBus) configure() error {
 	b.csPin.Low()
 	b.dcPin.Low()
 	b.resetPin.Low()
@@ -268,31 +269,35 @@ func (b *SPIBus) configure() {
 	b.resetPin.Low()
 	time.Sleep(10 * time.Millisecond)
 	b.resetPin.High()
+
+	return nil
 }
 
 // Tx sends data to the display
-func (d *Device) Tx(data []byte, isCommand bool) {
-	d.bus.tx(data, isCommand)
+func (d *Device) Tx(data []byte, isCommand bool) error {
+	return d.bus.tx(data, isCommand)
 }
 
 // tx sends data to the display (I2CBus implementation)
-func (b *I2CBus) tx(data []byte, isCommand bool) {
+func (b *I2CBus) tx(data []byte, isCommand bool) error {
 	if isCommand {
-		legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
+		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
 	} else {
-		legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
+		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
 	}
 }
 
 // tx sends data to the display (SPIBus implementation)
-func (b *SPIBus) tx(data []byte, isCommand bool) {
+func (b *SPIBus) tx(data []byte, isCommand bool) error {
+	var err error
+
 	if isCommand {
 		b.csPin.High()
 		time.Sleep(1 * time.Millisecond)
 		b.dcPin.Low()
 		b.csPin.Low()
 
-		b.wire.Tx(data, nil)
+		err = b.wire.Tx(data, nil)
 		b.csPin.High()
 	} else {
 		b.csPin.High()
@@ -300,9 +305,11 @@ func (b *SPIBus) tx(data []byte, isCommand bool) {
 		b.dcPin.High()
 		b.csPin.Low()
 
-		b.wire.Tx(data, nil)
+		err = b.wire.Tx(data, nil)
 		b.csPin.High()
 	}
+
+	return err
 }
 
 // Size returns the current size of the display.
