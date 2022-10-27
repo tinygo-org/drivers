@@ -19,10 +19,11 @@ type DistanceMode uint8
 type RangeStatus uint8
 
 type rangingData struct {
-	mm              uint16
-	status          RangeStatus
-	signalRateMCPS  int32 //MCPS : Mega Count Per Second
-	ambientRateMCPS int32
+	mm                 uint16
+	status             RangeStatus
+	signalRateMCPS     int32 //MCPS : Mega Count Per Second
+	ambientRateMCPS    int32
+	effectiveSPADCount uint16
 }
 
 type resultBuffer struct {
@@ -337,6 +338,11 @@ func (d *Device) AmbientRate() int32 {
 	return d.rangingData.ambientRateMCPS
 }
 
+// EffectiveSPADCount returns the effective number of SPADs
+func (d *Device) EffectiveSPADCount() uint16 {
+	return d.rangingData.effectiveSPADCount
+}
+
 // getRangingData stores in the buffer the ranging data
 func (d *Device) getRangingData() {
 	d.rangingData.mm = uint16((uint32(d.results.mmCrosstalkSD0)*2011 + 0x0400) / 0x0800)
@@ -384,6 +390,7 @@ func (d *Device) getRangingData() {
 
 	d.rangingData.signalRateMCPS = 1000000 * int32(d.results.signalRateCrosstalkMCPSSD0) / (1 << 7)
 	d.rangingData.ambientRateMCPS = 1000000 * int32(d.results.ambientRateMCPSSD0) / (1 << 7)
+	d.rangingData.effectiveSPADCount = d.results.effectiveSPADCount
 }
 
 // setupManualCalibration configures the manual calibration
