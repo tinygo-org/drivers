@@ -46,7 +46,7 @@ func New(t_clk, t_cs, t_din, t_dout, t_irq machine.Pin) Device {
 }
 
 // Create a new SPI-based device.  GPIO not available for this instance
-// when SPI is used.  
+// when SPI is used.
 func NewSPI(bus drivers.SPI, t_cs, t_irq machine.Pin) Device {
 	return Device{
 		bus:       bus,
@@ -103,7 +103,7 @@ func (d *Device) ConfigureSPI(config *Config) error {
 	//MODE    = 0    --> 12 bit conversion
 	//SER/DFR = 0    --> Differential preferred for pressure
 	//PD1-PD0 = 10   --> Powerdown and enable PEN_IRQ
-	d.tx([]byte{0x80})  // make sure PD1 is cleared on start
+	d.tx([]byte{0x80}) // make sure PD1 is cleared on start
 	return nil
 }
 
