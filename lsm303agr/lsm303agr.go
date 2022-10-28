@@ -137,7 +137,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_X_L_A, data)
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_AUTO_INC, data)
 	if err != nil {
 		return
 	}
@@ -190,7 +190,7 @@ func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 	}
 
 	data := d.buf[0:6]
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_X_L_M, data)
+	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_AUTO_INC, data)
 
 	x = int32(int16((uint16(data[1])<<8 | uint16(data[0]))))
 	y = int32(int16((uint16(data[3])<<8 | uint16(data[2]))))
@@ -219,7 +219,7 @@ func (d *Device) ReadCompass() (h int32, err error) {
 func (d *Device) ReadTemperature() (t int32, err error) {
 
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L_A, data)
+	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_AUTO_INC, data)
 	if err != nil {
 		return
 	}
