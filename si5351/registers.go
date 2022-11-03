@@ -47,14 +47,14 @@ const (
 )
 
 const (
-	R_DIV_1   = 0
-	R_DIV_2   = 1
-	R_DIV_4   = 2
-	R_DIV_8   = 3
-	R_DIV_16  = 4
-	R_DIV_32  = 5
-	R_DIV_64  = 6
-	R_DIV_128 = 7
+	R_DIV_1 = iota
+	R_DIV_2
+	R_DIV_4
+	R_DIV_8
+	R_DIV_16
+	R_DIV_32
+	R_DIV_64
+	R_DIV_128
 )
 
 const (
