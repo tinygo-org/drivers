@@ -45,18 +45,18 @@ func (d *Device) ListenAndServe(addr string, handler http.Handler) error {
 // Server stuff
 
 type server struct {
-	device   *Device
-	handler  http.Handler
-	sock     uint8
-	clients  map[uint8]*client // keyed by client sock
+	device  *Device
+	handler http.Handler
+	sock    uint8
+	clients map[uint8]*client // keyed by client sock
 }
 
 func newServer(device *Device, handler http.Handler) *server {
 	return &server{
-		device:   device,
-		handler:  handler,
-		sock:     NoSocketAvail,
-		clients:  make(map[uint8]*client),
+		device:  device,
+		handler: handler,
+		sock:    NoSocketAvail,
+		clients: make(map[uint8]*client),
 	}
 }
 
@@ -234,11 +234,11 @@ func (c *client) handleHTTP() error {
 	for {
 
 		// TODO use Server.ReadTimeout
-		if time.Since(start) > 1 * time.Second {
+		if time.Since(start) > 1*time.Second {
 			return fmt.Errorf("ReadTimeout")
 		}
 
-		n , err := c.device.GetDataBuf(c.sock, c.readBuf[:])
+		n, err := c.device.GetDataBuf(c.sock, c.readBuf[:])
 		if err != nil {
 			return fmt.Errorf("GetDataBuf: %s", err)
 		}
@@ -274,7 +274,7 @@ func (c *client) handleHTTP() error {
 		}
 
 		length, _ := strconv.Atoi(v)
-		if end + length == len(bytesSoFar) {
+		if end+length == len(bytesSoFar) {
 			// got the whole body
 			body := bytes.NewReader(bytesSoFar[end:])
 			c.req.Body = io.NopCloser(body)

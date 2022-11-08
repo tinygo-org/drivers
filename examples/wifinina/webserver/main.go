@@ -23,8 +23,8 @@ import (
 //
 
 var (
-	ssid  string
-	pass  string
+	ssid string
+	pass string
 )
 
 var led = machine.LED
