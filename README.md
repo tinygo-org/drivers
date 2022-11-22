@@ -112,7 +112,7 @@ The following 90 devices are supported.
 | [P1AM-100 Base Controller](https://facts-engineering.github.io/modules/P1AM-100/P1AM-100.html)                                                                                                      | SPI |
 | [PCD8544 display](http://eia.udg.edu/~forest/PCD8544_1.pdf)                                                                                                                                         | SPI |
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf)                                                                                                                       | I2C |
-| [QMI8658C accelerometer/gyroscope](https://www.qstcorp.com/upload/pdf/202202/%EF%BC%88%E5%B7%B2%E4%BC%A0%EF%BC%89QMI8658C%20datasheet%20rev%200.9.pdf)                                                                                                                       | I2C |
+| [QMI8658C accelerometer/gyroscope](https://www.qstcorp.com/upload/pdf/202202/%EF%BC%88%E5%B7%B2%E4%BC%A0%EF%BC%89QMI8658C%20datasheet%20rev%200.9.pdf)                                              | I2C |
 | [Resistive Touchscreen (4-wire)](http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf)                                                                                                        | GPIO |
 | [RTL8720DN 2.4G/5G Dual Bands Wireless and BLE5.0](https://www.seeedstudio.com/Realtek8720DN-2-4G-5G-Dual-Bands-Wireless-and-BLE5-0-Combo-Module-p-4442.html)                                       | UART |
 | [SCD4x CO2 Sensor](https://sensirion.com/media/documents/C4B87CE6/627C2DCD/CD_DS_SCD40_SCD41_Datasheet_D1.pdf)                                                                                      | I2C |
@@ -141,10 +141,10 @@ The following 90 devices are supported.
 | [Waveshare 2.13" e-paper display](https://www.waveshare.com/w/upload/e/e6/2.13inch_e-Paper_Datasheet.pdf)                                                                                           | SPI |
 | [Waveshare 2.9" e-paper display (V1)](https://www.waveshare.com/w/upload/e/e6/2.9inch_e-Paper_Datasheet.pdf)                                                                                        | SPI |
 | [Waveshare 4.2" e-paper B/W display](https://www.waveshare.com/w/upload/6/6a/4.2inch-e-paper-specification.pdf)                                                                                     | SPI |
-| [Waveshare GC9A01 TFT round display](https://www.waveshare.com/w/upload/5/5e/GC9A01A.pdf)                                                                             | SPI |
+| [Waveshare GC9A01 TFT round display](https://www.waveshare.com/w/upload/5/5e/GC9A01A.pdf)                                                                                                           | SPI |
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf)                                                                                                                               | GPIO |
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
-| [Semtech SX126x Lora](https://www.semtech.com/products/wireless-rf/lora-transceiv-ers/sx1261)                                                                                                       | SPI |
+| [Semtech SX126x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1261)                                                                                                             | SPI |
 | [SSD1289 TFT color display](http://aitendo3.sakura.ne.jp/aitendo_data/product_img/lcd/tft2/M032C1289TP/3.2-SSD1289.pdf)                                                                             | GPIO |
 
 ## Contributing
