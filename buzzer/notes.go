@@ -1,9 +1,9 @@
 package buzzer
 
 const (
-	Whole   = 4
-	Half    = 2
-	Quarter = 1
+	Whole   = 4.0
+	Half    = 2.0
+	Quarter = 1.0
 	Eighth  = 0.500
 )
 
