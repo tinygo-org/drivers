@@ -25,17 +25,39 @@ func (c *Client) Do(req *Request) (*Response, error) {
 			req.AddCookie(cookie)
 		}
 	}
+
+	res, err := c.Transport.RoundTrip(req)
+
+	if c.Jar != nil {
+		if rc := res.Cookies(); len(rc) > 0 {
+			c.Jar.SetCookies(req.URL, rc)
+		}
+	}
+
+	return res, err
+}
+
+type Transport struct {
+}
+
+var DefaultTransport RoundTripper
+
+func init() {
+	DefaultTransport = &Transport{}
+}
+
+func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	switch req.URL.Scheme {
 	case "http":
-		return c.doHTTP(req)
+		return t.doHTTP(req)
 	case "https":
-		return c.doHTTPS(req)
+		return t.doHTTPS(req)
 	default:
 		return nil, fmt.Errorf("invalid schemer : %s", req.URL.Scheme)
 	}
 }
 
-func (c *Client) doHTTP(req *Request) (*Response, error) {
+func (t *Transport) doHTTP(req *Request) (*Response, error) {
 	// make TCP connection
 	ip := net.ParseIP(req.URL.Hostname())
 	port := 80
@@ -106,10 +128,10 @@ func (c *Client) doHTTP(req *Request) (*Response, error) {
 
 	}
 
-	return c.doResp(conn, req)
+	return t.doResp(conn, req)
 }
 
-func (c *Client) doHTTPS(req *Request) (*Response, error) {
+func (t *Transport) doHTTPS(req *Request) (*Response, error) {
 	conn, err := tls.Dial("tcp", req.URL.Host, nil)
 	retry := 0
 	for ; err != nil; conn, err = tls.Dial("tcp", req.URL.Host, nil) {
@@ -167,10 +189,10 @@ func (c *Client) doHTTPS(req *Request) (*Response, error) {
 
 	}
 
-	return c.doResp(conn, req)
+	return t.doResp(conn, req)
 }
 
-func (c *Client) doResp(conn net.Conn, req *Request) (*Response, error) {
+func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 	resp := &Response{
 		Header: map[string][]string{},
 	}
@@ -256,11 +278,6 @@ func (c *Client) doResp(conn net.Conn, req *Request) (*Response, error) {
 	remain -= int64(ofs)
 	if remain <= 0 {
 		resp.Body = io.NopCloser(bytes.NewReader(buf[:ofs]))
-		if c.Jar != nil {
-			if rc := resp.Cookies(); len(rc) > 0 {
-				c.Jar.SetCookies(req.URL, rc)
-			}
-		}
 		return resp, conn.Close()
 	}
 
@@ -295,12 +312,6 @@ func (c *Client) doResp(conn net.Conn, req *Request) (*Response, error) {
 					return nil, fmt.Errorf("time out")
 				}
 			}
-		}
-	}
-
-	if c.Jar != nil {
-		if rc := resp.Cookies(); len(rc) > 0 {
-			c.Jar.SetCookies(req.URL, rc)
 		}
 	}
 
