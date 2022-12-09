@@ -11,6 +11,7 @@ package dht // import "tinygo.org/x/drivers/dht"
 
 import (
 	"machine"
+	"runtime/interrupt"
 	"time"
 )
 
@@ -160,8 +161,8 @@ func (t *device) read() error {
 // interrupts
 func receiveSignals(pin machine.Pin, result []counter) {
 	i := uint8(0)
-	machine.UART1.Interrupt.Disable()
-	defer machine.UART1.Interrupt.Enable()
+	mask := interrupt.Disable()
+	defer interrupt.Restore(mask)
 	for ; i < 40; i++ {
 		result[i*2] = expectChange(pin, false)
 		result[i*2+1] = expectChange(pin, true)
