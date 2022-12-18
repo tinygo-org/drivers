@@ -11,6 +11,7 @@ package dht // import "tinygo.org/x/drivers/dht"
 
 import (
 	"machine"
+	"runtime/interrupt"
 	"time"
 )
 
@@ -159,9 +160,10 @@ func (t *device) read() error {
 // receiveSignals counts number of low and high cycles. The execution is time critical, so the function disables
 // interrupts
 func receiveSignals(pin machine.Pin, result []counter) {
+	mask := interrupt.Disable()
+	defer interrupt.Restore(mask)
+
 	i := uint8(0)
-	machine.UART1.Interrupt.Disable()
-	defer machine.UART1.Interrupt.Enable()
 	for ; i < 40; i++ {
 		result[i*2] = expectChange(pin, false)
 		result[i*2+1] = expectChange(pin, true)
