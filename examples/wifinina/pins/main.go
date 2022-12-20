@@ -1,5 +1,4 @@
 //go:build nano_rp2040
-// +build nano_rp2040
 
 // This examples shows how to control RGB LED connected to
 // NINA-W102 chip on Arduino Nano RP2040 Connect board

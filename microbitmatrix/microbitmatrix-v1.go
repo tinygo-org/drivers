@@ -1,5 +1,4 @@
 //go:build microbit
-// +build microbit
 
 // Package microbitmatrix implements a driver for the BBC micro:bit's LED matrix.
 //

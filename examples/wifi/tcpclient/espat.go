@@ -1,5 +1,4 @@
 //go:build espat
-// +build espat
 
 package main
 

@@ -1,5 +1,4 @@
 //go:build wifinina
-// +build wifinina
 
 package main
 

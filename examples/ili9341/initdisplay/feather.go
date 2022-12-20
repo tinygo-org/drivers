@@ -1,5 +1,4 @@
 //go:build feather_m0 || feather_m4 || feather_m4_can || feather_nrf52840 || feather_nrf52840_sense || feather_stm32f405 || feather_rp2040
-// +build feather_m0 feather_m4 feather_m4_can feather_nrf52840 feather_nrf52840_sense feather_stm32f405 feather_rp2040
 
 package initdisplay
 

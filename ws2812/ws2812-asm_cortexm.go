@@ -1,5 +1,4 @@
 //go:build cortexm
-// +build cortexm
 
 package ws2812
 

@@ -1,5 +1,4 @@
 //go:build tinygo
-// +build tinygo
 
 // Package dht provides a driver for DHTXX family temperature and humidity sensors.
 //
