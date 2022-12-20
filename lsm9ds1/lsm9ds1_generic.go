@@ -1,5 +1,4 @@
 //go:build !nano_33_ble
-// +build !nano_33_ble
 
 package lsm9ds1
 

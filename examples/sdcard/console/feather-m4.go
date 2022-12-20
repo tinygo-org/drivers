@@ -1,5 +1,4 @@
 //go:build feather_m4 || feather_m4_can || feather_nrf52840
-// +build feather_m4 feather_m4_can feather_nrf52840
 
 package main
 

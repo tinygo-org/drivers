@@ -1,5 +1,4 @@
 //go:build atsamd51 || atsame5x
-// +build atsamd51 atsame5x
 
 package ili9341
 
