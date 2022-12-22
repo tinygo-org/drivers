@@ -92,6 +92,7 @@ The following 90 devices are supported.
 | [4x4 Membrane Keypad](https://cdn.sparkfun.com/assets/f/f/a/5/0/DS-16038.pdf)                                                                                                                       | GPIO |
 | [L293x motor driver](https://www.ti.com/lit/ds/symlink/l293d.pdf)                                                                                                                                   | GPIO/PWM |
 | [L9110x motor driver](https://www.elecrow.com/download/datasheet-l9110.pdf)                                                                                                                         | GPIO/PWM |
+| [BTS7960 motor driver](https://www.handsontec.com/dataspecs/module/BTS7960%20Motor%20Driver.pdf)                                                                                                                         | GPIO/PWM |
 | [LIS2MDL magnetometer](https://www.st.com/resource/en/datasheet/lis2mdl.pdf)                                                                                                                        | I2C |
 | [LIS3DH accelerometer](https://www.st.com/resource/en/datasheet/lis3dh.pdf)                                                                                                                         | I2C |
 | [LPS22HB MEMS nano pressure sensor](https://www.st.com/resource/en/datasheet/dm00140895.pdf)                                                                                                        | I2C |

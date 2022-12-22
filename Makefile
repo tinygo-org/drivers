@@ -249,6 +249,9 @@ endif
 	@md5sum ./build/test.uf2
 	tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examples/makeybutton/main.go
 	@md5sum ./build/test.uf2
+	tinygo build -size short -o ./build/test.hex -target=arduino ./examples/bts7960/main.go
+	@md5sum ./build/test.hex
+
 
 # rwildcard is a recursive version of $(wildcard) 
 # https://blog.jgc.org/2011/07/gnu-make-recursive-wildcard-function.html
