@@ -7,18 +7,20 @@ import (
 	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/sx127x"
 )
+
+const FREQ = 868100000
 
 const (
 	LORA_DEFAULT_RXTIMEOUT_MS = 1000
 	LORA_DEFAULT_TXTIMEOUT_MS = 5000
-
-	DIO_PIN_CHANGE = machine.PinRising
 )
 
 var (
 	loraRadio *sx127x.Device
+	txmsg     = []byte("Hello TinyGO")
 
 	// We assume the module is connected this way:
 	SX127X_PIN_RST  = machine.PB9
@@ -26,29 +28,15 @@ var (
 	SX127X_PIN_DIO0 = machine.PA0
 	SX127X_PIN_DIO1 = machine.PA1
 	SX127X_SPI      = machine.SPI0
-
-	txmsg = []byte("Hello TinyGO")
-
-	// Prepare for Lora Operation
-	loraConf = sx127x.LoraConfig{
-		Freq:           868100000,
-		Bw:             sx127x.SX127X_LORA_BW_125_0,
-		Sf:             sx127x.SX127X_LORA_SF9,
-		Cr:             sx127x.SX127X_LORA_CR_4_7,
-		HeaderType:     sx127x.SX127X_LORA_HEADER_EXPLICIT,
-		Preamble:       12,
-		Iq:             sx127x.SX127X_LORA_IQ_STANDARD,
-		Crc:            sx127x.SX127X_LORA_CRC_ON,
-		SyncWord:       sx127x.SX127X_LORA_MAC_PUBLIC_SYNCWORD,
-		LoraTxPowerDBm: 20,
-	}
 )
 
-func main() {
-	println("\n# TinyGo Driver SX127X RX/TX example")
-	println("# ------------------------------------")
+func dioIrqHandler(machine.Pin) {
+	loraRadio.HandleInterrupt()
+}
 
-	println("main: configuring LED/SPI/DIO/IRQ")
+func main() {
+	println("\n# TinyGo Lora RX/TX test")
+	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	SX127X_PIN_RST.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	SX127X_PIN_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -67,36 +55,34 @@ func main() {
 	}
 
 	// Setup DIO0 interrupt Handling
-	err := SX127X_PIN_DIO0.SetInterrupt(DIO_PIN_CHANGE, func(machine.Pin) {
-		if SX127X_PIN_DIO0.Get() {
-			loraRadio.HandleInterrupt()
-		}
-	})
-	if err != nil {
+	if err := SX127X_PIN_DIO0.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
 		println("could not configure DIO0 pin interrupt:", err.Error())
 	}
 
 	// Setup DIO1 interrupt Handling
-	err = SX127X_PIN_DIO1.SetInterrupt(DIO_PIN_CHANGE, func(machine.Pin) {
-		if SX127X_PIN_DIO1.Get() {
-			loraRadio.HandleInterrupt()
-		}
-	})
-	if err != nil {
+	if err := SX127X_PIN_DIO1.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
 		println("could not configure DIO1 pin interrupt:", err.Error())
 	}
 
-	println("main: Configure lora modulation")
-	loraRadio.LoraConfig(loraConf)
+	// Prepare for Lora Operation
+	loraConf := lora.Config{
+		Freq:           FREQ,
+		Bw:             lora.Bandwidth_500_0,
+		Sf:             lora.SpreadingFactor9,
+		Cr:             lora.CodingRate4_7,
+		HeaderType:     lora.HeaderExplicit,
+		Preamble:       12,
+		Iq:             lora.IQStandard,
+		Crc:            lora.CRCOn,
+		SyncWord:       lora.SyncPrivate,
+		LoraTxPowerDBm: 20,
+	}
 
-	// Get uint32 from RSSI
-	rand32 := loraRadio.RandomU32()
-	println("main: Get random 32bit from RSSI:", rand32)
+	loraRadio.LoraConfig(loraConf)
 
 	var count uint
 	for {
 		tStart := time.Now()
-		machine.LED.Set(!machine.LED.Get())
 
 		println("main: Receiving Lora for 10 seconds")
 		for int(time.Now().Sub(tStart).Seconds()) < 10 {

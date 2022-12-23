@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/lora"
 )
 
 // SX126X radio transceiver RF_IN and RF_OUT may be connected
@@ -55,34 +56,15 @@ const (
 type Device struct {
 	spi            drivers.SPI     // SPI bus for module communication
 	radioEventChan chan RadioEvent // Channel for Receiving events
-	loraConf       LoraConfig      // Current Lora configuration
+	loraConf       lora.Config     // Current Lora configuration
 	rfswitch       RFSwitch        // RF Switch, if any
 	deepSleep      bool            // Internal Sleep state
 	deviceType     int             // sx1261,sx1262,sx1268 (defaults sx1261)
 	spiBuffer      [SPI_BUFFER_SIZE]uint8
 }
 
-// Config holds the LoRa configuration parameters
-type LoraConfig struct {
-	Freq           uint32 // Frequency
-	Cr             uint8  // Coding Rate
-	Sf             uint8  // Spread Factor
-	Bw             uint8  // Bandwidth
-	Ldr            uint8  // Low Data Rate
-	Preamble       uint16 // PreambleLength
-	SyncWord       uint16 // Sync Word
-	HeaderType     uint8  // Header : Implicit/explicit
-	Crc            uint8  // CRC : Yes/No
-	Iq             uint8  // iq : Standard/inverted
-	LoraTxPowerDBm int8   // Tx power in Dbm
-}
-
 const (
 	SX126X_RTC_FREQ_IN_HZ uint32 = 64000
-)
-
-var (
-	errUndefinedLoraConf = errors.New("Undefined Lora configuration")
 )
 
 // --------------------------------------------------
@@ -387,11 +369,11 @@ func (d *Device) SetPacketType(packetType uint8) {
 }
 
 // SetSyncWord defines the Sync Word to yse
-func (d *Device) SetSyncWord(syncword uint16) {
+func (d *Device) SetSyncWord(sw uint16) {
 	var p [2]uint8
-	d.loraConf.SyncWord = syncword
-	p[0] = uint8((syncword >> 8) & 0xFF)
-	p[1] = uint8((syncword >> 0) & 0xFF)
+	d.loraConf.SyncWord = sw
+	p[0] = uint8((d.loraConf.SyncWord >> 8) & 0xFF)
+	p[1] = uint8((d.loraConf.SyncWord >> 0) & 0xFF)
 	d.WriteRegister(SX126X_REG_LORA_SYNC_WORD_MSB, p[:])
 }
 
@@ -547,9 +529,9 @@ func (d *Device) SetLoraFrequency(freq uint32) {
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetLoraIqMode(mode uint8) {
 	if mode == 0 {
-		d.loraConf.Iq = SX126X_LORA_IQ_STANDARD
+		d.loraConf.Iq = lora.IQStandard
 	} else {
-		d.loraConf.Iq = SX126X_LORA_IQ_INVERTED
+		d.loraConf.Iq = lora.IQInverted
 	}
 }
 
@@ -569,9 +551,9 @@ func (d *Device) SetLoraBandwidth(bw uint8) {
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetLoraCrc(enable bool) {
 	if enable {
-		d.loraConf.Crc = SX126X_LORA_CRC_ON
+		d.loraConf.Crc = lora.CRCOn
 	} else {
-		d.loraConf.Crc = SX126X_LORA_CRC_OFF
+		d.loraConf.Crc = lora.CRCOn
 	}
 }
 
@@ -587,9 +569,10 @@ func (d *Device) SetLoraSpreadingFactor(sf uint8) {
 //
 
 // LoraConfig() defines Lora configuration for next Lora operations
-func (d *Device) LoraConfig(cnf LoraConfig) {
+func (d *Device) LoraConfig(cnf lora.Config) {
 	// Save given configuration
 	d.loraConf = cnf
+	d.loraConf.SyncWord = syncword(int(cnf.SyncWord))
 	// Switch to standby prior to configuration changes
 	d.SetStandby()
 	// Clear errors, disable radio interrupts for the moment
@@ -599,7 +582,7 @@ func (d *Device) LoraConfig(cnf LoraConfig) {
 	// Define radio operation mode
 	d.SetPacketType(SX126X_PACKET_TYPE_LORA)
 	d.SetRfFrequency(d.loraConf.Freq)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetTxParams(d.loraConf.LoraTxPowerDBm, SX126X_PA_RAMP_200U)
 	d.SetSyncWord(d.loraConf.SyncWord)
 	d.SetBufferBaseAddress(0, 0)
@@ -609,7 +592,7 @@ func (d *Device) LoraConfig(cnf LoraConfig) {
 func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 
 	if d.loraConf.Freq == 0 {
-		return errUndefinedLoraConf
+		return lora.ErrUndefinedLoraConf
 	}
 	if d.rfswitch != nil {
 		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
@@ -625,7 +608,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.SetTxParams(d.loraConf.LoraTxPowerDBm, SX126X_PA_RAMP_200U)
 	d.SetBufferBaseAddress(0, 0)
 	d.WriteBuffer(pkt)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetPacketParam(d.loraConf.Preamble, d.loraConf.HeaderType, d.loraConf.Crc, uint8(len(pkt)), d.loraConf.Iq)
 	d.SetDioIrqParams(irqVal, irqVal, SX126X_IRQ_NONE, SX126X_IRQ_NONE)
 	d.SetSyncWord(d.loraConf.SyncWord)
@@ -642,7 +625,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 
 	if d.loraConf.Freq == 0 {
-		return nil, errUndefinedLoraConf
+		return nil, lora.ErrUndefinedLoraConf
 	}
 	if d.rfswitch != nil {
 		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_RX)
@@ -654,7 +637,7 @@ func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 	irqVal := uint16(SX126X_IRQ_RX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
 	d.SetBufferBaseAddress(0, 0)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetPacketParam(d.loraConf.Preamble, d.loraConf.HeaderType, d.loraConf.Crc, 0xFF, d.loraConf.Iq)
 	d.SetDioIrqParams(irqVal, irqVal, SX126X_IRQ_NONE, SX126X_IRQ_NONE)
 	d.SetRx(timeoutMsToRtcSteps(timeoutMs))
@@ -698,4 +681,38 @@ func (d *Device) HandleInterrupt() {
 		rChan <- NewRadioEvent(RadioEventCrcError, st, nil)
 	}
 
+}
+
+func bandwidth(bw uint8) uint8 {
+	switch bw {
+	case lora.Bandwidth_7_8:
+		return SX126X_LORA_BW_7_8
+	case lora.Bandwidth_10_4:
+		return SX126X_LORA_BW_10_4
+	case lora.Bandwidth_15_6:
+		return SX126X_LORA_BW_15_6
+	case lora.Bandwidth_20_8:
+		return SX126X_LORA_BW_20_8
+	case lora.Bandwidth_31_25:
+		return SX126X_LORA_BW_31_25
+	case lora.Bandwidth_41_7:
+		return SX126X_LORA_BW_41_7
+	case lora.Bandwidth_62_5:
+		return SX126X_LORA_BW_62_5
+	case lora.Bandwidth_125_0:
+		return SX126X_LORA_BW_125_0
+	case lora.Bandwidth_250_0:
+		return SX126X_LORA_BW_250_0
+	case lora.Bandwidth_500_0:
+		return SX126X_LORA_BW_500_0
+	default:
+		return 0
+	}
+}
+
+func syncword(sw int) uint16 {
+	if sw == lora.SyncPublic {
+		return SX126X_LORA_MAC_PUBLIC_SYNCWORD
+	}
+	return SX126X_LORA_MAC_PRIVATE_SYNCWORD
 }
