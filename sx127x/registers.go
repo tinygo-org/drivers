@@ -70,20 +70,6 @@ const (
 	SX127X_LNA_OFF_GAIN = uint8(0x00)
 	SX127X_LNA_LOW_GAIN = uint8(0x20)
 
-	// Header type
-	SX127X_LORA_HEADER_EXPLICIT = uint8(0x00)
-	SX127X_LORA_HEADER_IMPLICIT = uint8(0x01)
-	// CRC
-	SX127X_LORA_CRC_OFF = uint8(0x00)
-	SX127X_LORA_CRC_ON  = uint8(0x01)
-	// IQ Polarity
-	SX127X_LORA_IQ_STANDARD = uint8(0x00)
-	SX127X_LORA_IQ_INVERTED = uint8(0x01)
-	// Coding Rate
-	SX127X_LORA_CR_4_5 = uint8(0x01)
-	SX127X_LORA_CR_4_6 = uint8(0x02)
-	SX127X_LORA_CR_4_7 = uint8(0x03)
-	SX127X_LORA_CR_4_8 = uint8(0x04)
 	// Bandwidth
 	SX127X_LORA_BW_7_8   = uint8(0x00)
 	SX127X_LORA_BW_10_4  = uint8(0x01)
@@ -95,17 +81,6 @@ const (
 	SX127X_LORA_BW_125_0 = uint8(0x07)
 	SX127X_LORA_BW_250_0 = uint8(0x08)
 	SX127X_LORA_BW_500_0 = uint8(0x09)
-	// Spreading factor
-	SX127X_LORA_SF6  = uint8(0x06)
-	SX127X_LORA_SF7  = uint8(0x07)
-	SX127X_LORA_SF8  = uint8(0x08)
-	SX127X_LORA_SF9  = uint8(0x09)
-	SX127X_LORA_SF10 = uint8(0x0A)
-	SX127X_LORA_SF11 = uint8(0x0B)
-	SX127X_LORA_SF12 = uint8(0x0C)
-	// Optim Low DR
-	SX127X_LOW_DATARATE_OPTIM_OFF = uint8(0x00)
-	SX127X_LOW_DATARATE_OPTIM_ON  = uint8(0x01)
 	// Automatic gain control
 	SX127X_AGC_AUTO_OFF = uint8(0x00)
 	SX127X_AGC_AUTO_ON  = uint8(0x01)

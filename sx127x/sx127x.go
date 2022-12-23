@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/lora"
 )
 
 const (
@@ -38,36 +39,19 @@ type Device struct {
 	spi            drivers.SPI     // SPI bus for module communication
 	rstPin, csPin  machine.Pin     // GPIOs for reset and chip select
 	radioEventChan chan RadioEvent // Channel for Receiving events
-	loraConf       LoraConfig      // Current Lora configuration
+	loraConf       lora.Config     // Current Lora configuration
 	deepSleep      bool            // Internal Sleep state
 	deviceType     int             // sx1261,sx1262,sx1268 (defaults sx1261)
 	spiBuffer      [SPI_BUFFER_SIZE]uint8
 	packetIndex    uint8 // FIXME ... useless ?
 }
 
-// Config holds the LoRa configuration parameters
-type LoraConfig struct {
-	Freq           uint32 // Frequency
-	Cr             uint8  // Coding Rate
-	Sf             uint8  // Spread Factor
-	Bw             uint8  // Bandwidth
-	Ldr            uint8  // Low Data Rate
-	Preamble       uint16 // PreambleLength
-	SyncWord       uint16 // Sync Word
-	HeaderType     uint8  // Header : Implicit/explicit
-	Crc            uint8  // CRC : Yes/No
-	Iq             uint8  // iq : Standard/inverted
-	LoraTxPowerDBm int8   // Tx power in Dbm
-}
-
-var (
-	errUndefinedLoraConf = errors.New("Undefined Lora configuration")
-)
-
 // --------------------------------------------------
-//  Channel and events
+//
+//	Channel and events
+//
 // --------------------------------------------------
-//NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
+// NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
 func NewRadioEvent(eType int, irqStatus uint8, eData []byte) RadioEvent {
 	r := RadioEvent{EventType: eType, IRQStatus: irqStatus, EventData: eData}
 	return r
@@ -135,7 +119,7 @@ func (d *Device) SetOpModeLora() {
 	d.WriteRegister(SX127X_REG_OP_MODE, SX127X_OPMODE_LORA)
 }
 
-//GetVersion returns hardware version of sx1276 chipset
+// GetVersion returns hardware version of sx1276 chipset
 func (d *Device) GetVersion() uint8 {
 	return (d.ReadRegister(SX127X_REG_VERSION))
 }
@@ -245,7 +229,7 @@ func (d *Device) SetAgcAuto(val uint8) {
 
 // SetLowDataRateOptimize enables Low Data Rate Optimization
 func (d *Device) SetLowDataRateOptim(val uint8) {
-	if val == SX127X_LOW_DATARATE_OPTIM_ON {
+	if val == lora.LowDataRateOptimizeOn {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_3, d.ReadRegister(SX127X_REG_MODEM_CONFIG_3)|0x08)
 	} else {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_3, d.ReadRegister(SX127X_REG_MODEM_CONFIG_3)&0xf7)
@@ -271,9 +255,10 @@ func (d *Device) SetHopPeriod(val uint8) {
 //
 
 // LoraConfig() defines Lora configuration for next Lora operations
-func (d *Device) LoraConfig(cnf LoraConfig) {
+func (d *Device) LoraConfig(cnf lora.Config) {
 	// Save given configuration
 	d.loraConf = cnf
+	d.loraConf.SyncWord = syncword(int(cnf.SyncWord))
 }
 
 // SetLoraFrequency updates the frequency the LoRa module is using
@@ -287,7 +272,7 @@ func (d *Device) SetLoraFrequency(frequency uint32) {
 
 // SetBandwidth updates the bandwidth the LoRa module is using
 func (d *Device) SetLoraBandwidth(bw uint8) {
-	d.loraConf.Bw = bw
+	d.loraConf.Bw = bandwidth(bw)
 	d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, (d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0x0f)|(bw<<4))
 }
 
@@ -300,7 +285,7 @@ func (d *Device) SetLoraCodingRate(cr uint8) {
 // SetImplicitHeaderModeOn Enables implicit header mode ***
 func (d *Device) SetLoraHeaderMode(headerType uint8) {
 	d.loraConf.HeaderType = headerType
-	if headerType == SX127X_LORA_HEADER_IMPLICIT {
+	if headerType == lora.HeaderExplicit {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)|0x01)
 	} else {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0xfe)
@@ -310,7 +295,7 @@ func (d *Device) SetLoraHeaderMode(headerType uint8) {
 // SetLoraSpreadingFactor changes spreading factor
 func (d *Device) SetLoraSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf
-	if sf == SX127X_LORA_SF6 {
+	if sf == lora.SpreadingFactor6 {
 		d.WriteRegister(SX127X_REG_DETECTION_OPTIMIZE, 0xc5)
 		d.WriteRegister(SX127X_REG_DETECTION_THRESHOLD, 0x0c)
 	} else {
@@ -333,10 +318,10 @@ func (d *Device) SetTxContinuousMode(val bool) {
 // SetLoraCrc Enable CRC generation and check on payload
 func (d *Device) SetLoraCrc(enable bool) {
 	if enable {
-		d.loraConf.Crc = SX127X_LORA_CRC_ON
+		d.loraConf.Crc = lora.CRCOn
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)|0x04)
 	} else {
-		d.loraConf.Crc = SX127X_LORA_CRC_OFF
+		d.loraConf.Crc = lora.CRCOff
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)&0xfb)
 	}
 }
@@ -347,7 +332,7 @@ func (d *Device) SetLoraPreamble(pLen uint16) {
 	d.WriteRegister(SX127X_REG_PREAMBLE_LSB, uint8(pLen&0xFF))
 }
 
-//SetLoraSyncWord defines sync word
+// SetLoraSyncWord defines sync word
 func (d *Device) SetLoraSyncWord(syncWord uint16) {
 	d.loraConf.SyncWord = syncWord
 	sw := uint8(syncWord & 0xFF)
@@ -357,7 +342,7 @@ func (d *Device) SetLoraSyncWord(syncWord uint16) {
 // SetLoraIQMode Sets I/Q polarity configuration
 func (d *Device) SetLoraIqMode(val uint8) {
 	d.loraConf.Iq = val
-	if val == SX127X_LORA_IQ_STANDARD {
+	if val == lora.IQStandard {
 		//Set IQ to normal values
 		d.WriteRegister(SX127X_REG_INVERTIQ, 0x27)
 		d.WriteRegister(SX127X_REG_INVERTIQ2, 0x1D)
@@ -387,7 +372,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.SetLoraSpreadingFactor(d.loraConf.Sf)
 	d.SetLoraIqMode(d.loraConf.Iq)
 	d.SetLoraCodingRate(d.loraConf.Cr)
-	d.SetLoraCrc(d.loraConf.Crc == SX127X_LORA_CRC_ON)
+	d.SetLoraCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
 	d.SetLoraHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
@@ -426,7 +411,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 
 	if d.loraConf.Freq == 0 {
-		return nil, errUndefinedLoraConf
+		return nil, lora.ErrUndefinedLoraConf
 	}
 
 	d.SetOpModeLora()
@@ -444,7 +429,7 @@ func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 	d.SetLoraSpreadingFactor(d.loraConf.Sf) // OK
 	d.SetLoraIqMode(d.loraConf.Iq)          //OK
 	d.SetLoraCodingRate(d.loraConf.Cr)
-	d.SetLoraCrc(d.loraConf.Crc == SX127X_LORA_CRC_ON)
+	d.SetLoraCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
 	d.SetLoraHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
@@ -533,4 +518,38 @@ func (d *Device) HandleInterrupt() {
 	if (st & SX127X_IRQ_LORA_CRCERR_MASK) > 0 {
 		rChan <- NewRadioEvent(RadioEventCrcError, st, nil)
 	}
+}
+
+func bandwidth(bw uint8) uint8 {
+	switch bw {
+	case lora.Bandwidth_7_8:
+		return SX127X_LORA_BW_7_8
+	case lora.Bandwidth_10_4:
+		return SX127X_LORA_BW_10_4
+	case lora.Bandwidth_15_6:
+		return SX127X_LORA_BW_15_6
+	case lora.Bandwidth_20_8:
+		return SX127X_LORA_BW_20_8
+	case lora.Bandwidth_31_25:
+		return SX127X_LORA_BW_31_25
+	case lora.Bandwidth_41_7:
+		return SX127X_LORA_BW_41_7
+	case lora.Bandwidth_62_5:
+		return SX127X_LORA_BW_62_5
+	case lora.Bandwidth_125_0:
+		return SX127X_LORA_BW_125_0
+	case lora.Bandwidth_250_0:
+		return SX127X_LORA_BW_250_0
+	case lora.Bandwidth_500_0:
+		return SX127X_LORA_BW_500_0
+	default:
+		return 0
+	}
+}
+
+func syncword(sw int) uint16 {
+	if sw == lora.SyncPublic {
+		return SX127X_LORA_MAC_PUBLIC_SYNCWORD
+	}
+	return SX127X_LORA_MAC_PRIVATE_SYNCWORD
 }

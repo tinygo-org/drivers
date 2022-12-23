@@ -206,48 +206,42 @@ const (
 	SX126X_PA_RAMP_3400U = 0x07 //  7     0                3400 us
 
 	//SX126X_CMD_SET_MODULATION_PARAMS
-	SX126X_GFSK_FILTER_NONE                = 0x00 //  7     0     GFSK filter: none
-	SX126X_GFSK_FILTER_GAUSS_0_3           = 0x08 //  7     0                  Gaussian, BT = 0.3
-	SX126X_GFSK_FILTER_GAUSS_0_5           = 0x09 //  7     0                  Gaussian, BT = 0.5
-	SX126X_GFSK_FILTER_GAUSS_0_7           = 0x0A //  7     0                  Gaussian, BT = 0.7
-	SX126X_GFSK_FILTER_GAUSS_1             = 0x0B //  7     0                  Gaussian, BT = 1
-	SX126X_GFSK_RX_BW_4_8                  = 0x1F //  7     0     GFSK Rx bandwidth: 4.8 kHz
-	SX126X_GFSK_RX_BW_5_8                  = 0x17 //  7     0                        5.8 kHz
-	SX126X_GFSK_RX_BW_7_3                  = 0x0F //  7     0                        7.3 kHz
-	SX126X_GFSK_RX_BW_9_7                  = 0x1E //  7     0                        9.7 kHz
-	SX126X_GFSK_RX_BW_11_7                 = 0x16 //  7     0                        11.7 kHz
-	SX126X_GFSK_RX_BW_14_6                 = 0x0E //  7     0                        14.6 kHz
-	SX126X_GFSK_RX_BW_19_5                 = 0x1D //  7     0                        19.5 kHz
-	SX126X_GFSK_RX_BW_23_4                 = 0x15 //  7     0                        23.4 kHz
-	SX126X_GFSK_RX_BW_29_3                 = 0x0D //  7     0                        29.3 kHz
-	SX126X_GFSK_RX_BW_39_0                 = 0x1C //  7     0                        39.0 kHz
-	SX126X_GFSK_RX_BW_46_9                 = 0x14 //  7     0                        46.9 kHz
-	SX126X_GFSK_RX_BW_58_6                 = 0x0C //  7     0                        58.6 kHz
-	SX126X_GFSK_RX_BW_78_2                 = 0x1B //  7     0                        78.2 kHz
-	SX126X_GFSK_RX_BW_93_8                 = 0x13 //  7     0                        93.8 kHz
-	SX126X_GFSK_RX_BW_117_3                = 0x0B //  7     0                        117.3 kHz
-	SX126X_GFSK_RX_BW_156_2                = 0x1A //  7     0                        156.2 kHz
-	SX126X_GFSK_RX_BW_187_2                = 0x12 //  7     0                        187.2 kHz
-	SX126X_GFSK_RX_BW_234_3                = 0x0A //  7     0                        234.3 kHz
-	SX126X_GFSK_RX_BW_312_0                = 0x19 //  7     0                        312.0 kHz
-	SX126X_GFSK_RX_BW_373_6                = 0x11 //  7     0                        373.6 kHz
-	SX126X_GFSK_RX_BW_467_0                = 0x09 //  7     0                        467.0 kHz
-	SX126X_LORA_BW_7_8                     = 0x00 //  7     0     LoRa bandwidth: 7.8 kHz
-	SX126X_LORA_BW_10_4                    = 0x08 //  7     0                     10.4 kHz
-	SX126X_LORA_BW_15_6                    = 0x01 //  7     0                     15.6 kHz
-	SX126X_LORA_BW_20_8                    = 0x09 //  7     0                     20.8 kHz
-	SX126X_LORA_BW_31_25                   = 0x02 //  7     0                     31.25 kHz
-	SX126X_LORA_BW_41_7                    = 0x0A //  7     0                     41.7 kHz
-	SX126X_LORA_BW_62_5                    = 0x03 //  7     0                     62.5 kHz
-	SX126X_LORA_BW_125_0                   = 0x04 //  7     0                     125.0 kHz
-	SX126X_LORA_BW_250_0                   = 0x05 //  7     0                     250.0 kHz
-	SX126X_LORA_BW_500_0                   = 0x06 //  7     0                     500.0 kHz
-	SX126X_LORA_CR_4_5                     = 0x01 //  7     0     LoRa coding rate: 4/5
-	SX126X_LORA_CR_4_6                     = 0x02 //  7     0                       4/6
-	SX126X_LORA_CR_4_7                     = 0x03 //  7     0                       4/7
-	SX126X_LORA_CR_4_8                     = 0x04 //  7     0                       4/8
-	SX126X_LORA_LOW_DATA_RATE_OPTIMIZE_OFF = 0x00 //  7     0     LoRa low data rate optimization: disabled
-	SX126X_LORA_LOW_DATA_RATE_OPTIMIZE_ON  = 0x01 //  7     0                                      enabled
+	SX126X_GFSK_FILTER_NONE      = 0x00 //  7     0     GFSK filter: none
+	SX126X_GFSK_FILTER_GAUSS_0_3 = 0x08 //  7     0                  Gaussian, BT = 0.3
+	SX126X_GFSK_FILTER_GAUSS_0_5 = 0x09 //  7     0                  Gaussian, BT = 0.5
+	SX126X_GFSK_FILTER_GAUSS_0_7 = 0x0A //  7     0                  Gaussian, BT = 0.7
+	SX126X_GFSK_FILTER_GAUSS_1   = 0x0B //  7     0                  Gaussian, BT = 1
+	SX126X_GFSK_RX_BW_4_8        = 0x1F //  7     0     GFSK Rx bandwidth: 4.8 kHz
+	SX126X_GFSK_RX_BW_5_8        = 0x17 //  7     0                        5.8 kHz
+	SX126X_GFSK_RX_BW_7_3        = 0x0F //  7     0                        7.3 kHz
+	SX126X_GFSK_RX_BW_9_7        = 0x1E //  7     0                        9.7 kHz
+	SX126X_GFSK_RX_BW_11_7       = 0x16 //  7     0                        11.7 kHz
+	SX126X_GFSK_RX_BW_14_6       = 0x0E //  7     0                        14.6 kHz
+	SX126X_GFSK_RX_BW_19_5       = 0x1D //  7     0                        19.5 kHz
+	SX126X_GFSK_RX_BW_23_4       = 0x15 //  7     0                        23.4 kHz
+	SX126X_GFSK_RX_BW_29_3       = 0x0D //  7     0                        29.3 kHz
+	SX126X_GFSK_RX_BW_39_0       = 0x1C //  7     0                        39.0 kHz
+	SX126X_GFSK_RX_BW_46_9       = 0x14 //  7     0                        46.9 kHz
+	SX126X_GFSK_RX_BW_58_6       = 0x0C //  7     0                        58.6 kHz
+	SX126X_GFSK_RX_BW_78_2       = 0x1B //  7     0                        78.2 kHz
+	SX126X_GFSK_RX_BW_93_8       = 0x13 //  7     0                        93.8 kHz
+	SX126X_GFSK_RX_BW_117_3      = 0x0B //  7     0                        117.3 kHz
+	SX126X_GFSK_RX_BW_156_2      = 0x1A //  7     0                        156.2 kHz
+	SX126X_GFSK_RX_BW_187_2      = 0x12 //  7     0                        187.2 kHz
+	SX126X_GFSK_RX_BW_234_3      = 0x0A //  7     0                        234.3 kHz
+	SX126X_GFSK_RX_BW_312_0      = 0x19 //  7     0                        312.0 kHz
+	SX126X_GFSK_RX_BW_373_6      = 0x11 //  7     0                        373.6 kHz
+	SX126X_GFSK_RX_BW_467_0      = 0x09 //  7     0                        467.0 kHz
+	SX126X_LORA_BW_7_8           = 0x00 //  7     0     LoRa bandwidth: 7.8 kHz
+	SX126X_LORA_BW_10_4          = 0x08 //  7     0                     10.4 kHz
+	SX126X_LORA_BW_15_6          = 0x01 //  7     0                     15.6 kHz
+	SX126X_LORA_BW_20_8          = 0x09 //  7     0                     20.8 kHz
+	SX126X_LORA_BW_31_25         = 0x02 //  7     0                     31.25 kHz
+	SX126X_LORA_BW_41_7          = 0x0A //  7     0                     41.7 kHz
+	SX126X_LORA_BW_62_5          = 0x03 //  7     0                     62.5 kHz
+	SX126X_LORA_BW_125_0         = 0x04 //  7     0                     125.0 kHz
+	SX126X_LORA_BW_250_0         = 0x05 //  7     0                     250.0 kHz
+	SX126X_LORA_BW_500_0         = 0x06 //  7     0                     500.0 kHz
 
 	//SX126X_CMD_SET_PACKET_PARAMS
 	SX126X_GFSK_PREAMBLE_DETECT_OFF         = 0x00 //  7     0     GFSK minimum preamble length before reception starts: detector disabled
@@ -267,12 +261,6 @@ const (
 	SX126X_GFSK_CRC_2_BYTE_INV              = 0x06 //  7     0                      2 byte, inverted
 	SX126X_GFSK_WHITENING_OFF               = 0x00 //  7     0     GFSK data whitening: disabled
 	SX126X_GFSK_WHITENING_ON                = 0x01 //  7     0                          enabled
-	SX126X_LORA_HEADER_EXPLICIT             = 0x00 //  7     0     LoRa header mode: explicit
-	SX126X_LORA_HEADER_IMPLICIT             = 0x01 //  7     0                       implicit
-	SX126X_LORA_CRC_OFF                     = 0x00 //  7     0     LoRa CRC mode: disabled
-	SX126X_LORA_CRC_ON                      = 0x01 //  7     0                    enabled
-	SX126X_LORA_IQ_STANDARD                 = 0x00 //  7     0     LoRa IQ setup: standard
-	SX126X_LORA_IQ_INVERTED                 = 0x01 //  7     0                    inverted
 
 	//SX126X_CMD_SET_CAD_PARAMS
 	SX126X_CAD_ON_1_SYMB  = 0x00 //  7     0     number of symbols used for CAD: 1
@@ -323,13 +311,4 @@ const (
 
 	SX126X_LORA_MAC_PUBLIC_SYNCWORD  = 0x3444
 	SX126X_LORA_MAC_PRIVATE_SYNCWORD = 0x1424
-
-	SX126X_LORA_SF5  = 0x05
-	SX126X_LORA_SF6  = 0x06
-	SX126X_LORA_SF7  = 0x07
-	SX126X_LORA_SF8  = 0x08
-	SX126X_LORA_SF9  = 0x09
-	SX126X_LORA_SF10 = 0x0A
-	SX126X_LORA_SF11 = 0x0B
-	SX126X_LORA_SF12 = 0x0C
 )
