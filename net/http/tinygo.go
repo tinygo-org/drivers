@@ -261,6 +261,10 @@ func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 		end := 0
 		for {
 			length := 0
+			if len(buf) < cur+6 {
+				// This is not a very accurate check, but in many cases it should be fine.
+				return nil, fmt.Errorf("slice out of range : use http.SetBuf() to change the allocation to %d bytes or more", cur+6)
+			}
 			for i := 0; ; i++ {
 				buf[cur+i], err = br.ReadByte()
 				if err != nil {
@@ -283,6 +287,9 @@ func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 			//fmt.Printf("cur:%d length:%d size:%d\n", cur, length, size)
 
 			end = cur + int(size) + 2 // size + 2 (\r\n)
+			if len(buf) < end {
+				return nil, fmt.Errorf("slice out of range : use http.SetBuf() to change the allocation to %d bytes or more", end)
+			}
 			for i := 0; i < int(size)+2; i++ {
 				buf[cur+i], err = br.ReadByte()
 				if err != nil {
@@ -301,6 +308,9 @@ func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 		resp.Body = io.NopCloser(bytes.NewReader(buf[:end]))
 	} else {
 		end := int(resp.ContentLength)
+		if len(buf) < end {
+			return nil, fmt.Errorf("slice out of range : use http.SetBuf() to change the allocation to %d bytes or more", end)
+		}
 		for i := 0; i < end; i++ {
 			buf[i], err = br.ReadByte()
 			if err != nil {
