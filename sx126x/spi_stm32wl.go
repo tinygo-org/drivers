@@ -7,11 +7,12 @@ import (
 	"errors"
 	"machine"
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/lora"
 )
 
 // New creates a new SX126x connection.
 func New(spi drivers.SPI) *Device {
-	c := make(chan RadioEvent, 10)
+	c := make(chan lora.RadioEvent, 10)
 	d := Device{
 		spi:            spi,
 		radioEventChan: c,

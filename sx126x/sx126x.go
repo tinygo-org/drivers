@@ -31,21 +31,21 @@ const (
 	RFSWITCH_TX_HP = iota
 )
 
-const (
-	RadioEventRxDone    = iota
-	RadioEventTxDone    = iota
-	RadioEventTimeout   = iota
-	RadioEventWatchdog  = iota
-	RadioEventCrcError  = iota
-	RadioEventUnhandled = iota
-)
+// const (
+// 	RadioEventRxDone    = iota
+// 	RadioEventTxDone    = iota
+// 	RadioEventTimeout   = iota
+// 	RadioEventWatchdog  = iota
+// 	RadioEventCrcError  = iota
+// 	RadioEventUnhandled = iota
+// )
 
-// RadioEvent are used for communicating in the radio Event Channel
-type RadioEvent struct {
-	EventType int
-	IRQStatus uint16
-	EventData []byte
-}
+// // RadioEvent are used for communicating in the radio Event Channel
+// type RadioEvent struct {
+// 	EventType int
+// 	IRQStatus uint16
+// 	EventData []byte
+// }
 
 const (
 	PERIOD_PER_SEC  = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
@@ -54,12 +54,12 @@ const (
 
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
-	spi            drivers.SPI     // SPI bus for module communication
-	radioEventChan chan RadioEvent // Channel for Receiving events
-	loraConf       lora.Config     // Current Lora configuration
-	rfswitch       RFSwitch        // RF Switch, if any
-	deepSleep      bool            // Internal Sleep state
-	deviceType     int             // sx1261,sx1262,sx1268 (defaults sx1261)
+	spi            drivers.SPI          // SPI bus for module communication
+	radioEventChan chan lora.RadioEvent // Channel for Receiving events
+	loraConf       lora.Config          // Current Lora configuration
+	rfswitch       RFSwitch             // RF Switch, if any
+	deepSleep      bool                 // Internal Sleep state
+	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
 	spiBuffer      [SPI_BUFFER_SIZE]uint8
 }
 
@@ -82,14 +82,8 @@ func timeoutMsToRtcSteps(timeoutMs uint32) uint32 {
 //	Channel and events
 //
 // --------------------------------------------------
-// NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
-func NewRadioEvent(eType int, irqStatus uint16, eData []byte) RadioEvent {
-	r := RadioEvent{EventType: eType, IRQStatus: irqStatus, EventData: eData}
-	return r
-}
-
 // Get the RadioEvent channel of the device
-func (d *Device) GetRadioEventChan() chan RadioEvent {
+func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 	return d.radioEventChan
 }
 
@@ -615,7 +609,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.SetTx(timeoutMsToRtcSteps(timeoutMs))
 
 	msg := <-d.GetRadioEventChan()
-	if msg.EventType != RadioEventTxDone {
+	if msg.EventType != lora.RadioEventTxDone {
 		return errors.New("Unexpected Radio Event while TX")
 	}
 	return nil
@@ -644,9 +638,9 @@ func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 
 	msg := <-d.GetRadioEventChan()
 
-	if msg.EventType == RadioEventTimeout {
+	if msg.EventType == lora.RadioEventTimeout {
 		return nil, nil
-	} else if msg.EventType != RadioEventRxDone {
+	} else if msg.EventType != lora.RadioEventRxDone {
 		return nil, errors.New("Unexpected Radio Event while RX")
 	}
 
@@ -666,19 +660,19 @@ func (d *Device) HandleInterrupt() {
 	rChan := d.GetRadioEventChan()
 
 	if (st & SX126X_IRQ_RX_DONE) > 0 {
-		rChan <- NewRadioEvent(RadioEventRxDone, st, nil)
+		rChan <- lora.NewRadioEvent(lora.RadioEventRxDone, st, nil)
 	}
 
 	if (st & SX126X_IRQ_TX_DONE) > 0 {
-		rChan <- NewRadioEvent(RadioEventTxDone, st, nil)
+		rChan <- lora.NewRadioEvent(lora.RadioEventTxDone, st, nil)
 	}
 
 	if (st & SX126X_IRQ_TIMEOUT) > 0 {
-		rChan <- NewRadioEvent(RadioEventTimeout, st, nil)
+		rChan <- lora.NewRadioEvent(lora.RadioEventTimeout, st, nil)
 	}
 
 	if (st & SX126X_IRQ_CRC_ERR) > 0 {
-		rChan <- NewRadioEvent(RadioEventCrcError, st, nil)
+		rChan <- lora.NewRadioEvent(lora.RadioEventCrcError, st, nil)
 	}
 
 }
