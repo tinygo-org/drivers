@@ -255,15 +255,61 @@ func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 
 	}
 
-	end := int(resp.ContentLength)
-	for i := 0; i < end; i++ {
-		buf[i], err = br.ReadByte()
-		if err != nil {
-			conn.Close()
-			return nil, err
+	if resp.Header.Get("Transfer-Encoding") == "chunked" {
+		// chunked
+		cur := 0
+		end := 0
+		for {
+			length := 0
+			for i := 0; ; i++ {
+				buf[cur+i], err = br.ReadByte()
+				if err != nil {
+					conn.Close()
+					return nil, err
+				}
+				length = i + 1
+				if i > 1 && buf[cur+i-1] == '\r' && buf[cur+i] == '\n' {
+					break
+				}
+			}
+			//fmt.Printf("cur:%d length:%d\n", cur, length)
+
+			size, err := strconv.ParseInt(string(buf[cur:cur+length-2]), 16, 64)
+			if err != nil {
+				conn.Close()
+				return nil, err
+			}
+			//cur += length
+			//fmt.Printf("cur:%d length:%d size:%d\n", cur, length, size)
+
+			end = cur + int(size) + 2 // size + 2 (\r\n)
+			for i := 0; i < int(size)+2; i++ {
+				buf[cur+i], err = br.ReadByte()
+				if err != nil {
+					conn.Close()
+					return nil, err
+				}
+			}
+			cur += int(size)
+
+			if size == 0 {
+				end = end - 2
+				break
+			}
 		}
+		//fmt.Printf("%q\n", buf[:end])
+		resp.Body = io.NopCloser(bytes.NewReader(buf[:end]))
+	} else {
+		end := int(resp.ContentLength)
+		for i := 0; i < end; i++ {
+			buf[i], err = br.ReadByte()
+			if err != nil {
+				conn.Close()
+				return nil, err
+			}
+		}
+		resp.Body = io.NopCloser(bytes.NewReader(buf[:end]))
 	}
-	resp.Body = io.NopCloser(bytes.NewReader(buf[:end]))
 
 	return resp, conn.Close()
 }
