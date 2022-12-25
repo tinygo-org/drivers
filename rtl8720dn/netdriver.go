@@ -344,8 +344,11 @@ func (d *Driver) ReadSocket(b []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		if nn < 0 {
-			return 0, fmt.Errorf("error %d", n)
+		if nn == -76 {
+			// no data
+			return 0, nil
+		} else if nn < 0 {
+			return 0, fmt.Errorf("error %d", nn)
 		} else if nn == 0 || nn == -30848 {
 			return 0, d.DisconnectSocket()
 		}
