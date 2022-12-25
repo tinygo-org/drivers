@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -201,123 +202,68 @@ func (t *Transport) doResp(conn net.Conn, req *Request) (*Response, error) {
 		Header: map[string][]string{},
 	}
 
-	// Header
-	var scanner *bufio.Scanner
-	cont := true
-	ofs := 0
-	remain := int64(0)
-	for cont {
-		for n, err := conn.Read(buf[ofs:]); n > 0; n, err = conn.Read(buf[ofs:]) {
-			if err != nil {
-				println("Read error: " + err.Error())
-			} else {
-				// Take care of the case where "\r\n\r\n" is on the boundary of a buffer
-				start := ofs
-				if start > 3 {
-					start -= 3
-				}
-				idx := bytes.Index(buf[start:ofs+n], []byte("\r\n\r\n"))
-				if idx == -1 {
-					ofs += n
-					continue
-				}
-				idx += start + 4
+	br := bufio.NewReader(conn)
+	tp := textproto.NewReader(br)
 
-				scanner = bufio.NewScanner(bytes.NewReader(buf[0 : ofs+n]))
-				if resp.Status == "" && scanner.Scan() {
-					status := strings.SplitN(scanner.Text(), " ", 2)
-					if len(status) != 2 {
-						conn.Close()
-						return nil, fmt.Errorf("invalid status : %q", scanner.Text())
-					}
-					resp.Proto = status[0]
-					fmt.Sscanf(status[0], "HTTP/%d.%d", &resp.ProtoMajor, &resp.ProtoMinor)
-
-					resp.Status = status[1]
-					fmt.Sscanf(status[1], "%d", &resp.StatusCode)
-				}
-
-				for scanner.Scan() {
-					text := scanner.Text()
-					if text == "" {
-						// end of header
-						if idx < n+ofs {
-							ofs = ofs + n - idx
-							for i := 0; i < ofs; i++ {
-								buf[i] = buf[i+idx]
-							}
-						} else {
-							ofs = 0
-						}
-						break
-					} else {
-						header := strings.SplitN(text, ": ", 2)
-						if len(header) != 2 {
-							conn.Close()
-							return nil, fmt.Errorf("invalid header : %q", text)
-						}
-						if resp.Header.Get(header[0]) == "" {
-							resp.Header.Set(header[0], header[1])
-						} else {
-							resp.Header.Add(header[0], header[1])
-						}
-
-						if strings.ToLower(header[0]) == "content-length" {
-							resp.ContentLength, err = strconv.ParseInt(header[1], 10, 64)
-							if err != nil {
-								conn.Close()
-								return nil, err
-							}
-							remain = resp.ContentLength
-						}
-					}
-				}
-				cont = false
-				break
-			}
-		}
-	}
-
-	// Body
-	remain -= int64(ofs)
-	if remain <= 0 {
-		resp.Body = io.NopCloser(bytes.NewReader(buf[:ofs]))
-		return resp, conn.Close()
-	}
-
-	cont = true
-	lastRequestTime := time.Now()
-	for cont {
-		for {
-			end := ofs + 0x400
-			if len(buf) < end {
-				return nil, fmt.Errorf("slice out of range : use http.SetBuf() to change the allocation to %d bytes or more", end)
-			}
-			n, err := conn.Read(buf[ofs : ofs+0x400])
-			if err != nil {
-				return nil, err
-			}
-			if n == 0 {
+	for {
+		line, err := tp.ReadLine()
+		if err != nil {
+			if err == io.ErrNoProgress {
+				// default: no timeout
 				continue
 			}
+			conn.Close()
+			return nil, err
+		}
+
+		status := strings.SplitN(line, " ", 2)
+		if len(status) != 2 {
+			conn.Close()
+			return nil, fmt.Errorf("invalid status : %q", line)
+		}
+		resp.Proto = status[0]
+		fmt.Sscanf(status[0], "HTTP/%d.%d", &resp.ProtoMajor, &resp.ProtoMinor)
+
+		resp.Status = status[1]
+		fmt.Sscanf(status[1], "%d", &resp.StatusCode)
+		break
+	}
+
+	m, err := tp.ReadMIMEHeader()
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	for k, v := range m {
+		//fmt.Printf("%s: %s\n", k, v)
+
+		if strings.ToLower(k) == "content-length" {
+			resp.ContentLength, err = strconv.ParseInt(v[0], 10, 64)
 			if err != nil {
 				conn.Close()
 				return nil, err
-			} else {
-				ofs += n
-				remain -= int64(n)
-				if remain <= 0 {
-					resp.Body = io.NopCloser(bytes.NewReader(buf[:ofs]))
-					cont = false
-					break
-				}
-				if time.Now().Sub(lastRequestTime).Milliseconds() >= 1000 {
-					conn.Close()
-					return nil, fmt.Errorf("time out")
-				}
 			}
 		}
+
+		if resp.Header.Get(k) == "" {
+			resp.Header.Set(k, v[0])
+			v = v[1:]
+		}
+		for _, vv := range v {
+			resp.Header.Add(k, vv)
+		}
+
 	}
+
+	end := int(resp.ContentLength)
+	for i := 0; i < end; i++ {
+		buf[i], err = br.ReadByte()
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(buf[:end]))
 
 	return resp, conn.Close()
 }
