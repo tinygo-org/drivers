@@ -1,7 +1,7 @@
 package main
 
 // This example code demonstrates Lora RX/TX With SX127x driver
-// You need to connect SPI, DIO0 and DIO1 to use.
+// You need to connect SPI, RST, CS, DIO0 (aka IRQ) and DIO1 to use.
 
 import (
 	"machine"
@@ -22,11 +22,11 @@ var (
 	loraRadio *sx127x.Device
 	txmsg     = []byte("Hello TinyGO")
 
-	// We assume the module is connected this way:
-	SX127X_PIN_RST  = machine.PB9
-	SX127X_PIN_CS   = machine.PB8
-	SX127X_PIN_DIO0 = machine.PA0
-	SX127X_PIN_DIO1 = machine.PA1
+	// We assume LoRa Featherwing module is connected to PyBadge:
+	SX127X_PIN_RST  = machine.D11
+	SX127X_PIN_CS   = machine.D10
+	SX127X_PIN_DIO0 = machine.D6
+	SX127X_PIN_DIO1 = machine.D9
 	SX127X_SPI      = machine.SPI0
 )
 
@@ -35,6 +35,7 @@ func dioIrqHandler(machine.Pin) {
 }
 
 func main() {
+	time.Sleep(5 * time.Second)
 	println("\n# TinyGo Lora RX/TX test")
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -85,7 +86,7 @@ func main() {
 		tStart := time.Now()
 
 		println("main: Receiving Lora for 10 seconds")
-		for int(time.Now().Sub(tStart).Seconds()) < 10 {
+		for time.Since(tStart) < 10*time.Second {
 			buf, err := loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
 			if err != nil {
 				println("RX Error: ", err)

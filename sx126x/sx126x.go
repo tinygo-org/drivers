@@ -31,22 +31,6 @@ const (
 	RFSWITCH_TX_HP = iota
 )
 
-// const (
-// 	RadioEventRxDone    = iota
-// 	RadioEventTxDone    = iota
-// 	RadioEventTimeout   = iota
-// 	RadioEventWatchdog  = iota
-// 	RadioEventCrcError  = iota
-// 	RadioEventUnhandled = iota
-// )
-
-// // RadioEvent are used for communicating in the radio Event Channel
-// type RadioEvent struct {
-// 	EventType int
-// 	IRQStatus uint16
-// 	EventData []byte
-// }
-
 const (
 	PERIOD_PER_SEC  = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
 	SPI_BUFFER_SIZE = 256
