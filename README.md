@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 90 devices are supported.
+The following 91 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -147,6 +147,7 @@ The following 90 devices are supported.
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
 | [Semtech SX126x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1261)                                                                                                             | SPI |
 | [SSD1289 TFT color display](http://aitendo3.sakura.ne.jp/aitendo_data/product_img/lcd/tft2/M032C1289TP/3.2-SSD1289.pdf)                                                                             | GPIO |
+| [Total Dissolved Solids Sensor](https://www.cqrobot.com/index.php?route=product/product&product_id=1122)                                                                                            | ADC |
 
 ## Contributing
 
