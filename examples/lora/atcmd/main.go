@@ -19,10 +19,19 @@ var (
 	tx   = machine.UART_TX_PIN
 	rx   = machine.UART_RX_PIN
 	input = make([]byte, 0, 64)
+
+	radio LoraRadio
+	defaultTimeout uint32 = 1000
 )
 
 func main() {
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
+
+	var err error
+	radio, err = setupLora()
+	if err != nil {
+		fail(err.Error())
+	}
 
 	for {
 		if uart.Buffered() > 0 {
@@ -43,5 +52,14 @@ func main() {
 			}
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func fail(msg string)  {
+	for {
+		uart.Write([]byte(msg))
+		crlf()
+
+		time.Sleep(time.Minute)
 	}
 }
