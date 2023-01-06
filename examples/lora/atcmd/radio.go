@@ -1,7 +1,15 @@
 package main
 
+import (
+	"errors"
+)
+
+var (
+	errRadioNotFound = errors.New("radio not found")
+)
+
 type LoraRadio interface {
-	Reset() error
+	Reset()
 	LoraTx(pkt []uint8, timeoutMs uint32) error
 	LoraRx(timeoutMs uint32) ([]uint8, error)
 	SetLoraFrequency(freq uint32)

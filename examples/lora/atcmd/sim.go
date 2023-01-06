@@ -10,8 +10,7 @@ func setupLora() (LoraRadio, error) {
 type SimLoraRadio struct {
 }
 
-func (sr *SimLoraRadio) Reset() error {
-	return nil
+func (sr *SimLoraRadio) Reset() {
 }
 
 func (sr *SimLoraRadio) LoraTx(pkt []uint8, timeoutMs uint32) error {
@@ -28,3 +27,7 @@ func (sr *SimLoraRadio) SetLoraCodingRate(cr uint8) {}
 func (sr *SimLoraRadio) SetLoraBandwidth(bw uint8) {}
 func (sr *SimLoraRadio) SetLoraCrc(enable bool) {}
 func (sr *SimLoraRadio) SetLoraSpreadingFactor(sf uint8) {}
+
+func firmwareVersion() string {
+	return "Simulator "+currentVersion()
+}

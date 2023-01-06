@@ -11,7 +11,7 @@ func quicktest() {
 
 // Check firmware version.
 func version() {
-	writeCommandOutput("VER", currentVersion())
+	writeCommandOutput("VER", currentVersion()+" "+firmwareVersion())
 }
 
 // Use to check the ID of the LoRaWAN module, or change the ID.
