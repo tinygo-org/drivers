@@ -7,6 +7,8 @@ import (
 	"errors"
 	"time"
 
+	"machine"
+
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/lora"
 )
@@ -39,6 +41,7 @@ const (
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
+	rstPin, csPin  machine.Pin          // GPIOs for reset and chip select
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
 	rfswitch       RFSwitch             // RF Switch, if any
@@ -85,6 +88,13 @@ func (d *Device) SetRfSwitch(rfswitch RFSwitch) {
 // --------------------------------------------------
 // Operational modes functions
 // --------------------------------------------------
+
+func (d *Device) Reset() {
+	d.rstPin.Low()
+	time.Sleep(100 * time.Millisecond)
+	d.rstPin.High()
+	time.Sleep(100 * time.Millisecond)
+}
 
 // DetectDevice() tries to detect the radio module by changing SyncWord value
 func (d *Device) DetectDevice() bool {
