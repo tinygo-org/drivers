@@ -15,12 +15,12 @@ import (
 
 // change these to test a different UART or pins if available
 var (
-	uart = machine.Serial
-	tx   = machine.UART_TX_PIN
-	rx   = machine.UART_RX_PIN
+	uart  = machine.Serial
+	tx    = machine.UART_TX_PIN
+	rx    = machine.UART_RX_PIN
 	input = make([]byte, 0, 64)
 
-	radio LoraRadio
+	radio          LoraRadio
 	defaultTimeout uint32 = 1000
 )
 
@@ -55,7 +55,7 @@ func main() {
 	}
 }
 
-func fail(msg string)  {
+func fail(msg string) {
 	for {
 		uart.Write([]byte(msg))
 		crlf()

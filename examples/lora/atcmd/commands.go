@@ -11,7 +11,7 @@ func quicktest() {
 
 // Check firmware version.
 func version() {
-	writeCommandOutput("VER", currentVersion()+" "+firmwareVersion())
+	writeCommandOutput("VER", currentVersion()+" ("+firmwareVersion()+")")
 }
 
 // Use to check the ID of the LoRaWAN module, or change the ID.
@@ -172,7 +172,7 @@ func power(setting string) error {
 	return nil
 }
 
-// Unconfirmed message repeats times. 
+// Unconfirmed message repeats times.
 func rept(setting string) error {
 	cmd := "REPT"
 	writeCommandOutput(cmd, setting)
@@ -180,9 +180,9 @@ func rept(setting string) error {
 	return nil
 }
 
-// Confirmed message retry times. Valid range 0~254, 
+// Confirmed message retry times. Valid range 0~254,
 // if retry times is less than 2, only one message will
-// be sent. Random delay 3 - 10s between each retry 
+// be sent. Random delay 3 - 10s between each retry
 // (band duty cycle limitation has the priority)
 func retry(setting string) error {
 	cmd := "RETRY"
@@ -329,12 +329,38 @@ func log(setting string) error {
 	return nil
 }
 
-func crlf()  {
+func recv(setting string) error {
+	cmd := "RECV"
+
+	data, err := lorarx()
+	if err != nil {
+		writeCommandOutput(cmd, "ERROR "+err.Error())
+		return err
+	}
+	writeCommandOutput(cmd, string(data))
+
+	return nil
+}
+
+func recvhex(setting string) error {
+	cmd := "RECVHEX"
+
+	data, err := lorarx()
+	if err != nil {
+		writeCommandOutput(cmd, "ERROR "+err.Error())
+		return err
+	}
+	writeCommandOutput(cmd, string(data))
+
+	return nil
+}
+
+func crlf() {
 	uart.Write([]byte("\r\n"))
 }
 
 func writeCommandOutput(cmd, data string) {
-	uart.Write([]byte("+"+cmd+": "))
+	uart.Write([]byte("+" + cmd + ": "))
 	uart.Write([]byte(data))
 	crlf()
 }

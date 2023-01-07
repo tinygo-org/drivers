@@ -52,7 +52,7 @@ func setupLora() (LoraRadio, error) {
 
 	loraRadio.LoraConfig(loraConf)
 
-	return loraRadio, nil	
+	return loraRadio, nil
 }
 
 // radioIntHandler will take care of radio interrupts
@@ -62,4 +62,8 @@ func radioIntHandler(intr interrupt.Interrupt) {
 
 func firmwareVersion() string {
 	return "sx126x"
+}
+
+func lorarx() ([]byte, error) {
+	return loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
 }

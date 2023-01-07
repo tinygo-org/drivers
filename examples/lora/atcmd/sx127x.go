@@ -11,15 +11,19 @@ import (
 	"tinygo.org/x/drivers/sx127x"
 )
 
-const FREQ = 868100000
+const (
+	FREQ                      = 868100000
+	LORA_DEFAULT_RXTIMEOUT_MS = 1000
+	LORA_DEFAULT_TXTIMEOUT_MS = 5000
+)
 
 var (
 	// We assume LoRa Featherwing module is connected to PyBadge:
-	rstPin  = machine.D11
-	csPin   = machine.D10
-	dio0Pin = machine.D6
-	dio1Pin = machine.D9
-	spi = machine.SPI0
+	rstPin    = machine.D11
+	csPin     = machine.D10
+	dio0Pin   = machine.D6
+	dio1Pin   = machine.D9
+	spi       = machine.SPI0
 	loraRadio *sx127x.Device
 )
 
@@ -64,9 +68,8 @@ func setupLora() (LoraRadio, error) {
 
 	loraRadio.LoraConfig(loraConf)
 
-	return loraRadio, nil	
+	return loraRadio, nil
 }
-
 
 func dioIrqHandler(machine.Pin) {
 	loraRadio.HandleInterrupt()
@@ -74,5 +77,9 @@ func dioIrqHandler(machine.Pin) {
 
 func firmwareVersion() string {
 	v := loraRadio.GetVersion()
-	return "sx127x v"+strconv.Itoa(int(v))
+	return "sx127x v" + strconv.Itoa(int(v))
+}
+
+func lorarx() ([]byte, error) {
+	return loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
 }

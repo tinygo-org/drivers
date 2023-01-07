@@ -99,6 +99,10 @@ func parseCommand(cmd, args string) error {
 		test(args)
 	case "LOG":
 		log(args)
+	case "RECV":
+		recv(args)
+	case "RECVHEX":
+		recvhex(args)
 	default:
 		return errInvalidCommand
 	}
