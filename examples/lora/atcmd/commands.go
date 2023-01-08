@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"strings"
 )
 
@@ -326,6 +327,49 @@ func log(setting string) error {
 	cmd := "LOG"
 	writeCommandOutput(cmd, "Not implemented")
 
+	return nil
+}
+
+func send(data string) error {
+	cmd := "SEND"
+	writeCommandOutput(cmd, "Start")
+
+	// remove leading/trailing quotes
+	data = strings.Trim(data, "\"'")
+
+	if err := radio.LoraTx([]byte(data), defaultTimeout); err != nil {
+		writeCommandOutput(cmd, err.Error())
+
+		return err
+	}
+
+	writeCommandOutput(cmd, "Done")
+	return nil
+}
+
+func sendhex(data string) error {
+	cmd := "SENDHEX"
+	writeCommandOutput(cmd, "Start")
+
+	// remove leading/trailing quotes
+	data = strings.Trim(data, "\"'")
+
+	// convert data from hex formatted string
+	data = strings.ReplaceAll(data, " ", "")
+	payload, err := hex.DecodeString(data)
+	if err != nil {
+		writeCommandOutput(cmd, err.Error())
+
+		return err
+	}
+
+	if err := radio.LoraTx(payload, defaultTimeout); err != nil {
+		writeCommandOutput(cmd, err.Error())
+
+		return err
+	}
+
+	writeCommandOutput(cmd, "Done")
 	return nil
 }
 

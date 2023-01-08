@@ -29,7 +29,7 @@ func (sr *SimLoraRadio) SetLoraCrc(enable bool)          {}
 func (sr *SimLoraRadio) SetLoraSpreadingFactor(sf uint8) {}
 
 func firmwareVersion() string {
-	return "Simulator " + currentVersion()
+	return "simulator " + currentVersion()
 }
 
 func lorarx() ([]byte, error) {

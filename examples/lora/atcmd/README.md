@@ -4,7 +4,7 @@
 $ tinygo monitor
 Connected to /dev/ttyACM0. Press Ctrl-C to exit.
 +AT: OK
-+VER: 0.0.1 sx127x v18
++VER: 0.0.1 (sx127x v18)
 ```
 
 # Building

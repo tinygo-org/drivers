@@ -103,6 +103,10 @@ func parseCommand(cmd, args string) error {
 		recv(args)
 	case "RECVHEX":
 		recvhex(args)
+	case "SEND":
+		send(args)
+	case "SENDHEX":
+		sendhex(args)
 	default:
 		return errInvalidCommand
 	}
