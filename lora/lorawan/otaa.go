@@ -3,6 +3,7 @@ package lorawan
 import (
 	"bytes"
 	"crypto/aes"
+	"encoding/hex"
 	"errors"
 )
 
@@ -14,25 +15,83 @@ type Otaa struct {
 	DevNonce [2]uint8
 	AppNonce [3]uint8
 	NetID    [3]uint8
+	buf      []uint8
+}
+
+// Initialize DevNonce
+func (o *Otaa) Init() {
+	o.buf = make([]uint8, 0)
+
+	// TODO: handle error
+	rnd, _ := GetRand16()
+	o.DevNonce[0] = rnd[0]
+	o.DevNonce[1] = rnd[1]
 }
 
 // Set configures the Otaa AppEUI, DevEUI, AppKey for the device
-func (o *Otaa) Set(appEUI [8]uint8, devEUI [8]uint8, appKey [16]uint8) {
-	o.AppEUI = appEUI
-	o.DevEUI = devEUI
-	o.AppKey = appKey
+func (o *Otaa) Set(appEUI []uint8, devEUI []uint8, appKey []uint8) {
+	o.SetAppEUI(appEUI)
+	o.SetDevEUI(devEUI)
+	o.SetAppKey(appKey)
+}
+
+// SetAppEUI configures the Otaa AppEUI
+func (o *Otaa) SetAppEUI(appEUI []uint8) error {
+	if len(appEUI) != 8 {
+		return errors.New("invalid length")
+	}
+
+	copy(o.AppEUI[:], appEUI)
+
+	return nil
+}
+
+func (o *Otaa) GetAppEUI() string {
+	return hex.EncodeToString(o.AppEUI[:])
+}
+
+// SetDevEUI configures the Otaa DevEUI
+func (o *Otaa) SetDevEUI(devEUI []uint8) error {
+	if len(devEUI) != 8 {
+		return errors.New("invalid length")
+	}
+
+	copy(o.DevEUI[:], devEUI)
+
+	return nil
+}
+
+func (o *Otaa) GetDevEUI() string {
+	return hex.EncodeToString(o.DevEUI[:])
+}
+
+// SetAppKey configures the Otaa AppKey
+func (o *Otaa) SetAppKey(appKey []uint8) error {
+	if len(appKey) != 16 {
+		return errors.New("invalid length")
+	}
+
+	copy(o.AppKey[:], appKey)
+
+	return nil
+}
+
+func (o *Otaa) GetAppKey() string {
+	return hex.EncodeToString(o.AppKey[:])
 }
 
 // GenerateJoinRequest Generates a LoraWAN Join request
-func (o *Otaa) GenerateJoinRequest(buf []uint8) error {
+func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 	// TODO: Add checks
-	buf = append(buf, 0x00)
-	buf = append(buf, revertByteArray(o.AppEUI[:])...)
-	buf = append(buf, revertByteArray(o.DevEUI[:])...)
-	buf = append(buf, revertByteArray(o.DevNonce[:])...)
-	mic := genPayloadMIC(buf, o.AppKey)
-	buf = append(buf, mic[:]...)
-	return nil
+	o.buf = o.buf[:0]
+	o.buf = append(o.buf, 0x00)
+	o.buf = append(o.buf, reverseBytes(o.AppEUI[:])...)
+	o.buf = append(o.buf, reverseBytes(o.DevEUI[:])...)
+	o.buf = append(o.buf, reverseBytes(o.DevNonce[:])...)
+	mic := genPayloadMIC(o.buf, o.AppKey)
+	o.buf = append(o.buf, mic[:]...)
+
+	return o.buf, nil
 }
 
 // DecodeJoinAccept Decodes a Lora Join Accept packet
