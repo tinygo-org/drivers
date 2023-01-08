@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/hex"
 	"strings"
+
+	"tinygo.org/x/drivers/lora/lorawan"
 )
 
 // Use to test if connection to module is OK.
@@ -23,13 +25,42 @@ func id(args string) error {
 	param, val, hasComma := strings.Cut(args, ",")
 	if hasComma {
 		// set
+		data := strings.Trim(val, "\"'")
+
+		// convert data from hex formatted string
+		data = strings.ReplaceAll(data, " ", "")
+		hexdata, err := hex.DecodeString(data)
+		if err != nil {
+			writeCommandOutput(cmd, err.Error())
+
+			return err
+		}
+
 		switch param {
 		case "DevAddr":
-			writeCommandOutput(cmd, "DevAddr, "+val)
+			if err := session.SetDevAddr(hexdata); err != nil {
+				writeCommandOutput(cmd, err.Error())
+
+				return err
+			}
+
+			writeCommandOutput(cmd, "DevAddr, "+session.GetDevAddr())
 		case "DevEui":
-			writeCommandOutput(cmd, "DevEui, "+val)
+			if err := otaa.SetDevEUI(hexdata); err != nil {
+				writeCommandOutput(cmd, err.Error())
+
+				return err
+			}
+
+			writeCommandOutput(cmd, "DevEui, "+otaa.GetDevEUI())
 		case "AppEui":
-			writeCommandOutput(cmd, "AppEui, "+val)
+			if err := otaa.SetAppEUI(hexdata); err != nil {
+				writeCommandOutput(cmd, err.Error())
+
+				return err
+			}
+
+			writeCommandOutput(cmd, "AppEui, "+otaa.GetAppEUI())
 		default:
 			return errInvalidCommand
 		}
@@ -40,15 +71,15 @@ func id(args string) error {
 	// get
 	switch param {
 	case "DevAddr":
-		writeCommandOutput(cmd, "DevAddr, xx:xx:xx:xx")
+		writeCommandOutput(cmd, "DevAddr, "+session.GetDevAddr())
 	case "DevEui":
-		writeCommandOutput(cmd, "DevEui, xx:xx:xx:xx:xx:xx:xx:xx")
+		writeCommandOutput(cmd, "DevEui, "+otaa.GetDevEUI())
 	case "AppEui":
-		writeCommandOutput(cmd, "AppEui, xx:xx:xx:xx:xx:xx:xx:xx")
+		writeCommandOutput(cmd, "AppEui, "+otaa.GetAppEUI())
 	default:
-		writeCommandOutput(cmd, "DevAddr, xx:xx:xx:xx")
-		writeCommandOutput(cmd, "DevEui, xx:xx:xx:xx:xx:xx:xx:xx")
-		writeCommandOutput(cmd, "AppEui, xx:xx:xx:xx:xx:xx:xx:xx")
+		writeCommandOutput(cmd, "DevAddr, "+session.GetDevAddr())
+		writeCommandOutput(cmd, "DevEui, "+otaa.GetDevEUI())
+		writeCommandOutput(cmd, "AppEui, "+otaa.GetAppEUI())
 	}
 
 	return nil
@@ -208,9 +239,38 @@ func rxwin1(setting string) error {
 
 func key(setting string) error {
 	cmd := "KEY"
-	writeCommandOutput(cmd, setting)
 
-	return nil
+	// look for comma in args
+	param, val, hasComma := strings.Cut(setting, ",")
+	if hasComma {
+		// set
+		data := strings.Trim(val, "\"'")
+
+		// convert data from hex formatted string
+		data = strings.ReplaceAll(data, " ", "")
+		hexdata, err := hex.DecodeString(data)
+		if err != nil {
+			writeCommandOutput(cmd, err.Error())
+
+			return err
+		}
+
+		switch param {
+		case "APPKEY":
+			if err := otaa.SetAppKey(hexdata); err != nil {
+				writeCommandOutput(cmd, err.Error())
+
+				return err
+			}
+
+			writeCommandOutput(cmd, "APPKEY, "+otaa.GetAppKey())
+		default:
+			return errInvalidCommand
+		}
+	}
+
+	// cannot get keys
+	return errInvalidCommand
 }
 
 func fdefault(setting string) error {
@@ -230,7 +290,14 @@ func mode(setting string) error {
 func join(setting string) error {
 	cmd := "JOIN"
 	writeCommandOutput(cmd, "Starting")
+	if err := lorawan.Join(otaa, session); err != nil {
+		writeCommandOutput(cmd, err.Error())
 
+		return err
+	}
+
+	writeCommandOutput(cmd, "Network joined")
+	// TODO: display NetID and DevAddr
 	writeCommandOutput(cmd, "Done")
 	return nil
 }

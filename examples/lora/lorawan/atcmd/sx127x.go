@@ -55,14 +55,14 @@ func setupLora() (lora.Radio, error) {
 	// Prepare for Lora Operation
 	loraConf := lora.Config{
 		Freq:           FREQ,
-		Bw:             lora.Bandwidth_500_0,
+		Bw:             lora.Bandwidth_125_0,
 		Sf:             lora.SpreadingFactor9,
 		Cr:             lora.CodingRate4_7,
 		HeaderType:     lora.HeaderExplicit,
 		Preamble:       12,
 		Iq:             lora.IQStandard,
 		Crc:            lora.CRCOn,
-		SyncWord:       lora.SyncPrivate,
+		SyncWord:       lora.SyncPublic,
 		LoraTxPowerDBm: 20,
 	}
 
