@@ -81,5 +81,5 @@ func firmwareVersion() string {
 }
 
 func lorarx() ([]byte, error) {
-	return loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
+	return loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 }

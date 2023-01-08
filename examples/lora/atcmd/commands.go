@@ -67,7 +67,7 @@ func msg(data string) error {
 	cmd := "MSG"
 	writeCommandOutput(cmd, "Start")
 
-	if err := radio.LoraTx([]byte(data), defaultTimeout); err != nil {
+	if err := radio.Tx([]byte(data), defaultTimeout); err != nil {
 		writeCommandOutput(cmd, err.Error())
 
 		return err
@@ -82,7 +82,7 @@ func cmsg(data string) error {
 	cmd := "CMSG"
 	writeCommandOutput(cmd, "Start")
 
-	if err := radio.LoraTx([]byte(data), defaultTimeout); err != nil {
+	if err := radio.Tx([]byte(data), defaultTimeout); err != nil {
 		writeCommandOutput(cmd, err.Error())
 
 		return err
@@ -337,7 +337,7 @@ func send(data string) error {
 	// remove leading/trailing quotes
 	data = strings.Trim(data, "\"'")
 
-	if err := radio.LoraTx([]byte(data), defaultTimeout); err != nil {
+	if err := radio.Tx([]byte(data), defaultTimeout); err != nil {
 		writeCommandOutput(cmd, err.Error())
 
 		return err
@@ -363,7 +363,7 @@ func sendhex(data string) error {
 		return err
 	}
 
-	if err := radio.LoraTx(payload, defaultTimeout); err != nil {
+	if err := radio.Tx(payload, defaultTimeout); err != nil {
 		writeCommandOutput(cmd, err.Error())
 
 		return err
