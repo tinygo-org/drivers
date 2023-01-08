@@ -2,8 +2,10 @@
 
 package main
 
+import "tinygo.org/x/drivers/lora"
+
 // do simulator setup here
-func setupLora() (LoraRadio, error) {
+func setupLora() (lora.Radio, error) {
 	return &SimLoraRadio{}, nil
 }
 
