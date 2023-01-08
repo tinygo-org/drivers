@@ -263,7 +263,7 @@ func (d *Device) SetLoraCodingRate(cr uint8) {
 // SetImplicitHeaderModeOn Enables implicit header mode ***
 func (d *Device) SetLoraHeaderMode(headerType uint8) {
 	d.loraConf.HeaderType = headerType
-	if headerType == lora.HeaderExplicit {
+	if headerType == lora.HeaderImplicit {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)|0x01)
 	} else {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0xfe)
