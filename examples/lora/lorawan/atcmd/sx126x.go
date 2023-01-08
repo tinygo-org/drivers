@@ -24,7 +24,7 @@ var (
 )
 
 // do sx126x setup here
-func setupLora() (LoraRadio, error) {
+func setupLora() (lora.Radio, error) {
 	loraRadio = sx126x.New(machine.SPI3)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 

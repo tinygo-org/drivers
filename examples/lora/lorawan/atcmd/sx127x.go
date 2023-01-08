@@ -28,7 +28,7 @@ var (
 )
 
 // do sx127x setup here
-func setupLora() (LoraRadio, error) {
+func setupLora() (lora.Radio, error) {
 	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dio0Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})

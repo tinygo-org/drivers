@@ -11,6 +11,9 @@ package main
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/lora"
+	"tinygo.org/x/drivers/lora/lorawan"
 )
 
 // change these to test a different UART or pins if available
@@ -20,7 +23,10 @@ var (
 	rx    = machine.UART_RX_PIN
 	input = make([]byte, 0, 64)
 
-	radio          LoraRadio
+	radio   lora.Radio
+	session *lorawan.Session
+	otaa    *lorawan.Otaa
+
 	defaultTimeout uint32 = 1000
 )
 
