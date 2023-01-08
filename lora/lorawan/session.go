@@ -3,6 +3,7 @@ package lorawan
 import (
 	"crypto/aes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"math"
 )
@@ -17,6 +18,21 @@ type Session struct {
 	CFList     [16]uint8
 	RXDelay    uint8
 	DLSettings uint8
+}
+
+// SetDevAddr configures the Session DevAddr
+func (s *Session) SetDevAddr(devAddr []uint8) error {
+	if len(devAddr) != 4 {
+		return errors.New("invalid length")
+	}
+
+	copy(s.DevAddr[:], devAddr)
+
+	return nil
+}
+
+func (s *Session) GetDevAddr() string {
+	return hex.EncodeToString(s.DevAddr[:])
 }
 
 // GenMessage Forge an uplink message
@@ -87,4 +103,3 @@ func (s *Session) genFRMPayload(dir uint8, fCnt uint32, payload []byte, isFOpts 
 	}
 	return encrypted[:len(payload)], nil
 }
-
