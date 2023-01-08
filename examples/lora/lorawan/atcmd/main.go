@@ -39,6 +39,10 @@ func main() {
 		fail(err.Error())
 	}
 
+	session = &lorawan.Session{}
+	otaa = &lorawan.Otaa{}
+	lorawan.UseRadio(radio)
+
 	for {
 		if uart.Buffered() > 0 {
 			data, _ := uart.ReadByte()
