@@ -239,8 +239,8 @@ func (d *Device) LoraConfig(cnf lora.Config) {
 	d.loraConf.SyncWord = syncword(int(cnf.SyncWord))
 }
 
-// SetLoraFrequency updates the frequency the LoRa module is using
-func (d *Device) SetLoraFrequency(frequency uint32) {
+// SetFrequency updates the frequency the LoRa module is using
+func (d *Device) SetFrequency(frequency uint32) {
 	d.loraConf.Freq = frequency
 	var frf = (uint64(frequency) << 19) / 32000000
 	d.WriteRegister(SX127X_REG_FRF_MSB, uint8(frf>>16))
@@ -249,19 +249,19 @@ func (d *Device) SetLoraFrequency(frequency uint32) {
 }
 
 // SetBandwidth updates the bandwidth the LoRa module is using
-func (d *Device) SetLoraBandwidth(bw uint8) {
+func (d *Device) SetBandwidth(bw uint8) {
 	d.loraConf.Bw = bandwidth(bw)
 	d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, (d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0x0f)|(bw<<4))
 }
 
 // SetCodingRate updates the coding rate the LoRa module is using
-func (d *Device) SetLoraCodingRate(cr uint8) {
+func (d *Device) SetCodingRate(cr uint8) {
 	d.loraConf.Cr = cr
 	d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, (d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0xf1)|(cr<<1))
 }
 
 // SetImplicitHeaderModeOn Enables implicit header mode ***
-func (d *Device) SetLoraHeaderMode(headerType uint8) {
+func (d *Device) SetHeaderMode(headerType uint8) {
 	d.loraConf.HeaderType = headerType
 	if headerType == lora.HeaderImplicit {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)|0x01)
@@ -270,8 +270,8 @@ func (d *Device) SetLoraHeaderMode(headerType uint8) {
 	}
 }
 
-// SetLoraSpreadingFactor changes spreading factor
-func (d *Device) SetLoraSpreadingFactor(sf uint8) {
+// SetSpreadingFactor changes spreading factor
+func (d *Device) SetSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf
 	if sf == lora.SpreadingFactor6 {
 		d.WriteRegister(SX127X_REG_DETECTION_OPTIMIZE, 0xc5)
@@ -293,8 +293,8 @@ func (d *Device) SetTxContinuousMode(val bool) {
 	}
 }
 
-// SetLoraCrc Enable CRC generation and check on payload
-func (d *Device) SetLoraCrc(enable bool) {
+// SetCrc Enable CRC generation and check on payload
+func (d *Device) SetCrc(enable bool) {
 	if enable {
 		d.loraConf.Crc = lora.CRCOn
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)|0x04)
@@ -304,21 +304,21 @@ func (d *Device) SetLoraCrc(enable bool) {
 	}
 }
 
-func (d *Device) SetLoraPreamble(pLen uint16) {
+func (d *Device) SetPreamble(pLen uint16) {
 	// Sets preamble length
 	d.WriteRegister(SX127X_REG_PREAMBLE_MSB, uint8((pLen>>8)&0xFF))
 	d.WriteRegister(SX127X_REG_PREAMBLE_LSB, uint8(pLen&0xFF))
 }
 
-// SetLoraSyncWord defines sync word
-func (d *Device) SetLoraSyncWord(syncWord uint16) {
+// SetSyncWord defines sync word
+func (d *Device) SetSyncWord(syncWord uint16) {
 	d.loraConf.SyncWord = syncWord
 	sw := uint8(syncWord & 0xFF)
 	d.WriteRegister(SX127X_REG_SYNC_WORD, sw)
 }
 
-// SetLoraIQMode Sets I/Q polarity configuration
-func (d *Device) SetLoraIqMode(val uint8) {
+// SetIQMode Sets I/Q polarity configuration
+func (d *Device) SetIqMode(val uint8) {
 	d.loraConf.Iq = val
 	if val == lora.IQStandard {
 		//Set IQ to normal values
@@ -331,10 +331,8 @@ func (d *Device) SetLoraIqMode(val uint8) {
 	}
 }
 
-// LoraTx sends a lora packet, (with timeout)
-func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
-
-	//println("sx127x: LoraTx:", len(pkt), " bytes", hex.EncodeToString(pkt))
+// Tx sends a lora packet, (with timeout)
+func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 	d.SetOpModeLora()
 	d.SetOpMode(SX127X_OPMODE_SLEEP)
 
@@ -343,16 +341,16 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.WriteRegister(SX127X_REG_PA_RAMP, (d.ReadRegister(SX127X_REG_PA_RAMP)&0xF0)|0x08) // set PA ramp-up time 50 uSec
 	d.WriteRegister(SX127X_REG_LNA, SX127X_LNA_MAX_GAIN)                                // Set Low Noise Amplifier to MAX
 
-	d.SetLoraFrequency(d.loraConf.Freq)
-	d.SetLoraPreamble(d.loraConf.Preamble)
-	d.SetLoraSyncWord(d.loraConf.SyncWord)
-	d.SetLoraBandwidth(d.loraConf.Bw)
-	d.SetLoraSpreadingFactor(d.loraConf.Sf)
-	d.SetLoraIqMode(d.loraConf.Iq)
-	d.SetLoraCodingRate(d.loraConf.Cr)
-	d.SetLoraCrc(d.loraConf.Crc == lora.CRCOn)
+	d.SetFrequency(d.loraConf.Freq)
+	d.SetPreamble(d.loraConf.Preamble)
+	d.SetSyncWord(d.loraConf.SyncWord)
+	d.SetBandwidth(d.loraConf.Bw)
+	d.SetSpreadingFactor(d.loraConf.Sf)
+	d.SetIqMode(d.loraConf.Iq)
+	d.SetCodingRate(d.loraConf.Cr)
+	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
-	d.SetLoraHeaderMode(d.loraConf.HeaderType)
+	d.SetHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
 	// set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
@@ -385,9 +383,8 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	return nil
 }
 
-// LoraRx tries to receive a Lora packet (with timeout in milliseconds)
-func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
-
+// Rx tries to receive a Lora packet (with timeout in milliseconds)
+func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	if d.loraConf.Freq == 0 {
 		return nil, lora.ErrUndefinedLoraConf
 	}
@@ -400,16 +397,16 @@ func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
 	d.WriteRegister(SX127X_REG_PA_RAMP, (d.ReadRegister(SX127X_REG_PA_RAMP)&0xF0)|0x08) // set PA ramp-up time 50 uSec
 	d.WriteRegister(SX127X_REG_LNA, SX127X_LNA_MAX_GAIN)                                // Set Low Noise Amplifier to MAX
 
-	d.SetLoraFrequency(d.loraConf.Freq)
-	d.SetLoraPreamble(d.loraConf.Preamble)  //OK
-	d.SetLoraSyncWord(d.loraConf.SyncWord)  // Should be ok
-	d.SetLoraBandwidth(d.loraConf.Bw)       // OK
-	d.SetLoraSpreadingFactor(d.loraConf.Sf) // OK
-	d.SetLoraIqMode(d.loraConf.Iq)          //OK
-	d.SetLoraCodingRate(d.loraConf.Cr)
-	d.SetLoraCrc(d.loraConf.Crc == lora.CRCOn)
+	d.SetFrequency(d.loraConf.Freq)
+	d.SetPreamble(d.loraConf.Preamble)
+	d.SetSyncWord(d.loraConf.SyncWord)
+	d.SetBandwidth(d.loraConf.Bw)
+	d.SetSpreadingFactor(d.loraConf.Sf)
+	d.SetIqMode(d.loraConf.Iq)
+	d.SetCodingRate(d.loraConf.Cr)
+	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
-	d.SetLoraHeaderMode(d.loraConf.HeaderType)
+	d.SetHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
 	// set the IRQ mapping DIO0=RxDone DIO1=RxTimeout DIO2=NOP
@@ -462,7 +459,7 @@ func (d *Device) RandomU32() uint32 {
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS, 0xFF)
 	d.SetOpModeLora()
 	d.SetOpMode(SX127X_OPMODE_SLEEP)
-	d.SetLoraFrequency(d.loraConf.Freq)
+	d.SetFrequency(d.loraConf.Freq)
 	d.SetOpMode(SX127X_OPMODE_RX)
 	rnd := uint32(0)
 	for i := 0; i < 32; i++ {

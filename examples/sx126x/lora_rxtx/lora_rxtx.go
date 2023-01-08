@@ -77,7 +77,7 @@ func main() {
 
 		println("main: Receiving Lora for 10 seconds")
 		for int(time.Now().Sub(tStart).Seconds()) < 10 {
-			buf, err := loraRadio.LoraRx(LORA_DEFAULT_RXTIMEOUT_MS)
+			buf, err := loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 			if err != nil {
 				println("RX Error: ", err)
 			} else if buf != nil {
@@ -86,7 +86,7 @@ func main() {
 		}
 		println("main: End Lora RX")
 		println("LORA TX size=", len(txmsg), " -> ", string(txmsg))
-		err := loraRadio.LoraTx(txmsg, LORA_DEFAULT_TXTIMEOUT_MS)
+		err := loraRadio.Tx(txmsg, LORA_DEFAULT_TXTIMEOUT_MS)
 		if err != nil {
 			println("TX Error:", err)
 		}

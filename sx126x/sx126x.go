@@ -133,7 +133,7 @@ func (d *Device) SetTxContinuousWave() {
 }
 
 // SetTxContinuousPreamble set device in test mode to constantly modulate LoRa preamble symbols.
-// Take care to initialize all Lora settings like it's done in LoraTx before calling this function
+// Take care to initialize all Lora settings like it's done in Tx before calling this function
 // If you don't init properly all the settings, it'll fail
 func (d *Device) SetTxContinuousPreamble() {
 	if d.rfswitch != nil {
@@ -372,8 +372,8 @@ func (d *Device) GetSyncWord() uint16 {
 	return r
 }
 
-// SetLoraPublicNetwork sets Sync Word to 0x3444 (Public) or 0x1424 (Private)
-func (d *Device) SetLoraPublicNetwork(enable bool) {
+// SetPublicNetwork sets Sync Word to 0x3444 (Public) or 0x1424 (Private)
+func (d *Device) SetPublicNetwork(enable bool) {
 	if enable {
 		d.SetSyncWord(SX126X_LORA_MAC_PUBLIC_SYNCWORD)
 	} else {
@@ -507,15 +507,15 @@ func (d *Device) ExecGetCommand(cmd uint8, size uint8) []uint8 {
 // Configuration
 //
 
-// SetLoraFrequency() Sets current Lora Frequency
+// SetFrequency() Sets current Lora Frequency
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraFrequency(freq uint32) {
+func (d *Device) SetFrequency(freq uint32) {
 	d.loraConf.Freq = d.loraConf.Freq
 }
 
-// SetLoraIqMode() defines the current IQ Mode (Standard/Inverted)
+// SetIqMode() defines the current IQ Mode (Standard/Inverted)
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraIqMode(mode uint8) {
+func (d *Device) SetIqMode(mode uint8) {
 	if mode == 0 {
 		d.loraConf.Iq = lora.IQStandard
 	} else {
@@ -523,21 +523,21 @@ func (d *Device) SetLoraIqMode(mode uint8) {
 	}
 }
 
-// SetLoraCodingRate() sets current Lora Coding Rate
+// SetCodingRate() sets current Lora Coding Rate
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraCodingRate(cr uint8) {
+func (d *Device) SetCodingRate(cr uint8) {
 	d.loraConf.Cr = cr
 }
 
-// SetLoraBandwidth() sets current Lora Bandwidth
+// SetBandwidth() sets current Lora Bandwidth
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraBandwidth(bw uint8) {
+func (d *Device) SetBandwidth(bw uint8) {
 	d.loraConf.Cr = bw
 }
 
-// SetLoraCrc() sets current CRC mode (ON/OFF)
+// SetCrc() sets current CRC mode (ON/OFF)
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraCrc(enable bool) {
+func (d *Device) SetCrc(enable bool) {
 	if enable {
 		d.loraConf.Crc = lora.CRCOn
 	} else {
@@ -545,9 +545,9 @@ func (d *Device) SetLoraCrc(enable bool) {
 	}
 }
 
-// SetLoraSpreadingFactor setc surrent Lora Spreading Factor
+// SetSpreadingFactor setc surrent Lora Spreading Factor
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraSpreadingFactor(sf uint8) {
+func (d *Device) SetSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf
 }
 
@@ -576,18 +576,19 @@ func (d *Device) LoraConfig(cnf lora.Config) {
 	d.SetBufferBaseAddress(0, 0)
 }
 
-// LoraTx sends a lora packet, (with timeout)
-func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
-
+// Tx sends a lora packet, (with timeout)
+func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 	if d.loraConf.Freq == 0 {
 		return lora.ErrUndefinedLoraConf
 	}
+
 	if d.rfswitch != nil {
 		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
 		if err != nil {
 			return err
 		}
 	}
+
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 	irqVal := uint16(SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
@@ -610,17 +611,18 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 }
 
 // LoraRx tries to receive a Lora packet (with timeout in milliseconds)
-func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
-
+func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	if d.loraConf.Freq == 0 {
 		return nil, lora.ErrUndefinedLoraConf
 	}
+
 	if d.rfswitch != nil {
 		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_RX)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 	irqVal := uint16(SX126X_IRQ_RX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
