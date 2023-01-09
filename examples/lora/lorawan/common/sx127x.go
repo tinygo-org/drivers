@@ -1,6 +1,6 @@
 //go:build featherwing
 
-package main
+package common
 
 import (
 	"strconv"
@@ -28,7 +28,7 @@ var (
 )
 
 // do sx127x setup here
-func setupLora() (lora.Radio, error) {
+func SetupLora() (lora.Radio, error) {
 	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dio0Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
@@ -75,11 +75,11 @@ func dioIrqHandler(machine.Pin) {
 	loraRadio.HandleInterrupt()
 }
 
-func firmwareVersion() string {
+func FirmwareVersion() string {
 	v := loraRadio.GetVersion()
 	return "sx127x v" + strconv.Itoa(int(v))
 }
 
-func lorarx() ([]byte, error) {
+func Lorarx() ([]byte, error) {
 	return loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 }

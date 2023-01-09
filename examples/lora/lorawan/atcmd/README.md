@@ -12,18 +12,18 @@ Connected to /dev/ttyACM0. Press Ctrl-C to exit.
 ## Simulator
 
 ```
-tinygo flash -target pico ./examples/lora/atcmd/
+tinygo flash -target pico ./examples/lora/lorawan/atcmd/
 ```
 
 ## PyBadge with LoRa Featherwing 
 
 ```
-tinygo flash -target pybadge -tags featherwing ./examples/lora/atcmd/
+tinygo flash -target pybadge -tags featherwing ./examples/lora/lorawan/atcmd/
 ```
 
 ## LoRa-E5 
 
 ```
-tinygo flash -target lorae5 ./examples/lora/atcmd/
+tinygo flash -target lorae5 ./examples/lora/lorawan/atcmd/
 ```
 

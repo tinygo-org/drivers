@@ -10,4 +10,5 @@ type Radio interface {
 	SetBandwidth(bw uint8)
 	SetCrc(enable bool)
 	SetSpreadingFactor(sf uint8)
+	LoraConfig(cnf Config)
 }
