@@ -71,7 +71,17 @@ func Join(otaa *Otaa, session *Session) error {
 	return nil
 }
 
-func SendUplink() error {
+func SendUplink(data []uint8, session *Session) error {
+	payload, err := session.GenMessage(0, []byte(data))
+	if err != nil {
+		return err
+	}
+	ActiveRadio.SetCrc(true)
+	ActiveRadio.SetIqMode(0) // IQ Standard
+	ActiveRadio.Tx(payload, LORA_RXTX_TIMEOUT)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

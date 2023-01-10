@@ -1,6 +1,6 @@
 //go:build gnse || lorae5 || nucleowl55jc
 
-package main
+package common
 
 import (
 	"device/stm32"
@@ -24,7 +24,7 @@ var (
 )
 
 // do sx126x setup here
-func setupLora() (lora.Radio, error) {
+func SetupLora() (lora.Radio, error) {
 	loraRadio = sx126x.New(machine.SPI3)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
@@ -64,10 +64,10 @@ func radioIntHandler(intr interrupt.Interrupt) {
 	loraRadio.HandleInterrupt()
 }
 
-func firmwareVersion() string {
+func FirmwareVersion() string {
 	return "sx126x"
 }
 
-func lorarx() ([]byte, error) {
+func Lorarx() ([]byte, error) {
 	return loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 }

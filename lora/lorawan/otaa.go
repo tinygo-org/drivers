@@ -87,7 +87,7 @@ func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 	o.buf = append(o.buf, 0x00)
 	o.buf = append(o.buf, reverseBytes(o.AppEUI[:])...)
 	o.buf = append(o.buf, reverseBytes(o.DevEUI[:])...)
-	o.buf = append(o.buf, reverseBytes(o.DevNonce[:])...)
+	o.buf = append(o.buf, o.DevNonce[:]...)
 	mic := genPayloadMIC(o.buf, o.AppKey)
 	o.buf = append(o.buf, mic[:]...)
 
