@@ -1,8 +1,9 @@
 // Simple code for connecting to Lorawan network and uploading sample payload
-
 package main
 
 import (
+	"errors"
+	"strconv"
 	"time"
 
 	"tinygo.org/x/drivers/examples/lora/lorawan/common"
@@ -11,46 +12,50 @@ import (
 )
 
 const (
-	LORAWAN_RECONNECT_DELAY_SEC = 60
+	LORAWAN_JOIN_TIMEOUT_SEC    = 180
+	LORAWAN_RECONNECT_DELAY_SEC = 15
+	LORAWAN_UPLINK_DELAY_SEC    = 60
 )
 
 var (
 	radio   lora.Radio
 	session *lorawan.Session
 	otaa    *lorawan.Otaa
-
-	lorawanConnected bool
 )
 
-// loraConnect() will loop until we're connected to Lorawan network
-func loraConnect() {
-	for {
-		for !lorawanConnected {
-			println("Starting Lorawan Join sequence")
-			err := lorawan.Join(otaa, session)
-			if err != nil {
-				println("loraConnect: Join error:", err)
-				println("loraConnect: Wait 300 sec")
-				time.Sleep(time.Second * LORAWAN_RECONNECT_DELAY_SEC)
-			} else {
-				println("loraConnect: Connected !")
-				lorawanConnected = true
-			}
+func loraConnect() error {
+	start := time.Now()
+	var err error
+	for time.Since(start) < LORAWAN_JOIN_TIMEOUT_SEC*time.Second {
+		println("Trying to join network")
+		err = lorawan.Join(otaa, session)
+		if err == nil {
+			println("Connected to network !")
+			return nil
 		}
+		println("Join error:", err, "retrying in", LORAWAN_RECONNECT_DELAY_SEC, "sec")
 		time.Sleep(time.Second * LORAWAN_RECONNECT_DELAY_SEC)
+	}
+
+	err = errors.New("Unable to join Lorawan network")
+	println(err.Error())
+	return err
+}
+
+func failMessage(err error) {
+	println("FATAL:", err)
+	for {
 	}
 }
 
 func main() {
-	println("Lorawan Simple Demo")
+	println("*** Lorawan basic join and uplink demo ***")
 
 	// Board specific Lorawan initialization
 	var err error
 	radio, err = common.SetupLora()
 	if err != nil {
-		println("FATAL:", err.Error())
-		for {
-		}
+		failMessage(err)
 	}
 
 	// Required for LoraWan operations
@@ -79,20 +84,24 @@ func main() {
 	// Configure AppEUI, DevEUI, APPKey
 	setLorawanKeys()
 
-	// Background lorawan connection handler
-	go loraConnect()
+	// Try to connect Lorawan network
+	if err := loraConnect(); err != nil {
+		failMessage(err)
+	}
 
-	payload := []byte("Hello Tinygo")
-
+	// Try to periodicaly send an uplink sample message
+	upCount := 1
 	for {
-		if lorawanConnected {
-			println("Sending uplink message")
-			if err := lorawan.SendUplink(payload, session); err != nil {
-				println("Uplink error:", err)
-			}
-			// Do something like uploading datas.
+		payload := "Hello TinyGo #" + strconv.Itoa(upCount)
+
+		if err := lorawan.SendUplink([]byte(payload), session); err != nil {
+			println("Uplink error:", err)
+		} else {
+			println("Uplink success, msg=", payload)
 		}
 
-		time.Sleep(time.Second * 30)
+		println("Sleeping for", LORAWAN_UPLINK_DELAY_SEC, "sec")
+		time.Sleep(time.Second * LORAWAN_UPLINK_DELAY_SEC)
+		upCount++
 	}
 }
