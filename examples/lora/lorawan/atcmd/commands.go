@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"tinygo.org/x/drivers/examples/lora/lorawan/common"
 	"tinygo.org/x/drivers/lora/lorawan"
 )
 
@@ -14,7 +15,7 @@ func quicktest() {
 
 // Check firmware version.
 func version() {
-	writeCommandOutput("VER", currentVersion()+" ("+firmwareVersion()+")")
+	writeCommandOutput("VER", common.CurrentVersion()+" ("+common.FirmwareVersion()+")")
 }
 
 // Use to check the ID of the LoRaWAN module, or change the ID.
@@ -443,7 +444,7 @@ func sendhex(data string) error {
 func recv(setting string) error {
 	cmd := "RECV"
 
-	data, err := lorarx()
+	data, err := common.Lorarx()
 	if err != nil {
 		writeCommandOutput(cmd, "ERROR "+err.Error())
 		return err
@@ -456,7 +457,7 @@ func recv(setting string) error {
 func recvhex(setting string) error {
 	cmd := "RECVHEX"
 
-	data, err := lorarx()
+	data, err := common.Lorarx()
 	if err != nil {
 		writeCommandOutput(cmd, "ERROR "+err.Error())
 		return err

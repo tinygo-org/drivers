@@ -13,7 +13,7 @@
 |  RX       |   HIGH   |   LOW     |    HIGH    |
 +-----------+----------+-----------+------------+
 */
-package main
+package common
 
 import (
 	"machine"

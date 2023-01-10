@@ -1,11 +1,11 @@
 //go:build !featherwing && !gnse && !lorae5 && !nucleowl55jc
 
-package main
+package common
 
 import "tinygo.org/x/drivers/lora"
 
 // do simulator setup here
-func setupLora() (lora.Radio, error) {
+func SetupLora() (lora.Radio, error) {
 	return &SimLoraRadio{}, nil
 }
 
@@ -29,11 +29,12 @@ func (sr *SimLoraRadio) SetCodingRate(cr uint8)      {}
 func (sr *SimLoraRadio) SetBandwidth(bw uint8)       {}
 func (sr *SimLoraRadio) SetCrc(enable bool)          {}
 func (sr *SimLoraRadio) SetSpreadingFactor(sf uint8) {}
+func (sr *SimLoraRadio) LoraConfig(cnf lora.Config)  {}
 
-func firmwareVersion() string {
-	return "simulator " + currentVersion()
+func FirmwareVersion() string {
+	return "simulator " + CurrentVersion()
 }
 
-func lorarx() ([]byte, error) {
+func Lorarx() ([]byte, error) {
 	return nil, nil
 }

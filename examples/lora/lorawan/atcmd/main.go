@@ -12,6 +12,7 @@ import (
 	"machine"
 	"time"
 
+	"tinygo.org/x/drivers/examples/lora/lorawan/common"
 	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/lora/lorawan"
 )
@@ -34,7 +35,7 @@ func main() {
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
 	var err error
-	radio, err = setupLora()
+	radio, err = common.SetupLora()
 	if err != nil {
 		fail(err.Error())
 	}
