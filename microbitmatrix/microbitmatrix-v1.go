@@ -1,5 +1,4 @@
 //go:build microbit
-// +build microbit
 
 // Package microbitmatrix implements a driver for the BBC micro:bit's LED matrix.
 //
@@ -8,9 +7,12 @@ package microbitmatrix // import "tinygo.org/x/drivers/microbitmatrix"
 
 import (
 	"machine"
-	"time"
 )
 
+// 4 rotation orientations (0, 90, 180, 270), CW (clock wise)
+// 5 rows
+// 5 cols
+// target coordinates in machine rows (y) and cols (x)
 var matrixRotations = [4][5][5][2]uint8{
 	{ // 0
 		{{0, 0}, {1, 3}, {0, 1}, {1, 4}, {0, 2}},
@@ -19,7 +21,7 @@ var matrixRotations = [4][5][5][2]uint8{
 		{{0, 7}, {0, 6}, {0, 5}, {0, 4}, {0, 3}},
 		{{2, 2}, {1, 6}, {2, 0}, {1, 5}, {2, 1}},
 	},
-	{ // 90 CCW
+	{ // 90 CW
 		{{0, 2}, {2, 7}, {1, 0}, {0, 3}, {2, 1}},
 		{{1, 4}, {2, 6}, {2, 8}, {0, 4}, {1, 5}},
 		{{0, 1}, {2, 5}, {1, 2}, {0, 5}, {2, 0}},
@@ -42,71 +44,33 @@ var matrixRotations = [4][5][5][2]uint8{
 	},
 }
 
+const (
+	ledRows = 3
+	ledCols = 9
+)
+
 type Device struct {
-	pin      [12]machine.Pin
-	buffer   [3][9]bool
+	pin      [ledCols + ledRows]machine.Pin
+	buffer   [ledRows][ledCols]int8
 	rotation uint8
 }
 
-// Configure sets up the device.
-func (d *Device) Configure(cfg Config) {
-	d.SetRotation(cfg.Rotation)
+func (d *Device) assignPins() {
+	d.pin[0] = machine.LED_COL_1
+	d.pin[1] = machine.LED_COL_2
+	d.pin[2] = machine.LED_COL_3
+	d.pin[3] = machine.LED_COL_4
+	d.pin[4] = machine.LED_COL_5
+	d.pin[5] = machine.LED_COL_6
+	d.pin[6] = machine.LED_COL_7
+	d.pin[7] = machine.LED_COL_8
+	d.pin[8] = machine.LED_COL_9
 
-	for i := machine.LED_COL_1; i <= machine.LED_ROW_3; i++ {
-		d.pin[i-machine.LED_COL_1] = i
-		d.pin[i-machine.LED_COL_1].Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.pin[9] = machine.LED_ROW_1
+	d.pin[10] = machine.LED_ROW_2
+	d.pin[11] = machine.LED_ROW_3
+
+	for i := 0; i < len(d.pin); i++ {
+		d.pin[i].Configure(machine.PinConfig{Mode: machine.PinOutput})
 	}
-	d.ClearDisplay()
-	d.DisableAll()
-}
-
-// Display sends the buffer (if any) to the screen.
-func (d *Device) Display() error {
-	for row := 0; row < 3; row++ {
-		d.DisableAll()
-		d.pin[9+row].High()
-
-		for col := 0; col < 9; col++ {
-			if d.buffer[row][col] {
-				d.pin[col].Low()
-			}
-
-		}
-		time.Sleep(time.Millisecond * 2)
-	}
-	return nil
-}
-
-// ClearDisplay erases the internal buffer
-func (d *Device) ClearDisplay() {
-	for row := 0; row < 3; row++ {
-		for col := 0; col < 9; col++ {
-			d.buffer[row][col] = false
-		}
-	}
-}
-
-// DisableAll disables all the LEDs without modifying the buffer
-func (d *Device) DisableAll() {
-	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
-		d.pin[i-machine.LED_COL_1].High()
-	}
-	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
-		d.pin[i-machine.LED_COL_1].Low()
-	}
-}
-
-// EnableAll enables all the LEDs without modifying the buffer
-func (d *Device) EnableAll() {
-	for i := machine.LED_COL_1; i <= machine.LED_COL_9; i++ {
-		d.pin[i-machine.LED_COL_1].Low()
-	}
-	for i := machine.LED_ROW_1; i <= machine.LED_ROW_3; i++ {
-		d.pin[i-machine.LED_COL_1].High()
-	}
-}
-
-// Size returns the current size of the display.
-func (d *Device) Size() (w, h int16) {
-	return 5, 5
 }

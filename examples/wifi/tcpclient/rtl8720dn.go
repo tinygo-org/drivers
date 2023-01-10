@@ -1,5 +1,4 @@
 //go:build rtl8720dn
-// +build rtl8720dn
 
 package main
 

@@ -1,5 +1,4 @@
 //go:build atsamd21
-// +build atsamd21
 
 package initdisplay
 

@@ -7,6 +7,7 @@ import (
 
 	rfswitch "tinygo.org/x/drivers/examples/sx126x/rfswitch"
 
+	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/sx126x"
 )
 
@@ -36,17 +37,17 @@ func main() {
 	}
 
 	// Prepare for Lora operation
-	loraConf := sx126x.LoraConfig{
+	loraConf := lora.Config{
 		Freq:           FREQ,
-		Bw:             sx126x.SX126X_LORA_BW_500_0,
-		Sf:             sx126x.SX126X_LORA_SF9,
-		Cr:             sx126x.SX126X_LORA_CR_4_7,
-		HeaderType:     sx126x.SX126X_LORA_HEADER_EXPLICIT,
+		Bw:             lora.Bandwidth_500_0,
+		Sf:             lora.SpreadingFactor9,
+		Cr:             lora.CodingRate4_7,
+		HeaderType:     lora.HeaderExplicit,
 		Preamble:       12,
-		Ldr:            sx126x.SX126X_LORA_LOW_DATA_RATE_OPTIMIZE_OFF,
-		Iq:             sx126x.SX126X_LORA_IQ_STANDARD,
-		Crc:            sx126x.SX126X_LORA_CRC_ON,
-		SyncWord:       sx126x.SX126X_LORA_MAC_PRIVATE_SYNCWORD,
+		Ldr:            lora.LowDataRateOptimizeOff,
+		Iq:             lora.IQStandard,
+		Crc:            lora.CRCOn,
+		SyncWord:       lora.SyncPrivate,
 		LoraTxPowerDBm: 14,
 	}
 	loraRadio.LoraConfig(loraConf)

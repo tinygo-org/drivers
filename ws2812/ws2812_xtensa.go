@@ -1,5 +1,4 @@
 //go:build xtensa
-// +build xtensa
 
 package ws2812
 

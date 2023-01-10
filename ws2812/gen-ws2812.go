@@ -1,5 +1,4 @@
 //go:build none
-// +build none
 
 package main
 
@@ -285,7 +284,6 @@ func main() {
 	}
 	defer f.Close()
 	fmt.Fprintln(f, "//go:build", architectures[*arch].buildTag)
-	fmt.Fprintln(f, "// +build", architectures[*arch].buildTag)
 	f.WriteString(`
 package ws2812
 

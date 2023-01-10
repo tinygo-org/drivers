@@ -7,6 +7,7 @@ package bme280
 
 import (
 	"math"
+	"time"
 
 	"tinygo.org/x/drivers"
 )
@@ -33,11 +34,27 @@ type calibrationCoefficients struct {
 	h6 int8
 }
 
+type Oversampling byte
+type Mode byte
+type FilterCoefficient byte
+type Period byte
+
+// Config contains settings for filtering, sampling, and modes of operation
+type Config struct {
+	Pressure    Oversampling
+	Temperature Oversampling
+	Humidity    Oversampling
+	Period      Period
+	Mode        Mode
+	IIR         FilterCoefficient
+}
+
 // Device wraps an I2C connection to a BME280 device.
 type Device struct {
 	bus                     drivers.I2C
 	Address                 uint16
 	calibrationCoefficients calibrationCoefficients
+	Config                  Config
 }
 
 // New creates a new BME280 connection. The I2C bus must already be
@@ -51,9 +68,34 @@ func New(bus drivers.I2C) Device {
 	}
 }
 
-// Configure sets up the device for communication and
-// read the calibration coefficientes.
+// ConfigureWithSettings sets up the device for communication and
+// read the calibration coefficients.
+//
+// The default configuration is the Indoor Navigation settings
+// from the BME280 datasheet.
 func (d *Device) Configure() {
+	d.ConfigureWithSettings(Config{})
+}
+
+// ConfigureWithSettings sets up the device for communication and
+// read the calibration coefficients.
+//
+// The default configuration if config is left at defaults is
+// the Indoor Navigation settings from the BME280 datasheet.
+func (d *Device) ConfigureWithSettings(config Config) {
+	d.Config = config
+
+	// If config is not initialized, use Indoor Navigation defaults.
+	if d.Config == (Config{}) {
+		d.Config = Config{
+			Mode:        ModeNormal,
+			Period:      Period0_5ms,
+			Temperature: Sampling2X,
+			Humidity:    Sampling1X,
+			Pressure:    Sampling16X,
+			IIR:         Coeff16,
+		}
+	}
 
 	var data [24]byte
 	err := d.bus.ReadRegister(uint8(d.Address), REG_CALIBRATION, data[:])
@@ -93,10 +135,18 @@ func (d *Device) Configure() {
 	d.calibrationCoefficients.h4 = 0 + (int16(h2lsb[3]) << 4) | (int16(h2lsb[4] & 0x0F))
 	d.calibrationCoefficients.h5 = 0 + (int16(h2lsb[5]) << 4) | (int16(h2lsb[4]) >> 4)
 
-	d.bus.WriteRegister(uint8(d.Address), CTRL_HUMIDITY_ADDR, []byte{0x3f})
-	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{0xB7})
-	d.bus.WriteRegister(uint8(d.Address), CTRL_CONFIG, []byte{0x00})
+	d.Reset()
 
+	d.bus.WriteRegister(uint8(d.Address), CTRL_CONFIG, []byte{byte(d.Config.Period<<5) | byte(d.Config.IIR<<2)})
+	d.bus.WriteRegister(uint8(d.Address), CTRL_HUMIDITY_ADDR, []byte{byte(d.Config.Humidity)})
+
+	// Normal mode, start measuring now
+	if d.Config.Mode == ModeNormal {
+		d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+			byte(d.Config.Temperature<<5) |
+				byte(d.Config.Pressure<<2) |
+				byte(d.Config.Mode)})
+	}
 }
 
 // Connected returns whether a BME280 has been found.
@@ -110,6 +160,20 @@ func (d *Device) Connected() bool {
 // Reset the device
 func (d *Device) Reset() {
 	d.bus.WriteRegister(uint8(d.Address), CMD_RESET, []byte{0xB6})
+}
+
+// SetMode can set the device to Sleep, Normal or Forced mode
+//
+// Calling this method is optional, Configure can be used to set the
+// initial mode if no mode change is desired.  This method is most
+// useful to switch between Sleep and Normal modes.
+func (d *Device) SetMode(mode Mode) {
+	d.Config.Mode = mode
+
+	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+		byte(d.Config.Temperature<<5) |
+			byte(d.Config.Pressure<<2) |
+			byte(d.Config.Mode)})
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
@@ -186,6 +250,16 @@ func readIntLE(msb byte, lsb byte) int16 {
 // readData does a burst read from 0xF7 to 0xF0 according to the datasheet
 // resulting in an slice with 8 bytes 0-2 = pressure / 3-5 = temperature / 6-7 = humidity
 func (d *Device) readData() (data [8]byte, err error) {
+	if d.Config.Mode == ModeForced {
+		// Write the CTRL_MEAS register to trigger a measurement
+		d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+			byte(d.Config.Temperature<<5) |
+				byte(d.Config.Pressure<<2) |
+				byte(d.Config.Mode)})
+
+		time.Sleep(d.measurementDelay())
+	}
+
 	err = d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE, data[:])
 	if err != nil {
 		println(err)
@@ -255,4 +329,40 @@ func (d *Device) calculateHumidity(data [8]byte, tFine int32) int32 {
 	h = h * (1 - float32(d.calibrationCoefficients.h1)*h/524288)
 	return int32(100 * h)
 
+}
+
+// measurementDelay returns how much time each measurement will take
+// on the device.
+//
+// This is used in forced mode to wait until a measurement is complete.
+func (d *Device) measurementDelay() time.Duration {
+	const MeasOffset = 1250
+	const MeasDur = 2300
+	const HumMeasOffset = 575
+	const MeasScalingFactor = 1000
+
+	// delay is based on over-sampling rate - this table converts from
+	// setting to number samples
+	sampleRateConv := []int{0, 1, 2, 4, 8, 16}
+
+	tempOsr := 16
+	if d.Config.Temperature <= Sampling16X {
+		tempOsr = sampleRateConv[d.Config.Temperature]
+	}
+
+	presOsr := 16
+	if d.Config.Temperature <= Sampling16X {
+		presOsr = sampleRateConv[d.Config.Pressure]
+	}
+
+	humOsr := 16
+	if d.Config.Temperature <= Sampling16X {
+		humOsr = sampleRateConv[d.Config.Humidity]
+	}
+
+	max_delay := ((MeasOffset + (MeasDur * tempOsr) +
+		((MeasDur * presOsr) + HumMeasOffset) +
+		((MeasDur * humOsr) + HumMeasOffset)) / MeasScalingFactor)
+
+	return time.Duration(max_delay) * time.Millisecond
 }

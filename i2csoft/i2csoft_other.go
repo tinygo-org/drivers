@@ -1,5 +1,4 @@
 //go:build !esp32 && !atsamd51 && !atsame5x && !stm32f4 && !rp2040 && !nrf52840
-// +build !esp32,!atsamd51,!atsame5x,!stm32f4,!rp2040,!nrf52840
 
 package i2csoft
 
