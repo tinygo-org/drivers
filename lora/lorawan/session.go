@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"math"
 )
 
@@ -23,7 +22,7 @@ type Session struct {
 // SetDevAddr configures the Session DevAddr
 func (s *Session) SetDevAddr(devAddr []uint8) error {
 	if len(devAddr) != 4 {
-		return errors.New("invalid length")
+		return ErrInvalidDevAddrLength
 	}
 
 	copy(s.DevAddr[:], devAddr)
@@ -33,6 +32,14 @@ func (s *Session) SetDevAddr(devAddr []uint8) error {
 
 func (s *Session) GetDevAddr() string {
 	return hex.EncodeToString(s.DevAddr[:])
+}
+
+func (s *Session) GetNwkSKey() string {
+	return hex.EncodeToString(s.NwkSKey[:])
+}
+
+func (s *Session) GetAppSKey() string {
+	return hex.EncodeToString(s.AppSKey[:])
 }
 
 // GenMessage Forge an uplink message
@@ -75,7 +82,7 @@ func (s *Session) genFRMPayload(dir uint8, fCnt uint32, payload []byte, isFOpts 
 		k++
 	}
 	if k > math.MaxUint8 {
-		return nil, errors.New("Payload too big !")
+		return nil, ErrFrmPayloadTooLarge
 	}
 	encrypted := make([]byte, 0, k*16)
 	cipher, err := aes.NewCipher(s.AppSKey[:])
