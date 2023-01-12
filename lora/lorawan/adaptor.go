@@ -15,6 +15,9 @@ var (
 	ErrInvalidDevAddrLength = errors.New("invalid DevAddr length")
 	ErrInvalidMic           = errors.New("invalid Mic")
 	ErrFrmPayloadTooLarge   = errors.New("FRM payload too large")
+	ErrInvalidNetIDLength   = errors.New("invalid NetID length")
+	ErrInvalidNwkSKeyLength = errors.New("invalid NwkSKey length")
+	ErrInvalidAppSKeyLength = errors.New("invalid AppSKey length")
 )
 
 const LORA_RXTX_TIMEOUT = 1000
