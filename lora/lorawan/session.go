@@ -30,19 +30,44 @@ func (s *Session) SetDevAddr(devAddr []uint8) error {
 	return nil
 }
 
+// GetDevAddr returns the Session DevAddr
 func (s *Session) GetDevAddr() string {
 	return hex.EncodeToString(s.DevAddr[:])
 }
 
+// SetNwkSKey configures the Session NwkSKey
+func (s *Session) SetNwkSKey(nwkSKey []uint8) error {
+	if len(nwkSKey) != 16 {
+		return ErrInvalidNwkSKeyLength
+	}
+
+	copy(s.NwkSKey[:], nwkSKey)
+
+	return nil
+}
+
+// GetNwkSKey returns the Session NwkSKey
 func (s *Session) GetNwkSKey() string {
 	return hex.EncodeToString(s.NwkSKey[:])
 }
 
+// SetAppSKey configures the Session AppSKey
+func (s *Session) SetAppSKey(appSKey []uint8) error {
+	if len(appSKey) != 16 {
+		return ErrInvalidAppSKeyLength
+	}
+
+	copy(s.AppSKey[:], appSKey)
+
+	return nil
+}
+
+// GetAppSKey returns the Session AppSKey
 func (s *Session) GetAppSKey() string {
 	return hex.EncodeToString(s.AppSKey[:])
 }
 
-// GenMessage Forge an uplink message
+// GenMessage generates an uplink message.
 func (s *Session) GenMessage(dir uint8, payload []uint8) ([]uint8, error) {
 	var buf []uint8
 	buf = append(buf, 0b01000000) // FHDR Unconfirmed up
