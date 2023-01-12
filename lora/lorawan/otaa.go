@@ -83,6 +83,16 @@ func (o *Otaa) GetNetID() string {
 	return hex.EncodeToString(o.NetID[:])
 }
 
+func (o *Otaa) SetNetID(netID []uint8) error {
+	if len(netID) != 3 {
+		return ErrInvalidNetIDLength
+	}
+
+	copy(o.NetID[:], netID)
+
+	return nil
+}
+
 // GenerateJoinRequest Generates a LoraWAN Join request
 func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 	// TODO: Add checks
