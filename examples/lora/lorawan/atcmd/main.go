@@ -15,6 +15,7 @@ import (
 	"tinygo.org/x/drivers/examples/lora/lorawan/common"
 	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/lora/lorawan"
+	"tinygo.org/x/drivers/lora/lorawan/region"
 )
 
 // change these to test a different UART or pins if available
@@ -43,6 +44,8 @@ func main() {
 	session = &lorawan.Session{}
 	otaa = &lorawan.Otaa{}
 	lorawan.UseRadio(radio)
+
+	lorawan.UseRegionSettings(region.EU868())
 
 	for {
 		if uart.Buffered() > 0 {

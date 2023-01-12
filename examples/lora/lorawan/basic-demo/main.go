@@ -9,9 +9,11 @@ import (
 	"tinygo.org/x/drivers/examples/lora/lorawan/common"
 	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/lora/lorawan"
+	"tinygo.org/x/drivers/lora/lorawan/region"
 )
 
 const (
+	debug                       = true
 	LORAWAN_JOIN_TIMEOUT_SEC    = 180
 	LORAWAN_RECONNECT_DELAY_SEC = 15
 	LORAWAN_UPLINK_DELAY_SEC    = 60
@@ -81,14 +83,29 @@ func main() {
 	// Connect the lorawan with the Lora Radio device.
 	lorawan.UseRadio(radio)
 
+	lorawan.UseRegionSettings(region.EU868())
+
 	// Configure AppEUI, DevEUI, APPKey
 	setLorawanKeys()
+
+	if debug {
+		println("main: Network joined")
+		println("main: DevEui, " + otaa.GetDevEUI())
+		println("main: AppEui, " + otaa.GetAppEUI())
+		println("main: DevAddr, " + session.GetDevAddr())
+	}
 
 	// Try to connect Lorawan network
 	if err := loraConnect(); err != nil {
 		failMessage(err)
 	}
 
+	if debug {
+		println("main: NetID, " + otaa.GetNetID())
+		println("main: NwkSKey, " + session.GetNwkSKey())
+		println("main: AppSKey, " + session.GetAppSKey())
+		println("main: Done")
+	}
 	// Try to periodicaly send an uplink sample message
 	upCount := 1
 	for {
