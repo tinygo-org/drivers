@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"encoding/hex"
-	"errors"
 )
 
 // Otaa is used to store Over The Air Activation data of a LoRaWAN session
@@ -12,8 +11,8 @@ type Otaa struct {
 	DevEUI   [8]uint8
 	AppEUI   [8]uint8
 	AppKey   [16]uint8
-	DevNonce [2]uint8
-	AppNonce [3]uint8
+	devNonce [2]uint8
+	appNonce [3]uint8
 	NetID    [3]uint8
 	buf      []uint8
 }
@@ -24,8 +23,8 @@ func (o *Otaa) Init() {
 
 	// TODO: handle error
 	rnd, _ := GetRand16()
-	o.DevNonce[0] = rnd[0]
-	o.DevNonce[1] = rnd[1]
+	o.devNonce[0] = rnd[0]
+	o.devNonce[1] = rnd[1]
 }
 
 // Set configures the Otaa AppEUI, DevEUI, AppKey for the device
@@ -38,7 +37,7 @@ func (o *Otaa) Set(appEUI []uint8, devEUI []uint8, appKey []uint8) {
 // SetAppEUI configures the Otaa AppEUI
 func (o *Otaa) SetAppEUI(appEUI []uint8) error {
 	if len(appEUI) != 8 {
-		return errors.New("invalid length")
+		return ErrInvalidEuiLength
 	}
 
 	copy(o.AppEUI[:], appEUI)
@@ -53,7 +52,7 @@ func (o *Otaa) GetAppEUI() string {
 // SetDevEUI configures the Otaa DevEUI
 func (o *Otaa) SetDevEUI(devEUI []uint8) error {
 	if len(devEUI) != 8 {
-		return errors.New("invalid length")
+		return ErrInvalidEuiLength
 	}
 
 	copy(o.DevEUI[:], devEUI)
@@ -68,7 +67,7 @@ func (o *Otaa) GetDevEUI() string {
 // SetAppKey configures the Otaa AppKey
 func (o *Otaa) SetAppKey(appKey []uint8) error {
 	if len(appKey) != 16 {
-		return errors.New("invalid length")
+		return ErrInvalidAppKeyLength
 	}
 
 	copy(o.AppKey[:], appKey)
@@ -80,6 +79,10 @@ func (o *Otaa) GetAppKey() string {
 	return hex.EncodeToString(o.AppKey[:])
 }
 
+func (o *Otaa) GetNetID() string {
+	return hex.EncodeToString(o.NetID[:])
+}
+
 // GenerateJoinRequest Generates a LoraWAN Join request
 func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 	// TODO: Add checks
@@ -87,7 +90,7 @@ func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 	o.buf = append(o.buf, 0x00)
 	o.buf = append(o.buf, reverseBytes(o.AppEUI[:])...)
 	o.buf = append(o.buf, reverseBytes(o.DevEUI[:])...)
-	o.buf = append(o.buf, o.DevNonce[:]...)
+	o.buf = append(o.buf, o.devNonce[:]...)
 	mic := genPayloadMIC(o.buf, o.AppKey)
 	o.buf = append(o.buf, mic[:]...)
 
@@ -97,21 +100,21 @@ func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
 // DecodeJoinAccept Decodes a Lora Join Accept packet
 func (o *Otaa) DecodeJoinAccept(phyPload []uint8, s *Session) error {
 	if len(phyPload) < 12 {
-		return errors.New("Bad packet")
+		return ErrInvalidPacketLength
 	}
 	data := phyPload[1:] // Remove trailing 0x20
 
 	// Prepare AES Cipher
 	block, err := aes.NewCipher(o.AppKey[:])
 	if err != nil {
-		return errors.New("Lora Cipher error 1")
+		return err
 	}
 	buf := make([]byte, len(data))
 	for k := 0; k < len(data)/aes.BlockSize; k++ {
 		block.Encrypt(buf[k*aes.BlockSize:], data[k*aes.BlockSize:])
 	}
 
-	copy(o.AppNonce[:], buf[0:3])
+	copy(o.appNonce[:], buf[0:3])
 	copy(o.NetID[:], buf[3:6])
 	copy(s.DevAddr[:], buf[6:10])
 	s.DLSettings = buf[10]
@@ -124,7 +127,7 @@ func (o *Otaa) DecodeJoinAccept(phyPload []uint8, s *Session) error {
 
 	dataMic := []byte{}
 	dataMic = append(dataMic, phyPload[0])
-	dataMic = append(dataMic, o.AppNonce[:]...)
+	dataMic = append(dataMic, o.appNonce[:]...)
 	dataMic = append(dataMic, o.NetID[:]...)
 	dataMic = append(dataMic, s.DevAddr[:]...)
 	dataMic = append(dataMic, s.DLSettings)
@@ -132,15 +135,15 @@ func (o *Otaa) DecodeJoinAccept(phyPload []uint8, s *Session) error {
 	dataMic = append(dataMic, s.CFList[:]...)
 	computedMic := genPayloadMIC(dataMic[:], o.AppKey)
 	if !bytes.Equal(computedMic[:], rxMic[:]) {
-		return errors.New("invalid Mic")
+		return ErrInvalidMic
 	}
 	// Generate NwkSKey
 	// NwkSKey = aes128_encrypt(AppKey, 0x01|AppNonce|NetID|DevNonce|pad16)
 	sKey := []byte{}
 	sKey = append(sKey, 0x01)
-	sKey = append(sKey, o.AppNonce[:]...)
+	sKey = append(sKey, o.appNonce[:]...)
 	sKey = append(sKey, o.NetID[:]...)
-	sKey = append(sKey, o.DevNonce[:]...)
+	sKey = append(sKey, o.devNonce[:]...)
 	for i := 0; i < 7; i++ {
 		sKey = append(sKey, 0x00) // PAD to 16
 	}
