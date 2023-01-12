@@ -289,6 +289,8 @@ func mode(setting string) error {
 }
 
 func join(setting string) error {
+	// TODO: check that DevEUI, AppEUI, and AppKey have values
+
 	cmd := "JOIN"
 	writeCommandOutput(cmd, "Starting")
 	if err := lorawan.Join(otaa, session); err != nil {
@@ -298,7 +300,12 @@ func join(setting string) error {
 	}
 
 	writeCommandOutput(cmd, "Network joined")
-	// TODO: display NetID and DevAddr
+	writeCommandOutput(cmd, "DevEui, "+otaa.GetDevEUI())
+	writeCommandOutput(cmd, "AppEui, "+otaa.GetAppEUI())
+	writeCommandOutput(cmd, "DevAddr, "+session.GetDevAddr())
+	writeCommandOutput(cmd, "NetID, "+otaa.GetNetID())
+	writeCommandOutput(cmd, "NwkSKey, "+session.GetNwkSKey())
+	writeCommandOutput(cmd, "AppSKey, "+session.GetAppSKey())
 	writeCommandOutput(cmd, "Done")
 	return nil
 }
