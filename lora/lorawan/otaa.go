@@ -20,7 +20,6 @@ type Otaa struct {
 // Initialize DevNonce
 func (o *Otaa) Init() {
 	o.buf = make([]uint8, 0)
-
 	o.generateDevNonce()
 }
 

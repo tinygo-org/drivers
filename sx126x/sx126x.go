@@ -640,6 +640,7 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	irqVal := uint16(SX126X_IRQ_RX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
 	d.SetBufferBaseAddress(0, 0)
+	d.SetRfFrequency(d.loraConf.Freq)
 	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetPacketParam(d.loraConf.Preamble, d.loraConf.HeaderType, d.loraConf.Crc, 0xFF, d.loraConf.Iq)
 	d.SetDioIrqParams(irqVal, irqVal, SX126X_IRQ_NONE, SX126X_IRQ_NONE)
