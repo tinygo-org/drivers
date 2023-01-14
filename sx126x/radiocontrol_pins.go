@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
+// RadioControl for boards that are connected using normal pins.
 type RadioControl struct {
-	nssPin, busyPin, dio0Pin, dio1Pin machine.Pin
-	rxPin, txLowPin, txHighPin        machine.Pin
+	nssPin, busyPin, dio1Pin   machine.Pin
+	rxPin, txLowPin, txHighPin machine.Pin
 }
 
-func NewRadioControl(nssPin, busyPin, dio0Pin, dio1Pin,
+func NewRadioControl(nssPin, busyPin, dio1Pin,
 	rxPin, txLowPin, txHighPin machine.Pin) *RadioControl {
 	return &RadioControl{
 		nssPin:    nssPin,
 		busyPin:   busyPin,
-		dio0Pin:   dio0Pin,
 		dio1Pin:   dio1Pin,
 		rxPin:     rxPin,
 		txLowPin:  txLowPin,
@@ -55,11 +55,6 @@ func (rc *RadioControl) Init() error {
 // add interrupt handler for Radio IRQs for pins
 func (rc *RadioControl) SetupInterrupts(handler func()) error {
 	irqHandler = handler
-
-	rc.dio0Pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
-	if err := rc.dio0Pin.SetInterrupt(machine.PinRising, handleInterrupt); err != nil {
-		return errRadioNotFound
-	}
 
 	rc.dio1Pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
 	if err := rc.dio1Pin.SetInterrupt(machine.PinRising, handleInterrupt); err != nil {
