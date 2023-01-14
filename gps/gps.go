@@ -38,6 +38,10 @@ func (ge GPSError) Error() string {
 	return ge.Err.Error() + " " + ge.Info + " " + ge.Sentence
 }
 
+func (ge GPSError) Unwrap() error {
+	return ge.Err
+}
+
 // Device wraps a connection to a GPS device.
 type Device struct {
 	buffer   []byte
