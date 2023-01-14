@@ -54,6 +54,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 	typ := sentence[3:6]
 	switch typ {
 	case "GGA":
+		// https://docs.novatel.com/OEM7/Content/Logs/GPGGA.htm
 		fields := strings.Split(sentence, ",")
 		if len(fields) != 15 {
 			return fix, errInvalidGGASentence
@@ -67,7 +68,22 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
 
 		return fix, nil
+	case "GLL":
+		// https://docs.novatel.com/OEM7/Content/Logs/GPGLL.htm
+		fields := strings.Split(sentence, ",")
+		if len(fields) != 8 {
+			return fix, errInvalidGLLSentence
+		}
+
+		fix.Latitude = findLatitude(fields[2], fields[3])
+		fix.Longitude = findLongitude(fields[4], fields[5])
+		fix.Time = findTime(fields[6])
+
+		fix.Valid = (fields[7] == "A")
+
+		return fix, nil
 	case "RMC":
+		// https://docs.novatel.com/OEM7/Content/Logs/GPRMC.htm
 		fields := strings.Split(sentence, ",")
 		if len(fields) != 13 {
 			return fix, errInvalidRMCSentence
@@ -83,7 +99,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 		return fix, nil
 	}
 
-	return fix, newGPSError(errUnknownNMEASentence, typ)
+	return fix, newGPSError(errUnknownNMEASentence, sentence, typ)
 }
 
 // findTime returns the time from an NMEA sentence:
