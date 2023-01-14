@@ -1,17 +1,9 @@
 package gps
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	errEmptyNMEASentence   = errors.New("cannot parse empty NMEA sentence")
-	errUnknownNMEASentence = errors.New("unsupported NMEA sentence type")
-	errInvalidGGASentence  = errors.New("invalid GGA NMEA sentence")
-	errInvalidRMCSentence  = errors.New("invalid RMC NMEA sentence")
 )
 
 // Parser for GPS NMEA sentences.
@@ -51,18 +43,20 @@ func NewParser() Parser {
 }
 
 // Parse parses a NMEA sentence looking for fix info.
-func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
+func (parser *Parser) Parse(sentence string) (Fix, error) {
+	var fix Fix
 	if sentence == "" {
-		err = errEmptyNMEASentence
-		return
+		return fix, errEmptyNMEASentence
+	}
+	if len(sentence) < 6 {
+		return fix, errInvalidNMEASentenceLength
 	}
 	typ := sentence[3:6]
 	switch typ {
 	case "GGA":
 		fields := strings.Split(sentence, ",")
 		if len(fields) != 15 {
-			err = errInvalidGGASentence
-			return
+			return fix, errInvalidGGASentence
 		}
 
 		fix.Altitude = findAltitude(fields[9])
@@ -71,11 +65,12 @@ func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
 		fix.Latitude = findLatitude(fields[2], fields[3])
 		fix.Time = findTime(fields[1])
 		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
+
+		return fix, nil
 	case "RMC":
 		fields := strings.Split(sentence, ",")
 		if len(fields) != 13 {
-			err = errInvalidRMCSentence
-			return
+			return fix, errInvalidRMCSentence
 		}
 
 		fix.Longitude = findLongitude(fields[5], fields[6])
@@ -83,11 +78,12 @@ func (parser *Parser) Parse(sentence string) (fix Fix, err error) {
 		fix.Time = findTime(fields[1])
 		fix.Speed = findSpeed(fields[7])
 		fix.Heading = findHeading(fields[8])
-		fix.Valid = (len(fields[2]) > 0 && fields[2][0:1] == "A")
-	default:
-		err = errUnknownNMEASentence
+		fix.Valid = (len(fields[2]) > 0 && fields[2] == "A")
+
+		return fix, nil
 	}
-	return
+
+	return fix, newGPSError(errUnknownNMEASentence, typ)
 }
 
 // findTime returns the time from an NMEA sentence:
@@ -100,7 +96,10 @@ func findTime(val string) time.Time {
 	h, _ := strconv.ParseInt(val[0:2], 10, 8)
 	m, _ := strconv.ParseInt(val[2:4], 10, 8)
 	s, _ := strconv.ParseInt(val[4:6], 10, 8)
-	ms, _ := strconv.ParseInt(val[7:10], 10, 16)
+	ms := int64(0)
+	if len(val) == 10 {
+		ms, _ = strconv.ParseInt(val[7:10], 10, 16)
+	}
 	t := time.Date(0, 0, 0, int(h), int(m), int(s), int(ms), time.UTC)
 
 	return t

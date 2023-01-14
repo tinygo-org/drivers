@@ -13,7 +13,27 @@ import (
 var (
 	errInvalidNMEASentenceLength = errors.New("invalid NMEA sentence length")
 	errInvalidNMEAChecksum       = errors.New("invalid NMEA sentence checksum")
+	errEmptyNMEASentence         = errors.New("cannot parse empty NMEA sentence")
+	errUnknownNMEASentence       = errors.New("unsupported NMEA sentence type")
+	errInvalidGGASentence        = errors.New("invalid GGA NMEA sentence")
+	errInvalidRMCSentence        = errors.New("invalid RMC NMEA sentence")
 )
+
+type GPSError struct {
+	Info string
+	Err  error
+}
+
+func newGPSError(err error, info string) GPSError {
+	return GPSError{
+		Info: info,
+		Err:  err,
+	}
+}
+
+func (ge GPSError) Error() string {
+	return ge.Err.Error() + " " + ge.Info
+}
 
 // Device wraps a connection to a GPS device.
 type Device struct {
@@ -127,16 +147,17 @@ func (gps *Device) WriteBytes(bytes []byte) {
 
 // validSentence checks if a sentence has been received uncorrupted
 func validSentence(sentence string) error {
-	if len(sentence) < 4 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
+	if len(sentence) < 7 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
 		return errInvalidNMEASentenceLength
 	}
 	var cs byte = 0
 	for i := 1; i < len(sentence)-3; i++ {
 		cs ^= sentence[i]
 	}
-	checksum := hex.EncodeToString([]byte{cs})
-	if (checksum[0] != sentence[len(sentence)-2]) || (checksum[1] != sentence[len(sentence)-1]) {
-		return errInvalidNMEAChecksum
+	checksum := strings.ToUpper(hex.EncodeToString([]byte{cs}))
+	if checksum != sentence[len(sentence)-2:len(sentence)] {
+		return newGPSError(errInvalidNMEAChecksum, "expected "+sentence[len(sentence)-2:len(sentence)]+
+			" got "+checksum)
 	}
 
 	return nil
