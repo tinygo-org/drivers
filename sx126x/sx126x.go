@@ -13,12 +13,22 @@ import (
 	"tinygo.org/x/drivers/lora"
 )
 
-// SX126X radio transceiver RF_IN and RF_OUT may be connected
-// to RF Switch. This interface allows the creation of struct
+var (
+	errWaitWhileBusyTimeout   = errors.New("WaitBusy Timeout")
+	errLowPowerTxNotSupported = errors.New("RFSWITCH_TX_LP not supported")
+	errRadioNotFound          = errors.New("LoRa radio not found")
+)
+
+// SX126X radio transceiver has several pins that control
+// RF_IN, RF_OUT, NSS, and BUSY.
+// This interface allows the creation of struct
 // that can drive the RF Switch (Used in Lora RX and Lora Tx)
-type RFSwitch interface {
-	InitRFSwitch()
+type RadioController interface {
+	Init() error
 	SetRfSwitchMode(mode int) error
+	SetNss(state bool) error
+	WaitWhileBusy() error
+	SetupInterrupts(handler func()) error
 }
 
 const (
@@ -38,16 +48,26 @@ const (
 	SPI_BUFFER_SIZE = 256
 )
 
-// Device wraps an SPI connection to a SX127x device.
+// Device wraps an SPI connection to a SX126x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
-	rstPin, csPin  machine.Pin          // GPIOs for reset and chip select
+	rstPin         machine.Pin          // GPIOs for reset, chip select, and busy pin
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
-	rfswitch       RFSwitch             // RF Switch, if any
+	controller     RadioController      // to manage interactions with the radio
 	deepSleep      bool                 // Internal Sleep state
 	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
 	spiBuffer      [SPI_BUFFER_SIZE]uint8
+}
+
+// New creates a new SX126x connection.
+func New(spi drivers.SPI) *Device {
+	c := make(chan lora.RadioEvent, 10)
+	d := Device{
+		spi:            spi,
+		radioEventChan: c,
+	}
+	return &d
 }
 
 const (
@@ -79,10 +99,15 @@ func (d *Device) SetDeviceType(devType int) {
 	d.deviceType = devType
 }
 
-// SetRfSwitch let you define a custom RF Switch driver if needed
-func (d *Device) SetRfSwitch(rfswitch RFSwitch) {
-	d.rfswitch = rfswitch
-	d.rfswitch.InitRFSwitch()
+// SetRadioControl let you define the RadioController
+func (d *Device) SetRadioController(rc RadioController) error {
+	d.controller = rc
+	if err := d.controller.Init(); err != nil {
+		return err
+	}
+	d.controller.SetupInterrupts(d.HandleInterrupt)
+
+	return nil
 }
 
 // --------------------------------------------------
@@ -126,8 +151,8 @@ func (d *Device) SetFs() {
 
 // SetTxContinuousWave set device in test mode to generate a continuous wave (RF tone)
 func (d *Device) SetTxContinuousWave() {
-	if d.rfswitch != nil {
-		d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+	if d.controller != nil {
+		d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 	}
 	d.ExecSetCommand(SX126X_CMD_SET_TX_CONTINUOUS_WAVE, []uint8{})
 }
@@ -136,8 +161,8 @@ func (d *Device) SetTxContinuousWave() {
 // Take care to initialize all Lora settings like it's done in Tx before calling this function
 // If you don't init properly all the settings, it'll fail
 func (d *Device) SetTxContinuousPreamble() {
-	if d.rfswitch != nil {
-		d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+	if d.controller != nil {
+		d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 	}
 	d.ExecSetCommand(SX126X_CMD_SET_TX_INFINITE_PREAMBLE, []uint8{})
 }
@@ -235,25 +260,25 @@ func (d *Device) SetRxTxFallbackMode(fallbackMode uint8) {
 // ReadRegister reads register value
 func (d *Device) ReadRegister(addr, size uint16) ([]uint8, error) {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send command
 	cmd := []uint8{SX126X_CMD_READ_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF), 0x00}
 	d.spi.Tx(cmd, nil)
 	ret := d.spiBuffer[0:size]
 	d.spi.Tx(nil, ret)
-	d.SpiSetNss(true)
-	d.WaitBusy()
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
 	return ret, nil
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(addr uint16, data []uint8) {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	cmd := []uint8{SX126X_CMD_WRITE_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF)}
 	d.spi.Tx(append(cmd, data...), nil)
-	d.SpiSetNss(true)
-	d.WaitBusy()
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
 }
 
 // WriteBuffer write data from current buffer position
@@ -466,12 +491,12 @@ func (d *Device) SetModulationParams(spreadingFactor, bandwidth, codingRate, low
 // CheckDeviceReady sleep until all busy flags clears
 func (d *Device) CheckDeviceReady() error {
 	if d.deepSleep == true {
-		d.SpiSetNss(false)
+		d.controller.SetNss(false)
 		time.Sleep(time.Millisecond)
-		d.SpiSetNss(true)
+		d.controller.SetNss(true)
 		d.deepSleep = false
 	}
-	return d.WaitBusy()
+	return d.controller.WaitWhileBusy()
 }
 
 // ExecSetCommand send a command to configure the peripheral
@@ -482,24 +507,24 @@ func (d *Device) ExecSetCommand(cmd uint8, buf []uint8) {
 	} else {
 		d.deepSleep = false
 	}
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send command and params
 	d.spi.Tx(append([]uint8{cmd}, buf...), nil)
-	d.SpiSetNss(true)
+	d.controller.SetNss(true)
 	if cmd != SX126X_CMD_SET_SLEEP {
-		d.WaitBusy()
+		d.controller.WaitWhileBusy()
 	}
 }
 
 // ExecGetCommand queries the peripheral the peripheral
 func (d *Device) ExecGetCommand(cmd uint8, size uint8) []uint8 {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send the command and flush first status byte (as not used)
 	d.spi.Tx([]uint8{cmd, 0x00}, nil)
 	d.spi.Tx(nil, d.spiBuffer[:size])
-	d.SpiSetNss(true)
-	d.WaitBusy()
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
 	return d.spiBuffer[:size]
 }
 
@@ -582,8 +607,8 @@ func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 		return lora.ErrUndefinedLoraConf
 	}
 
-	if d.rfswitch != nil {
-		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+	if d.controller != nil {
+		err := d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 		if err != nil {
 			return err
 		}
@@ -616,8 +641,8 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 		return nil, lora.ErrUndefinedLoraConf
 	}
 
-	if d.rfswitch != nil {
-		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_RX)
+	if d.controller != nil {
+		err := d.controller.SetRfSwitchMode(RFSWITCH_RX)
 		if err != nil {
 			return nil, err
 		}

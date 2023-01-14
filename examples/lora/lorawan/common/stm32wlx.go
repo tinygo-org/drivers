@@ -1,4 +1,4 @@
-//go:build !stm32wlx && sx126x
+//go:build stm32wlx
 
 package common
 
@@ -19,14 +19,10 @@ var (
 	loraRadio *sx126x.Device
 )
 
-var (
-	spi                               = machine.SPI0
-	nssPin, busyPin, dio0Pin, dio1Pin = machine.GP17, machine.GP20, machine.GP11, machine.GP10
-	rxPin, txLowPin, txHighPin        = machine.GP13, machine.GP12, machine.GP12
-)
+var spi = machine.SPI3
 
 func newRadioControl() sx126x.RadioController {
-	return sx126x.NewRadioControl(nssPin, busyPin, dio0Pin, dio1Pin, rxPin, txLowPin, txHighPin)
+	return sx126x.NewRadioControl()
 }
 
 // do sx126x setup here

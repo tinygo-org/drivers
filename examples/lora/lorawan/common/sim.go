@@ -1,4 +1,4 @@
-//go:build !featherwing && !gnse && !lorae5 && !nucleowl55jc
+//go:build !featherwing && !stm32wlx && !sx126x
 
 package common
 
