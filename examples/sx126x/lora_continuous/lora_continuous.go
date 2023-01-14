@@ -5,8 +5,6 @@ import (
 	"machine"
 	"time"
 
-	rfswitch "tinygo.org/x/drivers/examples/sx126x/rfswitch"
-
 	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/sx126x"
 )
@@ -24,12 +22,11 @@ func main() {
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	// Create the driver
-	loraRadio = sx126x.New(machine.SPI3)
+	loraRadio = sx126x.New(spi)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
-	// Create RF Switch
-	var radioSwitch rfswitch.CustomSwitch
-	loraRadio.SetRfSwitch(radioSwitch)
+	// Create radio controller for target
+	loraRadio.SetRadioController(newRadioControl())
 
 	state := loraRadio.DetectDevice()
 	if !state {
@@ -76,6 +73,5 @@ func main() {
 
 		loraRadio.SetStandby()
 		time.Sleep(60 * time.Second)
-
 	}
 }
