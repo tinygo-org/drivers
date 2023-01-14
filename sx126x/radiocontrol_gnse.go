@@ -26,9 +26,9 @@ func NewRadioControl() *RadioControl {
 
 // Init pins needed for controlling rx/tx
 func (rc *RadioControl) Init() error {
-	machine.RF_FE_CTRL1.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.RF_FE_CTRL2.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.RF_FE_CTRL3.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.PA0.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.PA1.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	machine.PB8.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	return nil
 }
@@ -37,19 +37,19 @@ func (rc *RadioControl) SetRfSwitchMode(mode int) error {
 	switch mode {
 
 	case RFSWITCH_TX_HP:
-		machine.RF_FE_CTRL1.Set(false)
-		machine.RF_FE_CTRL2.Set(true)
-		machine.RF_FE_CTRL3.Set(true)
+		machine.PA0.Set(false)
+		machine.PA1.Set(true)
+		machine.PB8.Set(true)
 
 	case RFSWITCH_TX_LP:
-		machine.RF_FE_CTRL1.Set(true)
-		machine.RF_FE_CTRL2.Set(true)
-		machine.RF_FE_CTRL3.Set(true)
+		machine.PA0.Set(true)
+		machine.PA1.Set(true)
+		machine.PB8.Set(true)
 
 	case RFSWITCH_RX:
-		machine.RF_FE_CTRL1.Set(true)
-		machine.RF_FE_CTRL2.Set(false)
-		machine.RF_FE_CTRL3.Set(true)
+		machine.PA0.Set(true)
+		machine.PA1.Set(false)
+		machine.PB8.Set(true)
 	}
 
 	return nil
