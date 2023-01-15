@@ -523,7 +523,7 @@ func (d *Device) ExecGetCommand(cmd uint8, size uint8) []uint8 {
 // SetFrequency() Sets current Lora Frequency
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetFrequency(freq uint32) {
-	d.loraConf.Freq = d.loraConf.Freq
+	d.loraConf.Freq = freq
 }
 
 // SetIqMode() defines the current IQ Mode (Standard/Inverted)
