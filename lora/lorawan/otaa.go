@@ -31,6 +31,12 @@ func (o *Otaa) generateDevNonce() {
 	o.devNonce[1] = rnd[1]
 }
 
+func (o *Otaa) incrementDevNonce() {
+	nonce := uint16(o.devNonce[1])<<8 | uint16(o.devNonce[0]) + 1
+	o.devNonce[0] = uint8(nonce)
+	o.devNonce[1] = uint8((nonce >> 8))
+}
+
 // Set configures the Otaa AppEUI, DevEUI, AppKey for the device
 func (o *Otaa) Set(appEUI []uint8, devEUI []uint8, appKey []uint8) {
 	o.SetAppEUI(appEUI)
@@ -99,7 +105,7 @@ func (o *Otaa) SetNetID(netID []uint8) error {
 
 // GenerateJoinRequest Generates a LoraWAN Join request
 func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
-	o.generateDevNonce()
+	o.incrementDevNonce()
 
 	// TODO: Add checks
 	o.buf = o.buf[:0]
