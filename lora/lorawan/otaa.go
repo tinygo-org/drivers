@@ -21,6 +21,10 @@ type Otaa struct {
 func (o *Otaa) Init() {
 	o.buf = make([]uint8, 0)
 
+	o.generateDevNonce()
+}
+
+func (o *Otaa) generateDevNonce() {
 	// TODO: handle error
 	rnd, _ := GetRand16()
 	o.devNonce[0] = rnd[0]
@@ -95,6 +99,8 @@ func (o *Otaa) SetNetID(netID []uint8) error {
 
 // GenerateJoinRequest Generates a LoraWAN Join request
 func (o *Otaa) GenerateJoinRequest() ([]uint8, error) {
+	o.generateDevNonce()
+
 	// TODO: Add checks
 	o.buf = o.buf[:0]
 	o.buf = append(o.buf, 0x00)
