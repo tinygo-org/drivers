@@ -14,9 +14,11 @@ import (
 )
 
 var (
-	errWaitWhileBusyTimeout   = errors.New("WaitBusy Timeout")
+	errWaitWhileBusyTimeout   = errors.New("WaitWhileBusy Timeout")
 	errLowPowerTxNotSupported = errors.New("RFSWITCH_TX_LP not supported")
 	errRadioNotFound          = errors.New("LoRa radio not found")
+	errUnexpectedRxRadioEvent = errors.New("Unexpected Radio Event during RX")
+	errUnexpectedTxRadioEvent = errors.New("Unexpected Radio Event during TX")
 )
 
 const (
@@ -50,12 +52,10 @@ type Device struct {
 
 // New creates a new SX126x connection.
 func New(spi drivers.SPI) *Device {
-	c := make(chan lora.RadioEvent, 10)
-	d := Device{
+	return &Device{
 		spi:            spi,
-		radioEventChan: c,
+		radioEventChan: make(chan lora.RadioEvent, 10),
 	}
-	return &d
 }
 
 const (
@@ -618,7 +618,7 @@ func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 
 	msg := <-d.GetRadioEventChan()
 	if msg.EventType != lora.RadioEventTxDone {
-		return errors.New("Unexpected Radio Event while TX")
+		return errUnexpectedTxRadioEvent
 	}
 	return nil
 }
@@ -650,7 +650,7 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	if msg.EventType == lora.RadioEventTimeout {
 		return nil, nil
 	} else if msg.EventType != lora.RadioEventRxDone {
-		return nil, errors.New("Unexpected Radio Event while RX")
+		return nil, errUnexpectedRxRadioEvent
 	}
 
 	pLen, pStart := d.GetRxBufferStatus()
