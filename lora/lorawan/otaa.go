@@ -33,8 +33,8 @@ func (o *Otaa) generateDevNonce() {
 
 func (o *Otaa) incrementDevNonce() {
 	nonce := uint16(o.devNonce[1])<<8 | uint16(o.devNonce[0]) + 1
-	o.devNonce[0] = uint8(nonce & 0xff)
-	o.devNonce[1] = uint8((nonce >> 8) & 0xff)
+	o.devNonce[0] = uint8(nonce)
+	o.devNonce[1] = uint8((nonce >> 8))
 }
 
 // Set configures the Otaa AppEUI, DevEUI, AppKey for the device
