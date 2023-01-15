@@ -24,6 +24,8 @@ var (
 )
 
 func main() {
+	time.Sleep(3 * time.Second)
+
 	println("\n# TinyGo Lora RX/TX test")
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
