@@ -20,7 +20,10 @@ var (
 	ErrInvalidAppSKeyLength = errors.New("invalid AppSKey length")
 )
 
-const LORA_RXTX_TIMEOUT = 1000
+const (
+	LORA_TX_TIMEOUT = 2000
+	LORA_RX_TIMEOUT = 5000
+)
 
 var (
 	ActiveRadio lora.Radio
@@ -51,7 +54,7 @@ func Join(otaa *Otaa, session *Session) error {
 
 	ActiveRadio.SetCrc(true)
 	ActiveRadio.SetIqMode(0) // IQ Standard
-	ActiveRadio.Tx(payload, LORA_RXTX_TIMEOUT)
+	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
 		return err
 	}
@@ -59,7 +62,7 @@ func Join(otaa *Otaa, session *Session) error {
 	// Wait for JoinAccept
 	ActiveRadio.SetIqMode(1) // IQ Inverted
 	for i := 0; i < Retries; i++ {
-		resp, err = ActiveRadio.Rx(LORA_RXTX_TIMEOUT)
+		resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
 		if err != nil {
 			return err
 		}
@@ -86,7 +89,7 @@ func SendUplink(data []uint8, session *Session) error {
 	}
 	ActiveRadio.SetCrc(true)
 	ActiveRadio.SetIqMode(0) // IQ Standard
-	ActiveRadio.Tx(payload, LORA_RXTX_TIMEOUT)
+	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
 		return err
 	}
