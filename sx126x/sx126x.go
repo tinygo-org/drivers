@@ -19,18 +19,6 @@ var (
 	errRadioNotFound          = errors.New("LoRa radio not found")
 )
 
-// SX126X radio transceiver has several pins that control
-// RF_IN, RF_OUT, NSS, and BUSY.
-// This interface allows the creation of struct
-// that can drive the RF Switch (Used in Lora RX and Lora Tx)
-type RadioController interface {
-	Init() error
-	SetRfSwitchMode(mode int) error
-	SetNss(state bool) error
-	WaitWhileBusy() error
-	SetupInterrupts(handler func()) error
-}
-
 const (
 	DEVICE_TYPE_SX1261 = iota
 	DEVICE_TYPE_SX1262 = iota
@@ -51,7 +39,7 @@ const (
 // Device wraps an SPI connection to a SX126x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
-	rstPin         machine.Pin          // GPIOs for reset, chip select, and busy pin
+	rstPin         machine.Pin          // GPIO for reset pin
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
 	controller     RadioController      // to manage interactions with the radio
