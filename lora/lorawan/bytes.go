@@ -13,11 +13,8 @@ func reverseBytes(s []byte) []byte {
 
 // GetRand16 returns 2 random bytes
 func GetRand16() ([2]uint8, error) {
-	randomBytes := make([]byte, 2)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return [2]uint8{}, err
-	}
+	var randomBytes [2]byte
+	_, err := rand.Read(randomBytes[:])
 
-	return [2]uint8{randomBytes[0], randomBytes[1]}, nil
+	return randomBytes, err
 }
