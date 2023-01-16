@@ -253,6 +253,10 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/as560x/main.go
 	@md5sum ./build/test.uf2
+	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/e220/tx/main.go
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/e220/rx/main.go
+	@md5sum ./build/test.hex
 
 
 # rwildcard is a recursive version of $(wildcard) 
