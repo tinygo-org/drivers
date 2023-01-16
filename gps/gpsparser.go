@@ -60,11 +60,11 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidGGASentence
 		}
 
-		fix.Altitude = findAltitude(fields[9])
-		fix.Satellites = findSatellites(fields[7])
-		fix.Longitude = findLongitude(fields[4], fields[5])
-		fix.Latitude = findLatitude(fields[2], fields[3])
 		fix.Time = findTime(fields[1])
+		fix.Latitude = findLatitude(fields[2], fields[3])
+		fix.Longitude = findLongitude(fields[4], fields[5])
+		fix.Satellites = findSatellites(fields[7])
+		fix.Altitude = findAltitude(fields[9])
 		fix.Valid = (fix.Altitude != -99999) && (fix.Satellites > 0)
 
 		return fix, nil
@@ -75,11 +75,11 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidGLLSentence
 		}
 
-		fix.Latitude = findLatitude(fields[2], fields[3])
-		fix.Longitude = findLongitude(fields[4], fields[5])
-		fix.Time = findTime(fields[6])
+		fix.Latitude = findLatitude(fields[1], fields[2])
+		fix.Longitude = findLongitude(fields[3], fields[4])
+		fix.Time = findTime(fields[5])
 
-		fix.Valid = (fields[7] == "A")
+		fix.Valid = (fields[6] == "A")
 
 		return fix, nil
 	case "RMC":
@@ -89,12 +89,12 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidRMCSentence
 		}
 
-		fix.Longitude = findLongitude(fields[5], fields[6])
-		fix.Latitude = findLatitude(fields[3], fields[4])
 		fix.Time = findTime(fields[1])
+		fix.Valid = (fields[2] == "A")
+		fix.Latitude = findLatitude(fields[3], fields[4])
+		fix.Longitude = findLongitude(fields[5], fields[6])
 		fix.Speed = findSpeed(fields[7])
 		fix.Heading = findHeading(fields[8])
-		fix.Valid = (len(fields[2]) > 0 && fields[2] == "A")
 
 		return fix, nil
 	}
@@ -113,8 +113,8 @@ func findTime(val string) time.Time {
 	m, _ := strconv.ParseInt(val[2:4], 10, 8)
 	s, _ := strconv.ParseInt(val[4:6], 10, 8)
 	ms := int64(0)
-	if len(val) == 10 {
-		ms, _ = strconv.ParseInt(val[7:10], 10, 16)
+	if len(val) > 6 {
+		ms, _ = strconv.ParseInt(val[7:], 10, 16)
 	}
 	t := time.Date(0, 0, 0, int(h), int(m), int(s), int(ms), time.UTC)
 
@@ -135,11 +135,11 @@ func findAltitude(val string) int32 {
 // $--GGA,,ddmm.mmmmm,x,,,,,,,,,,,*hh
 func findLatitude(val, hemi string) float32 {
 	if len(val) > 8 {
-		var dd = val[0:2]
-		var mm = val[2:]
-		var d, _ = strconv.ParseFloat(dd, 32)
-		var m, _ = strconv.ParseFloat(mm, 32)
-		var v = float32(d + (m / 60))
+		dd := val[0:2]
+		mm := val[2:]
+		d, _ := strconv.ParseFloat(dd, 32)
+		m, _ := strconv.ParseFloat(mm, 32)
+		v := float32(d + (m / 60))
 		if hemi == "S" {
 			v *= -1
 		}
@@ -148,7 +148,7 @@ func findLatitude(val, hemi string) float32 {
 	return 0.0
 }
 
-// findLatitude returns the longitude from an NMEA sentence:
+// findLongitude returns the longitude from an NMEA sentence:
 // $--GGA,,,,dddmm.mmmmm,x,,,,,,,,,*hh
 func findLongitude(val, hemi string) float32 {
 	if len(val) > 8 {
