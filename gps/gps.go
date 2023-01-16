@@ -42,6 +42,12 @@ func (ge GPSError) Unwrap() error {
 	return ge.Err
 }
 
+const (
+	minimumNMEALength = 7
+	startingDelimiter = '$'
+	checksumDelimiter = '*'
+)
+
 // Device wraps a connection to a GPS device.
 type Device struct {
 	buffer   []byte
@@ -87,11 +93,11 @@ func (gps *Device) readNextSentence() (sentence string) {
 	gps.sentence.Reset()
 	var b byte = ' '
 
-	for b != '$' {
+	for b != startingDelimiter {
 		b = gps.readNextByte()
 	}
 
-	for b != '*' {
+	for b != checksumDelimiter {
 		gps.sentence.WriteByte(b)
 		b = gps.readNextByte()
 	}
@@ -153,8 +159,13 @@ func (gps *Device) WriteBytes(bytes []byte) {
 }
 
 // validSentence checks if a sentence has been received uncorrupted
+// For example, a valid NMEA sentence such as this:
+// $GPGLL,3751.65,S,14507.36,E*77
+// It has to start with a '$' character.
+// It has to have a 5 character long sentence identifier.
+// It has to end with a '*' character following by a checksum.
 func validSentence(sentence string) error {
-	if len(sentence) < 7 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
+	if len(sentence) < minimumNMEALength || sentence[0] != startingDelimiter || sentence[len(sentence)-3] != checksumDelimiter {
 		return errInvalidNMEASentenceLength
 	}
 	var cs byte = 0
