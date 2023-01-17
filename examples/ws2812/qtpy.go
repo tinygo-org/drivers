@@ -1,5 +1,4 @@
 //go:build qtpy
-// +build qtpy
 
 package main
 

@@ -1,5 +1,4 @@
 //go:build atsamd51
-// +build atsamd51
 
 package flash
 

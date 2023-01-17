@@ -1,5 +1,4 @@
 //go:build !digispark && !arduino && !qtpy && !m5stamp_c3 && !thingplus_rp2040
-// +build !digispark,!arduino,!qtpy,!m5stamp_c3,!thingplus_rp2040
 
 package main
 

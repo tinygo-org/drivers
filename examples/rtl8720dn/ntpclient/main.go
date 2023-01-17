@@ -100,9 +100,7 @@ func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
 		} else if n == 0 {
 			continue // no packet received yet
 		} else if n != NTP_PACKET_SIZE {
-			if n != NTP_PACKET_SIZE {
-				return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
-			}
+			return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
 		}
 		return parseNTPpacket(), nil
 	}

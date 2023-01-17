@@ -31,8 +31,8 @@ func (d Device) Connected() bool {
 }
 
 // Configure sets up the device for communication.
-func (d Device) Configure() {
-	d.bus.WriteRegister(uint8(d.Address), PWR_MGMT_1, []uint8{0})
+func (d Device) Configure() error {
+	return d.bus.WriteRegister(uint8(d.Address), PWR_MGMT_1, []uint8{0})
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns

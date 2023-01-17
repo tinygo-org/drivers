@@ -54,6 +54,12 @@ func (l *Device) Tone(hz, duration float64) (err error) {
 
 	tempo := ((60 / l.BPM) * (duration * 1000))
 
+	// no tone during rest, just let the duration pass.
+	if hz == Rest {
+		time.Sleep(time.Duration(tempo) * time.Millisecond)
+		return
+	}
+
 	for i := 0.0; i < tempo*1000; i += tone * 2.0 {
 		if err = l.On(); err != nil {
 			return
