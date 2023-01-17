@@ -30,28 +30,24 @@ var (
 // New. Creates a new 1-Wire connection.
 // The pin must be pulled up to the VCC via a resistor (default 4.7k)
 func New(pin machine.Pin) Device {
-	pin.Configure(machine.PinConfig{Mode: machine.PinInput})
-	pin.Low()
 	return Device{
 		Pin: pin,
 	}
 }
 
 // Configure initializes the protocol, left for compatibility reasons
-func (d *Device) Configure() {
+func (d Device) Configure() {
 
 }
 
 // Reset pulls DQ line low, then up.
 func (d Device) Reset() error {
 	d.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.Pin.Low()
-	time.Sleep(600 * time.Microsecond)
-	d.Pin.High()
+	time.Sleep(480 * time.Microsecond)
 	d.Pin.Configure(machine.PinConfig{Mode: machine.PinInput})
-	time.Sleep(60 * time.Microsecond)
+	time.Sleep(70 * time.Microsecond)
 	precence := d.Pin.Get()
-	time.Sleep(600 * time.Microsecond)
+	time.Sleep(410 * time.Microsecond)
 	if precence {
 		return errNoPresence
 	}
@@ -62,17 +58,14 @@ func (d Device) Reset() error {
 func (d Device) Write(data uint8) {
 	for i := 0; i < 8; i++ {
 		d.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		d.Pin.Low()
 		if data&1 == 1 {
-			time.Sleep(5 * time.Microsecond)
-			d.Pin.High()
+			time.Sleep(6 * time.Microsecond)
 			d.Pin.Configure(machine.PinConfig{Mode: machine.PinInput})
-			time.Sleep(60 * time.Microsecond)
+			time.Sleep(64 * time.Microsecond)
 		} else {
 			time.Sleep(60 * time.Microsecond)
-			d.Pin.High()
 			d.Pin.Configure(machine.PinConfig{Mode: machine.PinInput})
-			time.Sleep(5 * time.Microsecond)
+			time.Sleep(10 * time.Microsecond)
 		}
 		data >>= 1
 	}
@@ -83,9 +76,7 @@ func (d Device) Read() (data uint8) {
 	for i := 0; i < 8; i++ {
 		data >>= 1
 		d.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		d.Pin.Low()
-		time.Sleep(2 * time.Microsecond)
-		d.Pin.High()
+		time.Sleep(3 * time.Microsecond)
 		d.Pin.Configure(machine.PinConfig{Mode: machine.PinInput})
 		time.Sleep(8 * time.Microsecond)
 		if d.Pin.Get() {
@@ -97,7 +88,7 @@ func (d Device) Read() (data uint8) {
 }
 
 // Crc8 computes a Dallas Semiconductor 8 bit CRC.
-func Сrc8(buffer *[]uint8, size int) (crc uint8) {
+func Сrc8(buffer []uint8, size int) (crc uint8) {
 	// Dow-CRC using polynomial X^8 + X^5 + X^4 + X^0
 	// Tiny 2x16 entry CRC table created by Arjen Lentz
 	// See http://lentz.com.au/blog/calculating-crc-with-a-tiny-32-entry-lookup-table
@@ -108,7 +99,7 @@ func Сrc8(buffer *[]uint8, size int) (crc uint8) {
 		0x8C, 0x11, 0xAF, 0x32, 0xCA, 0x57, 0xE9, 0x74,
 	}
 	for i := 0; i < size; i++ {
-		crc = (*buffer)[i] ^ crc // just re-using crc as intermediate
+		crc = buffer[i] ^ crc // just re-using crc as intermediate
 		crc = crc8_table[crc&0x0f] ^ crc8_table[16+((crc>>4)&0x0f)]
 	}
 	return crc

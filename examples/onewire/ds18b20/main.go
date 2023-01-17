@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"machine"
 	"time"
 
@@ -10,41 +9,59 @@ import (
 )
 
 func main() {
-	pin := machine.D13
+	pin := machine.D2
 
 	ow := onewire.New(pin)
 	sensor := ds18b20.New(ow)
-	time.Sleep(5 * time.Second)
 	for {
-		println("Read OneWire ROM")
+		time.Sleep(3 * time.Second)
+
+		println()
+		println("Device:", machine.Device)
+
+		println("Read OneWire ROM.")
+		println("Send command =", SliceToHexString([]uint8{onewire.ONEWIRE_READ_ROM}))
 		err := sensor.ReadAddress()
 		if err != nil {
 			println(err)
-			time.Sleep(1 * time.Second)
 			continue
 		}
-		fmt.Printf("%x \r\n", sensor.RomID)
+		println("RomID:", SliceToHexString(sensor.RomID))
 
-		println("RequestTemperature")
+		println("Request Temperature.")
+		println("Send command =", SliceToHexString([]uint8{ds18b20.DS18B20_CONVERT_TEMPERATURE}))
 		err = sensor.RequestTemperature()
 		if err != nil {
 			println(err)
-			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		// wait 750ms or more for DS18B20 convert T
-		time.Sleep(1024 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
-		println("ReadTemperature")
-		temp, err := sensor.ReadTemperature()
+		println("Read Temperature")
+		println("Send command =", SliceToHexString([]uint8{ds18b20.DS18B20_READ_SCRATCHPAD}))
+		t, err := sensor.ReadTemperature()
 		if err != nil {
 			println(err)
-			time.Sleep(1 * time.Second)
 			continue
 		}
 		// temperature in celsius milli degrees (°C/1000)
-		println("TEMP (°C/1000): ", temp)
-		time.Sleep(3 * time.Second)
+		println("Temperature (°C/1000): ", t)
 	}
+}
+
+// SliceToHexString converts a slice to Hex string
+// fmt.Printf - compile error on an Arduino Uno boards
+func SliceToHexString(rom []uint8) string {
+	const hc string = "0123456789ABCDEF"
+	var result string = "0x"
+	for _, v := range rom {
+		if v < 0x10 {
+			result += "0" + string(hc[v])
+		} else {
+			result += string(hc[v&0xF0>>4]) + string(hc[v&0x0F])
+		}
+	}
+	return result
 }

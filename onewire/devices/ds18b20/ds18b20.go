@@ -88,7 +88,7 @@ func (d Device) ReadTemperature() (temperature int32, err error) {
 	for i := 0; i < 9; i++ {
 		d.ScratchPad[i] = d.owd.Read()
 	}
-	if onewire.Сrc8(&d.ScratchPad, 8) != d.ScratchPad[8] {
+	if onewire.Сrc8(d.ScratchPad, 8) != d.ScratchPad[8] {
 		return temperature, errReadTemperature
 	}
 	temperature = int32(uint16(d.ScratchPad[0]) | uint16(d.ScratchPad[1])<<8)
@@ -107,7 +107,7 @@ func (d Device) ReadAddress() error {
 	for i := 0; i < 8; i++ {
 		d.RomID[i] = d.owd.Read()
 	}
-	if onewire.Сrc8(&d.RomID, 7) != d.RomID[7] {
+	if onewire.Сrc8(d.RomID, 7) != d.RomID[7] {
 		return errReadAddress
 	}
 	return nil
