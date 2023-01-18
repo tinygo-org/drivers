@@ -6,6 +6,7 @@
 package bmp180 // import "tinygo.org/x/drivers/bmp180"
 
 import (
+	"math"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -121,6 +122,21 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 	x1 = (x1 * 3038) >> 16
 	x2 = (-7357 * p) >> 16
 	return 1000 * (p + ((x1 + x2 + 3791) >> 4)), nil
+}
+
+// ReadAltitude returns the current altitude in meters based on the
+// current barometric pressure and estimated pressure at sea level.
+// Calculation is based on code from Adafruit BME280 library
+//
+// https://github.com/adafruit/Adafruit_BME280_Library
+func (d *Device) ReadAltitude() (int32, error) {
+	mPa, err := d.ReadPressure()
+	if err != nil {
+		return 0, err
+	}
+	atmP := float32(mPa) / 100000
+
+	return int32(44330.0 * (1.0 - math.Pow(float64(atmP/SEALEVEL_PRESSURE), 0.1903))), nil
 }
 
 // rawTemp returns the sensor's raw values of the temperature
