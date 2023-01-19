@@ -98,6 +98,29 @@ const (
 	I2C_PER3_DO      = 0x66
 	I2C_MST_DELAY_CT = 0x67
 
+	// Clock settings
+	CLOCK_INTERNAL               = 0x00
+	CLOCK_PLL_XGYRO              = 0x01
+	CLOCK_PLL_YGYRO              = 0x02
+	CLOCK_PLL_ZGYRO              = 0x03
+	CLOCK_PLL_EXTERNAL_32_768_KZ = 0x04
+	CLOCK_PLL_EXTERNAL_19_2_MHZ  = 0x05
+	CLOCK_RESERVED               = 0x06
+	CLOCK_STOP                   = 0x07
+
+	// Accelerometer settings
+	AFS_RANGE_2G  = 0x00
+	AFS_RANGE_4G  = 0x01
+	AFS_RANGE_8G  = 0x02
+	AFS_RANGE_16G = 0x03
+
+	// Gyroscope settings
+	FS_RANGE_250  = 0x00
+	FS_RANGE_500  = 0x01
+	FS_RANGE_1000 = 0x02
+	FS_RANGE_2000 = 0x03
+
+	// other registers
 	SIGNAL_PATH_RES = 0x68 // Signal path reset
 	USER_CTRL       = 0x6A // User control
 	PWR_MGMT_1      = 0x6B // Power Management 1
