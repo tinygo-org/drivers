@@ -3,15 +3,15 @@ package main
 import (
 	"machine"
 	"time"
+	wire "tinygo.org/x/drivers/1-wire"
 
-	"tinygo.org/x/drivers/onewire"
-	"tinygo.org/x/drivers/onewire/devices/ds18b20"
+	"tinygo.org/x/drivers/ds18b20"
 )
 
 func main() {
 	pin := machine.D2
 
-	ow := onewire.New(pin)
+	ow := wire.New(pin)
 	sensor := ds18b20.New(ow)
 	for {
 		time.Sleep(3 * time.Second)
@@ -19,8 +19,8 @@ func main() {
 		println()
 		println("Device:", machine.Device)
 
-		println("Read OneWire ROM.")
-		println("Send command =", SliceToHexString([]uint8{onewire.ONEWIRE_READ_ROM}))
+		println("Read 1-Wire ROM.")
+		println("Send command =", SliceToHexString([]uint8{wire.ONEWIRE_READ_ROM}))
 		err := sensor.ReadAddress()
 		if err != nil {
 			println(err)

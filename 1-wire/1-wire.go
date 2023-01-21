@@ -1,7 +1,7 @@
-// Package onewire implements the Dallas Semiconductor Corp.'s 1-wire bus system.
+// Package wire implements the Dallas Semiconductor Corp.'s 1-wire bus system.
 //
 // Wikipedia: https://en.wikipedia.org/wiki/1-Wire
-package onewire // import "tinygo.org/x/drivers/onewire"
+package wire // import "tinygo.org/x/drivers/1-wire"
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// OneWire ROM commands
+// 1-Wire ROM commands
 const (
 	ONEWIRE_SEARCH_ROM   uint8 = 0xF0
 	ONEWIRE_READ_ROM     uint8 = 0x33
@@ -24,7 +24,7 @@ type Device struct {
 }
 
 var (
-	errNoPresence = errors.New("Error: OneWire. No devices on the bus.")
+	errNoPresence = errors.New("Error: 1-Wire. No devices on the bus.")
 )
 
 // New. Creates a new 1-Wire connection.

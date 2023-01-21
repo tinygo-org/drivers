@@ -249,7 +249,7 @@ endif
 	@md5sum ./build/test.uf2
 	tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examples/makeybutton/main.go
 	@md5sum ./build/test.uf2
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/onewire/ds18b20/main.go
+	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ds18b20/main.go
 	@md5sum ./build/test.hex
 
 
