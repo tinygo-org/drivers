@@ -20,7 +20,7 @@ func main() {
 		println("Device:", machine.Device)
 
 		println("Read 1-Wire ROM.")
-		println("Send command =", SliceToHexString([]uint8{wire.ONEWIRE_READ_ROM}))
+		println("Send command =", SliceToHexString([]uint8{wire.READ_ROM}))
 		err := sensor.ReadAddress()
 		if err != nil {
 			println(err)

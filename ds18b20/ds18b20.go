@@ -103,7 +103,7 @@ func (d Device) ReadAddress() error {
 	if err := d.owd.Reset(); err != nil {
 		return err
 	}
-	d.owd.Write(wire.ONEWIRE_READ_ROM)
+	d.owd.Write(wire.READ_ROM)
 	for i := 0; i < 8; i++ {
 		d.RomID[i] = d.owd.Read()
 	}
@@ -114,5 +114,5 @@ func (d Device) ReadAddress() error {
 }
 
 func (d Device) addressRoutine() {
-	d.owd.Write(wire.ONEWIRE_SKIP_ROM)
+	d.owd.Write(wire.SKIP_ROM)
 }

@@ -11,11 +11,11 @@ import (
 
 // 1-Wire ROM commands
 const (
-	ONEWIRE_SEARCH_ROM   uint8 = 0xF0
-	ONEWIRE_READ_ROM     uint8 = 0x33
-	ONEWIRE_MATCH_ROM    uint8 = 0x55
-	ONEWIRE_SKIP_ROM     uint8 = 0xCC
-	ONEWIRE_ALARM_SEARCH uint8 = 0xEC
+	SEARCH_ROM   uint8 = 0xF0
+	READ_ROM     uint8 = 0x33
+	MATCH_ROM    uint8 = 0x55
+	SKIP_ROM     uint8 = 0xCC
+	ALARM_SEARCH uint8 = 0xEC
 )
 
 // Device wraps the data needed for the 1-wire protocol
