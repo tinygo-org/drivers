@@ -13,6 +13,39 @@ import (
 var (
 	errInvalidNMEASentenceLength = errors.New("invalid NMEA sentence length")
 	errInvalidNMEAChecksum       = errors.New("invalid NMEA sentence checksum")
+	errEmptyNMEASentence         = errors.New("cannot parse empty NMEA sentence")
+	errUnknownNMEASentence       = errors.New("unsupported NMEA sentence type")
+	errInvalidGGASentence        = errors.New("invalid GGA NMEA sentence")
+	errInvalidRMCSentence        = errors.New("invalid RMC NMEA sentence")
+	errInvalidGLLSentence        = errors.New("invalid GLL NMEA sentence")
+)
+
+type GPSError struct {
+	Err      error
+	Info     string
+	Sentence string
+}
+
+func newGPSError(err error, sentence string, info string) GPSError {
+	return GPSError{
+		Info:     info,
+		Err:      err,
+		Sentence: sentence,
+	}
+}
+
+func (ge GPSError) Error() string {
+	return ge.Err.Error() + " " + ge.Info + " " + ge.Sentence
+}
+
+func (ge GPSError) Unwrap() error {
+	return ge.Err
+}
+
+const (
+	minimumNMEALength = 7
+	startingDelimiter = '$'
+	checksumDelimiter = '*'
 )
 
 // Device wraps a connection to a GPS device.
@@ -60,11 +93,11 @@ func (gps *Device) readNextSentence() (sentence string) {
 	gps.sentence.Reset()
 	var b byte = ' '
 
-	for b != '$' {
+	for b != startingDelimiter {
 		b = gps.readNextByte()
 	}
 
-	for b != '*' {
+	for b != checksumDelimiter {
 		gps.sentence.WriteByte(b)
 		b = gps.readNextByte()
 	}
@@ -126,17 +159,24 @@ func (gps *Device) WriteBytes(bytes []byte) {
 }
 
 // validSentence checks if a sentence has been received uncorrupted
+// For example, a valid NMEA sentence such as this:
+// $GPGLL,3751.65,S,14507.36,E*77
+// It has to start with a '$' character.
+// It has to have a 5 character long sentence identifier.
+// It has to end with a '*' character following by a checksum.
 func validSentence(sentence string) error {
-	if len(sentence) < 4 || sentence[0] != '$' || sentence[len(sentence)-3] != '*' {
+	if len(sentence) < minimumNMEALength || sentence[0] != startingDelimiter || sentence[len(sentence)-3] != checksumDelimiter {
 		return errInvalidNMEASentenceLength
 	}
 	var cs byte = 0
 	for i := 1; i < len(sentence)-3; i++ {
 		cs ^= sentence[i]
 	}
-	checksum := hex.EncodeToString([]byte{cs})
-	if (checksum[0] != sentence[len(sentence)-2]) || (checksum[1] != sentence[len(sentence)-1]) {
-		return errInvalidNMEAChecksum
+	checksum := strings.ToUpper(hex.EncodeToString([]byte{cs}))
+	if checksum != sentence[len(sentence)-2:len(sentence)] {
+		return newGPSError(errInvalidNMEAChecksum, sentence,
+			"expected "+sentence[len(sentence)-2:len(sentence)]+
+				" got "+checksum)
 	}
 
 	return nil

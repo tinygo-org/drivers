@@ -4,12 +4,8 @@ package main
 // module will be in RX mode between two transmissions
 
 import (
-	"device/stm32"
 	"machine"
-	"runtime/interrupt"
 	"time"
-
-	rfswitch "tinygo.org/x/drivers/examples/sx126x/rfswitch"
 
 	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/sx126x"
@@ -27,33 +23,25 @@ var (
 	txmsg     = []byte("Hello TinyGO")
 )
 
-// radioIntHandler will take care of radio interrupts
-func radioIntHandler(intr interrupt.Interrupt) {
-	loraRadio.HandleInterrupt()
-}
-
 func main() {
+	time.Sleep(3 * time.Second)
+
 	println("\n# TinyGo Lora RX/TX test")
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	// Create the driver
-	loraRadio = sx126x.New(machine.SPI3)
+	loraRadio = sx126x.New(spi)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
-	// Create RF Switch
-	var radioSwitch rfswitch.CustomSwitch
-	loraRadio.SetRfSwitch(radioSwitch)
+	// Create radio controller for target
+	loraRadio.SetRadioController(newRadioControl())
 
 	// Detect the device
 	state := loraRadio.DetectDevice()
 	if !state {
 		panic("sx126x not detected.")
 	}
-
-	// Add interrupt handler for Radio IRQs
-	intr := interrupt.New(stm32.IRQ_Radio_IRQ_Busy, radioIntHandler)
-	intr.Enable()
 
 	loraConf := lora.Config{
 		Freq:           FREQ,
@@ -73,10 +61,10 @@ func main() {
 
 	var count uint
 	for {
-		tStart := time.Now()
+		start := time.Now()
 
 		println("main: Receiving Lora for 10 seconds")
-		for int(time.Now().Sub(tStart).Seconds()) < 10 {
+		for time.Since(start) < 10*time.Second {
 			buf, err := loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 			if err != nil {
 				println("RX Error: ", err)
