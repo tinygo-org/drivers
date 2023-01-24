@@ -1,4 +1,4 @@
-//go:build !featherwing && !stm32wlx && !sx126x
+//go:build !featherwing && !stm32wlx && !sx126x && !lgt92
 
 package common
 
