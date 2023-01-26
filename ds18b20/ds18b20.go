@@ -1,8 +1,12 @@
-package ds18b20
+// Package ds18b20 provides a driver for the DS18B20 digital thermometer
+//
+// Datasheet:
+// https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
+package ds18b20 // import "tinygo.org/x/drivers/ds18b20"
 
 import (
 	"errors"
-	"tinygo.org/x/drivers/1-wire"
+	"tinygo.org/x/drivers/onewire"
 )
 
 // Device ROM commands
@@ -17,7 +21,7 @@ const (
 
 // Device wraps the 1-wire protocol to a ds18b20 device.
 type Device struct {
-	owd        wire.Device
+	owd        onewire.Device
 	RomID      []uint8
 	ScratchPad []uint8
 }
@@ -29,7 +33,7 @@ var (
 )
 
 // New returns a ds18b20 device
-func New(owd wire.Device) Device {
+func New(owd onewire.Device) Device {
 	return Device{
 		owd:        owd,
 		RomID:      make([]uint8, 8),
@@ -88,7 +92,7 @@ func (d Device) ReadTemperature() (temperature int32, err error) {
 	for i := 0; i < 9; i++ {
 		d.ScratchPad[i] = d.owd.Read()
 	}
-	if wire.Сrc8(d.ScratchPad, 8) != d.ScratchPad[8] {
+	if onewire.Сrc8(d.ScratchPad, 8) != d.ScratchPad[8] {
 		return temperature, errReadTemperature
 	}
 	temperature = int32(uint16(d.ScratchPad[0]) | uint16(d.ScratchPad[1])<<8)
@@ -103,16 +107,16 @@ func (d Device) ReadAddress() error {
 	if err := d.owd.Reset(); err != nil {
 		return err
 	}
-	d.owd.Write(wire.READ_ROM)
+	d.owd.Write(onewire.READ_ROM)
 	for i := 0; i < 8; i++ {
 		d.RomID[i] = d.owd.Read()
 	}
-	if wire.Сrc8(d.RomID, 7) != d.RomID[7] {
+	if onewire.Сrc8(d.RomID, 7) != d.RomID[7] {
 		return errReadAddress
 	}
 	return nil
 }
 
 func (d Device) addressRoutine() {
-	d.owd.Write(wire.SKIP_ROM)
+	d.owd.Write(onewire.SKIP_ROM)
 }
