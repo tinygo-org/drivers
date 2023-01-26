@@ -18,12 +18,6 @@ const (
 )
 
 var (
-	// We assume LoRa Featherwing module is connected to PyBadge:
-	rstPin    = machine.D11
-	csPin     = machine.D10
-	dio0Pin   = machine.D6
-	dio1Pin   = machine.D9
-	spi       = machine.SPI0
 	loraRadio *sx127x.Device
 )
 
