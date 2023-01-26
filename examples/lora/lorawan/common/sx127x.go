@@ -1,4 +1,4 @@
-//go:build featherwing
+//go:build featherwing || lgt92
 
 package common
 
