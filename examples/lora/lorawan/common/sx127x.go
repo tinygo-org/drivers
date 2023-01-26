@@ -30,26 +30,14 @@ var (
 // do sx127x setup here
 func SetupLora() (lora.Radio, error) {
 	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dio0Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	dio1Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	spi.Configure(machine.SPIConfig{Frequency: 500000, Mode: 0})
 
-	loraRadio = sx127x.New(spi, csPin, rstPin)
+	loraRadio = sx127x.New(spi, rstPin)
+	loraRadio.SetRadioController(sx127x.NewRadioControl(csPin, dio0Pin, dio1Pin))
 	loraRadio.Reset()
 
 	if state := loraRadio.DetectDevice(); !state {
 		return nil, errRadioNotFound
-	}
-
-	// Setup DIO0 interrupt Handling
-	if err := dio0Pin.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
-		println("could not configure DIO0 pin interrupt:", err.Error())
-	}
-
-	// Setup DIO1 interrupt Handling
-	if err := dio1Pin.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
-		println("could not configure DIO1 pin interrupt:", err.Error())
 	}
 
 	// Prepare for Lora Operation
@@ -69,10 +57,6 @@ func SetupLora() (lora.Radio, error) {
 	loraRadio.LoraConfig(loraConf)
 
 	return loraRadio, nil
-}
-
-func dioIrqHandler(machine.Pin) {
-	loraRadio.HandleInterrupt()
 }
 
 func FirmwareVersion() string {
