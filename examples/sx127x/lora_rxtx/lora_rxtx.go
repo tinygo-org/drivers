@@ -40,29 +40,19 @@ func main() {
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	SX127X_PIN_RST.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	SX127X_PIN_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	SX127X_PIN_DIO0.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	SX127X_PIN_DIO1.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+
 	SX127X_SPI.Configure(machine.SPIConfig{Frequency: 500000, Mode: 0})
 
 	println("main: create and start SX127x driver")
-	loraRadio = sx127x.New(SX127X_SPI, SX127X_PIN_CS, SX127X_PIN_RST)
+	loraRadio = sx127x.New(SX127X_SPI, SX127X_PIN_RST)
+	loraRadio.SetRadioController(sx127x.NewRadioControl(SX127X_PIN_CS, SX127X_PIN_DIO0, SX127X_PIN_DIO1))
+
 	loraRadio.Reset()
 	state := loraRadio.DetectDevice()
 	if !state {
 		panic("main: sx127x NOT FOUND !!!")
 	} else {
 		println("main: sx127x found")
-	}
-
-	// Setup DIO0 interrupt Handling
-	if err := SX127X_PIN_DIO0.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
-		println("could not configure DIO0 pin interrupt:", err.Error())
-	}
-
-	// Setup DIO1 interrupt Handling
-	if err := SX127X_PIN_DIO1.SetInterrupt(machine.PinRising, dioIrqHandler); err != nil {
-		println("could not configure DIO1 pin interrupt:", err.Error())
 	}
 
 	// Prepare for Lora Operation

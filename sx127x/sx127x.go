@@ -21,9 +21,10 @@ const (
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
-	rstPin, csPin  machine.Pin          // GPIOs for reset and chip select
+	rstPin         machine.Pin          // GPIO for reset
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
+	controller     RadioController      // to manage interactions with the radio
 	deepSleep      bool                 // Internal Sleep state
 	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
 	spiBuffer      [SPI_BUFFER_SIZE]uint8
@@ -41,14 +42,24 @@ func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(spi machine.SPI, csPin machine.Pin, rstPin machine.Pin) *Device {
+func New(spi machine.SPI, rstPin machine.Pin) *Device {
 	k := Device{
 		spi:            spi,
-		csPin:          csPin,
 		rstPin:         rstPin,
 		radioEventChan: make(chan lora.RadioEvent, 10),
 	}
 	return &k
+}
+
+// SetRadioControl let you define the RadioController
+func (d *Device) SetRadioController(rc RadioController) error {
+	d.controller = rc
+	if err := d.controller.Init(); err != nil {
+		return err
+	}
+	d.controller.SetupInterrupts(d.HandleInterrupt)
+
+	return nil
 }
 
 // Reset re-initialize the sx127x device
@@ -67,21 +78,21 @@ func (d *Device) DetectDevice() bool {
 
 // ReadRegister reads register value
 func (d *Device) ReadRegister(reg uint8) uint8 {
-	d.csPin.Low()
+	d.controller.SetNss(false)
 	d.spi.Tx([]byte{reg & 0x7f}, nil)
 	var value [1]byte
 	d.spi.Tx(nil, value[:])
-	d.csPin.High()
+	d.controller.SetNss(true)
 	return value[0]
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(reg uint8, value uint8) uint8 {
 	var response [1]byte
-	d.csPin.Low()
+	d.controller.SetNss(false)
 	d.spi.Tx([]byte{reg | 0x80}, nil)
 	d.spi.Tx([]byte{value}, response[:])
-	d.csPin.High()
+	d.controller.SetNss(true)
 	return response[0]
 }
 
