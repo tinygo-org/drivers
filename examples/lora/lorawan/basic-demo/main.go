@@ -12,8 +12,9 @@ import (
 	"tinygo.org/x/drivers/lora/lorawan/region"
 )
 
+var debug string
+
 const (
-	debug                       = true
 	LORAWAN_JOIN_TIMEOUT_SEC    = 180
 	LORAWAN_RECONNECT_DELAY_SEC = 15
 	LORAWAN_UPLINK_DELAY_SEC    = 60
@@ -88,7 +89,7 @@ func main() {
 	// Configure AppEUI, DevEUI, APPKey
 	setLorawanKeys()
 
-	if debug {
+	if debug != "" {
 		println("main: Network joined")
 		println("main: DevEui, " + otaa.GetDevEUI())
 		println("main: AppEui, " + otaa.GetAppEUI())
@@ -100,7 +101,7 @@ func main() {
 		failMessage(err)
 	}
 
-	if debug {
+	if debug != "" {
 		println("main: NetID, " + otaa.GetNetID())
 		println("main: NwkSKey, " + session.GetNwkSKey())
 		println("main: AppSKey, " + session.GetAppSKey())
