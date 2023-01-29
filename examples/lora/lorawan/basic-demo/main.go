@@ -92,7 +92,7 @@ func main() {
 		println("main: Network joined")
 		println("main: DevEui, " + otaa.GetDevEUI())
 		println("main: AppEui, " + otaa.GetAppEUI())
-		println("main: DevAddr, " + session.GetDevAddr())
+		println("main: DevAddr, " + otaa.GetAppKey())
 	}
 
 	// Try to connect Lorawan network
