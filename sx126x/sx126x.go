@@ -545,7 +545,7 @@ func (d *Device) SetCodingRate(cr uint8) {
 // SetBandwidth() sets current Lora Bandwidth
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetBandwidth(bw uint8) {
-	d.loraConf.Cr = bw
+	d.loraConf.Bw = bw
 }
 
 // SetCrc() sets current CRC mode (ON/OFF)
