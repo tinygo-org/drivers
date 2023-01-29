@@ -119,7 +119,7 @@ func SendUplink(data []uint8, session *Session) error {
 
 	ApplyChannelConfig(regionSettings.UplinkChannel())
 	ActiveRadio.SetCrc(true)
-	ActiveRadio.SetIqMode(lora.IQInverted)
+	ActiveRadio.SetIqMode(lora.IQStandard)
 	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
 		return err
