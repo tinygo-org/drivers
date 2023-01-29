@@ -33,3 +33,12 @@ tinygo flash -target pybadge -tags featherwing ./examples/lora/lorawan/basic-dem
 tinygo flash -target lorae5 ./examples/lora/lorawan/basic-demo
 ```
 
+
+## Enable debugging
+
+You can also enable some debug logs with ldflags :
+
+```
+$ tinygo build -ldflags="-X 'main.debug=true'" -target=lorae5
+```
+
