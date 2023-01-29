@@ -5,10 +5,12 @@ type Channel struct {
 	Bandwidth       uint8
 	SpreadingFactor uint8
 	CodingRate      uint8
+	PreambleLength  uint16
+	TxPowerDBm      int8
 }
 
 type RegionSettings interface {
-	GetJoinRequestChannel() Channel
-	GetJoinAcceptChannel() Channel
-	GetUplinkChannel() Channel
+	JoinRequestChannel() *Channel
+	JoinAcceptChannel() *Channel
+	UplinkChannel() *Channel
 }

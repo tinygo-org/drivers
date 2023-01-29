@@ -558,10 +558,22 @@ func (d *Device) SetCrc(enable bool) {
 	}
 }
 
-// SetSpreadingFactor setc surrent Lora Spreading Factor
+// SetSpreadingFactor sets current Lora Spreading Factor
 // NB: Change will be applied at next RX / TX
 func (d *Device) SetSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf
+}
+
+// SetPreambleLength sets current Lora Preamble Length
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetPreambleLength(pl uint16) {
+	d.loraConf.Preamble = pl
+}
+
+// SetTxPowerDbm sets current Lora TX Power in DBm
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetTxPower(txpow int8) {
+	d.loraConf.LoraTxPowerDBm = txpow
 }
 
 //

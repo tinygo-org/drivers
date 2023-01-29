@@ -145,8 +145,13 @@ func (d *Device) GetBandwidth() int32 {
 }
 */
 
-// SetTxPower sets the transmitter output power
-func (d *Device) SetTxPower(txPower int8, paBoost bool) {
+// SetTxPower sets the transmitter output (with paBoost ON)
+func (d *Device) SetTxPower(txPower int8) {
+	d.SetTxPowerWithPaBoost(txPower, true)
+}
+
+// SetTxPowerWithPaBoost sets the transmitter output power and may activate paBoost
+func (d *Device) SetTxPowerWithPaBoost(txPower int8, paBoost bool) {
 	if !paBoost {
 		// RFO
 		if txPower < 0 {
@@ -315,7 +320,7 @@ func (d *Device) SetCrc(enable bool) {
 	}
 }
 
-func (d *Device) SetPreamble(pLen uint16) {
+func (d *Device) SetPreambleLength(pLen uint16) {
 	// Sets preamble length
 	d.WriteRegister(SX127X_REG_PREAMBLE_MSB, uint8((pLen>>8)&0xFF))
 	d.WriteRegister(SX127X_REG_PREAMBLE_LSB, uint8(pLen&0xFF))
@@ -353,14 +358,14 @@ func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 	d.WriteRegister(SX127X_REG_LNA, SX127X_LNA_MAX_GAIN)                                // Set Low Noise Amplifier to MAX
 
 	d.SetFrequency(d.loraConf.Freq)
-	d.SetPreamble(d.loraConf.Preamble)
+	d.SetPreambleLength(d.loraConf.Preamble)
 	d.SetSyncWord(d.loraConf.SyncWord)
 	d.SetBandwidth(d.loraConf.Bw)
 	d.SetSpreadingFactor(d.loraConf.Sf)
 	d.SetIqMode(d.loraConf.Iq)
 	d.SetCodingRate(d.loraConf.Cr)
 	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
-	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
+	d.SetTxPower(d.loraConf.LoraTxPowerDBm)
 	d.SetHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
@@ -409,14 +414,14 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	d.WriteRegister(SX127X_REG_LNA, SX127X_LNA_MAX_GAIN)                                // Set Low Noise Amplifier to MAX
 
 	d.SetFrequency(d.loraConf.Freq)
-	d.SetPreamble(d.loraConf.Preamble)
+	d.SetPreambleLength(d.loraConf.Preamble)
 	d.SetSyncWord(d.loraConf.SyncWord)
 	d.SetBandwidth(d.loraConf.Bw)
 	d.SetSpreadingFactor(d.loraConf.Sf)
 	d.SetIqMode(d.loraConf.Iq)
 	d.SetCodingRate(d.loraConf.Cr)
 	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
-	d.SetTxPower(d.loraConf.LoraTxPowerDBm, true)
+	d.SetTxPower(d.loraConf.LoraTxPowerDBm)
 	d.SetHeaderMode(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 

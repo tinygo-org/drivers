@@ -44,6 +44,15 @@ func UseRadio(r lora.Radio) {
 	ActiveRadio = r
 }
 
+func ApplyChannelConfig(ch *region.Channel) {
+	ActiveRadio.SetFrequency(ch.Frequency)
+	ActiveRadio.SetBandwidth(ch.Bandwidth)
+	ActiveRadio.SetCodingRate(ch.CodingRate)
+	ActiveRadio.SetSpreadingFactor(ch.SpreadingFactor)
+	ActiveRadio.SetPreambleLength(ch.PreambleLength)
+	ActiveRadio.SetTxPower(ch.TxPowerDBm)
+}
+
 func Join(otaa *Otaa, session *Session) error {
 	var resp []uint8
 
@@ -64,25 +73,18 @@ func Join(otaa *Otaa, session *Session) error {
 	}
 
 	// Prepare radio for Join Tx
-	joinChannel := regionSettings.GetJoinRequestChannel()
-	ActiveRadio.SetFrequency(joinChannel.Frequency)
-	ActiveRadio.SetBandwidth(joinChannel.Bandwidth)
-	ActiveRadio.SetCodingRate(joinChannel.CodingRate)
-	ActiveRadio.SetSpreadingFactor(joinChannel.SpreadingFactor)
+	ApplyChannelConfig(regionSettings.JoinRequestChannel())
 	ActiveRadio.SetCrc(true)
-	ActiveRadio.SetIqMode(0) // IQ Standard
+	ActiveRadio.SetIqMode(lora.IQStandard)
 	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
 		return err
 	}
 
 	// Wait for JoinAccept
-	joinChannel = regionSettings.GetJoinAcceptChannel()
-	ActiveRadio.SetFrequency(joinChannel.Frequency)
-	ActiveRadio.SetBandwidth(joinChannel.Bandwidth)
-	ActiveRadio.SetCodingRate(joinChannel.CodingRate)
-	ActiveRadio.SetSpreadingFactor(joinChannel.SpreadingFactor)
-	ActiveRadio.SetIqMode(1) // IQ Inverted
+	ApplyChannelConfig(regionSettings.JoinAcceptChannel())
+	ActiveRadio.SetCrc(true)
+	ActiveRadio.SetIqMode(lora.IQInverted)
 	for i := 0; i < Retries; i++ {
 		resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
 		if err != nil {
@@ -115,13 +117,9 @@ func SendUplink(data []uint8, session *Session) error {
 		return err
 	}
 
-	joinChannel := regionSettings.GetUplinkChannel()
-	ActiveRadio.SetFrequency(joinChannel.Frequency)
-	ActiveRadio.SetBandwidth(joinChannel.Bandwidth)
-	ActiveRadio.SetCodingRate(joinChannel.CodingRate)
-	ActiveRadio.SetSpreadingFactor(joinChannel.SpreadingFactor)
+	ApplyChannelConfig(regionSettings.UplinkChannel())
 	ActiveRadio.SetCrc(true)
-	ActiveRadio.SetIqMode(0) // IQ Standard
+	ActiveRadio.SetIqMode(lora.IQInverted)
 	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
 		return err
