@@ -76,3 +76,10 @@ const (
 	SyncPublic = iota
 	SyncPrivate
 )
+
+const (
+	MHz_868_1 = 868100000
+	MHz_868_5 = 868500000
+	MHz_916_8 = 916800000
+	MHz_923_3 = 923300000
+)

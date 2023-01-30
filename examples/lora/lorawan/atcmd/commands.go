@@ -337,6 +337,19 @@ func delay(setting string) error {
 
 func lw(setting string) error {
 	cmd := "LW"
+
+	param, val, hasComma := strings.Cut(setting, ",")
+	if hasComma {
+		if param == "NET" {
+			if val == "ON" {
+				lorawan.SetPublicNetwork(true)
+				println("SET PUBLIC NET")
+			} else {
+				lorawan.SetPublicNetwork(false)
+				println("SET PRIVATE NET")
+			}
+		}
+	}
 	writeCommandOutput(cmd, setting)
 
 	return nil

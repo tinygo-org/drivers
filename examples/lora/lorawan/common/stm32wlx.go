@@ -37,22 +37,6 @@ func SetupLora() (lora.Radio, error) {
 		return nil, errRadioNotFound
 	}
 
-	loraConf := lora.Config{
-		Freq:           FREQ,
-		Bw:             lora.Bandwidth_500_0,
-		Sf:             lora.SpreadingFactor9,
-		Cr:             lora.CodingRate4_7,
-		HeaderType:     lora.HeaderExplicit,
-		Preamble:       12,
-		Ldr:            lora.LowDataRateOptimizeOff,
-		Iq:             lora.IQStandard,
-		Crc:            lora.CRCOn,
-		SyncWord:       lora.SyncPrivate,
-		LoraTxPowerDBm: 20,
-	}
-
-	loraRadio.LoraConfig(loraConf)
-
 	return loraRadio, nil
 }
 

@@ -15,19 +15,19 @@ type RegionSettingsEU868 struct {
 
 func EU868() *RegionSettingsEU868 {
 	return &RegionSettingsEU868{
-		joinRequestChannel: &Channel{868100000,
+		joinRequestChannel: &Channel{lora.MHz_868_1,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,
 			EU868_DEFAULT_PREAMBLE_LEN,
 			EU868_DEFAULT_TX_POWER_DBM},
-		joinAcceptChannel: &Channel{868100000,
+		joinAcceptChannel: &Channel{lora.MHz_868_1,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,
 			EU868_DEFAULT_PREAMBLE_LEN,
 			EU868_DEFAULT_TX_POWER_DBM},
-		uplinkChannel: &Channel{868100000,
+		uplinkChannel: &Channel{lora.MHz_868_1,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,

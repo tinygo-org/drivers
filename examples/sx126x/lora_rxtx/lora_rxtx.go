@@ -11,8 +11,6 @@ import (
 	"tinygo.org/x/drivers/sx126x"
 )
 
-const FREQ = 868100000
-
 const (
 	LORA_DEFAULT_RXTIMEOUT_MS = 1000
 	LORA_DEFAULT_TXTIMEOUT_MS = 5000
@@ -44,8 +42,8 @@ func main() {
 	}
 
 	loraConf := lora.Config{
-		Freq:           FREQ,
-		Bw:             lora.Bandwidth_500_0,
+		Freq:           lora.MHz_868_1,
+		Bw:             lora.Bandwidth_125_0,
 		Sf:             lora.SpreadingFactor9,
 		Cr:             lora.CodingRate4_7,
 		HeaderType:     lora.HeaderExplicit,

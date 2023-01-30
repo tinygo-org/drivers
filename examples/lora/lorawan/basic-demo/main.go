@@ -65,28 +65,12 @@ func main() {
 	session = &lorawan.Session{}
 	otaa = &lorawan.Otaa{}
 
-	// Initial Lora modulation configuration
-	loraConf := lora.Config{
-		Freq:           868100000,
-		Bw:             lora.Bandwidth_125_0,
-		Sf:             lora.SpreadingFactor9,
-		Cr:             lora.CodingRate4_7,
-		HeaderType:     lora.HeaderExplicit,
-		Preamble:       12,
-		Ldr:            lora.LowDataRateOptimizeOff,
-		Iq:             lora.IQStandard,
-		Crc:            lora.CRCOn,
-		SyncWord:       lora.SyncPublic,
-		LoraTxPowerDBm: 20,
-	}
-	radio.LoraConfig(loraConf)
-
 	// Connect the lorawan with the Lora Radio device.
 	lorawan.UseRadio(radio)
 
 	lorawan.UseRegionSettings(region.EU868())
 
-	// Configure AppEUI, DevEUI, APPKey
+	// Configure AppEUI, DevEUI, APPKey, and public/private Lorawan Network
 	setLorawanKeys()
 
 	if debug != "" {

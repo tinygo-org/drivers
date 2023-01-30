@@ -276,8 +276,8 @@ func (d *Device) SetCodingRate(cr uint8) {
 	d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, (d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)&0xf1)|(cr<<1))
 }
 
-// SetImplicitHeaderModeOn Enables implicit header mode ***
-func (d *Device) SetHeaderMode(headerType uint8) {
+// SetHeaderType set implicit or explicit mode
+func (d *Device) SetHeaderType(headerType uint8) {
 	d.loraConf.HeaderType = headerType
 	if headerType == lora.HeaderImplicit {
 		d.WriteRegister(SX127X_REG_MODEM_CONFIG_1, d.ReadRegister(SX127X_REG_MODEM_CONFIG_1)|0x01)
@@ -346,6 +346,14 @@ func (d *Device) SetIqMode(val uint8) {
 		d.WriteRegister(SX127X_REG_INVERTIQ2, 0x19)
 	}
 }
+// SetPublicNetwork changes Sync Word to match network type
+func  (d *Device) SetPublicNetwork(enabled bool) {
+	if enabled {
+		d.SetSyncWord(SX127X_LORA_MAC_PUBLIC_SYNCWORD)
+	} else {
+		d.SetSyncWord(SX127X_LORA_MAC_PRIVATE_SYNCWORD)
+	}
+
 
 // Tx sends a lora packet, (with timeout)
 func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
@@ -538,9 +546,4 @@ func bandwidth(bw uint8) uint8 {
 	}
 }
 
-func syncword(sw int) uint16 {
-	if sw == lora.SyncPublic {
-		return SX127X_LORA_MAC_PUBLIC_SYNCWORD
-	}
-	return SX127X_LORA_MAC_PRIVATE_SYNCWORD
 }

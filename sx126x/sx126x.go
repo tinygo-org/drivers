@@ -576,6 +576,12 @@ func (d *Device) SetTxPower(txpow int8) {
 	d.loraConf.LoraTxPowerDBm = txpow
 }
 
+// SetHeaderType sets implicit or explicit header mode
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetHeaderType(headerType uint8) {
+	d.loraConf.HeaderType = headerType
+}
+
 //
 // Lora functions
 //
