@@ -39,3 +39,14 @@ Builds/flashes atcmd console application on Lora-E5 using onboard SX126x.
 tinygo flash -target lorae5 ./examples/lora/lorawan/atcmd/
 ```
 
+## Joining a Public Lorawan Network
+
+```
+AT+ID=DevEui,0101010101010101
+AT+ID=AppEui,0123012301230213
+AT+KEY=APPKEY,AEAEAEAEAEAEAEAAEAEAEAEAEAEAAEAE
+AT+LW=NET,ON  
+AT+JOIN
+```
+
+AT+LW=NET,(ON|OFF) command changes Lora Sync Word to connect on public network(ON) or private networks(OFF)

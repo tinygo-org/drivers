@@ -12,5 +12,8 @@ type Radio interface {
 	SetSpreadingFactor(sf uint8)
 	SetPreambleLength(plen uint16)
 	SetTxPower(txpow int8)
+	SetSyncWord(syncWord uint16)
+	SetPublicNetwork(enable bool)
+	SetHeaderType(headerType uint8)
 	LoraConfig(cnf Config)
 }

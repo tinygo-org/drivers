@@ -24,7 +24,7 @@ var (
 
 const (
 	LORA_TX_TIMEOUT = 2000
-	LORA_RX_TIMEOUT = 5000
+	LORA_RX_TIMEOUT = 10000
 )
 
 var (
@@ -33,10 +33,12 @@ var (
 	regionSettings region.RegionSettings
 )
 
+// UseRegionSettings sets current Lorawan Regional parameters
 func UseRegionSettings(rs region.RegionSettings) {
 	regionSettings = rs
 }
 
+// UseRadio attaches Lora radio driver to Lorawan
 func UseRadio(r lora.Radio) {
 	if ActiveRadio != nil {
 		panic("lorawan.ActiveRadio is already set")
@@ -44,15 +46,25 @@ func UseRadio(r lora.Radio) {
 	ActiveRadio = r
 }
 
-func ApplyChannelConfig(ch *region.Channel) {
+// SetPublicNetwork defines Lora Sync Word according to network type (public/private)
+func SetPublicNetwork(enabled bool) {
+	ActiveRadio.SetPublicNetwork(enabled)
+}
+
+// ApplyChannelConfig sets current Lora modulation according to current regional settings
+func applyChannelConfig(ch *region.Channel) {
 	ActiveRadio.SetFrequency(ch.Frequency)
 	ActiveRadio.SetBandwidth(ch.Bandwidth)
 	ActiveRadio.SetCodingRate(ch.CodingRate)
 	ActiveRadio.SetSpreadingFactor(ch.SpreadingFactor)
 	ActiveRadio.SetPreambleLength(ch.PreambleLength)
 	ActiveRadio.SetTxPower(ch.TxPowerDBm)
+	// Lorawan defaults to explicit headers
+	ActiveRadio.SetHeaderType(lora.HeaderExplicit)
+	ActiveRadio.SetCrc(true)
 }
 
+// Join tries to connect Lorawan Gateway
 func Join(otaa *Otaa, session *Session) error {
 	var resp []uint8
 
@@ -73,8 +85,7 @@ func Join(otaa *Otaa, session *Session) error {
 	}
 
 	// Prepare radio for Join Tx
-	ApplyChannelConfig(regionSettings.JoinRequestChannel())
-	ActiveRadio.SetCrc(true)
+	applyChannelConfig(regionSettings.JoinRequestChannel())
 	ActiveRadio.SetIqMode(lora.IQStandard)
 	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {
@@ -82,18 +93,13 @@ func Join(otaa *Otaa, session *Session) error {
 	}
 
 	// Wait for JoinAccept
-	ApplyChannelConfig(regionSettings.JoinAcceptChannel())
-	ActiveRadio.SetCrc(true)
+	applyChannelConfig(regionSettings.JoinAcceptChannel())
 	ActiveRadio.SetIqMode(lora.IQInverted)
-	for i := 0; i < Retries; i++ {
-		resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
-		if err != nil {
-			return err
-		}
-		if resp != nil {
-			break
-		}
+	resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
+	if err != nil {
+		return err
 	}
+
 	if resp == nil {
 		return ErrNoJoinAcceptReceived
 	}
@@ -106,6 +112,7 @@ func Join(otaa *Otaa, session *Session) error {
 	return nil
 }
 
+// SendUplink sends Lorawan Uplink message
 func SendUplink(data []uint8, session *Session) error {
 
 	if regionSettings == nil {
@@ -117,8 +124,7 @@ func SendUplink(data []uint8, session *Session) error {
 		return err
 	}
 
-	ApplyChannelConfig(regionSettings.UplinkChannel())
-	ActiveRadio.SetCrc(true)
+	applyChannelConfig(regionSettings.UplinkChannel())
 	ActiveRadio.SetIqMode(lora.IQStandard)
 	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
 	if err != nil {

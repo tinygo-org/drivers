@@ -15,19 +15,19 @@ type RegionSettingsAU915 struct {
 
 func AU915() *RegionSettingsAU915 {
 	return &RegionSettingsAU915{
-		joinRequestChannel: &Channel{916800000,
+		joinRequestChannel: &Channel{lora.MHz_916_8,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,
 			AU915_DEFAULT_PREAMBLE_LEN,
 			AU915_DEFAULT_TX_POWER_DBM},
-		joinAcceptChannel: &Channel{923300000,
+		joinAcceptChannel: &Channel{lora.MHz_923_3,
 			lora.Bandwidth_500_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,
 			AU915_DEFAULT_PREAMBLE_LEN,
 			AU915_DEFAULT_TX_POWER_DBM},
-		uplinkChannel: &Channel{868500000,
+		uplinkChannel: &Channel{lora.MHz_868_5,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_7,
