@@ -346,14 +346,15 @@ func (d *Device) SetIqMode(val uint8) {
 		d.WriteRegister(SX127X_REG_INVERTIQ2, 0x19)
 	}
 }
+
 // SetPublicNetwork changes Sync Word to match network type
-func  (d *Device) SetPublicNetwork(enabled bool) {
+func (d *Device) SetPublicNetwork(enabled bool) {
 	if enabled {
 		d.SetSyncWord(SX127X_LORA_MAC_PUBLIC_SYNCWORD)
 	} else {
 		d.SetSyncWord(SX127X_LORA_MAC_PRIVATE_SYNCWORD)
 	}
-
+}
 
 // Tx sends a lora packet, (with timeout)
 func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
@@ -374,7 +375,7 @@ func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 	d.SetCodingRate(d.loraConf.Cr)
 	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm)
-	d.SetHeaderMode(d.loraConf.HeaderType)
+	d.SetHeaderType(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
 	// set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP
@@ -430,7 +431,7 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	d.SetCodingRate(d.loraConf.Cr)
 	d.SetCrc(d.loraConf.Crc == lora.CRCOn)
 	d.SetTxPower(d.loraConf.LoraTxPowerDBm)
-	d.SetHeaderMode(d.loraConf.HeaderType)
+	d.SetHeaderType(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
 	// set the IRQ mapping DIO0=RxDone DIO1=RxTimeout DIO2=NOP
@@ -546,4 +547,9 @@ func bandwidth(bw uint8) uint8 {
 	}
 }
 
+func syncword(sw int) uint16 {
+	if sw == lora.SyncPublic {
+		return SX127X_LORA_MAC_PUBLIC_SYNCWORD
+	}
+	return SX127X_LORA_MAC_PRIVATE_SYNCWORD
 }
