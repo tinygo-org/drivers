@@ -449,6 +449,7 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	// Single RX mode don't properly handle Timeouts on sx127x, so we use Continuous RX
 	// Go routine is a workaround to stop the Continuous RX and fire a timeout Event
 	d.SetOpMode(SX127X_OPMODE_RX)
+
 	go func() {
 		time.Sleep(time.Millisecond * time.Duration(timeoutMs))
 		d.SetOpMode(SX127X_OPMODE_STANDBY) //Go standby
