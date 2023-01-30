@@ -343,10 +343,8 @@ func lw(setting string) error {
 		if param == "NET" {
 			if val == "ON" {
 				lorawan.SetPublicNetwork(true)
-				println("SET PUBLIC NET")
 			} else {
 				lorawan.SetPublicNetwork(false)
-				println("SET PRIVATE NET")
 			}
 		}
 	}
