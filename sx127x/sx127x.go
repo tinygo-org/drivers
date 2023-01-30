@@ -434,18 +434,28 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	d.SetHeaderType(d.loraConf.HeaderType)
 	d.SetAgcAuto(SX127X_AGC_AUTO_ON)
 
+	//d.SetRxTimeout(200)
+
 	// set the IRQ mapping DIO0=RxDone DIO1=RxTimeout DIO2=NOP
 	d.WriteRegister(SX127X_REG_DIO_MAPPING_1, SX127X_MAP_DIO0_LORA_RXDONE|SX127X_MAP_DIO1_LORA_RXTOUT|SX127X_MAP_DIO2_LORA_NOP)
 	// Clear all radio IRQ Flags
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS, 0xFF)
 	// Mask all but RxDone
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS_MASK, ^(SX127X_IRQ_LORA_RXDONE_MASK | SX127X_IRQ_LORA_RXTOUT_MASK))
-	// Switch to RX Mode
-	d.SetOpMode(SX127X_OPMODE_RX_SINGLE) //
-	// Wait for Radio Event
 
+	// Get Radio Event Channel
 	radioCh := d.GetRadioEventChan()
 
+	// Single RX mode don't properly handle Timeouts on sx127x, so we use Continuous RX
+	// Go routine is a workaround to stop the Continuous RX and fire a timeout Event
+	d.SetOpMode(SX127X_OPMODE_RX)
+	go func() {
+		time.Sleep(time.Millisecond * time.Duration(timeoutMs))
+		d.SetOpMode(SX127X_OPMODE_STANDBY) //Go standby
+		radioCh <- lora.NewRadioEvent(lora.RadioEventTimeout, 0, nil)
+	}()
+
+	// Now the channel can receive either a Timeout or a RxDone:
 	msg := <-radioCh
 	if msg.EventType == lora.RadioEventTimeout {
 		return nil, nil
@@ -453,6 +463,7 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 		return nil, errors.New("Unexpected Radio Event while RX " + string(0x30+msg.EventType))
 	}
 
+	// Get the received payload
 	d.WriteRegister(SX127X_REG_FIFO_RX_BASE_ADDR, 0)
 	d.WriteRegister(SX127X_REG_FIFO_ADDR_PTR, 0)
 
