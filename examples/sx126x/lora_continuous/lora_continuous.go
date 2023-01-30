@@ -35,8 +35,8 @@ func main() {
 
 	// Prepare for Lora operation
 	loraConf := lora.Config{
-		Freq:           FREQ,
-		Bw:             lora.Bandwidth_500_0,
+		Freq:           lora.MHz_868_1,
+		Bw:             lora.Bandwidth_125_0,
 		Sf:             lora.SpreadingFactor9,
 		Cr:             lora.CodingRate4_7,
 		HeaderType:     lora.HeaderExplicit,
@@ -45,7 +45,7 @@ func main() {
 		Iq:             lora.IQStandard,
 		Crc:            lora.CRCOn,
 		SyncWord:       lora.SyncPrivate,
-		LoraTxPowerDBm: 14,
+		LoraTxPowerDBm: 20,
 	}
 	loraRadio.LoraConfig(loraConf)
 
