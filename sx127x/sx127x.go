@@ -145,11 +145,6 @@ func (d *Device) GetBandwidth() int32 {
 }
 */
 
-// SetTxPower sets the transmitter output (with paBoost ON)
-func (d *Device) SetTxPower(txPower int8) {
-	d.SetTxPowerWithPaBoost(txPower, true)
-}
-
 // SetTxPowerWithPaBoost sets the transmitter output power and may activate paBoost
 func (d *Device) SetTxPowerWithPaBoost(txPower int8, paBoost bool) {
 	if !paBoost {
@@ -300,13 +295,10 @@ func (d *Device) SetSpreadingFactor(sf uint8) {
 	d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, newValue)
 }
 
-// SetTxContinuousMode enable Continuous Tx mode
-func (d *Device) SetTxContinuousMode(val bool) {
-	if val {
-		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)|0x08)
-	} else {
-		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)&0xf7)
-	}
+// SetTxPower sets the transmitter output (with paBoost ON)
+func (d *Device) SetTxPower(txPower int8) {
+	d.loraConf.LoraTxPowerDBm = txPower
+	d.SetTxPowerWithPaBoost(txPower, true)
 }
 
 // SetCrc Enable CRC generation and check on payload
@@ -320,8 +312,9 @@ func (d *Device) SetCrc(enable bool) {
 	}
 }
 
+// SetPreambleLength defines number of preamble
 func (d *Device) SetPreambleLength(pLen uint16) {
-	// Sets preamble length
+	d.loraConf.Preamble = pLen
 	d.WriteRegister(SX127X_REG_PREAMBLE_MSB, uint8((pLen>>8)&0xFF))
 	d.WriteRegister(SX127X_REG_PREAMBLE_LSB, uint8(pLen&0xFF))
 }
@@ -470,6 +463,15 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 		d.spiBuffer[i] = d.ReadRegister(SX127X_REG_FIFO)
 	}
 	return d.spiBuffer[:pLen], nil
+}
+
+// SetTxContinuousMode enable Continuous Tx mode
+func (d *Device) SetTxContinuousMode(val bool) {
+	if val {
+		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)|0x08)
+	} else {
+		d.WriteRegister(SX127X_REG_MODEM_CONFIG_2, d.ReadRegister(SX127X_REG_MODEM_CONFIG_2)&0xf7)
+	}
 }
 
 //
