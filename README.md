@@ -146,6 +146,7 @@ The following 90 devices are supported.
 | [WS2812 RGB LED](https://cdn-shop.adafruit.com/datasheets/WS2812.pdf)                                                                                                                               | GPIO |
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
 | [Semtech SX126x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1261)                                                                                                             | SPI |
+| [Semtech SX127x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1276)                                                                                                             | SPI |
 | [SSD1289 TFT color display](http://aitendo3.sakura.ne.jp/aitendo_data/product_img/lcd/tft2/M032C1289TP/3.2-SSD1289.pdf)                                                                             | GPIO |
 
 ## Contributing
