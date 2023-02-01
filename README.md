@@ -62,6 +62,7 @@ The following 90 devices are supported.
 | [AMG88xx 8x8 Thermal camera sensor](https://cdn-learn.adafruit.com/assets/assets/000/043/261/original/Grid-EYE_SPECIFICATIONS%28Reference%29.pdf)                                                   | I2C |
 | [APA102 RGB LED](https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf)                                                                                                                      | SPI |
 | [APDS9960 Digital proximity, ambient light, RGB and gesture sensor](https://cdn.sparkfun.com/assets/learn_tutorials/3/2/1/Avago-APDS-9960-datasheet.pdf)                                            | I2C |
+| [AS5600](https://ams.com/documents/20143/36005/AS5600_DS000365_5-00.pdf) / [AS5601](https://ams.com/documents/20143/36005/AS5601_DS000395_3-00.pdf) [on-axis magnetic rotary position sensors](https://ams.com/angle-position-on-axis) | I2C |
 | [AT24CX 2-wire serial EEPROM](https://www.openimpulse.com/blog/wp-content/uploads/wpsc/downloadables/24C32-Datasheet.pdf)                                                                           | I2C |
 | [AXP192 single Cell Li-Battery and Power System Management](https://github.com/m5stack/M5-Schematic/blob/master/Core/AXP192%20Datasheet_v1.1_en_draft_2211.pdf)                                     | I2C |
 | [BBC micro:bit LED matrix](https://github.com/bbcmicrobit/hardware/blob/master/SCH_BBC-Microbit_V1.3B.pdf)                                                                                          | GPIO |
