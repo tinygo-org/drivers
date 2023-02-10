@@ -15,41 +15,279 @@
 //
 // AT command set:
 // https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
+//
+// 02/2023    sfeldma@gmail.com    Heavily modified to use netdev interface
+
 package espat // import "tinygo.org/x/drivers/espat"
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"machine"
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/netdev"
 )
 
-// Device wraps UART connection to the ESP8266/ESP32.
-type Device struct {
-	bus drivers.UART
+var (
+	version    = "0.0.1"
+	driverName = "Espressif ESP8266/ESP32 AT Wifi network device driver (espat)"
+)
 
+type Config struct {
+	// AP creditials
+	Ssid       string
+	Passphrase string
+
+	// UART config
+	Uart *machine.UART
+	Tx   machine.Pin
+	Rx   machine.Pin
+}
+
+type Device struct {
+	cfg *Config
+	uart *machine.UART
 	// command responses that come back from the ESP8266/ESP32
 	response []byte
-
 	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
 	socketdata []byte
+	socketInUse bool
+	socketProtocol netdev.Protocol
+	socketLaddr    netdev.SockAddr
 }
 
-// ActiveDevice is the currently configured Device in use. There can only be one.
-var ActiveDevice *Device
-
-// New returns a new espat driver. Pass in a fully configured UART bus.
-func New(b drivers.UART) *Device {
-	return &Device{bus: b, response: make([]byte, 512), socketdata: make([]byte, 0, 1024)}
+func New(cfg *Config) *Device {
+	d := Device{
+		cfg: cfg,
+		response: make([]byte, 512),
+		socketdata: make([]byte, 0, 1024),
+	}
+	return &d
 }
 
-// Configure sets up the device for communication.
-func (d Device) Configure() {
-	ActiveDevice = &d
-	net.ActiveDevice = ActiveDevice
+func (d *Device) NetConnect() error {
+
+	fmt.Printf("\r\n")
+	fmt.Printf("%s\r\n\r\n", driverName)
+	fmt.Printf("Driver version                 : %s\r\n\r\n", version)
+
+	if len(d.cfg.Ssid) == 0 {
+		return netdev.ErrMissingSSID
+	}
+
+	d.uart = d.cfg.Uart
+	d.uart.Configure(machine.UARTConfig{TX: d.cfg.Tx, RX: d.cfg.Rx})
+
+	// Connect to ESP8266/ESP32
+	fmt.Printf("Connecting to device...")
+
+	for i := 0; i < 5; i++ {
+		if d.Connected() {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !d.Connected() {
+		fmt.Printf("FAILED\r\n")
+		return netdev.ErrConnectFailed
+	}
+
+	fmt.Printf("CONNECTED\r\n")
+
+	fmt.Printf("\r\n")
+	fmt.Printf("ESP8266/ESP32 firmware version : %s\r\n", string(d.Version()))
+	fmt.Printf("MAC address                    : %s\r\n", d.GetMacAddress())
+	fmt.Printf("\r\n")
+
+	// Connect to Wifi AP
+	fmt.Printf("Connecting to Wifi SSID '%s'...", d.cfg.Ssid)
+
+	d.SetWifiMode(WifiModeClient)
+	err := d.ConnectToAP(d.cfg.Ssid, d.cfg.Passphrase, 10 /* secs */)
+	if err != nil {
+		fmt.Printf("FAILED\r\n")
+		return netdev.ErrConnectFailed
+	}
+
+	fmt.Printf("CONNECTED\r\n")
+
+	ip, err := d.GetClientIP()
+	if err != nil {
+		return netdev.ErrConnectFailed
+	}
+
+	fmt.Printf("\r\n")
+	fmt.Printf("DHCP-assigned IP               : %s\r\n", ip)
+	fmt.Printf("\r\n")
+
+	return nil
+}
+
+func (d *Device) NetDisconnect() {
+	d.DisconnectFromAP()
+	fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", d.cfg.Ssid)
+}
+
+func (d *Device) NetNotify(cb func(netdev.Event)) {
+	// Not supported
+}
+
+func (d *Device) GetHostByName(name string) (netdev.IP, error) {
+	ip, err := d.GetDNS(name)
+	return netdev.ParseIP(ip), err
+}
+
+func (d *Device) GetHardwareAddr() (netdev.HardwareAddr, error) {
+	return netdev.ParseHardwareAddr(d.GetMacAddress()), nil
+}
+
+func (d *Device) GetIPAddr() (netdev.IP, error) {
+	ip, err := d.GetClientIP()
+	return netdev.ParseIP(ip), err
+}
+
+func (d *Device) Socket(family netdev.AddressFamily, sockType netdev.SockType,
+	protocol netdev.Protocol) (netdev.Sockfd, error) {
+
+	switch family {
+	case netdev.AF_INET:
+	default:
+		return -1, netdev.ErrFamilyNotSupported
+	}
+
+	switch {
+	case protocol == netdev.IPPROTO_TCP && sockType == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_TLS && sockType == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_UDP && sockType == netdev.SOCK_DGRAM:
+	default:
+		return -1, netdev.ErrProtocolNotSupported
+	}
+
+	// Only supporting single connection mode, so only one socket at a time
+	if d.socketInUse {
+		return -1, netdev.ErrNoMoreSockets
+	}
+	d.socketInUse = true
+	d.socketProtocol = protocol
+
+	return netdev.Sockfd(0), nil
+}
+
+func (d *Device) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
+	d.socketLaddr = addr
+	return nil
+}
+
+func (d *Device) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error {
+	var err error
+	var addr = servaddr.Ip().String()
+	var port = fmt.Sprintf("%d", servaddr.Port())
+	var lport = fmt.Sprintf("%d", d.socketLaddr.Port())
+
+	switch d.socketProtocol {
+	case netdev.IPPROTO_TCP:
+		err = d.ConnectTCPSocket(addr, port)
+	case netdev.IPPROTO_UDP:
+		err = d.ConnectUDPSocket(addr, port, lport)
+	case netdev.IPPROTO_TLS:
+		err = d.ConnectSSLSocket(addr, port)
+	}
+
+	return err
+}
+
+func (d *Device) Listen(sockfd netdev.Sockfd, backlog int) error {
+	switch d.socketProtocol {
+	case netdev.IPPROTO_UDP:
+	default:
+		return netdev.ErrProtocolNotSupported
+	}
+	return nil
+}
+
+func (d *Device) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.Sockfd, error) {
+	return -1, netdev.ErrNotSupported
+}
+
+func (d *Device) sendChunk(sockfd netdev.Sockfd, buf []byte, timeout time.Duration) (int, error) {
+	err := d.StartSocketSend(len(buf))
+	if err != nil {
+		return -1, err
+	}
+	n, err := d.Write(buf)
+	if err != nil {
+		return -1, err
+	}
+	_, err = d.Response(1000)
+	if err != nil {
+		return -1, err
+	}
+	return n, err
+}
+
+func (d *Device) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+	timeout time.Duration) (int, error) {
+
+	// Break large bufs into chunks so we don't overrun the hw queue
+
+	chunkSize := 1436
+	for i := 0; i < len(buf); i += chunkSize {
+		end := i + chunkSize
+		if end > len(buf) {
+			end = len(buf)
+		}
+		_, err := d.sendChunk(sockfd, buf[i:end], timeout)
+		if err != nil {
+			return -1, err
+		}
+	}
+
+	return len(buf), nil
+}
+
+func (d *Device) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+	timeout time.Duration) (int, error) {
+
+	var length = len(buf)
+	var expire = time.Now().Add(timeout)
+
+	// Limit length read size to chunk large read requests
+	if length > 1436 {
+		length = 1436
+	}
+
+	for {
+		// Check if we've timed out
+		if timeout > 0 {
+			if time.Now().Before(expire) {
+				return -1, netdev.ErrRecvTimeout
+			}
+		}
+
+		n, err := d.ReadSocket(buf[:length])
+		if err != nil {
+			return -1, err
+		}
+		if n == 0 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		return n, nil
+	}
+}
+
+func (d *Device) Close(sockfd netdev.Sockfd) error {
+	return d.DisconnectSocket()
+}
+
+func (d *Device) SetSockOpt(sockfd netdev.Sockfd, level netdev.SockOptLevel,
+	opt netdev.SockOpt, value any) error {
+	return netdev.ErrNotSupported
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.
@@ -66,12 +304,12 @@ func (d *Device) Connected() bool {
 
 // Write raw bytes to the UART.
 func (d *Device) Write(b []byte) (n int, err error) {
-	return d.bus.Write(b)
+	return d.uart.Write(b)
 }
 
 // Read raw bytes from the UART.
 func (d *Device) Read(b []byte) (n int, err error) {
-	return d.bus.Read(b)
+	return d.uart.Read(b)
 }
 
 // how long in milliseconds to pause after sending AT commands
@@ -157,11 +395,11 @@ func (d *Device) Response(timeout int) ([]byte, error) {
 	retries := timeout / pause
 
 	for {
-		size = d.bus.Buffered()
+		size = d.uart.Buffered()
 
 		if size > 0 {
 			end += size
-			d.bus.Read(d.response[start:end])
+			d.uart.Read(d.response[start:end])
 
 			// if "+IPD" then read socket data
 			if strings.Contains(string(d.response[:end]), "+IPD") {
@@ -217,5 +455,5 @@ func (d *Device) parseIPD(end int) error {
 
 // IsSocketDataAvailable returns of there is socket data available
 func (d *Device) IsSocketDataAvailable() bool {
-	return len(d.socketdata) > 0 || d.bus.Buffered() > 0
+	return len(d.socketdata) > 0 || d.uart.Buffered() > 0
 }
