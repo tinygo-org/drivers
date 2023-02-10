@@ -44,10 +44,7 @@ func (d *Device) ConnectToAP(ssid, pwd string, ws int) error {
 	d.Set(ConnectAP, val)
 
 	_, err := d.Response(ws * 1000)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // DisconnectFromAP disconnects the ESP8266/ESP32 from the current access point.
@@ -55,6 +52,17 @@ func (d *Device) DisconnectFromAP() error {
 	d.Execute(Disconnect)
 	_, err := d.Response(1000)
 	return err
+}
+
+// GetClientIP returns the ESP8266/ESP32 current station MAC addess when
+// connected to an Access Point.
+func (d *Device) GetMacAddress() string {
+	d.Query(SetStationMACAddress)
+	r, err := d.Response(1000)
+	if err != nil {
+		return "unknown"
+	}
+	return string(r)
 }
 
 // GetClientIP returns the ESP8266/ESP32 current client IP addess when connected to an Access Point.

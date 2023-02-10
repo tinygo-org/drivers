@@ -9,7 +9,7 @@ var (
 	headerBuf            [4]byte
 	readBuf              [4]byte
 	startWriteMessageBuf [1024]byte
-	payload              [1024 + 256]byte
+	payload              [2048]byte
 )
 
 const (
@@ -30,7 +30,7 @@ func startWriteMessage(msgType, service, requestNumber, sequence uint32) []byte 
 	return startWriteMessageBuf[:8]
 }
 
-func (r *RTL8720DN) performRequest(msg []byte) error {
+func (r *rtl8720dn) performRequest(msg []byte) {
 	crc := computeCRC16(msg)
 	headerBuf[0] = byte(len(msg))
 	headerBuf[1] = byte(len(msg) >> 8)
@@ -43,16 +43,14 @@ func (r *RTL8720DN) performRequest(msg []byte) error {
 		fmt.Printf("\r\n")
 	}
 
-	r.port.Write(headerBuf[:])
+	r.uart.Write(headerBuf[:])
 
 	if r.debug {
 		fmt.Printf("tx : %2d : ", len(msg))
 		dumpHex(msg)
 		fmt.Printf("\r\n")
 	}
-	r.port.Write(msg)
-
-	return nil
+	r.uart.Write(msg)
 }
 
 func dumpHex(b []byte) {
@@ -65,9 +63,9 @@ func dumpHex(b []byte) {
 	}
 }
 
-func (r *RTL8720DN) read() {
+func (r *rtl8720dn) read() {
 	for {
-		n, _ := io.ReadFull(r.port, readBuf[:4])
+		n, _ := io.ReadFull(r.uart, readBuf[:4])
 		if n == 0 {
 			continue
 		}
@@ -81,7 +79,7 @@ func (r *RTL8720DN) read() {
 		length := uint16(readBuf[0]) + uint16(readBuf[1])<<8
 		crc := uint16(readBuf[2]) + uint16(readBuf[3])<<8
 
-		n, _ = io.ReadFull(r.port, payload[:length])
+		n, _ = io.ReadFull(r.uart, payload[:length])
 		if r.debug {
 			fmt.Printf("rx : %2d : ", length)
 			dumpHex(payload[0:n])

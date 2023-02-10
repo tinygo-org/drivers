@@ -32,17 +32,18 @@ var (
 	ErrPinNoDevice = errors.New("wifinina pin: device not set")
 )
 
-var pinDevice *Device
+var pinDevice *wifinina
 
-func pinUseDevice(d *Device) {
-	pinDevice = d
+func pinUseDevice(w *wifinina) {
+	pinDevice = w
 }
 
 func (p Pin) Configure(config PinConfig) error {
 	if pinDevice == nil {
 		return ErrPinNoDevice
 	}
-	return pinDevice.PinMode(uint8(p), uint8(config.Mode))
+	pinDevice.PinMode(uint8(p), uint8(config.Mode))
+	return nil
 }
 
 func (p Pin) Set(high bool) error {
@@ -53,7 +54,8 @@ func (p Pin) Set(high bool) error {
 	if high {
 		value = PinHigh
 	}
-	return pinDevice.DigitalWrite(uint8(p), value)
+	pinDevice.DigitalWrite(uint8(p), value)
+	return nil
 }
 
 func (p Pin) High() error {
