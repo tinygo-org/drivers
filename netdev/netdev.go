@@ -1,4 +1,6 @@
-// Netdev is TinyGo's network device driver model.
+// Netdev is TinyGo's network device driver model.  TinyGo's "net" package
+// interfaces to the netdev driver directly to provide TCPConn, UDPConn,
+// and TLSConn socket connections.
 
 package netdev
 
@@ -96,7 +98,9 @@ type Event int
 
 // NetNotify network events
 const (
+	// The device's network connection is now UP
 	EventNetUp   Event = iota
+	// The device's network connection is now DOWN
 	EventNetDown
 )
 
@@ -111,7 +115,7 @@ type Netdever interface {
 	// NetConnect device to IP network
 	NetConnect() error
 
-	// NetDisconnect from IP network
+	// NetDisconnect device from IP network
 	NetDisconnect()
 
 	// NetNotify to register callback for network events
