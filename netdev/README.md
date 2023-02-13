@@ -4,6 +4,7 @@
 
 - [Overview](#overview)
 - [Porting Applications from Go "net"](#porting-applications-from-go-net)
+- [Using Raw Sockets](#using-raw-sockets)
 - [Writing a New Driver](#writing-a-new-driver)
  
 ## Overview
@@ -152,6 +153,37 @@ func main() {
 
 func HelloServer(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+}
+```
+
+## Using Raw Sockets
+
+A netdev implements the Socketer interface so an application can make raw socket calls, bypassing the "net" package.
+
+Here is a simple TCP application using raw sockets:
+
+```go
+package main
+
+import (
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/wifinina"
+)
+
+func main() {
+	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
+	dev := wifinina.New(&cfg)
+	netdev.Use(dev)
+	dev.NetConnect()
+
+	sock, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
+
+	sockAddr := netdev.NewSockAddr("", netdev.Port(8080), netdev.ParseIP("10.0.0.100")
+        dev.Connect(sock, sockAddr)
+
+	dev.Send(sock, []bytes("hello"), 0, 0)
+
+	dev.Close(sock)
 }
 ```
 
