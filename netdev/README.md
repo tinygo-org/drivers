@@ -34,47 +34,78 @@ Here the netdev is the entire stack, accessing hardware on the bottom and servin
 
 ## Porting Applications from Go "net"
 
-Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  Unfortunately, Go's "net" can't fully be ported to TinyGo, so TinyGo's "net" is a subset of Go's.  Hopefully, for the embedded space, the subset is sufficient for most needs.  
+Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  Unfortunately, Go's "net" can't fully be ported to TinyGo, so TinyGo's "net" is a subset of Go's.
 
 To view TinyGo's "net" package exports, use ```go doc ./net```, ```go doc ./net/http```, etc.  For the most part, Go's "net" documentation applies to TinyGo's "net".  There are a few features excluded during the porting process, in particular:
 
 - No IPv6 support
 - No HTTP/2 support
 - HTTP client request can't be reused
-- No multipart form support
-- No TLS support for HTTP servers
+- No TLS support for HTTP servers (no https servers)
 - No DualStack support
 
-Applications using Go's "net" package will need a few (minor) modifications to work with TinyGo's net package.
+Applications using Go's "net" package will need a few setup modifications to work with TinyGo's "net" package.
 
-### Step 1: Load Netdev
+### Step 1: Create the netdev for your target device.
 
-#### Option 1:
+The available netdev are:
 
-Import netdev package to load the netdev driver.  Import only for side effects using leading underscore.
+- wifinina:  SPI to ESP32 WiFi co-controller running Arduino WiFiNINA firmware
+- rtl8720dn: UART to RealTek WiFi rtl8720dn co-controller
+- espat:     UART to ESP32/ESP8266 WiFi co-controller running Espressif AT firmware
 
-```go
-import _ "tinygo.org/x/drivers/netdev"
-```
-
-This will select the netdev driver for the target machine using build tags.  For example, when flashing to target Arduino Nano RP2040 Connect, the build tag nano_rp2040 will select the "Wifinina" netdev driver.
-
-#### Option 2:
-
-Manually load the netdev driver.  Import the driver directly, and then call net.UseNetdev to load the driver.  e.g.:
+This example configures and creates a wifinina netdev using New().
 
 ```
-import "tinygo.org/x/drivers/netdev/wifinina"
+import "tinygo.org/x/drivers/wifinina"
 
 func main() {
-	net.UseNetdev(wifinina.New("SSID", "PASSPHRASE"))
+	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
+	dev := wifinina.New(&cfg)
 	...
 }
 ```
 
-### Step 2: Connect to the Network
+The Config structure is netdev-specific; consult the netdev package for Config details.  In this case, the WiFi credentials are passed.
 
-Call net.Connect() to connect the device to an IP network, via Wifi, cellular, Ethernet, etc.  Make this call first, before any net.* or http.* or tls.* calls.
+### Step 2: Hook the netdev into the "net" package
+
+Tell the "net" package to use the netdev.  Continuing with the wifinina example:
+
+```
+import "tinygo.org/x/drivers/netdev"
+import "tinygo.org/x/drivers/wifinina"
+
+func main() {
+	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
+	dev := wifinina.New(&cfg)
+	netdev.Use(dev)
+	...
+}
+```
+
+### Step 3: Connect to an IP Network
+
+Before the "net" package is fully functional, connect the netdev to an underlying IP network.  For example, a WiFi netdev would connect to a WiFi access point or become a WiFi access point; either way, once connected, the netdev has a station IP address and is connected on the IP network.
+
+Call dev.NetConnect() to connect the device to an IP network.  Call dev.NetDisconnect() to disconnect.  Continuing example:
+
+```
+import "tinygo.org/x/drivers/netdev"
+import "tinygo.org/x/drivers/wifinina"
+
+func main() {
+	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
+	dev := wifinina.New(&cfg)
+	netdev.Use(dev)
+
+	dev.NetConnect()
+        
+	// "net" package calls here
+	
+	dev.NetDisconnect()
+}
+```
 
 Here is a simple http server listening on port :8080, before and after porting from Go "net/http":
 
@@ -83,17 +114,17 @@ Here is a simple http server listening on port :8080, before and after porting f
 package main
 
 import (
-    "fmt"
-    "net/http"
+	"fmt"
+	"net/http"
 )
 
 func main() {
-    http.HandleFunc("/", HelloServer)
-    http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/", HelloServer)
+	http.ListenAndServe(":8080", nil)
 }
 
 func HelloServer(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
 }
 ```
 
@@ -102,21 +133,25 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 package main
 
 import (
-    "fmt"
-    "net"
-    "net/http"
+	"fmt"
+	"net/http"
     
-    _ "tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/wifinina"
 )
 
 func main() {
-    net.Connect(nil)
-    http.HandleFunc("/", HelloServer)
-    http.ListenAndServe(":8080", nil)
+	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
+	dev := wifinina.New(&cfg)
+	netdev.Use(dev)
+	dev.NetConnect()
+
+	http.HandleFunc("/", HelloServer)
+	http.ListenAndServe(":8080", nil)
 }
 
 func HelloServer(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
 }
 ```
 
