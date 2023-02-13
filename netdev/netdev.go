@@ -99,7 +99,7 @@ type Event int
 // NetNotify network events
 const (
 	// The device's network connection is now UP
-	EventNetUp   Event = iota
+	EventNetUp Event = iota
 	// The device's network connection is now DOWN
 	EventNetDown
 )

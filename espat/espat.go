@@ -23,8 +23,8 @@ package espat // import "tinygo.org/x/drivers/espat"
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"machine"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,21 +48,21 @@ type Config struct {
 }
 
 type Device struct {
-	cfg *Config
+	cfg  *Config
 	uart *machine.UART
 	// command responses that come back from the ESP8266/ESP32
 	response []byte
 	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
-	socketdata []byte
-	socketInUse bool
+	socketdata     []byte
+	socketInUse    bool
 	socketProtocol netdev.Protocol
 	socketLaddr    netdev.SockAddr
 }
 
 func New(cfg *Config) *Device {
 	d := Device{
-		cfg: cfg,
-		response: make([]byte, 512),
+		cfg:        cfg,
+		response:   make([]byte, 512),
 		socketdata: make([]byte, 0, 1024),
 	}
 	return &d
