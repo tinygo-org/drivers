@@ -1,5 +1,4 @@
-// This example opens a TCP connection and sends some data, for the purpose of
-// testing speed and connectivity.
+// This example opens a TCP connection and sends some data using raw netdev sockets.
 //
 // You can open a server to accept connections from this program using:
 //
