@@ -464,14 +464,14 @@ func (r *rtl8720dn) rpc_le_bond_delete_by_idx(idx uint8) RPC_T_GAP_CAUSE {
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_bond_delete_by_bd(bd_addr uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_bond_delete_by_bd(bd_addr []uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_bond_delete_by_bd()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x04, 0x0D, uint32(r.seq))
 
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(bd_type>>0))
 	msg = append(msg, byte(bd_type>>8))
@@ -630,7 +630,7 @@ func (r *rtl8720dn) rpc_le_get_gap_param(param RPC_T_GAP_LE_PARAM_TYPE, value []
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_modify_white_list(operation RPC_T_GAP_WHITE_LIST_OP, bd_addr uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_modify_white_list(operation RPC_T_GAP_WHITE_LIST_OP, bd_addr []uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_modify_white_list()\r\n")
 	}
@@ -641,8 +641,8 @@ func (r *rtl8720dn) rpc_le_modify_white_list(operation RPC_T_GAP_WHITE_LIST_OP, 
 	msg = append(msg, byte(operation>>8))
 	msg = append(msg, byte(operation>>16))
 	msg = append(msg, byte(operation>>24))
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(bd_type>>0))
 	msg = append(msg, byte(bd_type>>8))
@@ -661,7 +661,7 @@ func (r *rtl8720dn) rpc_le_modify_white_list(operation RPC_T_GAP_WHITE_LIST_OP, 
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_gen_rand_addr(rand_addr_type RPC_T_GAP_RAND_ADDR_TYPE, random_bd *uint8) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_gen_rand_addr(rand_addr_type RPC_T_GAP_RAND_ADDR_TYPE, random_bd []uint8) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_gen_rand_addr()\r\n")
 	}
@@ -677,9 +677,9 @@ func (r *rtl8720dn) rpc_le_gen_rand_addr(rand_addr_type RPC_T_GAP_RAND_ADDR_TYPE
 
 	r.read()
 	widx := 8
-	// random_bd : out uint8
-	*random_bd = payload[widx]
-	widx += 1
+	// random_bd : out []uint8 (6)
+	copy(random_bd, payload[widx:widx+6])
+	widx += 6
 
 	var result RPC_T_GAP_CAUSE
 	result = RPC_T_GAP_CAUSE(binary.LittleEndian.Uint32(payload[widx:]))
@@ -688,14 +688,14 @@ func (r *rtl8720dn) rpc_le_gen_rand_addr(rand_addr_type RPC_T_GAP_RAND_ADDR_TYPE
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_set_rand_addr(random_bd uint8) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_set_rand_addr(random_bd []uint8) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_set_rand_addr()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x05, 0x08, uint32(r.seq))
 
-	// random_bd : in uint8
-	msg = append(msg, byte(random_bd>>0))
+	// random_bd : in []uint8 (6)
+	msg = append(msg, random_bd...)
 
 	r.performRequest(msg)
 
@@ -709,14 +709,14 @@ func (r *rtl8720dn) rpc_le_set_rand_addr(random_bd uint8) RPC_T_GAP_CAUSE {
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_cfg_local_identity_address(addr uint8, ident_addr_type RPC_T_GAP_IDENT_ADDR_TYPE) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_cfg_local_identity_address(addr []uint8, ident_addr_type RPC_T_GAP_IDENT_ADDR_TYPE) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_cfg_local_identity_address()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x05, 0x09, uint32(r.seq))
 
-	// addr : in uint8
-	msg = append(msg, byte(addr>>0))
+	// addr : in []uint8 (6)
+	msg = append(msg, addr...)
 	// ident_addr_type : in RPC_T_GAP_IDENT_ADDR_TYPE
 	msg = append(msg, byte(ident_addr_type>>0))
 	msg = append(msg, byte(ident_addr_type>>8))
@@ -1166,7 +1166,7 @@ func (r *rtl8720dn) rpc_le_scan_stop() RPC_T_GAP_CAUSE {
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_scan_info_filter(enable bool, offset uint8, length uint8, p_filter uint8) bool {
+func (r *rtl8720dn) rpc_le_scan_info_filter(enable bool, offset uint8, length uint8, p_filter []uint8) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_scan_info_filter()\r\n")
 	}
@@ -1182,8 +1182,8 @@ func (r *rtl8720dn) rpc_le_scan_info_filter(enable bool, offset uint8, length ui
 	msg = append(msg, byte(offset>>0))
 	// length : in uint8
 	msg = append(msg, byte(length>>0))
-	// p_filter : in uint8
-	msg = append(msg, byte(p_filter>>0))
+	// p_filter : in []uint8 (31)
+	msg = append(msg, p_filter...)
 
 	r.performRequest(msg)
 
@@ -1253,7 +1253,7 @@ func (r *rtl8720dn) rpc_le_get_conn_info(conn_id uint8, p_conn_info RPC_T_GAP_CO
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_get_conn_addr(conn_id uint8, bd_addr *uint8, bd_type *uint8) bool {
+func (r *rtl8720dn) rpc_le_get_conn_addr(conn_id uint8, bd_addr []uint8, bd_type *uint8) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_get_conn_addr()\r\n")
 	}
@@ -1266,9 +1266,9 @@ func (r *rtl8720dn) rpc_le_get_conn_addr(conn_id uint8, bd_addr *uint8, bd_type 
 
 	r.read()
 	widx := 8
-	// bd_addr : out uint8
-	*bd_addr = payload[widx]
-	widx += 1
+	// bd_addr : out []uint8 (6)
+	copy(bd_addr, payload[widx:widx+6])
+	widx += 6
 	// bd_type : out uint8
 	*bd_type = payload[widx]
 	widx += 1
@@ -1280,14 +1280,14 @@ func (r *rtl8720dn) rpc_le_get_conn_addr(conn_id uint8, bd_addr *uint8, bd_type 
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_get_conn_id(bd_addr uint8, bd_type uint8, p_conn_id *uint8) bool {
+func (r *rtl8720dn) rpc_le_get_conn_id(bd_addr []uint8, bd_type uint8, p_conn_id *uint8) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_get_conn_id()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x09, 0x04, uint32(r.seq))
 
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in uint8
 	msg = append(msg, byte(bd_type>>0))
 
@@ -1470,7 +1470,7 @@ func (r *rtl8720dn) rpc_le_set_conn_param(conn_type RPC_T_GAP_CONN_PARAM_TYPE, p
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_connect(init_phys uint8, remote_bd uint8, remote_bd_type RPC_T_GAP_REMOTE_ADDR_TYPE, local_bd_type RPC_T_GAP_LOCAL_ADDR_TYPE, scan_timeout uint16) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_le_connect(init_phys uint8, remote_bd []uint8, remote_bd_type RPC_T_GAP_REMOTE_ADDR_TYPE, local_bd_type RPC_T_GAP_LOCAL_ADDR_TYPE, scan_timeout uint16) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_le_connect()\r\n")
 	}
@@ -1478,8 +1478,8 @@ func (r *rtl8720dn) rpc_le_connect(init_phys uint8, remote_bd uint8, remote_bd_t
 
 	// init_phys : in uint8
 	msg = append(msg, byte(init_phys>>0))
-	// remote_bd : in uint8
-	msg = append(msg, byte(remote_bd>>0))
+	// remote_bd : in []uint8 (6)
+	msg = append(msg, remote_bd...)
 	// remote_bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(remote_bd_type>>0))
 	msg = append(msg, byte(remote_bd_type>>8))
@@ -1633,14 +1633,14 @@ func (r *rtl8720dn) rpc_flash_load_local_appearance(p_data RPC_T_LOCAL_APPEARANC
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_find_key_entry(bd_addr uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_LE_KEY_ENTRY {
+func (r *rtl8720dn) rpc_le_find_key_entry(bd_addr []uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) RPC_T_LE_KEY_ENTRY {
 	if r.debug {
 		fmt.Printf("rpc_le_find_key_entry()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0A, 0x05, uint32(r.seq))
 
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(bd_type>>0))
 	msg = append(msg, byte(bd_type>>8))
@@ -1731,14 +1731,14 @@ func (r *rtl8720dn) rpc_le_get_high_priority_bond() RPC_T_LE_KEY_ENTRY {
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_set_high_priority_bond(bd_addr uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) bool {
+func (r *rtl8720dn) rpc_le_set_high_priority_bond(bd_addr []uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_set_high_priority_bond()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0A, 0x0A, uint32(r.seq))
 
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(bd_type>>0))
 	msg = append(msg, byte(bd_type>>8))
@@ -1757,16 +1757,16 @@ func (r *rtl8720dn) rpc_le_set_high_priority_bond(bd_addr uint8, bd_type RPC_T_G
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_resolve_random_address(unresolved_addr uint8, resolved_addr *uint8, resolved_addr_type RPC_T_GAP_IDENT_ADDR_TYPE) bool {
+func (r *rtl8720dn) rpc_le_resolve_random_address(unresolved_addr []uint8, resolved_addr []uint8, resolved_addr_type RPC_T_GAP_IDENT_ADDR_TYPE) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_resolve_random_address()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0A, 0x0B, uint32(r.seq))
 
-	// unresolved_addr : in uint8
-	msg = append(msg, byte(unresolved_addr>>0))
-	// resolved_addr : inout uint8
-	msg = append(msg, byte(*resolved_addr>>0))
+	// unresolved_addr : in []uint8 (6)
+	msg = append(msg, unresolved_addr...)
+	// resolved_addr : inout []uint8 (6)
+	msg = append(msg, resolved_addr...)
 	// resolved_addr_type : inout RPC_T_GAP_IDENT_ADDR_TYPE
 	msg = append(msg, byte(resolved_addr_type>>0))
 	msg = append(msg, byte(resolved_addr_type>>8))
@@ -1777,9 +1777,9 @@ func (r *rtl8720dn) rpc_le_resolve_random_address(unresolved_addr uint8, resolve
 
 	r.read()
 	widx := 8
-	// resolved_addr : inout uint8
-	*resolved_addr = payload[widx]
-	widx += 1
+	// resolved_addr : inout []uint8 (6)
+	copy(resolved_addr, payload[widx:widx+6])
+	widx += 6
 	// resolved_addr_type : inout RPC_T_GAP_IDENT_ADDR_TYPE
 	// not impl (a.Size() > 0)
 
@@ -1816,14 +1816,14 @@ func (r *rtl8720dn) rpc_le_get_cccd_data(p_entry RPC_T_LE_KEY_ENTRY, p_data RPC_
 	return result
 }
 
-func (r *rtl8720dn) rpc_le_gen_bond_dev(bd_addr uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE, local_bd_type RPC_T_GAP_LOCAL_ADDR_TYPE, local_ltk []byte, key_type RPC_T_LE_KEY_TYPE, p_cccd RPC_T_LE_CCCD) bool {
+func (r *rtl8720dn) rpc_le_gen_bond_dev(bd_addr []uint8, bd_type RPC_T_GAP_REMOTE_ADDR_TYPE, local_bd_type RPC_T_GAP_LOCAL_ADDR_TYPE, local_ltk []byte, key_type RPC_T_LE_KEY_TYPE, p_cccd RPC_T_LE_CCCD) bool {
 	if r.debug {
 		fmt.Printf("rpc_le_gen_bond_dev()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0A, 0x0D, uint32(r.seq))
 
-	// bd_addr : in uint8
-	msg = append(msg, byte(bd_addr>>0))
+	// bd_addr : in []uint8 (6)
+	msg = append(msg, bd_addr...)
 	// bd_type : in RPC_T_GAP_REMOTE_ADDR_TYPE
 	msg = append(msg, byte(bd_type>>0))
 	msg = append(msg, byte(bd_type>>8))
@@ -2043,7 +2043,7 @@ func (r *rtl8720dn) rpc_client_by_uuid_srv_discovery(conn_id uint8, client_id ui
 	return result
 }
 
-func (r *rtl8720dn) rpc_client_by_uuid128_srv_discovery(conn_id uint8, client_id uint8, p_uuid128 uint8) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_client_by_uuid128_srv_discovery(conn_id uint8, client_id uint8, p_uuid128 []uint8) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_client_by_uuid128_srv_discovery()\r\n")
 	}
@@ -2053,8 +2053,8 @@ func (r *rtl8720dn) rpc_client_by_uuid128_srv_discovery(conn_id uint8, client_id
 	msg = append(msg, byte(conn_id>>0))
 	// client_id : in uint8
 	msg = append(msg, byte(client_id>>0))
-	// p_uuid128 : in uint8
-	msg = append(msg, byte(p_uuid128>>0))
+	// p_uuid128 : in []uint8 (16)
+	msg = append(msg, p_uuid128...)
 
 	r.performRequest(msg)
 
@@ -2158,7 +2158,7 @@ func (r *rtl8720dn) rpc_client_by_uuid_char_discovery(conn_id uint8, client_id u
 	return result
 }
 
-func (r *rtl8720dn) rpc_client_by_uuid128_char_discovery(conn_id uint8, client_id uint8, start_handle uint16, end_handle uint16, p_uuid128 uint8) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_client_by_uuid128_char_discovery(conn_id uint8, client_id uint8, start_handle uint16, end_handle uint16, p_uuid128 []uint8) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_client_by_uuid128_char_discovery()\r\n")
 	}
@@ -2174,8 +2174,8 @@ func (r *rtl8720dn) rpc_client_by_uuid128_char_discovery(conn_id uint8, client_i
 	// end_handle : in uint16
 	msg = append(msg, byte(end_handle>>0))
 	msg = append(msg, byte(end_handle>>8))
-	// p_uuid128 : in uint8
-	msg = append(msg, byte(p_uuid128>>0))
+	// p_uuid128 : in []uint8 (16)
+	msg = append(msg, p_uuid128...)
 
 	r.performRequest(msg)
 
@@ -2244,7 +2244,7 @@ func (r *rtl8720dn) rpc_client_attr_read(conn_id uint8, client_id uint8, handle 
 	return result
 }
 
-func (r *rtl8720dn) rpc_client_attr_read_using_uuid(conn_id uint8, client_id uint8, start_handle uint16, end_handle uint16, uuid16 uint16, p_uuid128 uint8) RPC_T_GAP_CAUSE {
+func (r *rtl8720dn) rpc_client_attr_read_using_uuid(conn_id uint8, client_id uint8, start_handle uint16, end_handle uint16, uuid16 uint16, p_uuid128 []uint8) RPC_T_GAP_CAUSE {
 	if r.debug {
 		fmt.Printf("rpc_client_attr_read_using_uuid()\r\n")
 	}
@@ -2263,8 +2263,8 @@ func (r *rtl8720dn) rpc_client_attr_read_using_uuid(conn_id uint8, client_id uin
 	// uuid16 : in uint16
 	msg = append(msg, byte(uuid16>>0))
 	msg = append(msg, byte(uuid16>>8))
-	// p_uuid128 : in uint8
-	msg = append(msg, byte(p_uuid128>>0))
+	// p_uuid128 : in []uint8 (16)
+	msg = append(msg, p_uuid128...)
 
 	r.performRequest(msg)
 
@@ -2354,14 +2354,14 @@ func (r *rtl8720dn) rpc_ble_server_init(num uint8) bool {
 	return result
 }
 
-func (r *rtl8720dn) rpc_ble_create_service(uuid uint8, uuid_length uint8, is_primary bool) uint8 {
+func (r *rtl8720dn) rpc_ble_create_service(uuid []uint8, uuid_length uint8, is_primary bool) uint8 {
 	if r.debug {
 		fmt.Printf("rpc_ble_create_service()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0C, 0x02, uint32(r.seq))
 
-	// uuid : in uint8
-	msg = append(msg, byte(uuid>>0))
+	// uuid : in []uint8 (16)
+	msg = append(msg, uuid...)
 	// uuid_length : in uint8
 	msg = append(msg, byte(uuid_length>>0))
 	// is_primary : in bool
@@ -2446,7 +2446,7 @@ func (r *rtl8720dn) rpc_ble_get_servie_handle(app_id uint8) uint8 {
 	return result
 }
 
-func (r *rtl8720dn) rpc_ble_create_char(app_id uint8, uuid uint8, uuid_length uint8, properties uint8, permissions uint32) uint16 {
+func (r *rtl8720dn) rpc_ble_create_char(app_id uint8, uuid []uint8, uuid_length uint8, properties uint8, permissions uint32) uint16 {
 	if r.debug {
 		fmt.Printf("rpc_ble_create_char()\r\n")
 	}
@@ -2454,8 +2454,8 @@ func (r *rtl8720dn) rpc_ble_create_char(app_id uint8, uuid uint8, uuid_length ui
 
 	// app_id : in uint8
 	msg = append(msg, byte(app_id>>0))
-	// uuid : in uint8
-	msg = append(msg, byte(uuid>>0))
+	// uuid : in []uint8 (16)
+	msg = append(msg, uuid...)
 	// uuid_length : in uint8
 	msg = append(msg, byte(uuid_length>>0))
 	// properties : in uint8
@@ -2478,7 +2478,7 @@ func (r *rtl8720dn) rpc_ble_create_char(app_id uint8, uuid uint8, uuid_length ui
 	return result
 }
 
-func (r *rtl8720dn) rpc_ble_create_desc(app_id uint8, char_handle uint16, uuid uint8, uuid_length uint8, flags uint8, permissions uint32, value_length uint16, p_value []byte) uint16 {
+func (r *rtl8720dn) rpc_ble_create_desc(app_id uint8, char_handle uint16, uuid []uint8, uuid_length uint8, flags uint8, permissions uint32, value_length uint16, p_value []byte) uint16 {
 	if r.debug {
 		fmt.Printf("rpc_ble_create_desc()\r\n")
 	}
@@ -2489,8 +2489,8 @@ func (r *rtl8720dn) rpc_ble_create_desc(app_id uint8, char_handle uint16, uuid u
 	// char_handle : in uint16
 	msg = append(msg, byte(char_handle>>0))
 	msg = append(msg, byte(char_handle>>8))
-	// uuid : in uint8
-	msg = append(msg, byte(uuid>>0))
+	// uuid : in []uint8 (16)
+	msg = append(msg, uuid...)
 	// uuid_length : in uint8
 	msg = append(msg, byte(uuid_length>>0))
 	// flags : in uint8
@@ -3026,7 +3026,7 @@ func (r *rtl8720dn) rpc_wifi_get_mac_address(mac []uint8) int32 {
 
 	r.read()
 	widx := 8
-	// mac : out []uint8
+	// mac : out []uint8 (18)
 	copy(mac, payload[widx:widx+18])
 	widx += 18
 
@@ -3150,7 +3150,7 @@ func (r *rtl8720dn) rpc_wifi_get_associated_client_list(client_list_buffer []byt
 	return result
 }
 
-func (r *rtl8720dn) rpc_wifi_get_ap_bssid(bssid *uint8) int32 {
+func (r *rtl8720dn) rpc_wifi_get_ap_bssid(bssid []uint8) int32 {
 	if r.debug {
 		fmt.Printf("rpc_wifi_get_ap_bssid()\r\n")
 	}
@@ -3160,9 +3160,9 @@ func (r *rtl8720dn) rpc_wifi_get_ap_bssid(bssid *uint8) int32 {
 
 	r.read()
 	widx := 8
-	// bssid : out uint8
-	*bssid = payload[widx]
-	widx += 1
+	// bssid : out []uint8 (6)
+	copy(bssid, payload[widx:widx+6])
+	widx += 6
 
 	var result int32
 	x := binary.LittleEndian.Uint32(payload[widx:])
@@ -3339,14 +3339,14 @@ func (r *rtl8720dn) rpc_wifi_change_channel_plan(channel_plan uint8) int32 {
 	return result
 }
 
-func (r *rtl8720dn) rpc_wifi_register_multicast_address(mac uint8) int32 {
+func (r *rtl8720dn) rpc_wifi_register_multicast_address(mac []uint8) int32 {
 	if r.debug {
 		fmt.Printf("rpc_wifi_register_multicast_address()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0E, 0x17, uint32(r.seq))
 
-	// mac : in uint8
-	msg = append(msg, byte(mac>>0))
+	// mac : in []uint8 (6)
+	msg = append(msg, mac...)
 
 	r.performRequest(msg)
 
@@ -3361,14 +3361,14 @@ func (r *rtl8720dn) rpc_wifi_register_multicast_address(mac uint8) int32 {
 	return result
 }
 
-func (r *rtl8720dn) rpc_wifi_unregister_multicast_address(mac uint8) int32 {
+func (r *rtl8720dn) rpc_wifi_unregister_multicast_address(mac []uint8) int32 {
 	if r.debug {
 		fmt.Printf("rpc_wifi_unregister_multicast_address()\r\n")
 	}
 	msg := startWriteMessage(0x00, 0x0E, 0x18, uint32(r.seq))
 
-	// mac : in uint8
-	msg = append(msg, byte(mac>>0))
+	// mac : in []uint8 (6)
+	msg = append(msg, mac...)
 
 	r.performRequest(msg)
 
