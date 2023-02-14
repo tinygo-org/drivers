@@ -67,7 +67,7 @@ The available netdev are:
 
 This example configures and creates a wifinina netdev using New().
 
-```
+```go
 import "tinygo.org/x/drivers/wifinina"
 
 func main() {
@@ -83,7 +83,7 @@ The Config structure is netdev-specific; consult the netdev package for Config d
 
 Tell the net package to use the netdev by calling netdev.Use().  Continuing with the wifinina example:
 
-```
+```go
 import "tinygo.org/x/drivers/netdev"
 import "tinygo.org/x/drivers/wifinina"
 
@@ -105,7 +105,7 @@ Before the net package is fully functional, connect the netdev to an underlying 
 
 Call dev.NetConnect() to connect the device to an IP network.  Call dev.NetDisconnect() to disconnect.  Continuing example:
 
-```
+```go
 import "tinygo.org/x/drivers/netdev"
 import "tinygo.org/x/drivers/wifinina"
 
@@ -122,6 +122,18 @@ func main() {
 }
 ```
 
+Get notified of IP network connects and disconnects:
+
+```go
+	dev.Notify(func(e netdev.Event) {
+		switch e {
+		case netdev.EventNetUp:
+			println("Network UP")
+		case netdev.EventNetDown:
+			println("Network DOWN")
+	})
+```
+	
 Here is a simple http server listening on port :8080, before and after porting from Go "net/http":
 
 #### Before
@@ -174,11 +186,11 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 
 TinyGo's net/http package is a partial port of Go's net/http package, providing a subset of the full net/http package.
 
-HTTP client methods (http.Get, http.Head, http.Post, and http.PostForm) are functional.  Dial clients support both HTTP and HTTPS transactions.
+HTTP client methods (http.Get, http.Head, http.Post, and http.PostForm) are functional.  Dial clients support both HTTP and HTTPS URLs.
 
-HTTP server methods and objects are mostly ported, but for HTTP only.  HTTPS servers are not supported.
+HTTP server methods and objects are mostly ported, but for HTTP only; HTTPS servers are not supported.
 
-HTTP request and response handling code is 100% ported, so all the intricacy of parsing and writing headers is handled as in the full net/http package.
+HTTP request and response handling code is mostly ported, so most the intricacy of parsing and writing headers is handled as in the full net/http package.
 
 Run ```go doc -all ./src/net/http``` on tinygo directory to see full listing.
 
@@ -245,9 +257,50 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 ```
 
-### net.Socketer Interface
+### Netdever Interface
+
+A netdev driver implements the Netdever interface:
 
 ```go
+// Netdev drivers implement the Netdever interface.
+//
+// A Netdever is passed to the "net" package using netdev.Use().
+//
+// Just like a net.Conn, multiple goroutines may invoke methods on a Netdever
+// simultaneously.
+type Netdever interface {
+
+        // NetConnect device to IP network
+        NetConnect() error
+
+        // NetDisconnect device from IP network
+        NetDisconnect()
+
+        // NetNotify to register callback for network events
+        NetNotify(func(Event))
+
+        // GetHostByName returns the IP address of either a hostname or IPv4
+        // address in standard dot notation
+        GetHostByName(name string) (IP, error)
+
+        // GetHardwareAddr returns device MAC address
+        GetHardwareAddr() (HardwareAddr, error)
+
+        // GetIPAddr returns IP address assigned to device, either by DHCP or
+        // statically
+        GetIPAddr() (IP, error)
+
+        // Socketer is a Berkely Sockets-like interface
+        Socketer
+}
+```
+
+### Socketer Interface
+
+```go
+// Berkely Sockets-like interface.  See man page for socket(2), etc.
+//
+// Multiple goroutines may invoke methods on a Socketer simultaneously.
 type Socketer interface {
         Socket(family AddressFamily, sockType SockType, protocol Protocol) (Sockfd, error)
         Bind(sockfd Sockfd, myaddr SockAddr) error
