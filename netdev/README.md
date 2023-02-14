@@ -13,31 +13,31 @@
 
 Netdev is TinyGo's network device driver model.  
 
-Let's see where netdev fits in the network stack.  The diagram below shows the traditional full OS stack vs. different possible embedded stacks for TinyGo.
+Let's see where netdev fits in the network stack.  The diagram below shows the traditional full OS stack vs. different possible embedded stacks for TinyGo.  The application is written to the same net.Conn interface in each case.
 
 ![Netdev models](netdev_models.jpg)
 
-In the traditional full OS stack, the driver that sits above hardware (the "nic") and below TCP/IP is the network driver, the netdev.  The netdev provides a raw packet interface to the OS.
+In the (1) Go full OS stack, the network driver, aka netdev, sits above hardware (the "nic") and below TCP/IP.  The netdev provides a raw packet interface to TCP/IP.
 
-For TinyGo netdev, the netdev includes TCP/IP and provides a socket(2) interface to TinyGo's "net" package.  Applications are written to use the net.Conn interfaces.  "net" translates net.Conn functions (Dial, Listen, Read, Write) into netdev socket(2) calls.  The netdev translates those socket(2) calls into hardware access, ultimately.  Let's consider the three use cases:
+For TinyGo, the netdev includes TCP/IP and provides a socket(2) interface to the "net" package.  Applications are written to the net.Conn interface: TCPConn, UDPConn, and TLSConn.  net.Conn functions calls translate to netdev socket(2) calls, which in turn call into firmware/hardware.  Let's consider the three use cases:
 
-#### Firware Offload Model
+#### (2) Firware Offload Model
 
 Here we are fortunate that hardware includes firmware with a TCP/IP implmentation, and the firmware manages the TCP/IP connection state.  The netdev driver translates socket(2) calls to the firmware's TCP/IP calls.  Usually, minimal work is required since the firmware is likely to use lwip, which has an socket(2) API.
 
 The Wifinina (ESP32) and RTL8720dn netdev drivers are examples of the firmware offload model.
 
-#### Full Stack Model
+#### (3) Full Stack Model
 
 Here the netdev includes the TCP/IP stack, maybe some port of lwip/uip to Go?
 
-#### "Bring-Your-Own-net.Comm" Model
+#### (4) "Bring-Your-Own-net.Comm" Model
 
 Here the netdev is the entire stack, accessing hardware on the bottom and serving up net.Conn connections above to applications.
 
 ## Using "net" Package
 
-Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  TinyGo's net package is a partial port from Go's net package, replacing OS socket syscalls with netdev socket calls.  TinyGo's net package is a subset of Go's net package.  There are a few features excluded during the porting process, in particular:
+Ideally, TinyGo's "net" package would be Go's "net" package and applications using "net" would just work, as-is.  TinyGo's net package is a partial port from Go's net package, replacing OS socket syscalls with netdev socket calls.  TinyGo's net package is a subset of Go's net package.  There are a few features excluded during the porting process, in particular:
 
 - No IPv6 support
 - No HTTP/2 support
