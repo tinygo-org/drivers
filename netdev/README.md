@@ -3,7 +3,9 @@
 #### Table of Contents
 
 - [Overview](#overview)
-- [Porting Applications from Go "net"](#porting-applications-from-go-net)
+- [Using "net" Package](#using-net-package)
+- [Using "net/http" Package](#using-nethttp-package)
+- [Using "crypto/tls" Package](#using-cryptotls-package)
 - [Using Raw Sockets](#using-raw-sockets)
 - [Writing a New Driver](#writing-a-new-driver)
  
@@ -33,31 +35,39 @@ Here the netdev includes the TCP/IP stack, maybe some port of lwip/uip to Go?
 
 Here the netdev is the entire stack, accessing hardware on the bottom and serving up net.Conn connections above to applications.
 
-## Porting Applications from Go "net"
+## Using "net" Package
 
-Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  Unfortunately, Go's "net" can't fully be ported to TinyGo, so TinyGo's "net" is a subset of Go's.
-
-To view TinyGo's "net" package exports, use ```go doc ./net```, ```go doc ./net/http```, etc.  For the most part, Go's "net" documentation applies to TinyGo's "net".  There are a few features excluded during the porting process, in particular:
+Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  TinyGo's net package is a partial port from Go's net package, replacing OS socket syscalls with netdev socket calls.  TinyGo's net package is a subset of Go's net package.  There are a few features excluded during the porting process, in particular:
 
 - No IPv6 support
 - No HTTP/2 support
-- HTTP client request can't be reused
 - No TLS support for HTTP servers (no https servers)
 - No DualStack support
+- HTTP client request can't be reused
 
-Applications using Go's "net" package will need a few setup modifications to work with TinyGo's "net" package.
+Run ```go doc -all ./src/net``` on tinygo directory to see full listing.
+
+Applications using Go's net package will need a few setup steps to work with TinyGo's net package.
 
 ### Step 1: Create the netdev for your target device.
 
 The available netdev are:
 
-- wifinina:  SPI to ESP32 WiFi co-controller running Arduino WiFiNINA firmware
-- rtl8720dn: UART to RealTek WiFi rtl8720dn co-controller
-- espat:     UART to ESP32/ESP8266 WiFi co-controller running Espressif AT firmware
+- [wifinina]: SPI to ESP32 WiFi co-controller running Arduino WiFiNINA firmware
+
+	targets: pyportal arduino_nano33 nano_rp2040 metro_m4_airlift arduino_mkrwifi1010 matrixportal_m4
+
+- [rtl8720dn]: UART to RealTek WiFi rtl8720dn co-controller
+
+	targets: wioterminal
+
+- [espat]: UART to ESP32/ESP8266 WiFi co-controller running Espressif AT firmware
+
+	targets: TBD
 
 This example configures and creates a wifinina netdev using New().
 
-```
+```go
 import "tinygo.org/x/drivers/wifinina"
 
 func main() {
@@ -69,11 +79,11 @@ func main() {
 
 The Config structure is netdev-specific; consult the netdev package for Config details.  In this case, the WiFi credentials are passed.
 
-### Step 2: Hook the netdev into the "net" package
+### Step 2: Hook the netdev into the net package
 
-Tell the "net" package to use the netdev.  Continuing with the wifinina example:
+Tell the net package to use the netdev by calling netdev.Use().  Continuing with the wifinina example:
 
-```
+```go
 import "tinygo.org/x/drivers/netdev"
 import "tinygo.org/x/drivers/wifinina"
 
@@ -85,13 +95,17 @@ func main() {
 }
 ```
 
+Now, the net package is linked to the netdev so any net I/O will go through the netdev.  Calls to net.Dial(), net.Listen() etc will translate to netdev socket calls.
+
+The last step is to connect the netdev to an IP network.
+
 ### Step 3: Connect to an IP Network
 
-Before the "net" package is fully functional, connect the netdev to an underlying IP network.  For example, a WiFi netdev would connect to a WiFi access point or become a WiFi access point; either way, once connected, the netdev has a station IP address and is connected on the IP network.
+Before the net package is fully functional, connect the netdev to an underlying IP network.  For example, a WiFi netdev would connect to a WiFi access point or become a WiFi access point; either way, once connected, the netdev has a station IP address and is connected on the IP network.
 
 Call dev.NetConnect() to connect the device to an IP network.  Call dev.NetDisconnect() to disconnect.  Continuing example:
 
-```
+```go
 import "tinygo.org/x/drivers/netdev"
 import "tinygo.org/x/drivers/wifinina"
 
@@ -102,12 +116,24 @@ func main() {
 
 	dev.NetConnect()
         
-	// "net" package calls here
+	// net package calls here
 	
 	dev.NetDisconnect()
 }
 ```
 
+Get notified of IP network connects and disconnects:
+
+```go
+	dev.Notify(func(e netdev.Event) {
+		switch e {
+		case netdev.EventNetUp:
+			println("Network UP")
+		case netdev.EventNetDown:
+			println("Network DOWN")
+	})
+```
+	
 Here is a simple http server listening on port :8080, before and after porting from Go "net/http":
 
 #### Before
@@ -156,9 +182,29 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+## Using "net/http" Package
+
+TinyGo's net/http package is a partial port of Go's net/http package, providing a subset of the full net/http package.
+
+HTTP client methods (http.Get, http.Head, http.Post, and http.PostForm) are functional.  Dial clients support both HTTP and HTTPS URLs.
+
+HTTP server methods and objects are mostly ported, but for HTTP only; HTTPS servers are not supported.
+
+HTTP request and response handling code is mostly ported, so most the intricacy of parsing and writing headers is handled as in the full net/http package.
+
+Run ```go doc -all ./src/net/http``` on tinygo directory to see full listing.
+
+## Using "crypto/tls" Package
+
+TinyGo's TLS support (crypto/tls) relies on hardware offload of the TLS protocol.  This is different from Go's crypto/tls package which handles the TLS protocol in software.
+
+TinyGo's TLS support is only available for client applications.  You can http.Get() to an http:// or https:// address, but you cannot http.ListenAndServe() an https server.
+
+The offloading hardware has pre-defined TLS certificates built-in, so software does not need to supply certificates.
+
 ## Using Raw Sockets
 
-A netdev implements the Socketer interface so an application can make raw socket calls, bypassing the "net" package.
+A netdev implements the Socketer interface so an application can make raw socket calls, bypassing the net package.
 
 Here is a simple TCP application using raw sockets:
 
@@ -174,6 +220,9 @@ func main() {
 	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
 	dev := wifinina.New(&cfg)
 	netdev.Use(dev)
+	
+	// ignoring error handling
+	
 	dev.NetConnect()
 
 	sock, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
@@ -189,9 +238,7 @@ func main() {
 
 ## Writing a New Driver
 
-:bulb: A reference netdev driver is the Wifinina driver (netdev/wifinina).
-
-Netdev drivers implement the net.Netdever interface, which includes the net.Socketer interface.  The Socketer interface is modeled after BSD socket(2).  TinyGo's "net" package translates net.Conn calls into netdev Socketer calls.  For example, DialTCP calls netdev.Socket() and netdev.Connect():
+Netdev drivers implement the netdev.Netdever interface, which includes the netdev.Socketer interface.  The Socketer interface is modeled after BSD socket(2).  TinyGo's net package translates net.Conn calls into netdev Socketer calls.  For example, DialTCP calls netdev.Socket() and netdev.Connect():
 
 ```go
 func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
@@ -210,9 +257,50 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 }
 ```
 
-### net.Socketer Interface
+### Netdever Interface
+
+A netdev driver implements the Netdever interface:
 
 ```go
+// Netdev drivers implement the Netdever interface.
+//
+// A Netdever is passed to the "net" package using netdev.Use().
+//
+// Just like a net.Conn, multiple goroutines may invoke methods on a Netdever
+// simultaneously.
+type Netdever interface {
+
+        // NetConnect device to IP network
+        NetConnect() error
+
+        // NetDisconnect device from IP network
+        NetDisconnect()
+
+        // NetNotify to register callback for network events
+        NetNotify(func(Event))
+
+        // GetHostByName returns the IP address of either a hostname or IPv4
+        // address in standard dot notation
+        GetHostByName(name string) (IP, error)
+
+        // GetHardwareAddr returns device MAC address
+        GetHardwareAddr() (HardwareAddr, error)
+
+        // GetIPAddr returns IP address assigned to device, either by DHCP or
+        // statically
+        GetIPAddr() (IP, error)
+
+        // Socketer is a Berkely Sockets-like interface
+        Socketer
+}
+```
+
+### Socketer Interface
+
+```go
+// Berkely Sockets-like interface.  See man page for socket(2), etc.
+//
+// Multiple goroutines may invoke methods on a Socketer simultaneously.
 type Socketer interface {
         Socket(family AddressFamily, sockType SockType, protocol Protocol) (Sockfd, error)
         Bind(sockfd Sockfd, myaddr SockAddr) error
@@ -226,26 +314,20 @@ type Socketer interface {
 }
 ```
 
-Socketer interface is intended to mimic a subset of BSD socket(2).  They've been Go-ified, but should otherwise maintain the semantics of the original socket(2) calls.  Send and Recv add a timeout to put a limit on blocking operations.  Recv in paricular is blocking and will block until data arrives on the socket or EOF.  The timeout is calculated from net.Conn's SetDeadline(), typically.
+Socketer interface is intended to mimic a subset of BSD socket(2).  They've been Go-ified, but should otherwise maintain the semantics of the original socket(2) calls.  Send and Recv add a timeout to put a limit on blocking operations.  Recv in paricular is blocking and will block until data arrives on the socket or EOF.  The timeout value is calculated from net.Conn's SetDeadline(), typically.
 
 #### Locking
 
-Multiple goroutines may invoke methods on a net.Conn simultaneously, and the "net" package translates net.Conn calls into Socketer calls.  It follows that multiple goroutines may invoke Socketer calls, so locking is required to keep Socketer calls from stepping on one another.
+Multiple goroutines may invoke methods on a net.Conn simultaneously, and since the net package translates net.Conn calls into Socketer calls, it follows that multiple goroutines may invoke Socketer calls, so locking is required to keep Socketer calls from stepping on one another.
 
-Don't hold a lock while Time.Sleep()'ing waiting for a hardware operation to finish.  Unlocking while sleeping let's other goroutines to run.  If the sleep period is really small, then you can get away with holding the lock sometimes.
+Don't hold a lock while Time.Sleep()ing waiting for a hardware operation to finish.  Unlocking while sleeping let's other goroutines make progress.  If the sleep period is really small, then you can get away with holding the lock.
 
 #### Sockfd
 
-The Socketer interface uses a socket fd to represent a socket connection end-point.  Each net.Conn maps 1:1 to a fd.  The number of fds available is a netdev hardware limitation.  Wifinina, for example, can hand out 10 socket fds.
-
-### Packaging
-
-1. Create a new directory in netdev/foo to hold the driver files.
-
-2. Add a initialization file netdev/netdev_foo.go to compile and load the driver based on target build tags.
+The Socketer interface uses a socket fd to represent a socket connection (end-point).  Each net.Conn maps 1:1 to a fd.  The number of fds available is a netdev hardware limitation.  Wifinina, for example, can hand out 10 socket fds.
 
 ### Testing
 
-The netdev driver should minimally pass all of the example/net examples.
+The netdev driver should minimally run all of the example/net examples.
 
 TODO: automate testing to catch regressions.  
