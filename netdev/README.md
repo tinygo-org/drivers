@@ -3,7 +3,9 @@
 #### Table of Contents
 
 - [Overview](#overview)
-- [Porting Applications from Go "net"](#porting-applications-from-go-net)
+- [Using "net" Package](#using-net-package)
+- [Using "net/http" Package](#using-nethttp-package)
+- [Using "crypto/tls" Package](#using-cryptotls-package)
 - [Using Raw Sockets](#using-raw-sockets)
 - [Writing a New Driver](#writing-a-new-driver)
  
@@ -33,11 +35,9 @@ Here the netdev includes the TCP/IP stack, maybe some port of lwip/uip to Go?
 
 Here the netdev is the entire stack, accessing hardware on the bottom and serving up net.Conn connections above to applications.
 
-## Porting Applications from Go "net"
+## Using "net" Package
 
-Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  Unfortunately, Go's net package can't fully be ported to TinyGo, so TinyGo's net package is a subset.
-
-To view TinyGo's "net" package exports, use ```go doc ./net```, ```go doc ./net/http```, etc.  For the most part, Go's "net" documentation applies to TinyGo's "net".  There are a few features excluded during the porting process, in particular:
+Ideally, TinyGo's "net" package would just be Go's "net" package and applications using "net" would just work, as-is.  TinyGo's net package is a partial port from Go's net package, replacing OS socket syscalls with netdev socket calls.  TinyGo's net package is a subset of Go's net package.  There are a few features excluded during the porting process, in particular:
 
 - No IPv6 support
 - No HTTP/2 support
@@ -45,7 +45,9 @@ To view TinyGo's "net" package exports, use ```go doc ./net```, ```go doc ./net/
 - No DualStack support
 - HTTP client request can't be reused
 
-Applications using Go's net package will need a few setup modifications to work with TinyGo's net package.
+Run ```go doc -all ./src/net``` on tinygo directory to see full listing.
+
+Applications using Go's net package will need a few setup steps to work with TinyGo's net package.
 
 ### Step 1: Create the netdev for your target device.
 
@@ -167,6 +169,26 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
 }
 ```
+
+## Using "net/http" Package
+
+TinyGo's net/http package is a partial port of Go's net/http package, providing a subset of the full net/http package.
+
+HTTP client methods (http.Get, http.Head, http.Post, and http.PostForm) are functional.  Dial clients support both HTTP and HTTPS transactions.
+
+HTTP server methods and objects are mostly ported, but for HTTP only.  HTTPS servers are not supported.
+
+HTTP request and response handling code is 100% ported, so all the intricacy of parsing and writing headers is handled as in the full net/http package.
+
+Run ```go doc -all ./src/net/http``` on tinygo directory to see full listing.
+
+## Using "crypto/tls" Package
+
+TinyGo's TLS support (crypto/tls) relies on hardware offload of the TLS protocol.  This is different from Go's crypto/tls package which handles the TLS protocol in software.
+
+TinyGo's TLS support is only available for client applications.  You can http.Get() to an http:// or https:// address, but you cannot http.ListenAndServe() an https server.
+
+The offloading hardware has pre-defined TLS certificates built-in, so software does not need to supply certificates.
 
 ## Using Raw Sockets
 
