@@ -43,12 +43,6 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/easystepper/main.go
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/espconsole/main.go
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/esphub/main.go
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/espstation/main.go
-	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/flash/console/spi
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/flash/console/qspi
@@ -155,14 +149,6 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd4in2/main.go
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/ntpclient/main.go
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/udpstation/main.go
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/tcpclient/main.go
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/webclient/main.go
-	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.bin -target=m5stamp-c3          ./examples/ws2812
@@ -221,12 +207,6 @@ endif
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/tinyfs/
 	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webclient/
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webserver/
-	@md5sum ./build/test.hex
-	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/mqttsub/
-	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/i2csoft/adt7410/
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.elf -target=wioterminal ./examples/axp192/m5stack-core2-blinky/
@@ -250,6 +230,38 @@ endif
 	tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examples/makeybutton/main.go
 	@md5sum ./build/test.uf2
 	tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/lora/lorawan/atcmd/
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/http-get
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/net/http-head
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/http-post
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift ./examples/net/http-postform
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 ./examples/net/mqttclient
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/ntpclient
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/net/rawsocket
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/net/tcpclient
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/tcpecho
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift ./examples/net/tlsclient
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 ./examples/net/webclient
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/webclient-tinyterm
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/net/webserver
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/websocket/dial
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift ./examples/net/websocket/handler
+	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/net/webstatic
 	@md5sum ./build/test.hex
 
 
