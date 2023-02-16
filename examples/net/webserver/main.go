@@ -28,7 +28,7 @@ var led = machine.LED
 func main() {
 
 	// wait a bit for serial
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 

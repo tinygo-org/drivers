@@ -23,7 +23,7 @@ var fs embed.FS
 
 func main() {
 	// wait a bit for console
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	if err := NetConnect(); err != nil {
 		log.Fatal(err)
