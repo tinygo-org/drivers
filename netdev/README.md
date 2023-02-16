@@ -13,27 +13,29 @@
 
 Netdev is TinyGo's network device driver model.  
 
-Let's see where netdev fits in the network stack.  The diagram below shows the traditional full OS stack vs. different possible embedded stacks for TinyGo.  The application is written to the same net.Conn interface in each case.
+Let's see where netdev fits in the network stack.  The diagram below shows the traditional full OS stack vs. different possible embedded stacks for TinyGo.  Notice the application is written to the same net.Conn interface for all cases.
 
 ![Netdev models](netdev_models.jpg)
 
 In the (1) Go full OS stack, the network driver, aka netdev, sits above hardware (the "nic") and below TCP/IP.  The netdev provides a raw packet interface to TCP/IP.
 
-For TinyGo, the netdev includes TCP/IP and provides a socket(2) interface to the "net" package.  Applications are written to the net.Conn interface: TCPConn, UDPConn, and TLSConn.  net.Conn functions calls translate to netdev socket(2) calls, which in turn call into firmware/hardware.  Let's consider the three use cases:
+For TinyGo, the netdev includes TCP/IP and provides a socket(2) interface to the "net" package.  Applications are written to the net.Conn interfaces: TCPConn, UDPConn, and TLSConn.  net.Conn functions call netdev socket(2) calls, which in turn call into firmware/hardware.  Let's consider the three use cases:
 
 #### (2) Firware Offload Model
 
-Here we are fortunate that hardware includes firmware with a TCP/IP implmentation, and the firmware manages the TCP/IP connection state.  The netdev driver translates socket(2) calls to the firmware's TCP/IP calls.  Usually, minimal work is required since the firmware is likely to use lwip, which has an socket(2) API.
+Here the networking device is a co-controller installed with firmware running a full TCP/IP stack.   Firmware manages the TCP/IP connection state with the network.
 
-The Wifinina (ESP32) and RTL8720dn netdev drivers are examples of the firmware offload model.
+The netdev driver runs on the main controller and talks to the co-controller's firmware interface using UART/SPI/etc.  The netdev driver translates socket(2) calls to the firmware's TCP/IP calls.
+
+The wifinina (ESP32), espat (ESP32-AT), and rtl8720dn netdev drivers are examples of the firmware offload model.
 
 #### (3) Full Stack Model
 
-Here the netdev includes the TCP/IP stack, maybe some port of lwip/uip to Go?
+Here the netdev includes the TCP/IP stack.  There is no co-controller. 
 
 #### (4) "Bring-Your-Own-net.Comm" Model
 
-Here the netdev is the entire stack, accessing hardware on the bottom and serving up net.Conn connections above to applications.
+Here the netdev is the entire stack, accessing hardware on the bottom and serving up net.Conn connections to applications.
 
 ## Using "net" Package
 
@@ -122,7 +124,7 @@ func main() {
 }
 ```
 
-Get notified of IP network connects and disconnects:
+Optionally, get notified of IP network connects and disconnects:
 
 ```go
 	dev.Notify(func(e netdev.Event) {
@@ -198,9 +200,9 @@ Run ```go doc -all ./src/net/http``` on tinygo directory to see full listing.
 
 TinyGo's TLS support (crypto/tls) relies on hardware offload of the TLS protocol.  This is different from Go's crypto/tls package which handles the TLS protocol in software.
 
-TinyGo's TLS support is only available for client applications.  You can http.Get() to an http:// or https:// address, but you cannot http.ListenAndServe() an https server.
+TinyGo's TLS support is only available for client applications.  You can http.Get() to an http:// or https:// address, but you cannot http.ListenAndServeTLS() an https server.
 
-The offloading hardware has pre-defined TLS certificates built-in, so software does not need to supply certificates.
+The offloading hardware has pre-defined TLS certificates built-in.
 
 ## Using Raw Sockets
 
