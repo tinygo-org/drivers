@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
-	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/espat"
+	"tinygo.org/x/drivers/netdev"
 )
 
 var (
