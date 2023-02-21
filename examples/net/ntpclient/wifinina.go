@@ -6,9 +6,9 @@ package main
 
 import (
 	"machine"
+	"net"
 	"time"
 
-	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/wifinina"
 )
 
@@ -34,7 +34,7 @@ var cfg = wifinina.Config{
 var dev = wifinina.New(&cfg)
 
 func NetConnect() error {
-	netdev.Use(dev)
+	net.UseNetdev(dev)
 	return dev.NetConnect()
 }
 

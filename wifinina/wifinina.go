@@ -16,11 +16,11 @@ import (
 	"io"
 	"machine"
 	"math/bits"
+	"net/netdev"
 	"sync"
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/netdev"
 )
 
 var _debug debug = debugBasic

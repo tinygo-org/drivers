@@ -16,13 +16,14 @@ import (
 	"io"
 	"log"
 	"machine"
+	"net"
 	"net/http"
+	"net/netdev"
 	"net/url"
 	"strings"
 	"time"
 
 	"tinygo.org/x/drivers/ili9341"
-	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/rtl8720dn"
 	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
@@ -101,7 +102,7 @@ func main() {
 	fmt.Fprintf(terminal, "Connecting to %s...\r\n", ssid)
 
 	dev.NetNotify(notify)
-	netdev.Use(dev)
+	net.UseNetdev(dev)
 
 	if err := dev.NetConnect(); err != nil {
 		log.Fatal(err)

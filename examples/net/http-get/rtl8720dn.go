@@ -6,9 +6,9 @@ package main
 
 import (
 	"machine"
+	"net"
 	"time"
 
-	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/rtl8720dn"
 )
 
@@ -30,7 +30,7 @@ var cfg = rtl8720dn.Config{
 var dev = rtl8720dn.New(&cfg)
 
 func NetConnect() error {
-	netdev.Use(dev)
+	net.UseNetdev(dev)
 	return dev.NetConnect()
 }
 
