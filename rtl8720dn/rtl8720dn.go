@@ -11,11 +11,10 @@ import (
 	"fmt"
 	"io"
 	"machine"
+	"net/netdev"
 	"strings"
 	"sync"
 	"time"
-
-	"tinygo.org/x/drivers/netdev"
 )
 
 var _debug debug = debugBasic

@@ -11,11 +11,10 @@ import (
 	"fmt"
 	"log"
 	"machine"
+	"net/netdev"
 	"strconv"
 	"strings"
 	"time"
-
-	"tinygo.org/x/drivers/netdev"
 )
 
 var (
