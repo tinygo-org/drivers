@@ -2,6 +2,8 @@ package http
 
 import (
 	"io"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -210,4 +212,42 @@ func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, 
 	}
 	req.Header.Set("Content-Type", contentType)
 	return c.Do(req)
+}
+
+// PostForm issues a POST to the specified URL, with data's keys and
+// values URL-encoded as the request body.
+//
+// The Content-Type header is set to application/x-www-form-urlencoded.
+// To set other headers, use NewRequest and DefaultClient.Do.
+//
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
+//
+// PostForm is a wrapper around DefaultClient.PostForm.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and DefaultClient.Do.
+func PostForm(url string, data url.Values) (resp *Response, err error) {
+	return DefaultClient.PostForm(url, data)
+}
+
+// PostForm issues a POST to the specified URL,
+// with data's keys and values URL-encoded as the request body.
+//
+// The Content-Type header is set to application/x-www-form-urlencoded.
+// To set other headers, use NewRequest and Client.Do.
+//
+// When err is nil, resp always contains a non-nil resp.Body.
+// Caller should close resp.Body when done reading from it.
+//
+// See the Client.Do method documentation for details on how redirects
+// are handled.
+//
+// To make a request with a specified context.Context, use NewRequestWithContext
+// and Client.Do.
+func (c *Client) PostForm(url string, data url.Values) (resp *Response, err error) {
+	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }

@@ -4,39 +4,28 @@ package sx126x
 
 import (
 	"device/stm32"
-	"errors"
-	"machine"
-	"tinygo.org/x/drivers"
+
+	"runtime/interrupt"
 )
 
-// New creates a new SX126x connection.
-func New(spi drivers.SPI) *Device {
-	c := make(chan RadioEvent, 10)
-	d := Device{
-		spi:            spi,
-		radioEventChan: c,
-	}
-	if d.spi == machine.SPI3 {
-		d.SubGhzInit()
-		d.SetDeviceType(DEVICE_TYPE_SX1262)
-	} else {
-		panic("Driver only support SUBGHZSPI (SPI3) on stm32wlx targets")
-	}
-	return &d
+// STM32RadioControl helps implement the RadioController interface
+type STM32RadioControl struct {
+	irqHandler func()
 }
 
-// SpiSetNss Sets the NSS line
-func (d *Device) SpiSetNss(state bool) {
+// SetNss sets the NSS line aka chip select for SPI.
+func (rc *STM32RadioControl) SetNss(state bool) error {
 	if state {
 		stm32.PWR.SUBGHZSPICR.SetBits(stm32.PWR_SUBGHZSPICR_NSS)
 	} else {
 		stm32.PWR.SUBGHZSPICR.ClearBits(stm32.PWR_SUBGHZSPICR_NSS)
-
 	}
+
+	return nil
 }
 
-// WaitBusy sleep until all busy flags clears
-func (d *Device) WaitBusy() error {
+// WaitWhileBusy wait until the radio is no longer busy
+func (rc *STM32RadioControl) WaitWhileBusy() error {
 	count := 100
 	var rfbusyms, rfbusys bool
 	for count > 0 {
@@ -48,12 +37,11 @@ func (d *Device) WaitBusy() error {
 		}
 		count--
 	}
-	return errors.New("WaitBusy Timeout")
+	return errWaitWhileBusyTimeout
 }
 
-// SubGhzInit() configures internal SX1262's SPI bus.
-func (d *Device) SubGhzInit() {
-
+// init() configures whatever needed for sx126x radio control
+func init() {
 	// Enable APB3 Periph clock and delay
 	stm32.RCC.APB3ENR.SetBits(stm32.RCC_APB3ENR_SUBGHZSPIEN)
 	_ = stm32.RCC.APB3ENR.Get()
@@ -80,5 +68,18 @@ func (d *Device) SubGhzInit() {
 	stm32.SPI3.CR1.Set(stm32.SPI_CR1_MSTR | stm32.SPI_CR1_SSI | (0b010 << 3) | stm32.SPI_CR1_SSM)
 	stm32.SPI3.CR2.Set(stm32.SPI_CR2_FRXTH | (0b111 << 8))
 	stm32.SPI3.CR1.SetBits(stm32.SPI_CR1_SPE)
+}
 
+func (rc *STM32RadioControl) SetupInterrupts(handler func()) error {
+	irqHandler = handler
+	intr := interrupt.New(stm32.IRQ_Radio_IRQ_Busy, handleInterrupt)
+	intr.Enable()
+
+	return nil
+}
+
+var irqHandler func()
+
+func handleInterrupt(interrupt.Interrupt) {
+	irqHandler()
 }

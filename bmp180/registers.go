@@ -28,3 +28,7 @@ const (
 	// ULTRAHIGHRESOLUTION is the highest oversampling mode of the pressure measurement.
 	ULTRAHIGHRESOLUTION
 )
+
+const (
+	SEALEVEL_PRESSURE float32 = 1013.25 // in hPa
+)

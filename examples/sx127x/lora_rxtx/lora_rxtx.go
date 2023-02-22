@@ -1,14 +1,14 @@
 package main
 
-// In this example, a Lora packet will be sent every 10s
-// module will be in RX mode between two transmissions
+// This example code demonstrates Lora RX/TX With SX127x driver
+// You need to connect SPI, RST, CS, DIO0 (aka IRQ) and DIO1 to use.
 
 import (
 	"machine"
 	"time"
 
 	"tinygo.org/x/drivers/lora"
-	"tinygo.org/x/drivers/sx126x"
+	"tinygo.org/x/drivers/sx127x"
 )
 
 const (
@@ -17,30 +17,43 @@ const (
 )
 
 var (
-	loraRadio *sx126x.Device
+	loraRadio *sx127x.Device
 	txmsg     = []byte("Hello TinyGO")
+
+	// We assume LoRa Featherwing module is connected to PyBadge:
+	SX127X_PIN_RST  = machine.D11
+	SX127X_PIN_CS   = machine.D10
+	SX127X_PIN_DIO0 = machine.D6
+	SX127X_PIN_DIO1 = machine.D9
+	SX127X_SPI      = machine.SPI0
 )
 
-func main() {
-	time.Sleep(3 * time.Second)
+func dioIrqHandler(machine.Pin) {
+	loraRadio.HandleInterrupt()
+}
 
+func main() {
+	time.Sleep(5 * time.Second)
 	println("\n# TinyGo Lora RX/TX test")
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	SX127X_PIN_RST.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	// Create the driver
-	loraRadio = sx126x.New(spi)
-	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
+	SX127X_SPI.Configure(machine.SPIConfig{Frequency: 500000, Mode: 0})
 
-	// Create radio controller for target
-	loraRadio.SetRadioController(newRadioControl())
+	println("main: create and start SX127x driver")
+	loraRadio = sx127x.New(SX127X_SPI, SX127X_PIN_RST)
+	loraRadio.SetRadioController(sx127x.NewRadioControl(SX127X_PIN_CS, SX127X_PIN_DIO0, SX127X_PIN_DIO1))
 
-	// Detect the device
+	loraRadio.Reset()
 	state := loraRadio.DetectDevice()
 	if !state {
-		panic("sx126x not detected.")
+		panic("main: sx127x NOT FOUND !!!")
+	} else {
+		println("main: sx127x found")
 	}
 
+	// Prepare for Lora Operation
 	loraConf := lora.Config{
 		Freq:           lora.MHz_868_1,
 		Bw:             lora.Bandwidth_125_0,
@@ -48,7 +61,6 @@ func main() {
 		Cr:             lora.CodingRate4_7,
 		HeaderType:     lora.HeaderExplicit,
 		Preamble:       12,
-		Ldr:            lora.LowDataRateOptimizeOff,
 		Iq:             lora.IQStandard,
 		Crc:            lora.CRCOn,
 		SyncWord:       lora.SyncPrivate,
@@ -59,10 +71,10 @@ func main() {
 
 	var count uint
 	for {
-		start := time.Now()
+		tStart := time.Now()
 
 		println("main: Receiving Lora for 10 seconds")
-		for time.Since(start) < 10*time.Second {
+		for time.Since(tStart) < 10*time.Second {
 			buf, err := loraRadio.Rx(LORA_DEFAULT_RXTIMEOUT_MS)
 			if err != nil {
 				println("RX Error: ", err)

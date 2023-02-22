@@ -5,8 +5,7 @@ import (
 	"machine"
 	"time"
 
-	rfswitch "tinygo.org/x/drivers/examples/sx126x/rfswitch"
-
+	"tinygo.org/x/drivers/lora"
 	"tinygo.org/x/drivers/sx126x"
 )
 
@@ -23,12 +22,11 @@ func main() {
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	// Create the driver
-	loraRadio = sx126x.New(machine.SPI3)
+	loraRadio = sx126x.New(spi)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
-	// Create RF Switch
-	var radioSwitch rfswitch.CustomSwitch
-	loraRadio.SetRfSwitch(radioSwitch)
+	// Create radio controller for target
+	loraRadio.SetRadioController(newRadioControl())
 
 	state := loraRadio.DetectDevice()
 	if !state {
@@ -36,18 +34,18 @@ func main() {
 	}
 
 	// Prepare for Lora operation
-	loraConf := sx126x.LoraConfig{
-		Freq:           FREQ,
-		Bw:             sx126x.SX126X_LORA_BW_500_0,
-		Sf:             sx126x.SX126X_LORA_SF9,
-		Cr:             sx126x.SX126X_LORA_CR_4_7,
-		HeaderType:     sx126x.SX126X_LORA_HEADER_EXPLICIT,
+	loraConf := lora.Config{
+		Freq:           lora.MHz_868_1,
+		Bw:             lora.Bandwidth_125_0,
+		Sf:             lora.SpreadingFactor9,
+		Cr:             lora.CodingRate4_7,
+		HeaderType:     lora.HeaderExplicit,
 		Preamble:       12,
-		Ldr:            sx126x.SX126X_LORA_LOW_DATA_RATE_OPTIMIZE_OFF,
-		Iq:             sx126x.SX126X_LORA_IQ_STANDARD,
-		Crc:            sx126x.SX126X_LORA_CRC_ON,
-		SyncWord:       sx126x.SX126X_LORA_MAC_PRIVATE_SYNCWORD,
-		LoraTxPowerDBm: 14,
+		Ldr:            lora.LowDataRateOptimizeOff,
+		Iq:             lora.IQStandard,
+		Crc:            lora.CRCOn,
+		SyncWord:       lora.SyncPrivate,
+		LoraTxPowerDBm: 20,
 	}
 	loraRadio.LoraConfig(loraConf)
 
@@ -75,6 +73,5 @@ func main() {
 
 		loraRadio.SetStandby()
 		time.Sleep(60 * time.Second)
-
 	}
 }
