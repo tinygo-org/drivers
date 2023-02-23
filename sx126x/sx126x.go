@@ -34,8 +34,9 @@ const (
 )
 
 const (
-	PERIOD_PER_SEC  = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
-	SPI_BUFFER_SIZE = 256
+	PERIOD_PER_SEC      = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
+	SPI_BUFFER_SIZE     = 256
+	RADIOEVENTCHAN_SIZE = 1
 )
 
 // Device wraps an SPI connection to a SX126x device.
@@ -47,14 +48,18 @@ type Device struct {
 	controller     RadioController      // to manage interactions with the radio
 	deepSleep      bool                 // Internal Sleep state
 	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
-	spiBuffer      [SPI_BUFFER_SIZE]uint8
+	spiTxBuf       []byte               // global Tx buffer to avoid heap allocations in interrupt
+	spiRxBuf       []byte               // global Rx buffer to avoid heap allocations in interrupt
+
 }
 
 // New creates a new SX126x connection.
 func New(spi drivers.SPI) *Device {
 	return &Device{
 		spi:            spi,
-		radioEventChan: make(chan lora.RadioEvent, 10),
+		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
+		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
+		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
 	}
 }
 
@@ -250,21 +255,25 @@ func (d *Device) ReadRegister(addr, size uint16) ([]uint8, error) {
 	d.CheckDeviceReady()
 	d.controller.SetNss(false)
 	// Send command
-	cmd := []uint8{SX126X_CMD_READ_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF), 0x00}
-	d.spi.Tx(cmd, nil)
-	ret := d.spiBuffer[0:size]
-	d.spi.Tx(nil, ret)
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, SX126X_CMD_READ_REGISTER, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF), 0x00)
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Read registers
+	d.spiRxBuf = d.spiRxBuf[0:size]
+	d.spi.Tx(nil, d.spiRxBuf)
 	d.controller.SetNss(true)
 	d.controller.WaitWhileBusy()
-	return ret, nil
+	return d.spiRxBuf, nil
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(addr uint16, data []uint8) {
 	d.CheckDeviceReady()
 	d.controller.SetNss(false)
-	cmd := []uint8{SX126X_CMD_WRITE_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF)}
-	d.spi.Tx(append(cmd, data...), nil)
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, SX126X_CMD_WRITE_REGISTER, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, data...)
+	d.spi.Tx(d.spiTxBuf, nil)
 	d.controller.SetNss(true)
 	d.controller.WaitWhileBusy()
 }
@@ -497,7 +506,10 @@ func (d *Device) ExecSetCommand(cmd uint8, buf []uint8) {
 	}
 	d.controller.SetNss(false)
 	// Send command and params
-	d.spi.Tx(append([]uint8{cmd}, buf...), nil)
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, cmd)
+	d.spiTxBuf = append(d.spiTxBuf, buf...)
+	d.spi.Tx(d.spiTxBuf, nil)
 	d.controller.SetNss(true)
 	if cmd != SX126X_CMD_SET_SLEEP {
 		d.controller.WaitWhileBusy()
@@ -509,11 +521,15 @@ func (d *Device) ExecGetCommand(cmd uint8, size uint8) []uint8 {
 	d.CheckDeviceReady()
 	d.controller.SetNss(false)
 	// Send the command and flush first status byte (as not used)
-	d.spi.Tx([]uint8{cmd, 0x00}, nil)
-	d.spi.Tx(nil, d.spiBuffer[:size])
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, cmd, 0x00)
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Read resp
+	d.spiRxBuf = d.spiRxBuf[:size]
+	d.spi.Tx(nil, d.spiRxBuf)
 	d.controller.SetNss(true)
 	d.controller.WaitWhileBusy()
-	return d.spiBuffer[:size]
+	return d.spiRxBuf
 }
 
 //
@@ -685,22 +701,26 @@ func (d *Device) HandleInterrupt() {
 	st := d.GetIrqStatus()
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 
-	rChan := d.GetRadioEventChan()
-
 	if (st & SX126X_IRQ_RX_DONE) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventRxDone, st, nil)
+		e := lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}
+		d.radioEventChan <- e
 	}
 
 	if (st & SX126X_IRQ_TX_DONE) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventTxDone, st, nil)
+		e := lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}
+		d.radioEventChan <- e
 	}
 
 	if (st & SX126X_IRQ_TIMEOUT) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventTimeout, st, nil)
+		e := lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}
+		d.radioEventChan <- e
+
 	}
 
 	if (st & SX126X_IRQ_CRC_ERR) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventCrcError, st, nil)
+		e := lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}
+		d.radioEventChan <- e
+
 	}
 
 }
