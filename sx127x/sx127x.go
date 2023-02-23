@@ -16,7 +16,7 @@ import (
 // So we can keep track of the origin of interruption
 const (
 	RADIOEVENTCHAN_SIZE = 1
-	SPI_BUFFER_SIZE     = 256
+	SPI_BUFFER_SIZE     = 5
 )
 
 // Device wraps an SPI connection to a SX127x device.
@@ -86,13 +86,10 @@ func (d *Device) ReadRegister(reg uint8) uint8 {
 	//d.spiTxBuf = []byte{reg & 0x7f}
 	d.spiTxBuf = d.spiTxBuf[:0]
 	d.spiTxBuf = append(d.spiTxBuf, byte(reg&0x7f))
-	//println("R1 : ", len(d.spiTxBuf))
 	d.spi.Tx(d.spiTxBuf, nil)
 	// Read value
-	//d.spiRxBuf = []byte{reg & 0x00}
 	d.spiRxBuf = d.spiRxBuf[:0]
 	d.spiRxBuf = append(d.spiRxBuf, 0)
-	//println("R2 : ", len(d.spiTxBuf))
 	d.spi.Tx(nil, d.spiRxBuf)
 	d.controller.SetNss(true)
 	return d.spiRxBuf[0]
@@ -529,27 +526,29 @@ func (d *Device) HandleInterrupt() {
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS, 0xFF)
 
 	if (st & SX127X_IRQ_LORA_RXDONE_MASK) > 0 {
-		e := lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX127X_IRQ_LORA_TXDONE_MASK) > 0 {
-		e := lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX127X_IRQ_LORA_RXTOUT_MASK) > 0 {
-		e := lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}
 		select {
-		case d.radioEventChan <- e:
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}:
 		default:
 		}
 	}
 
 	if (st & SX127X_IRQ_LORA_CRCERR_MASK) > 0 {
-		e := lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}
 		select {
-		case d.radioEventChan <- e:
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}:
 		default:
 		}
 	}

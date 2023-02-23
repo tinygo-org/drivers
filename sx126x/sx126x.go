@@ -702,25 +702,33 @@ func (d *Device) HandleInterrupt() {
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 
 	if (st & SX126X_IRQ_RX_DONE) > 0 {
-		e := lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX126X_IRQ_TX_DONE) > 0 {
-		e := lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX126X_IRQ_TIMEOUT) > 0 {
-		e := lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}:
+		default:
+		}
 
 	}
 
 	if (st & SX126X_IRQ_CRC_ERR) > 0 {
-		e := lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}
-		d.radioEventChan <- e
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}:
 
+		default:
+		}
 	}
 
 }
