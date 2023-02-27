@@ -17,6 +17,7 @@ type RFMOptions struct {
 	NetworkID     byte
 	IsRfm69HCW    bool
 	EncryptionKey string
+	OnReceive     OnReceiveHandler
 	ResetPin      machine.Pin
 	IrqPin        machine.Pin
 	CsPin         machine.Pin
@@ -31,7 +32,6 @@ type Device struct {
 	tx         chan *Data
 	quit       chan bool
 	irq        chan bool
-	OnReceive  OnReceiveHandler
 }
 
 // Global settings
@@ -42,8 +42,9 @@ const (
 
 // NewDevice creates a new device
 func NewDevice(spi drivers.SPI, options *RFMOptions) (*Device, error) {
-	options.IrqPin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	options.IrqPin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
 	options.CsPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	if options == nil {
 		options = new(RFMOptions)
 		options.IsRfm69HCW = true
@@ -57,13 +58,18 @@ func NewDevice(spi drivers.SPI, options *RFMOptions) (*Device, error) {
 	ret := &Device{
 		bus:        spi,
 		Config:     options,
-		powerLevel: 31,
+		powerLevel: 23,
 		tx:         make(chan *Data, 5),
 		quit:       make(chan bool),
 		irq:        make(chan bool),
 	}
 
 	err := ret.setup()
+	if err != nil {
+		return nil, err
+	}
+
+	err = ret.SetupInterrupts()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +96,13 @@ func (r *Device) SetupInterrupts() error {
 }
 
 func (r *Device) IRQHandle(pin machine.Pin) {
-	defer close(r.irq)
+	//	defer close(r.irq)
+	led := machine.LED
+	if led.Get() {
+		led.Low()
+	} else {
+		led.High()
+	}
 	r.irq <- true
 }
 
@@ -98,7 +110,7 @@ func (r *Device) writeReg(addr, data byte) error {
 	tx := make([]byte, 2)
 	tx[0] = addr | 0x80
 	tx[1] = data
-	fmt.Printf("write %x: %x\n", addr, data)
+	//	fmt.Printf("write %x: %x\n", addr, data)
 	length := len(tx)
 	rx := make([]byte, length)
 	r.Config.CsPin.High()
@@ -126,7 +138,7 @@ func (r *Device) readReg(addr byte) (byte, error) {
 		fmt.Print(err)
 	}
 	r.Config.CsPin.High()
-	fmt.Printf("read %x: %x\n", rx[1], tx)
+	//	fmt.Printf("read %x: %x\n", tx[0], rx)
 	return rx[1], err
 }
 
@@ -136,10 +148,10 @@ func (r *Device) setup() error {
 	Config := [][]byte{
 		/* 0x01 */ {REG_OPMODE, RF_OPMODE_SEQUENCER_ON | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY},
 		/* 0x02 */ {REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00}, // no shaping
-		/* 0x03 */ {REG_BITRATEMSB, RF_BITRATELSB_250000}, // default: 4.8 KBPS
-		/* 0x04 */ {REG_BITRATELSB, RF_BITRATELSB_250000},
-		/* 0x05 */ {REG_FDEVMSB, RF_FDEVMSB_25000}, // default: 5KHz, (FDEV + BitRate / 2 <= 500KHz)
-		/* 0x06 */ {REG_FDEVLSB, RF_FDEVLSB_25000},
+		/* 0x03 */ {REG_BITRATEMSB, RF_BITRATELSB_55555}, // default: 4.8 KBPS
+		/* 0x04 */ {REG_BITRATELSB, RF_BITRATELSB_55555},
+		/* 0x05 */ {REG_FDEVMSB, RF_FDEVMSB_50000}, // default: 5KHz, (FDEV + BitRate / 2 <= 500KHz)
+		/* 0x06 */ {REG_FDEVLSB, RF_FDEVLSB_50000},
 		/* 0x07 */ {REG_FRFMSB, RF_FRFMSB_433},
 		/* 0x08 */ {REG_FRFMID, RF_FRFMID_433},
 		/* 0x09 */ {REG_FRFLSB, RF_FRFLSB_433},
@@ -151,11 +163,11 @@ func (r *Device) setup() error {
 		///* 0x11 */ { REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | RF_PALEVEL_OUTPUTPOWER_11111},
 		///* 0x13 */ { REG_OCP, RF_OCP_ON | RF_OCP_TRIM_95 }, // over current protection (default is 95mA)
 		// RXBW defaults are { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_5} (RxBw: 10.4KHz)
-		/* 0x19 */ {REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_3},
+		/* 0x19 */ {REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_16 | RF_RXBW_EXP_2},
 		/* 0x25 */ {REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01}, // DIO0 is the only IRQ we're using
 		/* 0x26 */ {REG_DIOMAPPING2, RF_DIOMAPPING2_CLKOUT_OFF}, // DIO5 ClkOut disable for power saving
 		/* 0x28 */ {REG_IRQFLAGS2, RF_IRQFLAGS2_FIFOOVERRUN}, // writing to this bit ensures that the FIFO & status flags are reset
-		/* 0x29 */ //{REG_RSSITHRESH, 220}, // must be set to dBm = (-Sensitivity / 2), default is 0xE4 = 228 so -114dBm
+		/* 0x29 */ {REG_RSSITHRESH, 220}, // must be set to dBm = (-Sensitivity / 2), default is 0xE4 = 228 so -114dBm
 		///* 0x2D */ { REG_PREAMBLELSB, RF_PREAMBLESIZE_LSB_VALUE } // default 3 preamble bytes 0xAAAAAA
 		/* 0x2E */ {REG_SYNCCONFIG, RF_SYNC_ON | RF_SYNC_FIFOFILL_AUTO | RF_SYNC_SIZE_2 | RF_SYNC_TOL_0},
 		/* 0x2F */ {REG_SYNCVALUE1, 0x2D}, // attempt to make this compatible with sync1 byte of RFM12B lib
@@ -164,7 +176,7 @@ func (r *Device) setup() error {
 		/* 0x38 */ {REG_PAYLOADLENGTH, 66}, // in variable length mode: the max frame size, not used in TX
 		///* 0x39 */ { REG_NODEADRS, nodeID }, // turned off because we're not using address filtering
 		/* 0x3C */ {REG_FIFOTHRESH, RF_FIFOTHRESH_TXSTART_FIFONOTEMPTY | RF_FIFOTHRESH_VALUE}, // TX on FIFO not empty
-		/* 0x3D */ {REG_PACKETCONFIG2, RF_PACKET2_RXRESTARTDELAY_NONE | RF_PACKET2_AUTORXRESTART_ON | RF_PACKET2_AES_OFF}, // RXRESTARTDELAY must match transmitter PA ramp-down time (bitrate dependent)
+		/* 0x3D */ {REG_PACKETCONFIG2, RF_PACKET2_RXRESTARTDELAY_2BITS | RF_PACKET2_AUTORXRESTART_OFF | RF_PACKET2_AES_OFF}, // RXRESTARTDELAY must match transmitter PA ramp-down time (bitrate dependent)
 		/* 0x6F */ {REG_TESTDAGC, RF_DAGC_IMPROVED_LOWBETA0}, // run DAGC continuously in RX mode for Fading Margin Improvement, recommended default for AfcLowBetaOn=0
 	}
 	fmt.Println("writing first sync value")
@@ -233,10 +245,15 @@ func (r *Device) Encrypt(key []byte) error {
 		tx[0] = REG_AESKEY1 | 0x80
 		copy(tx[1:], key)
 		rx := make([]byte, len(tx))
+		r.Config.CsPin.High()
+		time.Sleep(1 * time.Millisecond)
+		r.Config.CsPin.Low()
+
 		err := r.bus.Tx(tx, rx)
 		if err != nil {
 			return err
 		}
+		r.Config.CsPin.High()
 	}
 	return r.readWriteReg(REG_PACKETCONFIG2, 0xFE, turnOn)
 }
@@ -250,12 +267,19 @@ func (r *Device) SetMode(newMode byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Config.IsRfm69HCW && (newMode == RF_OPMODE_RECEIVER || newMode == RF_OPMODE_TRANSMITTER) {
-		err := r.setHighPowerRegs(newMode == RF_OPMODE_TRANSMITTER)
+	if r.Config.IsRfm69HCW && (newMode == RF_OPMODE_TRANSMITTER) {
+		err := r.setHighPowerRegs(true)
 		if err != nil {
 			return err
 		}
 	}
+	if r.Config.IsRfm69HCW && (newMode == RF_OPMODE_RECEIVER) {
+		err := r.setHighPowerRegs(false)
+		if err != nil {
+			return err
+		}
+	}
+
 	if r.mode == RF_OPMODE_SLEEP {
 		err = r.waitForMode()
 		if err != nil {
@@ -268,7 +292,7 @@ func (r *Device) SetMode(newMode byte) error {
 
 // SetModeAndWait sets the mode and waits for it
 func (r *Device) SetModeAndWait(newMode byte) error {
-	err := r.SetMode(RF_OPMODE_STANDBY)
+	err := r.SetMode(newMode)
 	if err != nil {
 		return err
 	}
@@ -404,7 +428,12 @@ func (r *Device) writeFifo(data *Data) error {
 	}
 	copy(tx[5:], data.Data[:buffersize])
 	rx := make([]byte, len(tx))
+	r.Config.CsPin.High()
+	time.Sleep(1 * time.Millisecond)
+	r.Config.CsPin.Low()
+
 	err := r.bus.Tx(tx, rx)
+	r.Config.CsPin.High()
 	return err
 }
 
@@ -418,20 +447,30 @@ func (r *Device) readFifo() (Data, error) {
 	tx := new([70]byte)
 	tx[0] = REG_FIFO & 0x7f
 	rx := make([]byte, len(tx[:3]))
+	r.Config.CsPin.High()
+	time.Sleep(1 * time.Millisecond)
+	r.Config.CsPin.Low()
+
 	err = r.bus.Tx(tx[:3], rx)
 	if err != nil {
 		return data, err
 	}
+	r.Config.CsPin.High()
 	data.ToAddress = rx[2]
 	length := rx[1] - 3
 	if length > 66 {
 		length = 66
 	}
 	rx = make([]byte, len(tx[:length+3]))
+	r.Config.CsPin.High()
+	time.Sleep(1 * time.Millisecond)
+	r.Config.CsPin.Low()
+
 	err = r.bus.Tx(tx[:length+3], rx)
 	if err != nil {
 		return data, err
 	}
+	r.Config.CsPin.High()
 	data.FromAddress = rx[1]
 	data.SendAck = bool(rx[2]&0x80 > 0)
 	data.RequestAck = bool(rx[2]&0x40 > 0)
