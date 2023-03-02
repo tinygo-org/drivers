@@ -140,7 +140,27 @@ func (d *Device) ReadTemperature() (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int32(data[0])*1000 + int32((data[1]>>6)*25)*10, nil
+	return milliCelsius(data[0], data[1]), nil
+}
+
+// milliCelsius converts the raw temperature bytes (msb and lsb) from the DS3231
+// into a 32-bit signed integer in units of milli Celsius (1/1000 deg C).
+//
+// According to the DS3231 datasheet: "Temperature is represented as a 10-bit
+// code with a resolution of 0.25 deg C and is accessible at location 11h and
+// 12h. The temperature is encoded in two's complement format. The upper 8 bits,
+// the integer portion, are at location 11h and the lower 2 bits, the fractional
+// portion, are in the upper nibble at location 12h."
+//
+// In other words, the msb and lsb bytes should be treated as a signed 16-bit
+// integer in units of (1/256 deg C). It is possible to convert this into a
+// 16-bit signed integer in units of centi Celsius (1/100 deg C) with no loss of
+// precision or dynamic range. But for backwards compatibility, let's instead
+// convert this into a 32-bit signed integer in units of milli Celsius.
+func milliCelsius(msb uint8, lsb uint8) int32 {
+	t256 := int16(uint16(msb)<<8 | uint16(lsb))
+	t1000 := int32(t256) / 64 * 250
+	return t1000
 }
 
 // uint8ToBCD converts a byte to BCD for the DS3231
