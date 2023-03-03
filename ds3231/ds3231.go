@@ -73,7 +73,17 @@ func (d *Device) SetRunning(isRunning bool) error {
 	return nil
 }
 
-// SetTime sets the date and time in the DS3231
+// SetTime sets the date and time in the DS3231. The DS3231 hardware supports
+// only a 2-digit year field, so the current year will be stored as an offset
+// from the year 2000, which supports the year 2000 until 2100.
+//
+// The DS3231 also supports a one-bit 'century' flag which is set by the chip
+// when the year field rolls over from 99 to 00. The current code interprets
+// this flag to be the year 2100, which appears to extend the range of years
+// until the year 2200. However the DS3231 does not incorporate the 'century'
+// flag in its leap year calculation, so it will incorrectly identify the year
+// 2100 as a leap year, causing it to increment from 2100-02-28 to 2100-02-29
+// instead of 2100-03-01.
 func (d *Device) SetTime(dt time.Time) error {
 	data := []byte{0}
 	err := d.bus.ReadRegister(uint8(d.Address), REG_STATUS, data)
@@ -92,6 +102,10 @@ func (d *Device) SetTime(dt time.Time) error {
 	data[2] = uint8ToBCD(uint8(dt.Hour()))
 
 	year := uint8(dt.Year() - 2000)
+	// This code interprets the centuryFlag to be the year 2100. Warning: The
+	// DS3231 does not incorporate the centuryFlag in its leap year calculation.
+	// It will increment from 2100-02-28 to 2100-02-29, which is incorrect because
+	// the year 2100 is not a leap year in the Gregorian calendar.
 	centuryFlag := uint8(0)
 	if year >= 100 {
 		year -= 100
