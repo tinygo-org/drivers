@@ -24,8 +24,10 @@ import (
 	"errors"
 	"fmt"
 	"machine"
+	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"tinygo.org/x/drivers/netdev"
@@ -47,24 +49,31 @@ type Config struct {
 	Rx   machine.Pin
 }
 
+type socket struct {
+	inUse    bool
+	protocol int
+	lip      net.IP
+	lport    int
+}
+
 type Device struct {
 	cfg  *Config
 	uart *machine.UART
 	// command responses that come back from the ESP8266/ESP32
 	response []byte
 	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
-	socketdata     []byte
-	socketInUse    bool
-	socketProtocol netdev.Protocol
-	socketLaddr    netdev.SockAddr
+	data   []byte
+	socket socket
 }
 
 func New(cfg *Config) *Device {
 	d := Device{
-		cfg:        cfg,
-		response:   make([]byte, 512),
-		socketdata: make([]byte, 0, 1024),
+		cfg:      cfg,
+		response: make([]byte, 512),
+		data:     make([]byte, 0, 1024),
 	}
+	netdev.Use(&d)
+	var _ netdev.Ifacer = (*Device)(nil)
 	return &d
 }
 
@@ -136,84 +145,84 @@ func (d *Device) NetNotify(cb func(netdev.Event)) {
 	// Not supported
 }
 
-func (d *Device) GetHostByName(name string) (netdev.IP, error) {
+func (d *Device) GetHostByName(name string) (net.IP, error) {
 	ip, err := d.GetDNS(name)
-	return netdev.ParseIP(ip), err
+	return net.ParseIP(ip), err
 }
 
-func (d *Device) GetHardwareAddr() (netdev.HardwareAddr, error) {
-	return netdev.ParseHardwareAddr(d.GetMacAddress()), nil
+func (d *Device) GetHardwareAddr() (net.HardwareAddr, error) {
+	return net.ParseMAC(d.GetMacAddress())
 }
 
-func (d *Device) GetIPAddr() (netdev.IP, error) {
+func (d *Device) GetIPAddr() (net.IP, error) {
 	ip, err := d.GetClientIP()
-	return netdev.ParseIP(ip), err
+	return net.ParseIP(ip), err
 }
 
-func (d *Device) Socket(family netdev.AddressFamily, sockType netdev.SockType,
-	protocol netdev.Protocol) (netdev.Sockfd, error) {
+func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 
-	switch family {
-	case netdev.AF_INET:
+	switch domain {
+	case syscall.AF_INET:
 	default:
 		return -1, netdev.ErrFamilyNotSupported
 	}
 
 	switch {
-	case protocol == netdev.IPPROTO_TCP && sockType == netdev.SOCK_STREAM:
-	case protocol == netdev.IPPROTO_TLS && sockType == netdev.SOCK_STREAM:
-	case protocol == netdev.IPPROTO_UDP && sockType == netdev.SOCK_DGRAM:
+	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
+	case protocol == syscall.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
+	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
 	default:
 		return -1, netdev.ErrProtocolNotSupported
 	}
 
 	// Only supporting single connection mode, so only one socket at a time
-	if d.socketInUse {
+	if d.socket.inUse {
 		return -1, netdev.ErrNoMoreSockets
 	}
-	d.socketInUse = true
-	d.socketProtocol = protocol
+	d.socket.inUse = true
+	d.socket.protocol = protocol
 
-	return netdev.Sockfd(0), nil
+	return 0, nil
 }
 
-func (d *Device) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
-	d.socketLaddr = addr
+func (d *Device) Bind(sockfd int, ip net.IP, port int) error {
+	d.socket.lip = ip
+	d.socket.lport = port
 	return nil
 }
 
-func (d *Device) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error {
+func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 	var err error
-	var addr = servaddr.Ip().String()
-	var port = fmt.Sprintf("%d", servaddr.Port())
-	var lport = fmt.Sprintf("%d", d.socketLaddr.Port())
+	var addr = ip.String()
+	var sport = strconv.Itoa(port)
+	var lport = strconv.Itoa(d.socket.lport)
 
-	switch d.socketProtocol {
-	case netdev.IPPROTO_TCP:
-		err = d.ConnectTCPSocket(addr, port)
-	case netdev.IPPROTO_UDP:
-		err = d.ConnectUDPSocket(addr, port, lport)
-	case netdev.IPPROTO_TLS:
-		err = d.ConnectSSLSocket(addr, port)
+	switch d.socket.protocol {
+	case syscall.IPPROTO_TCP:
+		err = d.ConnectTCPSocket(addr, sport)
+	case syscall.IPPROTO_UDP:
+		err = d.ConnectUDPSocket(addr, sport, lport)
+	case syscall.IPPROTO_TLS:
+		err = d.ConnectSSLSocket(addr, sport)
 	}
 
 	return err
 }
 
-func (d *Device) Listen(sockfd netdev.Sockfd, backlog int) error {
-	switch d.socketProtocol {
-	case netdev.IPPROTO_UDP:
+func (d *Device) Listen(sockfd int, backlog int) error {
+	switch d.socket.protocol {
+	case syscall.IPPROTO_UDP:
 	default:
 		return netdev.ErrProtocolNotSupported
 	}
 	return nil
 }
 
-func (d *Device) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.Sockfd, error) {
+func (d *Device) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	return -1, netdev.ErrNotSupported
 }
 
-func (d *Device) sendChunk(sockfd netdev.Sockfd, buf []byte, timeout time.Duration) (int, error) {
+func (d *Device) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, error) {
 	err := d.StartSocketSend(len(buf))
 	if err != nil {
 		return -1, err
@@ -229,8 +238,7 @@ func (d *Device) sendChunk(sockfd netdev.Sockfd, buf []byte, timeout time.Durati
 	return n, err
 }
 
-func (d *Device) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
-	timeout time.Duration) (int, error) {
+func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
 
 	// Break large bufs into chunks so we don't overrun the hw queue
 
@@ -249,8 +257,7 @@ func (d *Device) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
 	return len(buf), nil
 }
 
-func (d *Device) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
-	timeout time.Duration) (int, error) {
+func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
 
 	var length = len(buf)
 	var expire = time.Now().Add(timeout)
@@ -281,12 +288,11 @@ func (d *Device) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
 	}
 }
 
-func (d *Device) Close(sockfd netdev.Sockfd) error {
+func (d *Device) Close(sockfd int) error {
 	return d.DisconnectSocket()
 }
 
-func (d *Device) SetSockOpt(sockfd netdev.Sockfd, level netdev.SockOptLevel,
-	opt netdev.SockOpt, value any) error {
+func (d *Device) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
 	return netdev.ErrNotSupported
 }
 
@@ -370,16 +376,16 @@ func (d *Device) ReadSocket(b []byte) (n int, err error) {
 	d.Response(300)
 
 	count := len(b)
-	if len(b) >= len(d.socketdata) {
+	if len(b) >= len(d.data) {
 		// copy it all, then clear socket data
-		count = len(d.socketdata)
-		copy(b, d.socketdata[:count])
-		d.socketdata = d.socketdata[:0]
+		count = len(d.data)
+		copy(b, d.data[:count])
+		d.data = d.data[:0]
 	} else {
 		// copy all we can, then keep the remaining socket data around
-		copy(b, d.socketdata[:count])
-		copy(d.socketdata, d.socketdata[count:])
-		d.socketdata = d.socketdata[:len(d.socketdata)-count]
+		copy(b, d.data[:count])
+		copy(d.data, d.data[count:])
+		d.data = d.data[:len(d.data)-count]
 	}
 
 	return count, nil
@@ -449,11 +455,11 @@ func (d *Device) parseIPD(end int) error {
 	}
 
 	// load up the socket data
-	d.socketdata = append(d.socketdata, d.response[e+1:end]...)
+	d.data = append(d.data, d.response[e+1:end]...)
 	return nil
 }
 
 // IsSocketDataAvailable returns of there is socket data available
 func (d *Device) IsSocketDataAvailable() bool {
-	return len(d.socketdata) > 0 || d.uart.Buffered() > 0
+	return len(d.data) > 0 || d.uart.Buffered() > 0
 }

@@ -32,7 +32,7 @@ func main() {
 
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 

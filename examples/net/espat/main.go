@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/espat"
-	"tinygo.org/x/drivers/netdev"
 )
 
 var (
@@ -19,15 +18,14 @@ var (
 )
 
 var (
-	netcfg = espat.Config{
+	cfg = espat.Config{
 		Ssid:       ssid,
 		Passphrase: pass,
 		Uart:       machine.UART2,
 		Tx:         machine.TX1,
 		Rx:         machine.RX0,
 	}
-
-	dev = espat.New(&netcfg)
+	netdev = espat.New(&cfg)
 )
 
 var buf = &bytes.Buffer{}
@@ -36,8 +34,7 @@ func main() {
 
 	waitSerial()
 
-	netdev.Use(dev)
-	if err := dev.NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 

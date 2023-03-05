@@ -40,7 +40,7 @@ func waitSerial() {
 func main() {
 	waitSerial()
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 

@@ -6,7 +6,6 @@ package main
 
 import (
 	"machine"
-	"net"
 	"time"
 
 	"tinygo.org/x/drivers/wifinina"
@@ -31,13 +30,4 @@ var cfg = wifinina.Config{
 	WatchdogTimeo: time.Duration(20 * time.Second),
 }
 
-var dev = wifinina.New(&cfg)
-
-func NetConnect() error {
-	net.UseNetdev(dev)
-	return dev.NetConnect()
-}
-
-func NetDisconnect() {
-	dev.NetDisconnect()
-}
+var netdev = wifinina.New(&cfg)

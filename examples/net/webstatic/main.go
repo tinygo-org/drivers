@@ -25,7 +25,7 @@ func main() {
 	// wait a bit for console
 	time.Sleep(2 * time.Second)
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 

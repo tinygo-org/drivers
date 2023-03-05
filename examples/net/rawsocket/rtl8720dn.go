@@ -26,12 +26,4 @@ var cfg = rtl8720dn.Config{
 	WatchdogTimeo: time.Duration(20 * time.Second),
 }
 
-var dev = rtl8720dn.New(&cfg)
-
-func NetConnect() error {
-	return dev.NetConnect()
-}
-
-func NetDisconnect() {
-	dev.NetDisconnect()
-}
+var netdev = rtl8720dn.New(&cfg)
