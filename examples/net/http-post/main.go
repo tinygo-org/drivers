@@ -30,7 +30,7 @@ func main() {
 
 	waitSerial()
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func main() {
 
 	fmt.Println(string(body))
 
-	NetDisconnect()
+	netdev.NetDisconnect()
 }
 
 // Wait for user to open serial console

@@ -30,7 +30,7 @@ func main() {
 
 	waitSerial()
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	conn.Close()
-	NetDisconnect()
+	netdev.NetDisconnect()
 
 	runtime.AdjustTimeOffset(-1 * int64(time.Since(t)))
 

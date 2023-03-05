@@ -6,7 +6,6 @@ package main
 
 import (
 	"machine"
-	"net"
 	"time"
 
 	"tinygo.org/x/drivers/rtl8720dn"
@@ -27,13 +26,4 @@ var cfg = rtl8720dn.Config{
 	WatchdogTimeo: time.Duration(20 * time.Second),
 }
 
-var dev = rtl8720dn.New(&cfg)
-
-func NetConnect() error {
-	net.UseNetdev(dev)
-	return dev.NetConnect()
-}
-
-func NetDisconnect() {
-	dev.NetDisconnect()
-}
+var netdev = rtl8720dn.New(&cfg)

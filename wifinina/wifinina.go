@@ -16,8 +16,9 @@ import (
 	"io"
 	"machine"
 	"math/bits"
-	"net/netdev"
+	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -157,13 +158,13 @@ const (
 
 type connectionStatus uint8
 type encryptionType uint8
-type macAddress netdev.HardwareAddr
 type sock uint8
 type hwerr uint8
 
 type socket struct {
-	protocol netdev.Protocol
-	laddr    netdev.SockAddr
+	protocol int
+	ip       net.IP
+	port     int
 	inuse    bool
 }
 
@@ -201,7 +202,7 @@ type Config struct {
 
 type wifinina struct {
 	cfg      *Config
-	notifyCb func(netdev.Event)
+	notifyCb func(drivers.NetlinkEvent)
 	mu       sync.Mutex
 
 	spi    drivers.SPI
@@ -224,7 +225,7 @@ type wifinina struct {
 	sockets map[sock]*socket // keyed by sock as returned by getSocket()
 }
 
-func newSocket(protocol netdev.Protocol) *socket {
+func newSocket(protocol int) *socket {
 	return &socket{protocol: protocol, inuse: true}
 }
 
@@ -243,6 +244,11 @@ func New(cfg *Config) *wifinina {
 		w.cfg.ConnectTimeo = 10 * time.Second
 	}
 
+	drivers.UseNetdev(&w)
+
+	// assert that wifinina implements Netlinker
+	var _ drivers.Netlinker = (*wifinina)(nil)
+
 	return &w
 }
 
@@ -253,7 +259,7 @@ func (err hwerr) Error() string {
 func (w *wifinina) connectToAP(timeout time.Duration) error {
 
 	if len(w.cfg.Ssid) == 0 {
-		return netdev.ErrMissingSSID
+		return drivers.ErrMissingSSID
 	}
 
 	if debugging(debugBasic) {
@@ -273,7 +279,7 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 				fmt.Printf("CONNECTED\r\n")
 			}
 			if w.notifyCb != nil {
-				w.notifyCb(netdev.EventNetUp)
+				w.notifyCb(drivers.NetlinkEventNetUp)
 			}
 			return nil
 		}
@@ -284,7 +290,7 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 		fmt.Printf("FAILED\r\n")
 	}
 
-	return netdev.ErrConnectTimeout
+	return drivers.ErrConnectTimeout
 }
 
 func (w *wifinina) netDisconnect() {
@@ -348,7 +354,7 @@ func (w *wifinina) showDevice() {
 		return
 	}
 	if debugging(debugBasic) {
-		mac := netdev.HardwareAddr(w.getMACAddr())
+		mac := w.getMACAddr()
 		fmt.Printf("ESP32 firmware version   : %s\r\n", w.getFwVersion())
 		fmt.Printf("MAC address              : %s\r\n", mac.String())
 		fmt.Printf("\r\n")
@@ -360,9 +366,9 @@ func (w *wifinina) showIP() {
 	if debugging(debugBasic) {
 		ip, subnet, gateway := w.getIP()
 		fmt.Printf("\r\n")
-		fmt.Printf("DHCP-assigned IP         : %s\r\n", netdev.IP(ip).String())
-		fmt.Printf("DHCP-assigned subnet     : %s\r\n", netdev.IP(subnet).String())
-		fmt.Printf("DHCP-assigned gateway    : %s\r\n", netdev.IP(gateway).String())
+		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip.String())
+		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet.String())
+		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway.String())
 		fmt.Printf("\r\n")
 	}
 }
@@ -391,7 +397,7 @@ func (w *wifinina) watchdog() {
 					fmt.Printf("Watchdog: Wifi NOT CONNECTED, trying again...\r\n")
 				}
 				if w.notifyCb != nil {
-					w.notifyCb(netdev.EventNetDown)
+					w.notifyCb(drivers.NetlinkEventNetDown)
 				}
 				w.netConnect(false)
 			}
@@ -408,7 +414,7 @@ func (w *wifinina) netConnect(reset bool) error {
 
 	for i := 0; w.cfg.Retries == 0 || i < w.cfg.Retries; i++ {
 		if err := w.connectToAP(w.cfg.ConnectTimeo); err != nil {
-			if err == netdev.ErrConnectTimeout {
+			if err == drivers.ErrConnectTimeout {
 				continue
 			}
 			return err
@@ -417,7 +423,7 @@ func (w *wifinina) netConnect(reset bool) error {
 	}
 
 	if w.networkDown() {
-		return netdev.ErrConnectFailed
+		return drivers.ErrConnectFailed
 	}
 
 	w.showIP()
@@ -430,7 +436,7 @@ func (w *wifinina) NetConnect() error {
 	defer w.mu.Unlock()
 
 	if w.netConnected {
-		return netdev.ErrConnected
+		return drivers.ErrConnected
 	}
 
 	w.showDriver()
@@ -472,15 +478,15 @@ func (w *wifinina) NetDisconnect() {
 	}
 
 	if w.notifyCb != nil {
-		w.notifyCb(netdev.EventNetDown)
+		w.notifyCb(drivers.NetlinkEventNetDown)
 	}
 }
 
-func (w *wifinina) NetNotify(cb func(netdev.Event)) {
+func (w *wifinina) NetNotify(cb func(drivers.NetlinkEvent)) {
 	w.notifyCb = cb
 }
 
-func (w *wifinina) GetHostByName(name string) (netdev.IP, error) {
+func (w *wifinina) GetHostByName(name string) (net.IP, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHostByName] name: %s\r\n", name)
@@ -491,16 +497,13 @@ func (w *wifinina) GetHostByName(name string) (netdev.IP, error) {
 
 	ip := w.getHostByName(name)
 	if ip == "" {
-		return netdev.IP{}, netdev.ErrHostUnknown
+		return net.IP{}, drivers.ErrHostUnknown
 	}
 
-	var hostIp netdev.IP
-	copy(hostIp[:], []byte(ip))
-
-	return hostIp, nil
+	return net.IP([]byte(ip)), nil
 }
 
-func (w *wifinina) GetHardwareAddr() (netdev.HardwareAddr, error) {
+func (w *wifinina) GetHardwareAddr() (net.HardwareAddr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHardwareAddr]\r\n")
@@ -509,10 +512,10 @@ func (w *wifinina) GetHardwareAddr() (netdev.HardwareAddr, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	return netdev.HardwareAddr(w.getMACAddr()), nil
+	return w.getMACAddr(), nil
 }
 
-func (w *wifinina) GetIPAddr() (netdev.IP, error) {
+func (w *wifinina) GetIPAddr() (net.IP, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetIPAddr]\r\n")
@@ -523,32 +526,31 @@ func (w *wifinina) GetIPAddr() (netdev.IP, error) {
 
 	ip, _, _ := w.getIP()
 
-	return netdev.IP(ip), nil
+	return net.IP(ip), nil
 }
 
 // See man socket(2) for standard Berkely sockets for Socket, Bind, etc.
 // The driver strives to meet the function and semantics of socket(2).
 
-func (w *wifinina) Socket(family netdev.AddressFamily, sockType netdev.SockType,
-	protocol netdev.Protocol) (netdev.Sockfd, error) {
+func (w *wifinina) Socket(domain int, stype int, protocol int) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Socket] family: %s, sockType: %s, protocol: %s\r\n",
-			family, sockType, protocol)
+		fmt.Printf("[Socket] domain: %d, type: %d, protocol: %d\r\n",
+			domain, stype, protocol)
 	}
 
-	switch family {
-	case netdev.AF_INET:
+	switch domain {
+	case syscall.AF_INET:
 	default:
-		return -1, netdev.ErrFamilyNotSupported
+		return -1, drivers.ErrFamilyNotSupported
 	}
 
 	switch {
-	case protocol == netdev.IPPROTO_TCP && sockType == netdev.SOCK_STREAM:
-	case protocol == netdev.IPPROTO_TLS && sockType == netdev.SOCK_STREAM:
-	case protocol == netdev.IPPROTO_UDP && sockType == netdev.SOCK_DGRAM:
+	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
+	case protocol == syscall.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
+	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, drivers.ErrProtocolNotSupported
 	}
 
 	w.mu.Lock()
@@ -556,19 +558,19 @@ func (w *wifinina) Socket(family netdev.AddressFamily, sockType netdev.SockType,
 
 	sock := w.getSocket()
 	if sock == noSocketAvail {
-		return -1, netdev.ErrNoMoreSockets
+		return -1, drivers.ErrNoMoreSockets
 	}
 
 	socket := newSocket(protocol)
 	w.sockets[sock] = socket
 
-	return netdev.Sockfd(sock), nil
+	return int(sock), nil
 }
 
-func (w *wifinina) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
+func (w *wifinina) Bind(sockfd int, ip net.IP, port int) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s\r\n", sockfd, addr)
+		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
 	}
 
 	w.mu.Lock()
@@ -578,21 +580,33 @@ func (w *wifinina) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
-	case netdev.IPPROTO_TLS:
-	case netdev.IPPROTO_UDP:
-		w.startServer(sock, addr.Port(), protoModeUDP)
+	case syscall.IPPROTO_TCP:
+	case syscall.IPPROTO_TLS:
+	case syscall.IPPROTO_UDP:
+		w.startServer(sock, uint16(port), protoModeUDP)
 	}
 
-	socket.laddr = addr
+	socket.ip, socket.port = ip, port
 
 	return nil
 }
 
-func (w *wifinina) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error {
+func toUint32(ip net.IP) uint32 {
+	ip = ip.To4()
+	return uint32(ip[0])<<24 |
+		uint32(ip[1])<<16 |
+		uint32(ip[2])<<8 |
+		uint32(ip[3])
+}
+
+func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Connect] sockfd: %d, servaddr: %s\r\n", sockfd, servaddr)
+		if host == "" {
+			fmt.Printf("[Connect] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+		} else {
+			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, port)
+		}
 	}
 
 	w.mu.Lock()
@@ -603,12 +617,12 @@ func (w *wifinina) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error
 
 	// Start the connection
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
-		w.startClient(sock, "", servaddr.IpUint32(), servaddr.Port(), protoModeTCP)
-	case netdev.IPPROTO_TLS:
-		w.startClient(sock, servaddr.Host(), 0, servaddr.Port(), protoModeTLS)
-	case netdev.IPPROTO_UDP:
-		w.startClient(sock, "", servaddr.IpUint32(), servaddr.Port(), protoModeUDP)
+	case syscall.IPPROTO_TCP:
+		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeTCP)
+	case syscall.IPPROTO_TLS:
+		w.startClient(sock, host, 0, uint16(port), protoModeTLS)
+	case syscall.IPPROTO_UDP:
+		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeUDP)
 		return nil
 	}
 
@@ -633,10 +647,14 @@ func (w *wifinina) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error
 
 	w.stopClient(sock)
 
-	return fmt.Errorf("Connect to %s timed out", servaddr.String())
+	if host == "" {
+		return fmt.Errorf("Connect to %s:%d timed out", ip, port)
+	} else {
+		return fmt.Errorf("Connect to %s:%d timed out", host, port)
+	}
 }
 
-func (w *wifinina) Listen(sockfd netdev.Sockfd, backlog int) error {
+func (w *wifinina) Listen(sockfd int, backlog int) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Listen] sockfd: %d\r\n", sockfd)
@@ -649,20 +667,20 @@ func (w *wifinina) Listen(sockfd netdev.Sockfd, backlog int) error {
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
-		w.startServer(sock, socket.laddr.Port(), protoModeTCP)
-	case netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_TCP:
+		w.startServer(sock, uint16(socket.port), protoModeTCP)
+	case syscall.IPPROTO_UDP:
 	default:
-		return netdev.ErrProtocolNotSupported
+		return drivers.ErrProtocolNotSupported
 	}
 
 	return nil
 }
 
-func (w *wifinina) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.Sockfd, error) {
+func (w *wifinina) Accept(sockfd int, ip net.IP, port int) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, peer)
+		fmt.Printf("[Accept] sockfd: %d, peer: %s:%d\r\n", sockfd, ip, port)
 	}
 
 	w.mu.Lock()
@@ -673,9 +691,9 @@ func (w *wifinina) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.So
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
+	case syscall.IPPROTO_TCP:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, drivers.ErrProtocolNotSupported
 	}
 
 	for {
@@ -715,12 +733,12 @@ func (w *wifinina) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.So
 				continue
 			}
 			// Reuse client socket
-			return netdev.Sockfd(client), nil
+			return int(client), nil
 		}
 
 		// Create new socket for client and return fd
 		w.sockets[client] = newSocket(socket.protocol)
-		return netdev.Sockfd(client), nil
+		return int(client), nil
 	}
 }
 
@@ -793,21 +811,21 @@ func (w *wifinina) sendUDP(sock sock, buf []byte, timeout time.Duration) (int, e
 	return len(buf), nil
 }
 
-func (w *wifinina) sendChunk(sockfd netdev.Sockfd, buf []byte, timeout time.Duration) (int, error) {
+func (w *wifinina) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, error) {
 	var sock = sock(sockfd)
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_TLS:
+	case syscall.IPPROTO_TCP, syscall.IPPROTO_TLS:
 		return w.sendTCP(sock, buf, timeout)
-	case netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_UDP:
 		return w.sendUDP(sock, buf, timeout)
 	}
 
-	return -1, netdev.ErrProtocolNotSupported
+	return -1, drivers.ErrProtocolNotSupported
 }
 
-func (w *wifinina) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+func (w *wifinina) Send(sockfd int, buf []byte, flags int,
 	timeout time.Duration) (int, error) {
 
 	if debugging(debugNetdev) {
@@ -835,7 +853,7 @@ func (w *wifinina) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags
 	return len(buf), nil
 }
 
-func (w *wifinina) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
 	timeout time.Duration) (int, error) {
 
 	if debugging(debugNetdev) {
@@ -861,7 +879,7 @@ func (w *wifinina) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags
 		// Check if we've timed out
 		if timeout > 0 {
 			if time.Now().Before(expire) {
-				return -1, netdev.ErrRecvTimeout
+				return -1, drivers.ErrRecvTimeout
 			}
 		}
 
@@ -880,7 +898,7 @@ func (w *wifinina) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags
 		}
 
 		// Check if socket went down
-		if socket.protocol != netdev.IPPROTO_UDP && w.sockDown(sock) {
+		if socket.protocol != syscall.IPPROTO_UDP && w.sockDown(sock) {
 			// Get any last bytes
 			n = int(w.getDataBuf(sock, buf[:max]))
 			if debugging(debugNetdev) {
@@ -905,7 +923,7 @@ func (w *wifinina) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags
 	}
 }
 
-func (w *wifinina) Close(sockfd netdev.Sockfd) error {
+func (w *wifinina) Close(sockfd int) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
@@ -923,7 +941,7 @@ func (w *wifinina) Close(sockfd netdev.Sockfd) error {
 
 	w.stopClient(sock)
 
-	if socket.protocol == netdev.IPPROTO_UDP {
+	if socket.protocol == syscall.IPPROTO_UDP {
 		socket.inuse = false
 		return nil
 	}
@@ -942,17 +960,16 @@ func (w *wifinina) Close(sockfd netdev.Sockfd) error {
 		w.mu.Lock()
 	}
 
-	return netdev.ErrClosingSocket
+	return drivers.ErrClosingSocket
 }
 
-func (w *wifinina) SetSockOpt(sockfd netdev.Sockfd, level netdev.SockOptLevel,
-	opt netdev.SockOpt, value any) error {
+func (w *wifinina) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[SetSockOpt] sockfd: %d\r\n", sockfd)
 	}
 
-	return netdev.ErrNotSupported
+	return drivers.ErrNotSupported
 }
 
 // Is TCP/TLS socket connected?
@@ -1181,7 +1198,7 @@ func (w *wifinina) getCurrentencryptionType() encryptionType {
 	return encryptionType(enctype)
 }
 
-func (w *wifinina) getCurrentBSSID() macAddress {
+func (w *wifinina) getCurrentBSSID() net.HardwareAddr {
 	return w.getMACAddress(w.req1(cmdGetCurrBSSID))
 }
 
@@ -1193,7 +1210,7 @@ func (w *wifinina) getCurrentSSID() string {
 	return w.getString(w.req1(cmdGetCurrSSID))
 }
 
-func (w *wifinina) getMACAddr() macAddress {
+func (w *wifinina) getMACAddr() net.HardwareAddr {
 	if debugging(debugCmd) {
 		fmt.Printf("    [cmdGetMACAddr]\r\n")
 	}
@@ -1207,7 +1224,7 @@ func (w *wifinina) faultf(f string, args ...any) {
 	}
 }
 
-func (w *wifinina) getIP() (ip, subnet, gateway netdev.IP) {
+func (w *wifinina) getIP() (ip, subnet, gateway net.IP) {
 	if debugging(debugCmd) {
 		fmt.Printf("    [cmdGetIPAddr]\r\n")
 	}
@@ -1217,6 +1234,7 @@ func (w *wifinina) getIP() (ip, subnet, gateway netdev.IP) {
 		w.faultf("getIP wanted l=3, got l=%d", l)
 		return
 	}
+	ip, subnet, gateway = make([]byte, 4), make([]byte, 4), make([]byte, 4)
 	copy(ip[:], sl[0])
 	copy(subnet[:], sl[1])
 	copy(gateway[:], sl[2])
@@ -1234,9 +1252,9 @@ func (w *wifinina) getHostByName(name string) string {
 	return w.getString(w.req0(cmdGetHostByName))
 }
 
-func (w *wifinina) getNetworkBSSID(idx int) macAddress {
+func (w *wifinina) getNetworkBSSID(idx int) net.HardwareAddr {
 	if idx < 0 || idx >= maxNetworks {
-		return macAddress{}
+		return net.HardwareAddr{}
 	}
 	return w.getMACAddress(w.reqUint8(cmdGetIdxBSSID, uint8(idx)))
 }
@@ -1421,7 +1439,7 @@ func (w *wifinina) getFloat32(l uint8) float32 {
 	return float32(w.getUint32(l))
 }
 
-func (w *wifinina) getMACAddress(l uint8) macAddress {
+func (w *wifinina) getMACAddress(l uint8) net.HardwareAddr {
 	if l == 6 {
 		mac := w.buf[0:6]
 		// Reverse the bytes
@@ -1431,7 +1449,7 @@ func (w *wifinina) getMACAddress(l uint8) macAddress {
 		return mac
 	}
 	w.faultf("expected length 6, was actually %d", l)
-	return macAddress{}
+	return net.HardwareAddr{}
 }
 
 func (w *wifinina) transfer(b byte) byte {

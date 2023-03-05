@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"log"
 	"machine"
-	"net/netdev"
+	"net"
 	"strconv"
-	"strings"
+	"syscall"
 	"time"
 )
 
@@ -29,7 +29,7 @@ func main() {
 
 	waitSerial()
 
-	if err := NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -41,16 +41,15 @@ func main() {
 
 func sendBatch() {
 
-	parts := strings.Split(addr, ":")
-	ip := netdev.ParseIP(parts[0])
-	port, _ := strconv.Atoi(parts[1])
-	sockAddr := netdev.NewSockAddr("", netdev.Port(port), ip)
+	host, sport, _ := net.SplitHostPort(addr)
+	ip := net.ParseIP(host).To4()
+	port, _ := strconv.Atoi(sport)
 
 	// make TCP connection
 	message("---------------\r\nDialing TCP connection")
-	sock, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
-	err := dev.Connect(sock, sockAddr)
-	for ; err != nil; err = dev.Connect(sock, sockAddr) {
+	fd, _ := netdev.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	err := netdev.Connect(fd, "", ip, port)
+	for ; err != nil; err = netdev.Connect(fd, "", ip, port) {
 		message(err.Error())
 		time.Sleep(5 * time.Second)
 	}
@@ -67,7 +66,7 @@ func sendBatch() {
 		fmt.Fprint(buf,
 			"\r---------------------------- i == ", i, " ----------------------------"+
 				"\r---------------------------- i == ", i, " ----------------------------")
-		if w, err = dev.Send(sock, buf.Bytes(), 0, 0); err != nil {
+		if w, err = netdev.Send(fd, buf.Bytes(), 0, 0); err != nil {
 			println("error:", err.Error(), "\r")
 			break
 		}
@@ -79,12 +78,12 @@ func sendBatch() {
 	fmt.Fprint(buf, "\nWrote ", n, " bytes in ", ms, " ms\r\n")
 	message(buf.String())
 
-	if _, err := dev.Send(sock, buf.Bytes(), 0, 0); err != nil {
+	if _, err := netdev.Send(fd, buf.Bytes(), 0, 0); err != nil {
 		println("error:", err.Error(), "\r")
 	}
 
 	println("Disconnecting TCP...")
-	dev.Close(sock)
+	netdev.Close(fd)
 }
 
 func message(msg string) {

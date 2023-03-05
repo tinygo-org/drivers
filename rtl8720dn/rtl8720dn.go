@@ -1,7 +1,7 @@
 // Package rtl8720dn implements TCP wireless communication over UART
 // talking to a RealTek rtl8720dn module.
 //
-// 01/2023    sfeldma@gmail.com    Heavily modified to use netdev interface
+// 01/2023    sfeldma@gmail.com    Heavily modified to use netdevinterface
 
 package rtl8720dn // import "tinygo.org/x/drivers/rtl8720dn"
 
@@ -11,10 +11,13 @@ import (
 	"fmt"
 	"io"
 	"machine"
-	"net/netdev"
+	"net"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 var _debug debug = debugBasic
@@ -28,16 +31,14 @@ var (
 )
 
 const (
-	F_SETFL      = 4
-	O_NONBLOCK   = 1
+	O_NONBLOCK   = 1 // note: different value than syscall.O_NONBLOCK (0x800)
 	RTW_MODE_STA = 0x00000001
 )
 
-type macAddress netdev.HardwareAddr
 type sock int32
 
 type socket struct {
-	protocol netdev.Protocol
+	protocol int
 	inuse    bool
 }
 
@@ -68,7 +69,7 @@ type Config struct {
 
 type rtl8720dn struct {
 	cfg      *Config
-	notifyCb func(netdev.Event)
+	notifyCb func(drivers.NetlinkEvent)
 	mu       sync.Mutex
 
 	uart *machine.UART
@@ -86,22 +87,29 @@ type rtl8720dn struct {
 	sockets map[sock]*socket
 }
 
-func newSocket(protocol netdev.Protocol) *socket {
+func newSocket(protocol int) *socket {
 	return &socket{protocol: protocol, inuse: true}
 }
 
 func New(cfg *Config) *rtl8720dn {
-	return &rtl8720dn{
+	r := rtl8720dn{
 		debug:        (_debug & debugRpc) != 0,
 		cfg:          cfg,
 		sockets:      make(map[sock]*socket),
 		killWatchdog: make(chan bool),
 	}
+
+	drivers.UseNetdev(&r)
+
+	// assert that rtl8720dn implements Netlinker
+	var _ drivers.Netlinker = (*rtl8720dn)(nil)
+
+	return &r
 }
 
 func (r *rtl8720dn) startDhcpc() error {
 	if result := r.rpc_tcpip_adapter_dhcpc_start(0); result == -1 {
-		return netdev.ErrStartingDHCPClient
+		return drivers.ErrStartingDHCPClient
 	}
 	return nil
 }
@@ -109,7 +117,7 @@ func (r *rtl8720dn) startDhcpc() error {
 func (r *rtl8720dn) connectToAP() error {
 
 	if len(r.cfg.Ssid) == 0 {
-		return netdev.ErrMissingSSID
+		return drivers.ErrMissingSSID
 	}
 
 	if debugging(debugBasic) {
@@ -123,7 +131,7 @@ func (r *rtl8720dn) connectToAP() error {
 		if debugging(debugBasic) {
 			fmt.Printf("FAILED\r\n")
 		}
-		return netdev.ErrConnectFailed
+		return drivers.ErrConnectFailed
 	}
 
 	if debugging(debugBasic) {
@@ -131,7 +139,7 @@ func (r *rtl8720dn) connectToAP() error {
 	}
 
 	if r.notifyCb != nil {
-		r.notifyCb(netdev.EventNetUp)
+		r.notifyCb(drivers.NetlinkEventNetUp)
 	}
 
 	return r.startDhcpc()
@@ -206,9 +214,9 @@ func (r *rtl8720dn) showIP() {
 	if debugging(debugBasic) {
 		ip, subnet, gateway, _ := r.getIP()
 		fmt.Printf("\r\n")
-		fmt.Printf("DHCP-assigned IP         : %s\r\n", netdev.IP(ip).String())
-		fmt.Printf("DHCP-assigned subnet     : %s\r\n", netdev.IP(subnet).String())
-		fmt.Printf("DHCP-assigned gateway    : %s\r\n", netdev.IP(gateway).String())
+		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip.String())
+		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet.String())
+		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway.String())
 		fmt.Printf("\r\n")
 	}
 }
@@ -231,7 +239,7 @@ func (r *rtl8720dn) watchdog() {
 					fmt.Printf("Watchdog: Wifi NOT CONNECTED, trying again...\r\n")
 				}
 				if r.notifyCb != nil {
-					r.notifyCb(netdev.EventNetDown)
+					r.notifyCb(drivers.NetlinkEventNetDown)
 				}
 				r.netConnect(false)
 			}
@@ -250,7 +258,7 @@ func (r *rtl8720dn) netConnect(reset bool) error {
 
 	for i := 0; r.cfg.Retries == 0 || i < r.cfg.Retries; i++ {
 		if err := r.connectToAP(); err != nil {
-			if err == netdev.ErrConnectFailed {
+			if err == drivers.ErrConnectFailed {
 				continue
 			}
 			return err
@@ -259,7 +267,7 @@ func (r *rtl8720dn) netConnect(reset bool) error {
 	}
 
 	if r.networkDown() {
-		return netdev.ErrConnectFailed
+		return drivers.ErrConnectFailed
 	}
 
 	r.showIP()
@@ -272,7 +280,7 @@ func (r *rtl8720dn) NetConnect() error {
 	defer r.mu.Unlock()
 
 	if r.netConnected {
-		return netdev.ErrConnected
+		return drivers.ErrConnected
 	}
 
 	r.showDriver()
@@ -316,15 +324,15 @@ func (r *rtl8720dn) NetDisconnect() {
 	}
 
 	if r.notifyCb != nil {
-		r.notifyCb(netdev.EventNetDown)
+		r.notifyCb(drivers.NetlinkEventNetDown)
 	}
 }
 
-func (r *rtl8720dn) NetNotify(cb func(netdev.Event)) {
+func (r *rtl8720dn) NetNotify(cb func(drivers.NetlinkEvent)) {
 	r.notifyCb = cb
 }
 
-func (r *rtl8720dn) GetHostByName(name string) (netdev.IP, error) {
+func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHostByName] name: %s\r\n", name)
@@ -333,19 +341,16 @@ func (r *rtl8720dn) GetHostByName(name string) (netdev.IP, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	var addr [4]byte
-	result := r.rpc_netconn_gethostbyname(name, addr[:])
+	var ip [4]byte
+	result := r.rpc_netconn_gethostbyname(name, ip[:])
 	if result == -1 {
-		return netdev.IP{}, fmt.Errorf("Get IP of host '%s' failed", name)
+		return net.IP{}, drivers.ErrHostUnknown
 	}
 
-	var ip netdev.IP
-	copy(ip[:], addr[:])
-
-	return ip, nil
+	return net.IP(ip[:]), nil
 }
 
-func (r *rtl8720dn) GetHardwareAddr() (netdev.HardwareAddr, error) {
+func (r *rtl8720dn) GetHardwareAddr() (net.HardwareAddr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHardwareAddr]\r\n")
@@ -357,10 +362,10 @@ func (r *rtl8720dn) GetHardwareAddr() (netdev.HardwareAddr, error) {
 	mac := strings.ReplaceAll(r.getMACAddr(), ":", "")
 	addr, err := hex.DecodeString(mac)
 
-	return netdev.HardwareAddr(addr), err
+	return net.HardwareAddr(addr), err
 }
 
-func (r *rtl8720dn) GetIPAddr() (netdev.IP, error) {
+func (r *rtl8720dn) GetIPAddr() (net.IP, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetIPAddr]\r\n")
@@ -371,7 +376,7 @@ func (r *rtl8720dn) GetIPAddr() (netdev.IP, error) {
 
 	ip, _, _, err := r.getIP()
 
-	return netdev.IP(ip), err
+	return net.IP(ip), err
 }
 
 func (r *rtl8720dn) clientTLS() uint32 {
@@ -384,18 +389,17 @@ func (r *rtl8720dn) clientTLS() uint32 {
 // See man socket(2) for standard Berkely sockets for Socket, Bind, etc.
 // The driver strives to meet the function and semantics of socket(2).
 
-func (r *rtl8720dn) Socket(family netdev.AddressFamily, sockType netdev.SockType,
-	protocol netdev.Protocol) (netdev.Sockfd, error) {
+func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Socket] family: %s, sockType: %s, protocol: %s\r\n",
-			family, sockType, protocol)
+		fmt.Printf("[Socket] domain: %d, type: %d, protocol: %d\r\n",
+			domain, stype, protocol)
 	}
 
-	switch family {
-	case netdev.AF_INET:
+	switch domain {
+	case syscall.AF_INET:
 	default:
-		return -1, netdev.ErrFamilyNotSupported
+		return -1, drivers.ErrFamilyNotSupported
 	}
 
 	var newSock int32
@@ -404,51 +408,50 @@ func (r *rtl8720dn) Socket(family netdev.AddressFamily, sockType netdev.SockType
 	defer r.mu.Unlock()
 
 	switch {
-	case protocol == netdev.IPPROTO_TCP && sockType == netdev.SOCK_STREAM:
-		newSock = r.rpc_lwip_socket(netdev.AF_INET, netdev.SOCK_STREAM,
-			netdev.IPPROTO_TCP)
-	case protocol == netdev.IPPROTO_TLS && sockType == netdev.SOCK_STREAM:
+	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
+		newSock = r.rpc_lwip_socket(syscall.AF_INET, syscall.SOCK_STREAM,
+			syscall.IPPROTO_TCP)
+	case protocol == syscall.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
 		// TODO Investigate: using client number as socket number;
 		// TODO this may cause a problem if mixing TLS and non-TLS sockets?
 		newSock = int32(r.clientTLS())
-	case protocol == netdev.IPPROTO_UDP && sockType == netdev.SOCK_DGRAM:
-		newSock = r.rpc_lwip_socket(netdev.AF_INET, netdev.SOCK_DGRAM,
-			netdev.IPPROTO_UDP)
+	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
+		newSock = r.rpc_lwip_socket(syscall.AF_INET, syscall.SOCK_DGRAM,
+			syscall.IPPROTO_UDP)
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, drivers.ErrProtocolNotSupported
 	}
 
 	if newSock == -1 {
-		return -1, netdev.ErrNoMoreSockets
+		return -1, drivers.ErrNoMoreSockets
 	}
 
 	socket := newSocket(protocol)
 	r.sockets[sock(newSock)] = socket
 
-	return netdev.Sockfd(newSock), nil
+	return int(newSock), nil
 }
 
-func addrToName(addr netdev.SockAddr) []byte {
-	port := addr.Port()
-	ip := addr.IpBytes()
-
+func addrToName(ip net.IP, port int) []byte {
 	name := make([]byte, 16)
 	name[0] = 0x00
-	name[1] = netdev.AF_INET
+	name[1] = syscall.AF_INET
 	name[2] = byte(port >> 8)
 	name[3] = byte(port)
-	name[4] = byte(ip[0])
-	name[5] = byte(ip[1])
-	name[6] = byte(ip[2])
-	name[7] = byte(ip[3])
+	if len(ip) == 4 {
+		name[4] = byte(ip[0])
+		name[5] = byte(ip[1])
+		name[6] = byte(ip[2])
+		name[7] = byte(ip[3])
+	}
 
 	return name
 }
 
-func (r *rtl8720dn) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
+func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s\r\n", sockfd, addr)
+		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
 	}
 
 	r.mu.Lock()
@@ -456,25 +459,29 @@ func (r *rtl8720dn) Bind(sockfd netdev.Sockfd, addr netdev.SockAddr) error {
 
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
-	var name = addrToName(addr)
+	var name = addrToName(ip, port)
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
 		result := r.rpc_lwip_bind(int32(sock), name, uint32(len(name)))
 		if result == -1 {
-			return fmt.Errorf("Bind to %s failed", addr.String())
+			return fmt.Errorf("Bind to %s:%d failed", ip, port)
 		}
 	default:
-		return netdev.ErrProtocolNotSupported
+		return drivers.ErrProtocolNotSupported
 	}
 
 	return nil
 }
 
-func (r *rtl8720dn) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) error {
+func (r *rtl8720dn) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Connect] sockfd: %d, servaddr: %s\r\n", sockfd, servaddr)
+		if host == "" {
+			fmt.Printf("[Connect] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+		} else {
+			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, port)
+		}
 	}
 
 	r.mu.Lock()
@@ -482,27 +489,27 @@ func (r *rtl8720dn) Connect(sockfd netdev.Sockfd, servaddr netdev.SockAddr) erro
 
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
-	var name = addrToName(servaddr)
+	var name = addrToName(ip, port)
 
 	// Start the connection
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
 		result := r.rpc_lwip_connect(int32(sock), name, uint32(len(name)))
 		if result == -1 {
-			return fmt.Errorf("Connect to %s failed", servaddr.String())
+			return fmt.Errorf("Connect to %s:%d failed", ip, port)
 		}
-	case netdev.IPPROTO_TLS:
+	case syscall.IPPROTO_TLS:
 		result := r.rpc_wifi_start_ssl_client(uint32(sock),
-			servaddr.Host(), uint32(servaddr.Port()), 0)
+			host, uint32(port), 0)
 		if result == -1 {
-			return fmt.Errorf("Connect to %s failed", servaddr.String())
+			return fmt.Errorf("Connect to %s:%d failed", host, port)
 		}
 	}
 
 	return nil
 }
 
-func (r *rtl8720dn) Listen(sockfd netdev.Sockfd, backlog int) error {
+func (r *rtl8720dn) Listen(sockfd int, backlog int) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Listen] sockfd: %d\r\n", sockfd)
@@ -515,31 +522,31 @@ func (r *rtl8720dn) Listen(sockfd netdev.Sockfd, backlog int) error {
 	var socket = r.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
+	case syscall.IPPROTO_TCP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
 		}
-		result = r.rpc_lwip_fcntl(int32(sock), F_SETFL, O_NONBLOCK)
+		result = r.rpc_lwip_fcntl(int32(sock), syscall.F_SETFL, O_NONBLOCK)
 		if result == -1 {
 			return fmt.Errorf("Fcntl failed")
 		}
-	case netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_UDP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
 		}
 	default:
-		return netdev.ErrProtocolNotSupported
+		return drivers.ErrProtocolNotSupported
 	}
 
 	return nil
 }
 
-func (r *rtl8720dn) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.Sockfd, error) {
+func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, peer)
+		fmt.Printf("[Accept] sockfd: %d, peer: %s:%d\r\n", sockfd, ip, port)
 	}
 
 	r.mu.Lock()
@@ -548,12 +555,12 @@ func (r *rtl8720dn) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.S
 	var newSock int32
 	var lsock = sock(sockfd)
 	var socket = r.sockets[lsock]
-	var addr = addrToName(peer)
+	var addr = addrToName(ip, port)
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP:
+	case syscall.IPPROTO_TCP:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, drivers.ErrProtocolNotSupported
 	}
 
 	for {
@@ -584,27 +591,27 @@ func (r *rtl8720dn) Accept(sockfd netdev.Sockfd, peer netdev.SockAddr) (netdev.S
 				continue
 			}
 			// Reuse client socket
-			return netdev.Sockfd(newSock), nil
+			return int(newSock), nil
 		}
 
 		// Create new socket for client and return fd
 		r.sockets[sock(newSock)] = newSocket(socket.protocol)
-		return netdev.Sockfd(newSock), nil
+		return int(newSock), nil
 	}
 }
 
-func (r *rtl8720dn) sendChunk(sockfd netdev.Sockfd, buf []byte) (int, error) {
+func (r *rtl8720dn) sendChunk(sockfd int, buf []byte) (int, error) {
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
 		result := r.rpc_lwip_send(int32(sock), buf, 0x00000008)
 		if result == -1 {
 			return -1, fmt.Errorf("Send error")
 		}
 		return int(result), nil
-	case netdev.IPPROTO_TLS:
+	case syscall.IPPROTO_TLS:
 		result := r.rpc_wifi_send_ssl_data(uint32(sock), buf, uint16(len(buf)))
 		if result == -1 {
 			return -1, fmt.Errorf("TLS Send error")
@@ -612,10 +619,10 @@ func (r *rtl8720dn) sendChunk(sockfd netdev.Sockfd, buf []byte) (int, error) {
 		return int(result), nil
 	}
 
-	return -1, netdev.ErrProtocolNotSupported
+	return -1, drivers.ErrProtocolNotSupported
 }
 
-func (r *rtl8720dn) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
 	timeout time.Duration) (int, error) {
 
 	if debugging(debugNetdev) {
@@ -645,7 +652,7 @@ func (r *rtl8720dn) Send(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlag
 	return len(buf), nil
 }
 
-func (r *rtl8720dn) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlags,
+func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 	timeout time.Duration) (int, error) {
 
 	if debugging(debugNetdev) {
@@ -671,15 +678,15 @@ func (r *rtl8720dn) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlag
 		// Check if we've timed out
 		if timeout > 0 {
 			if time.Now().Before(expire) {
-				return -1, netdev.ErrRecvTimeout
+				return -1, drivers.ErrRecvTimeout
 			}
 		}
 
 		switch socket.protocol {
-		case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
+		case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
 			n = r.rpc_lwip_recv(int32(sock), buf[:length],
 				uint32(length), 0x00000008, 0)
-		case netdev.IPPROTO_TLS:
+		case syscall.IPPROTO_TLS:
 			n = r.rpc_wifi_get_ssl_receive(uint32(sock),
 				buf[:length], int32(length))
 		}
@@ -706,7 +713,7 @@ func (r *rtl8720dn) Recv(sockfd netdev.Sockfd, buf []byte, flags netdev.SockFlag
 	}
 }
 
-func (r *rtl8720dn) Close(sockfd netdev.Sockfd) error {
+func (r *rtl8720dn) Close(sockfd int) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
@@ -724,15 +731,15 @@ func (r *rtl8720dn) Close(sockfd netdev.Sockfd) error {
 	}
 
 	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
+	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
 		result = r.rpc_lwip_close(int32(sock))
-	case netdev.IPPROTO_TLS:
+	case syscall.IPPROTO_TLS:
 		r.rpc_wifi_stop_ssl_socket(uint32(sock))
 		r.rpc_wifi_ssl_client_destroy(uint32(sock))
 	}
 
 	if result == -1 {
-		return netdev.ErrClosingSocket
+		return drivers.ErrClosingSocket
 	}
 
 	socket.inuse = false
@@ -740,14 +747,13 @@ func (r *rtl8720dn) Close(sockfd netdev.Sockfd) error {
 	return nil
 }
 
-func (r *rtl8720dn) SetSockOpt(sockfd netdev.Sockfd, level netdev.SockOptLevel,
-	opt netdev.SockOpt, value any) error {
+func (r *rtl8720dn) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[SetSockOpt] sockfd: %d\r\n", sockfd)
 	}
 
-	return netdev.ErrNotSupported
+	return drivers.ErrNotSupported
 }
 
 func (r *rtl8720dn) disconnect() error {
@@ -768,13 +774,14 @@ func (r *rtl8720dn) getMACAddr() string {
 	return string(mac[:])
 }
 
-func (r *rtl8720dn) getIP() (ip, subnet, gateway netdev.IP, err error) {
+func (r *rtl8720dn) getIP() (ip, subnet, gateway net.IP, err error) {
 	var ip_info [12]byte
 	result := r.rpc_tcpip_adapter_get_ip_info(0, ip_info[:])
 	if result == -1 {
 		err = fmt.Errorf("Get IP info failed")
 		return
 	}
+	ip, subnet, gateway = make([]byte, 4), make([]byte, 4), make([]byte, 4)
 	copy(ip[:], ip_info[0:4])
 	copy(subnet[:], ip_info[4:8])
 	copy(gateway[:], ip_info[8:12])

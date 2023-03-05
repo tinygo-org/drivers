@@ -16,13 +16,12 @@ import (
 	"io"
 	"log"
 	"machine"
-	"net"
 	"net/http"
-	"net/netdev"
 	"net/url"
 	"strings"
 	"time"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/ili9341"
 	"tinygo.org/x/drivers/rtl8720dn"
 	"tinygo.org/x/tinyfont/proggy"
@@ -45,7 +44,7 @@ var (
 		Baudrate:   614400,
 	}
 
-	dev = rtl8720dn.New(&netcfg)
+	netdev = rtl8720dn.New(&netcfg)
 
 	display = ili9341.NewSPI(
 		machine.SPI3,
@@ -67,12 +66,12 @@ var (
 	font = &proggy.TinySZ8pt7b
 )
 
-func notify(e netdev.Event) {
+func notify(e drivers.NetlinkEvent) {
 	switch e {
-	case netdev.EventNetUp:
+	case drivers.NetlinkEventNetUp:
 		fmt.Println("Wifi connection UP")
 		fmt.Fprintf(terminal, "Wifi connection UP")
-	case netdev.EventNetDown:
+	case drivers.NetlinkEventNetDown:
 		fmt.Println("Wifi connection DOWN")
 		fmt.Fprintf(terminal, "Wifi connection DOWN")
 	}
@@ -101,10 +100,9 @@ func main() {
 
 	fmt.Fprintf(terminal, "Connecting to %s...\r\n", ssid)
 
-	dev.NetNotify(notify)
-	net.UseNetdev(dev)
+	netdev.NetNotify(notify)
 
-	if err := dev.NetConnect(); err != nil {
+	if err := netdev.NetConnect(); err != nil {
 		log.Fatal(err)
 	}
 
