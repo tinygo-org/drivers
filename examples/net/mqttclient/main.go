@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"machine"
 	"time"
 
@@ -40,13 +41,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	clientId := "tinygo-client-" + randomString(10)
+	fmt.Printf("ClientId: %s\n", clientId)
+
 	options := mqtt.NewClientOptions()
 	options.AddBroker(broker)
-	options.SetClientID("tinygo_mqtt_example")
+	options.SetClientID(clientId)
 	options.SetDefaultPublishHandler(messagePubHandler)
 	options.OnConnect = connectHandler
 	options.OnConnectionLost = connectionLostHandler
 
+	fmt.Printf("Connecting to MQTT broker at %s\n", broker)
 	client := mqtt.NewClient(options)
 	token := client.Connect()
 	if token.Wait() && token.Error() != nil {
@@ -55,18 +60,36 @@ func main() {
 
 	topic := "cpu/freq"
 	token = client.Subscribe(topic, 1, nil)
-	token.Wait()
+	if token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
 	fmt.Printf("Subscribed to topic %s\n", topic)
 
 	for i := 0; i < 10; i++ {
 		freq := float32(machine.CPUFrequency()) / 1000000
 		payload := fmt.Sprintf("%.02fMhz", freq)
 		token = client.Publish(topic, 0, false, payload)
-		token.Wait()
+		if token.Wait() && token.Error() != nil {
+			panic(token.Error())
+		}
 		time.Sleep(time.Second)
 	}
 
 	client.Disconnect(100)
+}
+
+// Returns an int >= min, < max
+func randomInt(min, max int) int {
+	return min + rand.Intn(max-min)
+}
+
+// Generate a random string of A-Z chars with len = l
+func randomString(len int) string {
+	bytes := make([]byte, len)
+	for i := 0; i < len; i++ {
+		bytes[i] = byte(randomInt(65, 90))
+	}
+	return string(bytes)
 }
 
 // Wait for user to open serial console

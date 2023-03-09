@@ -54,16 +54,6 @@ func (d *Device) DisconnectFromAP() error {
 	return err
 }
 
-// GetMacAddress returns the ESP8266/ESP32 current station MAC addess
-func (d *Device) GetMacAddress() string {
-	d.Query(SetStationMACAddress)
-	r, err := d.Response(1000)
-	if err != nil {
-		return "unknown"
-	}
-	return string(r)
-}
-
 // GetClientIP returns the ESP8266/ESP32 current client IP addess when connected to an Access Point.
 func (d *Device) GetClientIP() (string, error) {
 	d.Query(SetStationIP)
