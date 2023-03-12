@@ -76,6 +76,12 @@ func TestParseRMC(t *testing.T) {
 		t.Error("should have parsed")
 	}
 
+	c.Assert(fix.Time.Year(), qt.Equals, 2022)
+	c.Assert(fix.Time.Month(), qt.Equals, time.May)
+	c.Assert(fix.Time.Day(), qt.Equals, 13)
+	c.Assert(fix.Time.Hour(), qt.Equals, 20)
+	c.Assert(fix.Time.Minute(), qt.Equals, 35)
+	c.Assert(fix.Time.Second(), qt.Equals, 22)
 	c.Assert(fix.Latitude, qt.Equals, float32(51.15043640136719))
 	c.Assert(fix.Longitude, qt.Equals, float32(-114.03067779541016))
 }
