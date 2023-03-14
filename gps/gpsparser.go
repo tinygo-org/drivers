@@ -179,7 +179,7 @@ func findSatellites(val string) (n int16) {
 	return 0
 }
 
-// findDate returns the speed from an RMC NMEA sentence.
+// findDate returns the date from an RMC NMEA sentence.
 func findDate(val string) time.Time {
 	if len(val) < 6 {
 		return time.Time{}
