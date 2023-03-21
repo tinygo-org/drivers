@@ -15,7 +15,8 @@ import (
 
 // So we can keep track of the origin of interruption
 const (
-	SPI_BUFFER_SIZE = 256
+	RADIOEVENTCHAN_SIZE = 1
+	SPI_BUFFER_SIZE     = 5
 )
 
 // Device wraps an SPI connection to a SX127x device.
@@ -27,8 +28,8 @@ type Device struct {
 	controller     RadioController      // to manage interactions with the radio
 	deepSleep      bool                 // Internal Sleep state
 	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
-	spiBuffer      [SPI_BUFFER_SIZE]uint8
-	packetIndex    uint8 // FIXME ... useless ?
+	spiTxBuf       []byte               // global Tx buffer to avoid heap allocations in interrupt
+	spiRxBuf       []byte               // global Rx buffer to avoid heap allocations in interrupt
 }
 
 // --------------------------------------------------
@@ -46,7 +47,9 @@ func New(spi machine.SPI, rstPin machine.Pin) *Device {
 	k := Device{
 		spi:            spi,
 		rstPin:         rstPin,
-		radioEventChan: make(chan lora.RadioEvent, 10),
+		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
+		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
+		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
 	}
 	return &k
 }
@@ -79,21 +82,34 @@ func (d *Device) DetectDevice() bool {
 // ReadRegister reads register value
 func (d *Device) ReadRegister(reg uint8) uint8 {
 	d.controller.SetNss(false)
-	d.spi.Tx([]byte{reg & 0x7f}, nil)
-	var value [1]byte
-	d.spi.Tx(nil, value[:])
+	// Send register
+	//d.spiTxBuf = []byte{reg & 0x7f}
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, byte(reg&0x7f))
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Read value
+	d.spiRxBuf = d.spiRxBuf[:0]
+	d.spiRxBuf = append(d.spiRxBuf, 0)
+	d.spi.Tx(nil, d.spiRxBuf)
 	d.controller.SetNss(true)
-	return value[0]
+	return d.spiRxBuf[0]
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(reg uint8, value uint8) uint8 {
-	var response [1]byte
 	d.controller.SetNss(false)
-	d.spi.Tx([]byte{reg | 0x80}, nil)
-	d.spi.Tx([]byte{value}, response[:])
+	// Send register
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, byte(reg|0x80))
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Send value
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, byte(value))
+	d.spiRxBuf = d.spiRxBuf[:0]
+	d.spiRxBuf = append(d.spiRxBuf, 0)
+	d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.controller.SetNss(true)
-	return response[0]
+	return d.spiRxBuf[0]
 }
 
 // SetOpMode changes the sx1276 mode
@@ -434,16 +450,13 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	// Mask all but RxDone
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS_MASK, ^(SX127X_IRQ_LORA_RXDONE_MASK | SX127X_IRQ_LORA_RXTOUT_MASK))
 
-	// Get Radio Event Channel
-	radioCh := d.GetRadioEventChan()
-
 	// Single RX mode don't properly handle Timeouts on sx127x, so we use Continuous RX
 	// Go routine is a workaround to stop the Continuous RX and fire a timeout Event
 	d.SetOpMode(SX127X_OPMODE_RX)
 
 	var msg lora.RadioEvent
 	select {
-	case msg = <-radioCh:
+	case msg = <-d.radioEventChan:
 		if msg.EventType != lora.RadioEventRxDone {
 			return nil, errors.New("Unexpected Radio Event while RX " + string(0x30+msg.EventType))
 		}
@@ -459,10 +472,11 @@ func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	pLen := d.ReadRegister(SX127X_REG_RX_NB_BYTES)
 	d.WriteRegister(SX127X_REG_FIFO_ADDR_PTR, d.ReadRegister(SX127X_REG_FIFO_RX_CURRENT_ADDR))
 
+	rxData := []uint8{}
 	for i := uint8(0); i < pLen; i++ {
-		d.spiBuffer[i] = d.ReadRegister(SX127X_REG_FIFO)
+		rxData = append(rxData, d.ReadRegister(SX127X_REG_FIFO))
 	}
-	return d.spiBuffer[:pLen], nil
+	return rxData, nil
 }
 
 // SetTxContinuousMode enable Continuous Tx mode
@@ -506,26 +520,37 @@ func (d *Device) RandomU32() uint32 {
 
 // HandleInterrupt must be called by main code on DIO state change.
 func (d *Device) HandleInterrupt() {
+
 	// Get IRQ and clear
 	st := d.ReadRegister(SX127X_REG_IRQ_FLAGS)
 	d.WriteRegister(SX127X_REG_IRQ_FLAGS, 0xFF)
 
-	rChan := d.GetRadioEventChan()
-
 	if (st & SX127X_IRQ_LORA_RXDONE_MASK) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventRxDone, uint16(st), nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX127X_IRQ_LORA_TXDONE_MASK) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventTxDone, uint16(st), nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX127X_IRQ_LORA_RXTOUT_MASK) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventTimeout, uint16(st), nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX127X_IRQ_LORA_CRCERR_MASK) > 0 {
-		rChan <- lora.NewRadioEvent(lora.RadioEventCrcError, uint16(st), nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}:
+		default:
+		}
 	}
 }
 
