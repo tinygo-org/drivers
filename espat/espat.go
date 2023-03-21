@@ -27,15 +27,11 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
-	"tinygo.org/x/drivers/netdev"
-)
-
-var (
-	version    = "0.0.1"
-	driverName = "Espressif ESP8266/ESP32 AT Wifi network device driver (espat)"
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
@@ -64,27 +60,28 @@ type Device struct {
 	// data received from a TCP/UDP connection forwarded by the ESP8266/ESP32
 	data   []byte
 	socket socket
+	mu     sync.Mutex
 }
 
 func New(cfg *Config) *Device {
 	d := Device{
 		cfg:      cfg,
-		response: make([]byte, 512),
-		data:     make([]byte, 0, 1024),
+		response: make([]byte, 1500),
+		data:     make([]byte, 0, 1500),
 	}
-	netdev.Use(&d)
-	var _ netdev.Ifacer = (*Device)(nil)
+
+	drivers.UseNetdev(&d)
+
+	// assert that driver implements Netlinker
+	var _ drivers.Netlinker = (*Device)(nil)
+
 	return &d
 }
 
 func (d *Device) NetConnect() error {
 
-	fmt.Printf("\r\n")
-	fmt.Printf("%s\r\n\r\n", driverName)
-	fmt.Printf("Driver version                 : %s\r\n\r\n", version)
-
 	if len(d.cfg.Ssid) == 0 {
-		return netdev.ErrMissingSSID
+		return drivers.ErrMissingSSID
 	}
 
 	d.uart = d.cfg.Uart
@@ -102,35 +99,29 @@ func (d *Device) NetConnect() error {
 
 	if !d.Connected() {
 		fmt.Printf("FAILED\r\n")
-		return netdev.ErrConnectFailed
+		return drivers.ErrConnectFailed
 	}
 
 	fmt.Printf("CONNECTED\r\n")
-
-	fmt.Printf("\r\n")
-	fmt.Printf("ESP8266/ESP32 firmware version : %s\r\n", string(d.Version()))
-	fmt.Printf("MAC address                    : %s\r\n", d.GetMacAddress())
-	fmt.Printf("\r\n")
 
 	// Connect to Wifi AP
 	fmt.Printf("Connecting to Wifi SSID '%s'...", d.cfg.Ssid)
 
 	d.SetWifiMode(WifiModeClient)
+
 	err := d.ConnectToAP(d.cfg.Ssid, d.cfg.Passphrase, 10 /* secs */)
 	if err != nil {
 		fmt.Printf("FAILED\r\n")
-		return netdev.ErrConnectFailed
+		return err
 	}
 
 	fmt.Printf("CONNECTED\r\n")
 
-	ip, err := d.GetClientIP()
+	ip, err := d.GetIPAddr()
 	if err != nil {
-		return netdev.ErrConnectFailed
+		return err
 	}
-
-	fmt.Printf("\r\n")
-	fmt.Printf("DHCP-assigned IP               : %s\r\n", ip)
+	fmt.Printf("DHCP-assigned IP: %s\r\n", ip)
 	fmt.Printf("\r\n")
 
 	return nil
@@ -141,7 +132,7 @@ func (d *Device) NetDisconnect() {
 	fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", d.cfg.Ssid)
 }
 
-func (d *Device) NetNotify(cb func(netdev.Event)) {
+func (d *Device) NetNotify(cb func(drivers.NetlinkEvent)) {
 	// Not supported
 }
 
@@ -151,12 +142,22 @@ func (d *Device) GetHostByName(name string) (net.IP, error) {
 }
 
 func (d *Device) GetHardwareAddr() (net.HardwareAddr, error) {
-	return net.ParseMAC(d.GetMacAddress())
+	return net.HardwareAddr{}, drivers.ErrNotSupported
 }
 
 func (d *Device) GetIPAddr() (net.IP, error) {
-	ip, err := d.GetClientIP()
-	return net.ParseIP(ip), err
+	resp, err := d.GetClientIP()
+	if err != nil {
+		return net.IP{}, err
+	}
+	prefix := "+CIPSTA:ip:"
+	for _, line := range strings.Split(resp, "\n") {
+		if ok := strings.HasPrefix(line, prefix); ok {
+			ip := line[len(prefix)+1:len(line)-2]
+			return net.ParseIP(ip), nil
+		}
+	}
+	return net.IP{}, fmt.Errorf("Error getting IP address")
 }
 
 func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
@@ -164,7 +165,7 @@ func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 	switch domain {
 	case syscall.AF_INET:
 	default:
-		return -1, netdev.ErrFamilyNotSupported
+		return -1, drivers.ErrFamilyNotSupported
 	}
 
 	switch {
@@ -172,12 +173,12 @@ func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 	case protocol == syscall.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
 	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, drivers.ErrProtocolNotSupported
 	}
 
 	// Only supporting single connection mode, so only one socket at a time
 	if d.socket.inUse {
-		return -1, netdev.ErrNoMoreSockets
+		return -1, drivers.ErrNoMoreSockets
 	}
 	d.socket.inUse = true
 	d.socket.protocol = protocol
@@ -194,32 +195,40 @@ func (d *Device) Bind(sockfd int, ip net.IP, port int) error {
 func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 	var err error
 	var addr = ip.String()
-	var sport = strconv.Itoa(port)
+	var rport = strconv.Itoa(port)
 	var lport = strconv.Itoa(d.socket.lport)
 
 	switch d.socket.protocol {
 	case syscall.IPPROTO_TCP:
-		err = d.ConnectTCPSocket(addr, sport)
+		err = d.ConnectTCPSocket(addr, rport)
 	case syscall.IPPROTO_UDP:
-		err = d.ConnectUDPSocket(addr, sport, lport)
+		err = d.ConnectUDPSocket(addr, rport, lport)
 	case syscall.IPPROTO_TLS:
-		err = d.ConnectSSLSocket(addr, sport)
+		err = d.ConnectSSLSocket(host, rport)
 	}
 
-	return err
+	if err != nil {
+		if host == "" {
+			return fmt.Errorf("Connect to %s:%d timed out", ip, port)
+		} else {
+			return fmt.Errorf("Connect to %s:%d timed out", host, port)
+		}
+	}
+
+	return nil
 }
 
 func (d *Device) Listen(sockfd int, backlog int) error {
 	switch d.socket.protocol {
 	case syscall.IPPROTO_UDP:
 	default:
-		return netdev.ErrProtocolNotSupported
+		return drivers.ErrProtocolNotSupported
 	}
 	return nil
 }
 
 func (d *Device) Accept(sockfd int, ip net.IP, port int) (int, error) {
-	return -1, netdev.ErrNotSupported
+	return -1, drivers.ErrNotSupported
 }
 
 func (d *Device) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, error) {
@@ -240,6 +249,9 @@ func (d *Device) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, 
 
 func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
 
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	// Break large bufs into chunks so we don't overrun the hw queue
 
 	chunkSize := 1436
@@ -259,6 +271,9 @@ func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) 
 
 func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
 
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	var length = len(buf)
 	var expire = time.Now().Add(timeout)
 
@@ -271,7 +286,7 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) 
 		// Check if we've timed out
 		if timeout > 0 {
 			if time.Now().Before(expire) {
-				return -1, netdev.ErrRecvTimeout
+				return -1, drivers.ErrRecvTimeout
 			}
 		}
 
@@ -280,7 +295,9 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) 
 			return -1, err
 		}
 		if n == 0 {
+			d.mu.Unlock()
 			time.Sleep(100 * time.Millisecond)
+			d.mu.Lock()
 			continue
 		}
 
@@ -289,11 +306,15 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) 
 }
 
 func (d *Device) Close(sockfd int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.socket.inUse = false
 	return d.DisconnectSocket()
 }
 
 func (d *Device) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
-	return netdev.ErrNotSupported
+	return drivers.ErrNotSupported
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.
@@ -301,7 +322,7 @@ func (d *Device) Connected() bool {
 	d.Execute(Test)
 
 	// handle response here, should include "OK"
-	_, err := d.Response(100)
+	_, err := d.Response(1000)
 	if err != nil {
 		return false
 	}
@@ -344,9 +365,10 @@ func (d Device) Set(cmd, params string) error {
 // Version returns the ESP8266/ESP32 firmware version info.
 func (d Device) Version() []byte {
 	d.Execute(Version)
-	r, err := d.Response(100)
+	r, err := d.Response(2000)
 	if err != nil {
-		return []byte("unknown")
+		//return []byte("unknown")
+		return []byte(err.Error())
 	}
 	return r
 }
@@ -448,14 +470,15 @@ func (d *Device) parseIPD(end int) error {
 	val := string(d.response[s+5 : e])
 
 	// TODO: verify count
-	_, err := strconv.Atoi(val)
+	v, err := strconv.Atoi(val)
 	if err != nil {
 		// not expected data here. what to do?
 		return err
 	}
 
 	// load up the socket data
-	d.data = append(d.data, d.response[e+1:end]...)
+	//d.data = append(d.data, d.response[e+1:end]...)
+	d.data = append(d.data, d.response[e+1:e+1+v]...)
 	return nil
 }
 
