@@ -6,7 +6,7 @@ The way this driver works is by using the SPI interface of your microcontroller 
 
 ## Using the WiFiNINA Driver
 
-For information on how to use this driver, please take a look at the examples located in the [examples/wifinina](../examples/wifinina) directory.
+For information on how to use this driver, please take a look at the examples located in the [examples/net](../examples/net) directory.
 
 ## Firmware
 
