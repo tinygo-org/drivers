@@ -22,6 +22,10 @@ type Rotation uint8
 // FrameRate controls the frame rate used by the display.
 type FrameRate uint8
 
+var (
+	errOutOfBounds = errors.New("rectangle coordinates outside display area")
+)
+
 // Device wraps an SPI connection.
 type Device struct {
 	bus             drivers.SPI
@@ -276,6 +280,18 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 		}
 		j -= d.batchLength
 	}
+	return nil
+}
+
+// DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
+	k, i := d.Size()
+	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
+		x >= k || (x+w) > k || y >= i || (y+h) > i {
+		return errOutOfBounds
+	}
+	d.setWindow(x, y, w, h)
+	d.Tx(data, false)
 	return nil
 }
 
