@@ -1,5 +1,4 @@
 //go:build p1am_100
-// +build p1am_100
 
 package main
 

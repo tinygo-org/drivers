@@ -1,5 +1,4 @@
 //go:build nano_33_ble
-// +build nano_33_ble
 
 // Nano 33 BLE [Sense] has LSM9DS1 unit on-board.
 // This custom Configure function powers unit up

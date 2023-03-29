@@ -31,8 +31,8 @@ func (d Device) Connected() bool {
 }
 
 // Configure sets up the device for communication.
-func (d Device) Configure() {
-	d.bus.WriteRegister(uint8(d.Address), PWR_MGMT_1, []uint8{0})
+func (d Device) Configure() error {
+	return d.SetClockSource(CLOCK_INTERNAL)
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -77,4 +77,19 @@ func (d Device) ReadRotation() (x int32, y int32, z int32) {
 	y = int32(int16((uint16(data[2])<<8)|uint16(data[3]))) * 15625 / 2048 * 1000
 	z = int32(int16((uint16(data[4])<<8)|uint16(data[5]))) * 15625 / 2048 * 1000
 	return
+}
+
+// SetClockSource allows the user to configure the clock source.
+func (d Device) SetClockSource(source uint8) error {
+	return d.bus.WriteRegister(uint8(d.Address), PWR_MGMT_1, []uint8{source})
+}
+
+// SetFullScaleGyroRange allows the user to configure the scale range for the gyroscope.
+func (d Device) SetFullScaleGyroRange(rng uint8) error {
+	return d.bus.WriteRegister(uint8(d.Address), GYRO_CONFIG, []uint8{rng})
+}
+
+// SetFullScaleAccelRange allows the user to configure the scale range for the accelerometer.
+func (d Device) SetFullScaleAccelRange(rng uint8) error {
+	return d.bus.WriteRegister(uint8(d.Address), ACCEL_CONFIG, []uint8{rng})
 }

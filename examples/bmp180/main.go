@@ -27,6 +27,9 @@ func main() {
 		pressure, _ := sensor.ReadPressure()
 		println("Pressure", float32(pressure)/100000, "hPa")
 
+		altitude, _ := sensor.ReadAltitude()
+		println("Altitude", altitude, "meters")
+
 		time.Sleep(2 * time.Second)
 	}
 }

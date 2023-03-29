@@ -1,5 +1,4 @@
 //go:build atsamd21 && !p1am_100
-// +build atsamd21,!p1am_100
 
 package main
 
