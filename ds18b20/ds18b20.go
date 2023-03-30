@@ -6,117 +6,84 @@ package ds18b20 // import "tinygo.org/x/drivers/ds18b20"
 
 import (
 	"errors"
-	"tinygo.org/x/drivers/onewire"
 )
 
 // Device ROM commands
 const (
-	DS18B20_CONVERT_TEMPERATURE uint8 = 0x44
-	DS18B20_READ_SCRATCHPAD     uint8 = 0xBE
-	DS18B20_COPY_SCRATCHPAD     uint8 = 0x48
-	DS18B20_WRITE_SCRATCHPAD    uint8 = 0x4E
-	DS18B20_READ_POWER_SUPPLY   uint8 = 0xB4
-	DS18B20_RECALL_E2           uint8 = 0xB8
+	CONVERT_TEMPERATURE uint8 = 0x44
+	READ_SCRATCHPAD     uint8 = 0xBE
+	WRITE_SCRATCHPAD    uint8 = 0x4E
 )
 
-// Device wraps the 1-wire protocol to a ds18b20 device.
+type OneWireDevice interface {
+	Write(uint8)
+	Read() uint8
+	Select([]uint8) error
+	Сrc8([]uint8, int) uint8
+}
+
+// Device wraps a connection to an 1-Wire devices.
 type Device struct {
-	owd        onewire.Device
-	RomID      []uint8
-	ScratchPad []uint8
+	owd OneWireDevice
 }
 
 // Errors list
 var (
 	errReadTemperature = errors.New("Error: DS18B20. Read temperature error: CRC mismatch.")
-	errReadAddress     = errors.New("Error: DS18B20. Read address error: CRC mismatch.")
 )
 
-// New returns a ds18b20 device
-func New(owd onewire.Device) Device {
+func New(owd OneWireDevice) Device {
 	return Device{
-		owd:        owd,
-		RomID:      make([]uint8, 8),
-		ScratchPad: make([]uint8, 9),
+		owd: owd,
 	}
 }
 
-// ThermometerResolution set thermometer resolution from 9 to 12 bits
-func (d Device) ThermometerResolution(id, resolution uint8) error {
+// Configure. Initializes the device, left for compatibility reasons.
+func (d Device) Configure() {}
+
+// ThermometerResolution sets thermometer resolution from 9 to 12 bits
+func (d Device) ThermometerResolution(romid []uint8, resolution uint8) {
 	if 9 <= resolution && resolution <= 12 {
-		resolution = ((resolution - 9) << 5) | 0x1F
-		err := d.owd.Reset()
-		if err != nil {
-			return err
-		}
-		d.addressRoutine()
-		d.owd.Write(DS18B20_WRITE_SCRATCHPAD)
-		d.owd.Write(0xFF)
-		d.owd.Write(0x00)
-		d.owd.Write(resolution)
+		d.owd.Select(romid)
+		d.owd.Write(WRITE_SCRATCHPAD)               // send three data bytes to scratchpad (TH, TL, and config)
+		d.owd.Write(0xFF)                           // to TH
+		d.owd.Write(0x00)                           // to TL
+		d.owd.Write(((resolution - 9) << 5) | 0x1F) // to resolution config
 	}
-	return nil
 }
 
-// RequestTemperature sends request
-func (d Device) RequestTemperature() error {
-	if err := d.owd.Reset(); err != nil {
-		return err
+// RequestTemperature sends request to device
+func (d Device) RequestTemperature(romid []uint8) {
+	d.owd.Select(romid)
+	d.owd.Write(CONVERT_TEMPERATURE)
+}
+
+// ReadTemperatureRaw returns the raw temperature.
+// ScratchPad memory map:
+// byte 0: Temperature LSB
+// byte 1: Temperature MSB
+func (d Device) ReadTemperatureRaw(romid []uint8) ([]uint8, error) {
+	spb := make([]uint8, 9) // ScratchPad buffer
+	d.owd.Select(romid)
+	d.owd.Write(READ_SCRATCHPAD)
+	for i := 0; i < 9; i++ {
+		spb[i] = d.owd.Read()
 	}
-	d.addressRoutine()
-	d.owd.Write(DS18B20_CONVERT_TEMPERATURE)
-	return nil
+	if d.owd.Сrc8(spb, 8) != spb[8] {
+		return nil, errReadTemperature
+	}
+	return spb[:2:2], nil
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
-//
-// 1 bit degrees = 1/16 = 0.0625
-//
-// TEMPERATURE/DATA RELATIONSHIP
-// +125.0000°C 0000 0111 1101 0000 07D0h
-// +085.0000°C 0000 0101 0101 0000 0550h
-// +025.0625°C 0000 0001 1001 0001 0191h
-// +010.1250°C 0000 0000 1010 0010 00A2h
-// +000.5000°C 0000 0000 0000 1000 0008h
-// ±000.0000°C 0000 0000 0000 0000 0000h
-// -000.5000°C 1111 1111 1111 1000 FFF8h
-// -010.1250°C 1111 1111 0101 1110 FF5Eh
-// -025.0625°C 1111 1110 0110 1111 FE6Fh
-// -055.0000°C 1111 1100 1001 0000 FC90h
-func (d Device) ReadTemperature() (temperature int32, err error) {
-	if err := d.owd.Reset(); err != nil {
-		return temperature, err
+func (d Device) ReadTemperature(romid []uint8) (int32, error) {
+	raw, err := d.ReadTemperatureRaw(romid)
+	if err != nil {
+		return 0, err
 	}
-	d.addressRoutine()
-	d.owd.Write(DS18B20_READ_SCRATCHPAD)
-	for i := 0; i < 9; i++ {
-		d.ScratchPad[i] = d.owd.Read()
+	t := int32(uint16(raw[0]) | uint16(raw[1])<<8)
+	if t&0x8000 == 0x8000 {
+		t -= 0x10000
 	}
-	if onewire.Сrc8(d.ScratchPad, 8) != d.ScratchPad[8] {
-		return temperature, errReadTemperature
-	}
-	temperature = int32(uint16(d.ScratchPad[0]) | uint16(d.ScratchPad[1])<<8)
-	if temperature&0x8000 == 0x8000 {
-		temperature -= 0x10000
-	}
-	return (temperature * 625 / 10), nil
-}
-
-// ReadAddress
-func (d Device) ReadAddress() error {
-	if err := d.owd.Reset(); err != nil {
-		return err
-	}
-	d.owd.Write(onewire.READ_ROM)
-	for i := 0; i < 8; i++ {
-		d.RomID[i] = d.owd.Read()
-	}
-	if onewire.Сrc8(d.RomID, 7) != d.RomID[7] {
-		return errReadAddress
-	}
-	return nil
-}
-
-func (d Device) addressRoutine() {
-	d.owd.Write(onewire.SKIP_ROM)
+	return (t * 625 / 10), nil
 }
