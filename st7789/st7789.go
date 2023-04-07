@@ -55,6 +55,11 @@ type Config struct {
 	ColumnOffset int16
 	FrameRate    FrameRate
 	VSyncLines   int16
+
+	// Gamma control. Look in the LCD panel datasheet or provided example code
+	// to find these values. If not set, the defaults will be used.
+	PVGAMCTRL []uint8 // Positive voltage gamma control (14 bytes)
+	NVGAMCTRL []uint8 // Negative voltage gamma control (14 bytes)
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
@@ -154,6 +159,16 @@ func (d *Device) Configure(cfg Config) {
 	// Ready to display
 	d.Command(INVON)                  // Inversion ON
 	time.Sleep(10 * time.Millisecond) //
+
+	// Set gamma tables, if configured.
+	if len(cfg.PVGAMCTRL) == 14 {
+		d.Command(GMCTRP1) // PVGAMCTRL: Positive Voltage Gamma Control
+		d.Tx(cfg.PVGAMCTRL, false)
+	}
+	if len(cfg.NVGAMCTRL) == 14 {
+		d.Command(GMCTRN1) // NVGAMCTRL: Negative Voltage Gamma Control
+		d.Tx(cfg.NVGAMCTRL, false)
+	}
 
 	d.Command(NORON)                  // Normal mode ON
 	time.Sleep(10 * time.Millisecond) //
