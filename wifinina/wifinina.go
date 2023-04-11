@@ -354,8 +354,8 @@ func (w *wifinina) showDevice() {
 		return
 	}
 	if debugging(debugBasic) {
-		mac := w.getMACAddr()
 		fmt.Printf("ESP32 firmware version   : %s\r\n", w.getFwVersion())
+		mac := w.getMACAddr()
 		fmt.Printf("MAC address              : %s\r\n", mac.String())
 		fmt.Printf("\r\n")
 	}
