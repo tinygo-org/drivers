@@ -41,6 +41,8 @@ const (
 
 	PTLAR    = 0x30 ///< Partial Area
 	VSCRDEF  = 0x33 ///< Vertical Scrolling Definition
+	TEOFF    = 0x34 ///< TEOFF: Tearing Effect Line OFF
+	TEON     = 0x35 ///< TEON: Tearing Effect Line ON
 	MADCTL   = 0x36 ///< Memory Access Control
 	VSCRSADD = 0x37 ///< Vertical Scrolling Start Address
 	PIXFMT   = 0x3A ///< COLMOD: Pixel Format Set

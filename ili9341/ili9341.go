@@ -160,6 +160,18 @@ func (d *Device) Display() error {
 	return nil
 }
 
+// EnableTEOutput enables the TE ("tearing effect") line.
+// The TE line goes high when the screen is not currently being updated and can
+// be used to start drawing. When used correctly, it can avoid tearing entirely.
+func (d *Device) EnableTEOutput(on bool) {
+	if on {
+		cmdBuf[0] = 0
+		d.sendCommand(TEON, cmdBuf[:1]) // M=0 (V-blanking only, no H-blanking)
+	} else {
+		d.sendCommand(TEOFF, nil) // TEOFF
+	}
+}
+
 // DrawRGBBitmap copies an RGB bitmap to the internal buffer at given coordinates
 func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
 	k, i := d.Size()
@@ -287,17 +299,17 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	case Rotation90:
 		madctl = MADCTL_MV | MADCTL_BGR
 	case Rotation180:
-		madctl = MADCTL_MY | MADCTL_BGR
+		madctl = MADCTL_MY | MADCTL_BGR | MADCTL_ML
 	case Rotation270:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	case Rotation0Mirror:
 		madctl = MADCTL_BGR
 	case Rotation90Mirror:
-		madctl = MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	case Rotation180Mirror:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_BGR | MADCTL_ML
 	case Rotation270Mirror:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	}
 	cmdBuf[0] = madctl
 	d.sendCommand(MADCTL, cmdBuf[:1])
