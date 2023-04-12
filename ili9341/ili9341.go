@@ -138,10 +138,12 @@ func (d *Device) Configure(config Config) {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (x, y int16) {
-	if d.rotation == 1 || d.rotation == 3 {
+	switch d.rotation {
+	case Rotation90, Rotation270, Rotation90Mirror, Rotation270Mirror:
 		return d.height, d.width
+	default: // Rotation0, Rotation180, etc
+		return d.width, d.height
 	}
-	return d.width, d.height
 }
 
 // SetPixel modifies the internal buffer.
