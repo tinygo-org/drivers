@@ -44,6 +44,7 @@ type Device struct {
 	batchLength     int32
 	isBGR           bool
 	vSyncLines      int16
+	buf             [6]byte
 }
 
 // Config is the configuration for the display
@@ -262,10 +263,12 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 func (d *Device) setWindow(x, y, w, h int16) {
 	x += d.columnOffset
 	y += d.rowOffset
-	d.Tx([]uint8{CASET}, true)
-	d.Tx([]uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)}, false)
-	d.Tx([]uint8{RASET}, true)
-	d.Tx([]uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)}, false)
+	d.Command(CASET)
+	copy(d.buf[:4], []uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)})
+	d.Tx(d.buf[:4], false)
+	d.Command(RASET)
+	copy(d.buf[:4], []uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)})
+	d.Tx(d.buf[:4], false)
 	d.Command(RAMWR)
 }
 
@@ -404,12 +407,14 @@ func (d *Device) SetRotation(rotation Rotation) {
 
 // Command sends a command to the display.
 func (d *Device) Command(command uint8) {
-	d.Tx([]byte{command}, true)
+	d.buf[0] = command
+	d.Tx(d.buf[:1], true)
 }
 
 // Data sends data to the display.
 func (d *Device) Data(data uint8) {
-	d.Tx([]byte{data}, false)
+	d.buf[0] = data
+	d.Tx(d.buf[:1], false)
 }
 
 // Tx sends data to the display
@@ -470,17 +475,19 @@ func (d *Device) IsBGR(bgr bool) {
 // SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 	d.Command(VSCRDEF)
-	d.Tx([]uint8{
+	copy(d.buf[:6], []uint8{
 		uint8(topFixedArea >> 8), uint8(topFixedArea),
 		uint8(d.height - topFixedArea - bottomFixedArea>>8), uint8(d.height - topFixedArea - bottomFixedArea),
-		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)},
-		false)
+		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)})
+	d.Tx(d.buf[:6], false)
 }
 
 // SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
 	d.Command(VSCRSADD)
-	d.Tx([]uint8{uint8(line >> 8), uint8(line)}, false)
+	d.buf[0] = uint8(line >> 8)
+	d.buf[1] = uint8(line)
+	d.Tx(d.buf[:2], false)
 }
 
 // StopScroll returns the display to its normal state.
