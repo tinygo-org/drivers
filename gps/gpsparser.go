@@ -95,6 +95,8 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 		fix.Longitude = findLongitude(fields[5], fields[6])
 		fix.Speed = findSpeed(fields[7])
 		fix.Heading = findHeading(fields[8])
+		date := findDate(fields[9])
+		fix.Time = fix.Time.AddDate(date.Year(), int(date.Month()), date.Day())
 
 		return fix, nil
 	}
@@ -175,6 +177,20 @@ func findSatellites(val string) (n int16) {
 		return n
 	}
 	return 0
+}
+
+// findDate returns the date from an RMC NMEA sentence.
+func findDate(val string) time.Time {
+	if len(val) < 6 {
+		return time.Time{}
+	}
+
+	d, _ := strconv.ParseInt(val[0:2], 10, 8)
+	m, _ := strconv.ParseInt(val[2:4], 10, 8)
+	y, _ := strconv.ParseInt(val[4:6], 10, 8)
+	t := time.Date(int(2000+y), time.Month(m), int(d), 0, 0, 0, 0, time.UTC)
+
+	return t
 }
 
 // findSpeed returns the speed from an RMC NMEA sentence.
