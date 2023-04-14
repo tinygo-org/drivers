@@ -770,7 +770,7 @@ func (w *wifinina) sendTCP(sock sock, buf []byte, timeout time.Duration) (int, e
 
 		// Check if we've timed out
 		if timeout > 0 {
-			if time.Now().Before(expire) {
+			if time.Now().After(expire) {
 				return -1, fmt.Errorf("Send timeout expired")
 			}
 		}
@@ -878,7 +878,7 @@ func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
 	for {
 		// Check if we've timed out
 		if timeout > 0 {
-			if time.Now().Before(expire) {
+			if time.Now().After(expire) {
 				return -1, drivers.ErrRecvTimeout
 			}
 		}
