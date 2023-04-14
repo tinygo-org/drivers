@@ -285,7 +285,7 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) 
 	for {
 		// Check if we've timed out
 		if timeout > 0 {
-			if time.Now().Before(expire) {
+			if time.Now().After(expire) {
 				return -1, drivers.ErrRecvTimeout
 			}
 		}
