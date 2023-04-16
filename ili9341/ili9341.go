@@ -241,6 +241,27 @@ func (d *Device) FillScreen(c color.RGBA) {
 	}
 }
 
+// Set the sleep mode for this LCD panel. When sleeping, the panel uses a lot
+// less power. The LCD won't display an image anymore, but the memory contents
+// will be kept.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		// Shut down LCD panel.
+		d.sendCommand(SLPIN, nil)
+		time.Sleep(5 * time.Millisecond) // 5ms required by the datasheet
+	} else {
+		// Turn the LCD panel back on.
+		d.sendCommand(SLPOUT, nil)
+		// Note: the ili9341 documentation says that it is needed to wait at
+		// least 120ms before going to sleep again. Sleeping here would not be
+		// practical (delays turning on the screen too much), so just hope the
+		// screen won't need to sleep again for at least 120ms.
+		// In practice, it's unlikely the user will set the display to sleep
+		// again within 120ms.
+	}
+	return nil
+}
+
 // GetRotation returns the current rotation of the device
 func (d *Device) GetRotation() Rotation {
 	return d.rotation
