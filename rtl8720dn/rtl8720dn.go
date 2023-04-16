@@ -600,9 +600,16 @@ func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	}
 }
 
-func (r *rtl8720dn) sendChunk(sockfd int, buf []byte) (int, error) {
+func (r *rtl8720dn) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
+
+	// Check if we've timed out
+	if !deadline.IsZero() {
+		if time.Now().After(deadline) {
+			return -1, drivers.ErrTimeout
+		}
+	}
 
 	switch socket.protocol {
 	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
@@ -623,7 +630,7 @@ func (r *rtl8720dn) sendChunk(sockfd int, buf []byte) (int, error) {
 }
 
 func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
-	timeout time.Duration) (int, error) {
+	deadline time.Time) (int, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Send] sockfd: %d, len(buf): %d, flags: %d\r\n",
@@ -635,15 +642,13 @@ func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
 
 	// Break large bufs into chunks
 
-	// TODO handle timeout
-
 	chunkSize := 1436
 	for i := 0; i < len(buf); i += chunkSize {
 		end := i + chunkSize
 		if end > len(buf) {
 			end = len(buf)
 		}
-		_, err := r.sendChunk(sockfd, buf[i:end])
+		_, err := r.sendChunk(sockfd, buf[i:end], deadline)
 		if err != nil {
 			return -1, err
 		}
@@ -653,7 +658,7 @@ func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
 }
 
 func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
-	timeout time.Duration) (int, error) {
+	dealine time.Time) (int, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Recv] sockfd: %d, len(buf): %d, flags: %d\r\n",
@@ -666,7 +671,6 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
 	var length = len(buf)
-	var expire = time.Now().Add(timeout)
 	var n int32
 
 	// Limit length read size to chunk large read requests
@@ -676,9 +680,9 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 
 	for {
 		// Check if we've timed out
-		if timeout > 0 {
-			if time.Now().After(expire) {
-				return -1, drivers.ErrRecvTimeout
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, drivers.ErrTimeout
 			}
 		}
 

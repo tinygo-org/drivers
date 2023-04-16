@@ -231,7 +231,13 @@ func (d *Device) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	return -1, drivers.ErrNotSupported
 }
 
-func (d *Device) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, error) {
+func (d *Device) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
+	// Check if we've timed out
+	if !deadline.IsZero() {
+		if time.Now().After(deadline) {
+			return -1, drivers.ErrTimeout
+		}
+	}
 	err := d.StartSocketSend(len(buf))
 	if err != nil {
 		return -1, err
@@ -247,7 +253,7 @@ func (d *Device) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, 
 	return n, err
 }
 
-func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
+func (d *Device) Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -260,7 +266,7 @@ func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) 
 		if end > len(buf) {
 			end = len(buf)
 		}
-		_, err := d.sendChunk(sockfd, buf[i:end], timeout)
+		_, err := d.sendChunk(sockfd, buf[i:end], deadline)
 		if err != nil {
 			return -1, err
 		}
@@ -269,13 +275,12 @@ func (d *Device) Send(sockfd int, buf []byte, flags int, timeout time.Duration) 
 	return len(buf), nil
 }
 
-func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error) {
+func (d *Device) Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error) {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	var length = len(buf)
-	var expire = time.Now().Add(timeout)
 
 	// Limit length read size to chunk large read requests
 	if length > 1436 {
@@ -284,9 +289,9 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, timeout time.Duration) 
 
 	for {
 		// Check if we've timed out
-		if timeout > 0 {
-			if time.Now().After(expire) {
-				return -1, drivers.ErrRecvTimeout
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, drivers.ErrTimeout
 			}
 		}
 
