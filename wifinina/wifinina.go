@@ -750,10 +750,9 @@ func (w *wifinina) sockDown(sock sock) bool {
 	return true
 }
 
-func (w *wifinina) sendTCP(sock sock, buf []byte, timeout time.Duration) (int, error) {
+func (w *wifinina) sendTCP(sock sock, buf []byte, deadline time.Time) (int, error) {
 
 	var timeoutDataSent = 25
-	var expire = time.Now().Add(timeout)
 
 	// Send it
 	n := int(w.sendData(sock, buf))
@@ -769,9 +768,9 @@ func (w *wifinina) sendTCP(sock sock, buf []byte, timeout time.Duration) (int, e
 		}
 
 		// Check if we've timed out
-		if timeout > 0 {
-			if time.Now().After(expire) {
-				return -1, fmt.Errorf("Send timeout expired")
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, drivers.ErrTimeout
 			}
 		}
 
@@ -791,10 +790,10 @@ func (w *wifinina) sendTCP(sock sock, buf []byte, timeout time.Duration) (int, e
 		w.mu.Lock()
 	}
 
-	return -1, fmt.Errorf("Send timed out")
+	return -1, drivers.ErrTimeout
 }
 
-func (w *wifinina) sendUDP(sock sock, buf []byte, timeout time.Duration) (int, error) {
+func (w *wifinina) sendUDP(sock sock, buf []byte, deadline time.Time) (int, error) {
 
 	// Queue it
 	ok := w.insertDataBuf(sock, buf)
@@ -811,22 +810,29 @@ func (w *wifinina) sendUDP(sock sock, buf []byte, timeout time.Duration) (int, e
 	return len(buf), nil
 }
 
-func (w *wifinina) sendChunk(sockfd int, buf []byte, timeout time.Duration) (int, error) {
+func (w *wifinina) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
 	var sock = sock(sockfd)
 	var socket = w.sockets[sock]
 
+	// Check if we've timed out
+	if !deadline.IsZero() {
+		if time.Now().After(deadline) {
+			return -1, drivers.ErrTimeout
+		}
+	}
+
 	switch socket.protocol {
 	case syscall.IPPROTO_TCP, drivers.IPPROTO_TLS:
-		return w.sendTCP(sock, buf, timeout)
+		return w.sendTCP(sock, buf, deadline)
 	case syscall.IPPROTO_UDP:
-		return w.sendUDP(sock, buf, timeout)
+		return w.sendUDP(sock, buf, deadline)
 	}
 
 	return -1, drivers.ErrProtocolNotSupported
 }
 
 func (w *wifinina) Send(sockfd int, buf []byte, flags int,
-	timeout time.Duration) (int, error) {
+	deadline time.Time) (int, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Send] sockfd: %d, len(buf): %d, flags: %d\r\n",
@@ -844,7 +850,7 @@ func (w *wifinina) Send(sockfd int, buf []byte, flags int,
 		if end > len(buf) {
 			end = len(buf)
 		}
-		_, err := w.sendChunk(sockfd, buf[i:end], timeout)
+		_, err := w.sendChunk(sockfd, buf[i:end], deadline)
 		if err != nil {
 			return -1, err
 		}
@@ -854,7 +860,7 @@ func (w *wifinina) Send(sockfd int, buf []byte, flags int,
 }
 
 func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
-	timeout time.Duration) (int, error) {
+	deadline time.Time) (int, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Recv] sockfd: %d, len(buf): %d, flags: %d\r\n",
@@ -866,20 +872,18 @@ func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
 
 	var sock = sock(sockfd)
 	var socket = w.sockets[sock]
-	var max = len(buf)
 
 	// Limit max read size to chunk large read requests
+	var max = len(buf)
 	if max > 1436 {
 		max = 1436
 	}
 
-	expire := time.Now().Add(timeout)
-
 	for {
 		// Check if we've timed out
-		if timeout > 0 {
-			if time.Now().After(expire) {
-				return -1, drivers.ErrRecvTimeout
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, drivers.ErrTimeout
 			}
 		}
 

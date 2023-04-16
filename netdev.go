@@ -25,8 +25,16 @@ var (
 	ErrNoMoreSockets        = errors.New("No more sockets")
 	ErrClosingSocket        = errors.New("Error closing socket")
 	ErrNotSupported         = errors.New("Not supported")
-	ErrRecvTimeout          = errors.New("Recv timeout expired")
 )
+
+// Duplicate of non-exported net.errTimeout
+var ErrTimeout error = &timeoutError{}
+
+type timeoutError struct{}
+
+func (e *timeoutError) Error() string   { return "i/o timeout" }
+func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Temporary() bool { return true }
 
 //go:linkname UseNetdev net.useNetdev
 func UseNetdev(dev netdever)
@@ -58,8 +66,8 @@ type netdever interface {
 	Connect(sockfd int, host string, ip net.IP, port int) error
 	Listen(sockfd int, backlog int) error
 	Accept(sockfd int, ip net.IP, port int) (int, error)
-	Send(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error)
-	Recv(sockfd int, buf []byte, flags int, timeout time.Duration) (int, error)
+	Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
+	Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Close(sockfd int) error
 	SetSockOpt(sockfd int, level int, opt int, value interface{}) error
 }

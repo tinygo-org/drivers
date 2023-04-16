@@ -66,7 +66,7 @@ func sendBatch() {
 		fmt.Fprint(buf,
 			"\r---------------------------- i == ", i, " ----------------------------"+
 				"\r---------------------------- i == ", i, " ----------------------------")
-		if w, err = netdev.Send(fd, buf.Bytes(), 0, 0); err != nil {
+		if w, err = netdev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
 			println("error:", err.Error(), "\r")
 			break
 		}
@@ -78,7 +78,7 @@ func sendBatch() {
 	fmt.Fprint(buf, "\nWrote ", n, " bytes in ", ms, " ms\r\n")
 	message(buf.String())
 
-	if _, err := netdev.Send(fd, buf.Bytes(), 0, 0); err != nil {
+	if _, err := netdev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
 		println("error:", err.Error(), "\r")
 	}
 
