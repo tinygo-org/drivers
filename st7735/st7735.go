@@ -409,6 +409,24 @@ func (d *Device) EnableBacklight(enable bool) {
 	}
 }
 
+// Set the sleep mode for this LCD panel. When sleeping, the panel uses a lot
+// less power. The LCD won't display an image anymore, but the memory contents
+// will be kept.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		// Shut down LCD panel.
+		d.Command(SLPIN)
+		time.Sleep(5 * time.Millisecond) // 5ms required by the datasheet
+	} else {
+		// Turn the LCD panel back on.
+		d.Command(SLPOUT)
+		// The st7735 datasheet says it is necessary to wait 120ms before
+		// sending another command.
+		time.Sleep(120 * time.Millisecond)
+	}
+	return nil
+}
+
 // InverColors inverts the colors of the screen
 func (d *Device) InvertColors(invert bool) {
 	if invert {
