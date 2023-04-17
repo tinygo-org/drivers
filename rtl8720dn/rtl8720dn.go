@@ -658,7 +658,7 @@ func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
 }
 
 func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
-	dealine time.Time) (int, error) {
+	deadline time.Time) (int, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[Recv] sockfd: %d, len(buf): %d, flags: %d\r\n",
