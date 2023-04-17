@@ -17,7 +17,9 @@ import (
 )
 
 // Rotation controls the rotation used by the display.
-type Rotation uint8
+//
+// Deprecated: use drivers.Rotation instead.
+type Rotation = drivers.Rotation
 
 // FrameRate controls the frame rate used by the display.
 type FrameRate uint8
@@ -39,7 +41,7 @@ type Device struct {
 	rowOffsetCfg    int16
 	columnOffset    int16
 	rowOffset       int16
-	rotation        Rotation
+	rotation        drivers.Rotation
 	frameRate       FrameRate
 	batchLength     int32
 	isBGR           bool
@@ -51,7 +53,7 @@ type Device struct {
 type Config struct {
 	Width        int16
 	Height       int16
-	Rotation     Rotation
+	Rotation     drivers.Rotation
 	RowOffset    int16
 	ColumnOffset int16
 	FrameRate    FrameRate
@@ -251,8 +253,8 @@ func (d *Device) Display() error {
 // SetPixel sets a pixel in the screen
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	if x < 0 || y < 0 ||
-		(((d.rotation == NO_ROTATION || d.rotation == ROTATION_180) && (x >= d.width || y >= d.height)) ||
-			((d.rotation == ROTATION_90 || d.rotation == ROTATION_270) && (x >= d.height || y >= d.width))) {
+		(((d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180) && (x >= d.width || y >= d.height)) ||
+			((d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270) && (x >= d.height || y >= d.width))) {
 		return
 	}
 	d.FillRectangle(x, y, 1, 1, c)
@@ -373,35 +375,37 @@ func (d *Device) FillScreen(c color.RGBA) {
 	}
 }
 
+// Rotation returns the current rotation of the device.
+func (d *Device) Rotation() drivers.Rotation {
+	return d.rotation
+}
+
 // SetRotation changes the rotation of the device (clock-wise)
-func (d *Device) SetRotation(rotation Rotation) {
+func (d *Device) SetRotation(rotation Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 4 {
-	case 0:
+	case drivers.Rotation0:
 		madctl = MADCTL_MX | MADCTL_MY
 		d.rowOffset = d.rowOffsetCfg
 		d.columnOffset = d.columnOffsetCfg
-		break
-	case 1:
+	case drivers.Rotation90:
 		madctl = MADCTL_MY | MADCTL_MV
 		d.rowOffset = d.columnOffsetCfg
 		d.columnOffset = d.rowOffsetCfg
-		break
-	case 2:
+	case drivers.Rotation180:
 		d.rowOffset = 0
 		d.columnOffset = 0
-		break
-	case 3:
+	case drivers.Rotation270:
 		madctl = MADCTL_MX | MADCTL_MV
 		d.rowOffset = 0
 		d.columnOffset = 0
-		break
 	}
 	if d.isBGR {
 		madctl |= MADCTL_BGR
 	}
 	d.Command(MADCTL)
 	d.Data(madctl)
+	return nil
 }
 
 // Command sends a command to the display.
@@ -442,7 +446,7 @@ func (d *Device) Rx(command uint8, data []byte) {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
-	if d.rotation == NO_ROTATION || d.rotation == ROTATION_180 {
+	if d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180 {
 		return d.width, d.height
 	}
 	return d.height, d.width

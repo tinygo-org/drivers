@@ -5,19 +5,21 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
 	Width            int16
 	Height           int16
-	Rotation         Rotation
+	Rotation         drivers.Rotation
 	DisplayInversion bool
 }
 
 type Device struct {
 	width    int16
 	height   int16
-	rotation Rotation
+	rotation drivers.Rotation
 	driver   driver
 
 	x0, x1 int16 // cached address window; prevents useless/expensive
@@ -262,13 +264,20 @@ func (d *Device) Sleep(sleepEnabled bool) error {
 	return nil
 }
 
-// GetRotation returns the current rotation of the device
-func (d *Device) GetRotation() Rotation {
+// Rotation returns the current rotation of the device.
+func (d *Device) Rotation() drivers.Rotation {
 	return d.rotation
 }
 
-// SetRotation changes the rotation of the device (clock-wise)
-func (d *Device) SetRotation(rotation Rotation) {
+// GetRotation returns the current rotation of the device.
+//
+// Deprecated: use Rotation instead.
+func (d *Device) GetRotation() drivers.Rotation {
+	return d.rotation
+}
+
+// SetRotation changes the rotation of the device (clock-wise).
+func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 8 {
 	case Rotation0:
@@ -291,6 +300,7 @@ func (d *Device) SetRotation(rotation Rotation) {
 	cmdBuf[0] = madctl
 	d.sendCommand(MADCTL, cmdBuf[:1])
 	d.rotation = rotation
+	return nil
 }
 
 // SetScrollArea sets an area to scroll with fixed top/bottom or left/right parts of the display
