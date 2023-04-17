@@ -1,5 +1,7 @@
 package st7789
 
+import "tinygo.org/x/drivers"
+
 // Registers
 const (
 	NOP        = 0x00
@@ -53,10 +55,10 @@ const (
 	VSCRDEF    = 0x33
 	VSCRSADD   = 0x37
 
-	NO_ROTATION  Rotation = 0
-	ROTATION_90  Rotation = 1 // 90 degrees clock-wise rotation
-	ROTATION_180 Rotation = 2
-	ROTATION_270 Rotation = 3
+	NO_ROTATION  = drivers.Rotation0
+	ROTATION_90  = drivers.Rotation90 // 90 degrees clock-wise rotation
+	ROTATION_180 = drivers.Rotation180
+	ROTATION_270 = drivers.Rotation270
 
 	// Allowable frame rate codes for FRCTRL2 (Identifier is in Hz)
 	FRAMERATE_111 FrameRate = 0x01
