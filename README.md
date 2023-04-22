@@ -52,7 +52,7 @@ func main() {
 
 ## Currently supported devices
 
-The following 90 devices are supported.
+The following 92 devices are supported.
 
 | Device Name                                                                                                                                                                                         | Interface Type |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
@@ -76,6 +76,7 @@ The following 90 devices are supported.
 | [Buzzer](https://en.wikipedia.org/wiki/Buzzer#Piezoelectric)                                                                                                                                        | GPIO |
 | [DHTXX thermometer and humidity sensor](https://cdn-shop.adafruit.com/datasheets/Digital+humidity+and+temperature+sensor+AM2302.pdf)                                                                | GPIO |
 | [DS1307 real time clock](https://datasheets.maximintegrated.com/en/ds/DS1307.pdf)                                                                                                                   | I2C |
+| [DS18B20 digital thermometer](https://datasheets.maximintegrated.com/en/ds/DS1307.pdf)                                                                                               | I2C |
 | [DS3231 real time clock](https://datasheets.maximintegrated.com/en/ds/DS3231.pdf)                                                                                                                   | I2C |
 | [ESP32 as WiFi Coprocessor with Arduino nina-fw](https://github.com/arduino/nina-fw)                                                                                                                | SPI |
 | [ESP8266/ESP32 AT Command set for WiFi/TCP/UDP](https://github.com/espressif/esp32-at)                                                                                                              | UART |
@@ -110,6 +111,7 @@ The following 90 devices are supported.
 | [Microphone - PDM](https://cdn-learn.adafruit.com/assets/assets/000/049/977/original/MP34DT01-M.pdf)                                                                                                | I2S/PDM |
 | [MMA8653 accelerometer](https://www.nxp.com/docs/en/data-sheet/MMA8653FC.pdf)                                                                                                                       | I2C |
 | [MPU6050 accelerometer/gyroscope](https://store.invensense.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf)                                                                                 | I2C |
+| [One Wire bus system](https://en.wikipedia.org/wiki/1-Wire)                                                                                                                                         | 1-wire      |
 | [P1AM-100 Base Controller](https://facts-engineering.github.io/modules/P1AM-100/P1AM-100.html)                                                                                                      | SPI |
 | [PCD8544 display](http://eia.udg.edu/~forest/PCD8544_1.pdf)                                                                                                                                         | SPI |
 | [PCF8563 real time clock](https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf)                                                                                                                       | I2C |
@@ -121,7 +123,7 @@ The following 90 devices are supported.
 | [Servo](https://learn.sparkfun.com/tutorials/hobby-servo-tutorial/all)                                                                                                                              | PWM |
 | [Shift register (PISO)](https://en.wikipedia.org/wiki/Shift_register#Parallel-in_serial-out_\(PISO\))                                                                                               | GPIO |
 | [Shift registers (SIPO)](https://en.wikipedia.org/wiki/Shift_register#Serial-in_parallel-out_(SIPO))                                                                                                | GPIO |
-| [SH1106 OLED display](https://www.velleman.eu/downloads/29/infosheets/sh1106_datasheet.pdf) | I2C / SPI |
+| [SH1106 OLED display](https://www.velleman.eu/downloads/29/infosheets/sh1106_datasheet.pdf)                                                                                                         | I2C / SPI |
 | [SHT3x Digital Humidity Sensor](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Datasheets/Sensirion_Humidity_Sensors_SHT3x_Datasheet_digital.pdf) | I2C |
 | [SHTC3 Digital Humidity Sensor (RH/T)](https://www.sensirion.com/fileadmin/user_upload/customers/sensirion/Dokumente/2_Humidity_Sensors/Datasheets/Sensirion_Humidity_Sensors_SHTC3_Datasheet.pdf)  | I2C |
 | [SPI NOR Flash Memory](https://en.wikipedia.org/wiki/Flash_memory#NOR_flash)                                                                                                                        | SPI/QSPI |
