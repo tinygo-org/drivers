@@ -231,10 +231,12 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/xpt2046/main.go
 	@md5sum ./build/test.uf2
+ifneq ($(XTENSA), 0)
 	tinygo build -size short -o ./build/test.elf -target=m5stack-core2 ./examples/ft6336/basic/
 	@md5sum ./build/test.elf
 	tinygo build -size short -o ./build/test.elf -target=m5stack-core2 ./examples/ft6336/touchpaint/
 	@md5sum ./build/test.elf
+endif
 	tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/sx126x/lora_rxtx/
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/ssd1289/main.go
