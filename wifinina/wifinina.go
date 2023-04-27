@@ -647,31 +647,14 @@ func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
 		return nil
 	}
 
-	// Wait for up to 10s to connect...
-	expire := time.Now().Add(10 * time.Second)
-
-	for time.Now().Before(expire) {
-		if w.isConnected(sock) {
-			return nil
-		}
-
-		// Check if we've faulted
-		if w.fault != nil {
-			w.stopClient(sock)
-			return w.fault
-		}
-
-		w.mu.Unlock()
-		time.Sleep(100 * time.Millisecond)
-		w.mu.Lock()
+	if w.getClientState(sock) == tcpStateEstablished {
+		return nil
 	}
 
-	w.stopClient(sock)
-
 	if host == "" {
-		return fmt.Errorf("Connect to %s:%d timed out", ip, port)
+		return fmt.Errorf("Connect to %s:%d failed", ip, port)
 	} else {
-		return fmt.Errorf("Connect to %s:%d timed out", host, port)
+		return fmt.Errorf("Connect to %s:%d failed", host, port)
 	}
 }
 
@@ -764,11 +747,11 @@ func (w *wifinina) Accept(sockfd int, ip net.IP, port int) (int, error) {
 }
 
 func (w *wifinina) sockDown(sock sock) bool {
-	state := w.getClientState(sock)
-	if state == tcpStateEstablished {
+	var socket = w.sockets[sock]
+	if socket.protocol == syscall.IPPROTO_UDP {
 		return false
 	}
-	return true
+	return w.getClientState(sock) != tcpStateEstablished
 }
 
 func (w *wifinina) sendTCP(sock sock, buf []byte, deadline time.Time) (int, error) {
@@ -892,7 +875,6 @@ func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
 	defer w.mu.Unlock()
 
 	var sock = sock(sockfd)
-	var socket = w.sockets[sock]
 
 	// Limit max read size to chunk large read requests
 	var max = len(buf)
@@ -923,7 +905,7 @@ func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
 		}
 
 		// Check if socket went down
-		if socket.protocol != syscall.IPPROTO_UDP && w.sockDown(sock) {
+		if w.sockDown(sock) {
 			// Get any last bytes
 			n = int(w.getDataBuf(sock, buf[:max]))
 			if debugging(debugNetdev) {
@@ -974,8 +956,7 @@ func (w *wifinina) Close(sockfd int) error {
 	start := time.Now()
 	for time.Since(start) < 5*time.Second {
 
-		state := w.getClientState(sock)
-		if state == tcpStateClosed {
+		if w.getClientState(sock) == tcpStateClosed {
 			socket.inuse = false
 			return nil
 		}
@@ -995,17 +976,6 @@ func (w *wifinina) SetSockOpt(sockfd int, level int, opt int, value interface{})
 	}
 
 	return drivers.ErrNotSupported
-}
-
-// Is TCP/TLS socket connected?
-func (w *wifinina) isConnected(sock sock) bool {
-	s := w.getClientState(sock)
-
-	connected := !(s == tcpStateListen || s == tcpStateClosed ||
-		s == tcpStateFinWait1 || s == tcpStateFinWait2 || s == tcpStateTimeWait ||
-		s == tcpStateSynSent || s == tcpStateSynRcvd || s == tcpStateCloseWait)
-
-	return connected
 }
 
 func (w *wifinina) startClient(sock sock, hostname string, addr uint32, port uint16, mode uint8) {
@@ -1798,12 +1768,10 @@ func (w *wifinina) waitRspCmd(cmd uint8, np uint8) (l uint8) {
 	}
 
 	if w.readAndCheckByte(np, &data) {
-
 		w.readParam(&l)
 		for i := uint8(0); i < l; i++ {
 			w.readParam(&w.buf[i])
 		}
-
 		if !w.readAndCheckByte(cmdEnd, &data) {
 			w.faultf("expected cmdEnd, read %02X", data)
 		}
