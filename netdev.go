@@ -52,7 +52,7 @@ func UseNetdev(dev netdever)
 //
 // NOTE: The netdever interface is mirrored in tinygo/src/net/netdev.go.
 // NOTE: If making changes to this interface, mirror the changes in
-// NOTE: tinygo/src/net/netdev.go, and visa-versa.
+// NOTE: tinygo/src/net/netdev.go, and vice-versa.
 
 type netdever interface {
 
