@@ -256,6 +256,17 @@ func (err hwerr) Error() string {
 	return "[wifinina] error: 0x" + hex.EncodeToString([]byte{uint8(err)})
 }
 
+func (w *wifinina) reason() string {
+	reason := w.getReasonCode()
+	switch reason {
+	case 201:
+		return "no AP found"
+	case 202:
+		return "auth failed"
+	}
+	return fmt.Sprintf("%d", reason)
+}
+
 func (w *wifinina) connectToAP(timeout time.Duration) error {
 
 	if len(w.cfg.Ssid) == 0 {
@@ -272,10 +283,10 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 	w.setPassphrase(w.cfg.Ssid, w.cfg.Passphrase)
 
 	// Check if we connected
-	for time.Since(start) < timeout {
-		time.Sleep(1 * time.Second)
+	for {
 		status := w.getConnectionStatus()
-		if status == statusConnected {
+		switch status {
+		case statusConnected:
 			if debugging(debugBasic) {
 				fmt.Printf("CONNECTED\r\n")
 			}
@@ -283,11 +294,20 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 				w.notifyCb(drivers.NetlinkEventNetUp)
 			}
 			return nil
+		case statusConnectFailed:
+			if debugging(debugBasic) {
+				fmt.Printf("FAILED (%s)\r\n", w.reason())
+			}
+			return drivers.ErrConnectFailed
 		}
+		if time.Since(start) > timeout {
+			break
+		}
+		time.Sleep(1 * time.Second)
 	}
 
 	if debugging(debugBasic) {
-		fmt.Printf("FAILED\r\n")
+		fmt.Printf("FAILED (timed out)\r\n")
 	}
 
 	return drivers.ErrConnectTimeout
@@ -414,7 +434,8 @@ func (w *wifinina) netConnect(reset bool) error {
 
 	for i := 0; w.cfg.Retries == 0 || i < w.cfg.Retries; i++ {
 		if err := w.connectToAP(w.cfg.ConnectTimeo); err != nil {
-			if err == drivers.ErrConnectTimeout {
+			switch err {
+			case drivers.ErrConnectTimeout, drivers.ErrConnectFailed:
 				continue
 			}
 			return err
