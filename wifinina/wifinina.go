@@ -273,6 +273,7 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 
 	// Check if we connected
 	for time.Since(start) < timeout {
+		time.Sleep(1 * time.Second)
 		status := w.getConnectionStatus()
 		if status == statusConnected {
 			if debugging(debugBasic) {
@@ -283,7 +284,6 @@ func (w *wifinina) connectToAP(timeout time.Duration) error {
 			}
 			return nil
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	if debugging(debugBasic) {
@@ -1722,7 +1722,7 @@ func (w *wifinina) spiChipSelect() {
 	}
 	w.cs.Low()
 	start := time.Now()
-	for time.Since(start) < 5*time.Millisecond {
+	for time.Since(start) < 10*time.Millisecond {
 		if w.ack.Get() {
 			return
 		}
@@ -1738,25 +1738,27 @@ func (w *wifinina) spiChipDeselect() {
 	w.cs.High()
 }
 
-func (w *wifinina) waitSpiChar(wait byte) {
+func (w *wifinina) waitSpiChar(desired byte) {
 
 	if debugging(debugDetail) {
-		fmt.Printf("        waitSpiChar: wait: %02X\r\n", wait)
+		fmt.Printf("        waitSpiChar: desired: %02X\r\n", desired)
 	}
 
 	var read byte
 
-	for timeout := 1000; read != wait && timeout > 0; timeout-- {
+	for i := 0; i < 10; i++ {
 		w.readParam(&read)
-		if read == cmdErr {
-			w.faultf("cmdErr received, waiting for %d", wait)
+		switch read {
+		case cmdErr:
+			w.faultf("cmdErr received, waiting for %d", desired)
+			return
+		case desired:
 			return
 		}
+		time.Sleep(10 * time.Millisecond)
 	}
 
-	if read != wait {
-		w.faultf("timeout waiting for SPI char %02X\r\n", wait)
-	}
+	w.faultf("timeout waiting for SPI char %02X\r\n", desired)
 }
 
 func (w *wifinina) waitRspCmd(cmd uint8, np uint8) (l uint8) {
