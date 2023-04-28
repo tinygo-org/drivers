@@ -150,6 +150,7 @@ The following 92 devices are supported.
 | [XPT2046 touch controller](http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf)                                                                                                         | GPIO |
 | [Semtech SX126x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1261)                                                                                                             | SPI |
 | [Semtech SX127x Lora](https://www.semtech.com/products/wireless-rf/lora-connect/sx1276)                                                                                                             | SPI |
+| [E220-900T22S(JP) Lora](https://clealink.jp/top/document/iot/data_sheet.pdf)                                                                                                                        | UART |
 | [SSD1289 TFT color display](http://aitendo3.sakura.ne.jp/aitendo_data/product_img/lcd/tft2/M032C1289TP/3.2-SSD1289.pdf)                                                                             | GPIO |
 
 ## Contributing
