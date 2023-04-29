@@ -95,9 +95,9 @@ func (d *Dev) ChannelLen() int { return 7 }
 // -1000000.
 func (d *Dev) Acceleration() (ax, ay, az int32) {
 	const accelOffset = 0
-	ax = int32(convertWord(d.data[accelOffset+0:])) * 15625 / 512 * int32(d.aRange)
-	ay = int32(convertWord(d.data[accelOffset+2:])) * 15625 / 512 * int32(d.aRange)
-	az = int32(convertWord(d.data[accelOffset+4:])) * 15625 / 512 * int32(d.aRange)
+	ax = int32(convertWord(d.data[accelOffset+0:])) * 15625 / 512 * d.aRange
+	ay = int32(convertWord(d.data[accelOffset+2:])) * 15625 / 512 * d.aRange
+	az = int32(convertWord(d.data[accelOffset+4:])) * 15625 / 512 * d.aRange
 	return ax, ay, az
 }
 
