@@ -18,8 +18,17 @@ func main() {
 	})
 
 	for {
-		x, y, z := accel.ReadAcceleration()
-		println(x, y, z)
 		time.Sleep(time.Millisecond * 100)
+		err := mpuDevice.Update()
+		if err != nil {
+			println("error reading from mpu6050:", err.Error())
+			continue
+		}
+		print("acceleration: ")
+		println(mpuDevice.Acceleration())
+		print("angular velocity:")
+		println(mpuDevice.AngularVelocity())
+		print("temperature centigrade:")
+		println(mpuDevice.Temperature() / 1000)
 	}
 }
