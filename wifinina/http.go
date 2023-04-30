@@ -212,11 +212,11 @@ func (c *client) stop() error {
 	}
 
 	// Wait max 5 secs for the connection to close
-	for i := 0; i < 50 && c.status() != TCPStateClosed; i++ {
+	for i := 0; i < 50 && c.status() != uint8(TCPStateClosed); i++ {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if c.status() != TCPStateClosed {
+	if c.status() != uint8(TCPStateClosed) {
 		return fmt.Errorf("stop failed, client status %x", c.status())
 	}
 
