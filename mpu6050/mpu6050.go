@@ -2,8 +2,7 @@ package mpu6050
 
 import (
 	"encoding/binary"
-	"fmt"
-	"math"
+	"errors"
 
 	"tinygo.org/x/drivers"
 )
@@ -21,10 +20,12 @@ type Config struct {
 
 // Device contains MPU board abstraction for usage
 type Device struct {
-	conn    drivers.I2C
-	aRange  int32 //Gyroscope FSR acording to SetAccelRange input
-	gRange  int32 //Gyroscope FSR acording to SetGyroRange input
-	data    [14]byte
+	conn   drivers.I2C
+	aRange int32 //Gyroscope FSR acording to SetAccelRange input
+	gRange int32 //Gyroscope FSR acording to SetGyroRange input
+	// RawData contains the accelerometer, gyroscope and temperature RawData read
+	// in the last call via the Update method.
+	RawData [14]byte
 	address byte
 }
 
@@ -42,53 +43,31 @@ func New(bus drivers.I2C, addr uint16) *Device {
 // and the gyroscope, the sample rate, the clock source
 // and wakes up the peripheral.
 func (p *Device) Configure(data Config) (err error) {
-
-	// setSleep
-	if err = p.SetSleep(false); err != nil {
-		return fmt.Errorf("set sleep: %w", err)
+	if err = p.Sleep(false); err != nil {
+		return errors.New("set sleep: " + err.Error())
 	}
-	// setClockSource
 	if err = p.SetClockSource(data.clkSel); err != nil {
-		return fmt.Errorf("set clksrc: %w", err)
+		return errors.New("set clksrc: " + err.Error())
 	}
-	// setSampleRate
 	if err = p.SetSampleRate(data.sampleRatio); err != nil {
-		return fmt.Errorf("set sample: %w", err)
+		return errors.New("set sampleratio: " + err.Error())
 	}
-	// setFullScaleGyroRange
 	if err = p.SetRangeGyro(data.GyroRange); err != nil {
-		return fmt.Errorf("set gyro: %w", err)
+		return errors.New("set gyrorange: " + err.Error())
 	}
-	// setFullScaleAccelRange
 	if err = p.SetRangeAccel(data.AccRange); err != nil {
-		return fmt.Errorf("set accelrange: %w", err)
+		return errors.New("set accelrange: " + err.Error())
 	}
 	return nil
 }
 
 // Update fetches the latest data from the MPU6050
 func (p *Device) Update() (err error) {
-	if err = p.read(_ACCEL_XOUT_H, p.data[:]); err != nil {
+	if err = p.read(_ACCEL_XOUT_H, p.RawData[:]); err != nil {
 		return err
 	}
 	return nil
 }
-
-// Get treats the MPU6050 like an ADC and returns the raw reading of the channel.
-// Channels 0-2 are acceleration, 3-5 are gyroscope and 6 is the temperature.
-func (d *Device) RawReading(channel int) int16 {
-	if channel > 6 {
-		// Bad value.
-		return 0
-	}
-	return convertWord(d.data[channel*2:])
-}
-
-func convertWord(buf []byte) int16 {
-	return int16(binary.BigEndian.Uint16(buf))
-}
-
-func (d *Device) ChannelLen() int { return 7 }
 
 // Acceleration returns last read acceleration in µg (micro-gravity).
 // When one of the axes is pointing straight to Earth
@@ -96,9 +75,9 @@ func (d *Device) ChannelLen() int { return 7 }
 // -1000000.
 func (d *Device) Acceleration() (ax, ay, az int32) {
 	const accelOffset = 0
-	ax = int32(convertWord(d.data[accelOffset+0:])) * 15625 / 512 * d.aRange
-	ay = int32(convertWord(d.data[accelOffset+2:])) * 15625 / 512 * d.aRange
-	az = int32(convertWord(d.data[accelOffset+4:])) * 15625 / 512 * d.aRange
+	ax = int32(convertWord(d.RawData[accelOffset+0:])) * 15625 / 512 * d.aRange
+	ay = int32(convertWord(d.RawData[accelOffset+2:])) * 15625 / 512 * d.aRange
+	az = int32(convertWord(d.RawData[accelOffset+4:])) * 15625 / 512 * d.aRange
 	return ax, ay, az
 }
 
@@ -107,18 +86,22 @@ func (d *Device) Acceleration() (ax, ay, az int32) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 6.3 radians (360 degrees).
 func (d *Device) AngularVelocity() (gx, gy, gz int32) {
-	const a = math.MaxInt16*8192 > math.MaxInt32
 	const angvelOffset = 8
-	gx = int32(convertWord(d.data[angvelOffset+0:])) * 4363 / 8192 * d.gRange
-	gy = int32(convertWord(d.data[angvelOffset+2:])) * 4363 / 8192 * d.gRange
-	gz = int32(convertWord(d.data[angvelOffset+4:])) * 4363 / 8192 * d.gRange
+	_ = d.RawData[angvelOffset+5] // This line fails to compile if RawData is too short.
+	gx = int32(convertWord(d.RawData[angvelOffset+0:])) * 4363 / 8192 * d.gRange
+	gy = int32(convertWord(d.RawData[angvelOffset+2:])) * 4363 / 8192 * d.gRange
+	gz = int32(convertWord(d.RawData[angvelOffset+4:])) * 4363 / 8192 * d.gRange
 	return gx, gy, gz
 }
 
 // Temperature returns the temperature of the device in milli-centigrade.
 func (d *Device) Temperature() (Celsius int32) {
 	const tempOffset = 6
-	return 1506*int32(convertWord(d.data[tempOffset:]))/512 + 37*1000
+	return 1506*int32(convertWord(d.RawData[tempOffset:]))/512 + 37*1000
+}
+
+func convertWord(buf []byte) int16 {
+	return int16(binary.BigEndian.Uint16(buf))
 }
 
 // SetSampleRate sets the sample rate for the FIFO,
@@ -172,7 +155,7 @@ func (p *Device) SetRangeGyro(gyroRange byte) (err error) {
 	case GYRO_RANGE_2000:
 		p.gRange = 2000
 	default:
-		return fmt.Errorf("invalid gyroscope FSR input")
+		return errors.New("invalid gyroscope FSR input")
 	}
 	// setFullScaleGyroRange
 	var gConfig [1]byte
@@ -203,11 +186,10 @@ func (p *Device) SetRangeAccel(accRange byte) (err error) {
 	case ACCEL_RANGE_16:
 		p.aRange = 16
 	default:
-		return fmt.Errorf("invalid accelerometer FSR input")
+		return errors.New("invalid accelerometer FSR input")
 	}
-	// setFullScaleAccelRange
-	var aConfig [1]byte
 
+	var aConfig [1]byte
 	if err = p.read(_ACCEL_CONFIG, aConfig[:]); err != nil {
 		return err
 	}
@@ -219,24 +201,21 @@ func (p *Device) SetRangeAccel(accRange byte) (err error) {
 	return nil
 }
 
-// SetSleep sets the sleep bit on the power managment 1 field.
+// Sleep sets the sleep bit on the power managment 1 field.
 // When the recieved bool is true, it sets the bit to 1 thus putting
 // the peripheral in sleep mode.
-// When false is recieved the bit is set to 0 and the peripheral wakes
-// up.
-func (p *Device) SetSleep(sleep bool) (err error) {
+// When false is recieved the bit is set to 0 and the peripheral wakes up.
+func (p *Device) Sleep(sleepEnabled bool) (err error) {
 	// setSleepBit
 	var pwrMgt [1]byte
-
 	if err = p.read(_PWR_MGMT_1, pwrMgt[:]); err != nil {
 		return err
 	}
-	if sleep {
+	if sleepEnabled {
 		pwrMgt[0] = (pwrMgt[0] & (^_SLEEP_MASK)) | (1 << _SLEEP_SHIFT) // Overwrite only Sleep
 	} else {
 		pwrMgt[0] = (pwrMgt[0] & (^_SLEEP_MASK))
 	}
-	//Envio el registro modificado al periferico
 	if err = p.write8(_PWR_MGMT_1, pwrMgt[0]); err != nil {
 		return err
 	}
