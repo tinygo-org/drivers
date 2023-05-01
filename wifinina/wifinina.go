@@ -164,7 +164,7 @@ func (d *Device) Configure() {
 
 func (d *Device) StartClient(hostname string, addr uint32, port uint16, sock uint8, mode uint8) error {
 	if _debug {
-		fmt.Printf("[StartClient] hostname: %s addr: % 02X, port: %d, sock: %d\r\n", hostname, addr, port, sock)
+		fmt.Printf("[StartClient] hostname: %s addr: %02X, port: %d, sock: %d\r\n", hostname, addr, port, sock)
 	}
 	if err := d.waitForChipSelect(); err != nil {
 		d.spiChipDeselect()
