@@ -14,7 +14,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -397,7 +396,7 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	}
 
 	switch domain {
-	case syscall.AF_INET:
+	case drivers.AF_INET:
 	default:
 		return -1, drivers.ErrFamilyNotSupported
 	}
@@ -408,16 +407,16 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	defer r.mu.Unlock()
 
 	switch {
-	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
-		newSock = r.rpc_lwip_socket(syscall.AF_INET, syscall.SOCK_STREAM,
-			syscall.IPPROTO_TCP)
-	case protocol == drivers.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
+	case protocol == drivers.IPPROTO_TCP && stype == drivers.SOCK_STREAM:
+		newSock = r.rpc_lwip_socket(drivers.AF_INET, drivers.SOCK_STREAM,
+			drivers.IPPROTO_TCP)
+	case protocol == drivers.IPPROTO_TLS && stype == drivers.SOCK_STREAM:
 		// TODO Investigate: using client number as socket number;
 		// TODO this may cause a problem if mixing TLS and non-TLS sockets?
 		newSock = int32(r.clientTLS())
-	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
-		newSock = r.rpc_lwip_socket(syscall.AF_INET, syscall.SOCK_DGRAM,
-			syscall.IPPROTO_UDP)
+	case protocol == drivers.IPPROTO_UDP && stype == drivers.SOCK_DGRAM:
+		newSock = r.rpc_lwip_socket(drivers.AF_INET, drivers.SOCK_DGRAM,
+			drivers.IPPROTO_UDP)
 	default:
 		return -1, drivers.ErrProtocolNotSupported
 	}
@@ -435,7 +434,7 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 func addrToName(ip net.IP, port int) []byte {
 	name := make([]byte, 16)
 	name[0] = 0x00
-	name[1] = syscall.AF_INET
+	name[1] = drivers.AF_INET
 	name[2] = byte(port >> 8)
 	name[3] = byte(port)
 	if len(ip) == 4 {
@@ -462,7 +461,7 @@ func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
 	var name = addrToName(ip, port)
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
 		result := r.rpc_lwip_bind(int32(sock), name, uint32(len(name)))
 		if result == -1 {
 			return fmt.Errorf("Bind to %s:%d failed", ip, port)
@@ -493,7 +492,7 @@ func (r *rtl8720dn) Connect(sockfd int, host string, ip net.IP, port int) error 
 
 	// Start the connection
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
 		result := r.rpc_lwip_connect(int32(sock), name, uint32(len(name)))
 		if result == -1 {
 			return fmt.Errorf("Connect to %s:%d failed", ip, port)
@@ -522,16 +521,16 @@ func (r *rtl8720dn) Listen(sockfd int, backlog int) error {
 	var socket = r.sockets[sock]
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
 		}
-		result = r.rpc_lwip_fcntl(int32(sock), syscall.F_SETFL, O_NONBLOCK)
+		result = r.rpc_lwip_fcntl(int32(sock), drivers.F_SETFL, O_NONBLOCK)
 		if result == -1 {
 			return fmt.Errorf("Fcntl failed")
 		}
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
@@ -558,7 +557,7 @@ func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	var addr = addrToName(ip, port)
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 	default:
 		return -1, drivers.ErrProtocolNotSupported
 	}
@@ -612,7 +611,7 @@ func (r *rtl8720dn) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, 
 	}
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
 		result := r.rpc_lwip_send(int32(sock), buf, 0x00000008)
 		if result == -1 {
 			return -1, fmt.Errorf("Send error")
@@ -687,7 +686,7 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 		}
 
 		switch socket.protocol {
-		case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
+		case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
 			n = r.rpc_lwip_recv(int32(sock), buf[:length],
 				uint32(length), 0x00000008, 0)
 		case drivers.IPPROTO_TLS:
@@ -735,7 +734,7 @@ func (r *rtl8720dn) Close(sockfd int) error {
 	}
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP, syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
 		result = r.rpc_lwip_close(int32(sock))
 	case drivers.IPPROTO_TLS:
 		r.rpc_wifi_stop_ssl_socket(uint32(sock))
