@@ -151,12 +151,12 @@ func (d *Device) Configure() {
 	d.GPIO0.High()
 	d.CS.High()
 	d.RESET.Low()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	d.RESET.High()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(750 * time.Millisecond)
 
 	d.GPIO0.Low()
-	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 
 }
 
