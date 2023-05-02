@@ -18,7 +18,6 @@ import (
 	"math/bits"
 	"net"
 	"sync"
-	"syscall"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -561,15 +560,15 @@ func (w *wifinina) Socket(domain int, stype int, protocol int) (int, error) {
 	}
 
 	switch domain {
-	case syscall.AF_INET:
+	case drivers.AF_INET:
 	default:
 		return -1, drivers.ErrFamilyNotSupported
 	}
 
 	switch {
-	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
-	case protocol == drivers.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
-	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
+	case protocol == drivers.IPPROTO_TCP && stype == drivers.SOCK_STREAM:
+	case protocol == drivers.IPPROTO_TLS && stype == drivers.SOCK_STREAM:
+	case protocol == drivers.IPPROTO_UDP && stype == drivers.SOCK_DGRAM:
 	default:
 		return -1, drivers.ErrProtocolNotSupported
 	}
@@ -601,9 +600,9 @@ func (w *wifinina) Bind(sockfd int, ip net.IP, port int) error {
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 	case drivers.IPPROTO_TLS:
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 		w.startServer(sock, uint16(port), protoModeUDP)
 	}
 
@@ -638,11 +637,11 @@ func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 	// Start the connection
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeTCP)
 	case drivers.IPPROTO_TLS:
 		w.startClient(sock, host, 0, uint16(port), protoModeTLS)
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeUDP)
 		return nil
 	}
@@ -671,9 +670,9 @@ func (w *wifinina) Listen(sockfd int, backlog int) error {
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 		w.startServer(sock, uint16(socket.port), protoModeTCP)
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 	default:
 		return drivers.ErrProtocolNotSupported
 	}
@@ -695,7 +694,7 @@ func (w *wifinina) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	var socket = w.sockets[sock]
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 	default:
 		return -1, drivers.ErrProtocolNotSupported
 	}
@@ -748,7 +747,7 @@ func (w *wifinina) Accept(sockfd int, ip net.IP, port int) (int, error) {
 
 func (w *wifinina) sockDown(sock sock) bool {
 	var socket = w.sockets[sock]
-	if socket.protocol == syscall.IPPROTO_UDP {
+	if socket.protocol == drivers.IPPROTO_UDP {
 		return false
 	}
 	return w.getClientState(sock) != tcpStateEstablished
@@ -826,9 +825,9 @@ func (w *wifinina) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, e
 	}
 
 	switch socket.protocol {
-	case syscall.IPPROTO_TCP, drivers.IPPROTO_TLS:
+	case drivers.IPPROTO_TCP, drivers.IPPROTO_TLS:
 		return w.sendTCP(sock, buf, deadline)
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 		return w.sendUDP(sock, buf, deadline)
 	}
 
@@ -948,7 +947,7 @@ func (w *wifinina) Close(sockfd int) error {
 
 	w.stopClient(sock)
 
-	if socket.protocol == syscall.IPPROTO_UDP {
+	if socket.protocol == drivers.IPPROTO_UDP {
 		socket.inuse = false
 		return nil
 	}

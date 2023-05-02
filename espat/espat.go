@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -163,15 +162,15 @@ func (d *Device) GetIPAddr() (net.IP, error) {
 func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 
 	switch domain {
-	case syscall.AF_INET:
+	case drivers.AF_INET:
 	default:
 		return -1, drivers.ErrFamilyNotSupported
 	}
 
 	switch {
-	case protocol == syscall.IPPROTO_TCP && stype == syscall.SOCK_STREAM:
-	case protocol == drivers.IPPROTO_TLS && stype == syscall.SOCK_STREAM:
-	case protocol == syscall.IPPROTO_UDP && stype == syscall.SOCK_DGRAM:
+	case protocol == drivers.IPPROTO_TCP && stype == drivers.SOCK_STREAM:
+	case protocol == drivers.IPPROTO_TLS && stype == drivers.SOCK_STREAM:
+	case protocol == drivers.IPPROTO_UDP && stype == drivers.SOCK_DGRAM:
 	default:
 		return -1, drivers.ErrProtocolNotSupported
 	}
@@ -199,9 +198,9 @@ func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 	var lport = strconv.Itoa(d.socket.lport)
 
 	switch d.socket.protocol {
-	case syscall.IPPROTO_TCP:
+	case drivers.IPPROTO_TCP:
 		err = d.ConnectTCPSocket(addr, rport)
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 		err = d.ConnectUDPSocket(addr, rport, lport)
 	case drivers.IPPROTO_TLS:
 		err = d.ConnectSSLSocket(host, rport)
@@ -220,7 +219,7 @@ func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 func (d *Device) Listen(sockfd int, backlog int) error {
 	switch d.socket.protocol {
-	case syscall.IPPROTO_UDP:
+	case drivers.IPPROTO_UDP:
 	default:
 		return drivers.ErrProtocolNotSupported
 	}

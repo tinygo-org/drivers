@@ -13,8 +13,9 @@ import (
 	"machine"
 	"net"
 	"strconv"
-	"syscall"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 var (
@@ -47,7 +48,7 @@ func sendBatch() {
 
 	// make TCP connection
 	message("---------------\r\nDialing TCP connection")
-	fd, _ := netdev.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	fd, _ := netdev.Socket(drivers.AF_INET, drivers.SOCK_STREAM, drivers.IPPROTO_TCP)
 	err := netdev.Connect(fd, "", ip, port)
 	for ; err != nil; err = netdev.Connect(fd, "", ip, port) {
 		message(err.Error())
