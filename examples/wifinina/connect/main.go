@@ -128,17 +128,29 @@ func waitSerial() {
 	}
 }
 
+const retriesBeforeFailure = 3
+
 // connect to access point
 func connectToAP() {
 	time.Sleep(2 * time.Second)
-	println("Connecting to " + ssid)
-	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
-	if err != nil { // error connecting to AP
-		for {
-			println(err)
-			time.Sleep(1 * time.Second)
+	var err error
+	for i := 0; i < retriesBeforeFailure; i++ {
+		println("Connecting to " + ssid)
+		err = adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+		if err == nil {
+			println("Connected.")
+
+			return
 		}
 	}
 
-	println("Connected.")
+	// error connecting to AP
+	failMessage(err.Error())
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }
