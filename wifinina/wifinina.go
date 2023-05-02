@@ -126,6 +126,12 @@ type Device struct {
 	ip    uint32
 	port  uint16
 	mu    sync.Mutex
+
+	// ResetIsHigh controls if the RESET signal to the processor
+	// should be High or Low (the default). Set this to true
+	// before calling Configure() for boards such as the Arduino MKR 1010,
+	// where the reset signal needs to go high instead of low.
+	ResetIsHigh bool
 }
 
 // New returns a new Wifinina device.
@@ -139,6 +145,8 @@ func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device
 	}
 }
 
+// Configure sets the needed pin settings and performs a reset
+// of the WiFi device.
 func (d *Device) Configure() {
 	net.UseDriver(d)
 	pinUseDevice(d)
@@ -150,14 +158,15 @@ func (d *Device) Configure() {
 
 	d.GPIO0.High()
 	d.CS.High()
-	d.RESET.Low()
+
+	d.RESET.Set(d.ResetIsHigh)
 	time.Sleep(10 * time.Millisecond)
-	d.RESET.High()
+
+	d.RESET.Set(!d.ResetIsHigh)
 	time.Sleep(750 * time.Millisecond)
 
 	d.GPIO0.Low()
 	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-
 }
 
 // ----------- client methods (should this be a separate struct?) ------------
