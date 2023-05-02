@@ -27,6 +27,11 @@ var (
 	pass string
 )
 
+var (
+	// this is the ESP chip that has the WIFININA firmware flashed on it
+	adaptor *wifinina.Device
+)
+
 var led = machine.LED
 
 func main() {
@@ -49,31 +54,15 @@ func run() error {
 		SCK:       machine.NINA_SCK,
 	})
 
-	adaptor := wifinina.New(spi,
+	adaptor = wifinina.New(spi,
 		machine.NINA_CS,
 		machine.NINA_ACK,
 		machine.NINA_GPIO0,
 		machine.NINA_RESETN)
 	adaptor.Configure()
 
-	time.Sleep(2 * time.Second)
-	println("Connecting to " + ssid)
-	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
-	if err != nil {
-		return err
-	}
-
-	println("Connected.")
-
-	time.Sleep(2 * time.Second)
-	ip, subnet, gateway, err := adaptor.GetIP()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("IP Address : %s\r\n", ip)
-	fmt.Printf("Mask       : %s\r\n", subnet)
-	fmt.Printf("Gateway    : %s\r\n", gateway)
+	connectToAP()
+	displayIP()
 
 	http.UseDriver(adaptor)
 
@@ -204,6 +193,42 @@ func cnt(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"cnt": %d}`, counter)
 }
 
+const retriesBeforeFailure = 3
+
+// connect to access point
+func connectToAP() {
+	time.Sleep(2 * time.Second)
+	var err error
+	for i := 0; i < retriesBeforeFailure; i++ {
+		println("Connecting to " + ssid)
+		err = adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+		if err == nil {
+			println("Connected.")
+
+			return
+		}
+	}
+
+	// error connecting to AP
+	failMessage(err.Error())
+}
+
+func displayIP() {
+	ip, _, _, err := adaptor.GetIP()
+	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
+		message(err.Error())
+		time.Sleep(1 * time.Second)
+	}
+	message("IP address: " + ip.String())
+}
+
 func message(msg string) {
 	println(msg, "\r")
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }
