@@ -4,7 +4,7 @@
 - [Using "net" Package](#using-net-package)
 - [Using "net/http" Package](#using-nethttp-package)
 - [Using "crypto/tls" Package](#using-cryptotls-package)
-- [Using Raw Sockets](#using-raw-sockets)
+- [Using Sockets](#using-sockets)
 - [Netdev and Netlink](#netdev-and-netlink)
 - [Writing a New Netdev Driver](#writing-a-new-netdev-driver)
 
@@ -196,20 +196,20 @@ http.ListenAndServeTLS() an https server.
 
 The offloading hardware has pre-defined TLS certificates built-in.
 
-## Using Raw Sockets
+## Using Sockets
 
-A netdev implements a BSD socket-like interface so an application can make raw
+A netdev implements a BSD socket-like interface so an application can make direct
 socket calls, bypassing the net package.
 
-Here is a simple TCP application using raw sockets:
+Here is a simple TCP application using direct sockets:
 
 ```go
 package main
 
 import (
 	"net"  // only need to parse IP address
-	"syscall"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/wifinina"
 )
 
@@ -221,7 +221,7 @@ func main() {
 
 	netdev.NetConnect()
 
-	sock, _ := netdev.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	sock, _ := netdev.Socket(drivers.AF_INET, drivers.SOCK_STREAM, drivers.IPPROTO_TCP)
 
         netdev.Connect(sock, "", net.ParseIP("10.0.0.100"), 8080)
 	netdev.Send(sock, []bytes("hello"), 0, 0)
