@@ -3,6 +3,9 @@ package i2csoft
 import (
 	"errors"
 	"machine"
+	"time"
+
+	"tinygo.org/x/drivers/delay"
 )
 
 // I2C is an I2C implementation by Software. Since it is implemented by
@@ -277,4 +280,9 @@ func (i2c *I2C) WriteRegister(address uint8, register uint8, data []byte) error 
 // with 7-bit addresses, which is the vast majority.
 func (i2c *I2C) ReadRegister(address uint8, register uint8, data []byte) error {
 	return i2c.Tx(uint16(address), []byte{register}, data)
+}
+
+// wait waits for half the time of the SCL operation interval.
+func (i2c *I2C) wait() {
+	delay.Sleep(50 * time.Microsecond) // half of a 100kHz cycle (50µs)
 }
