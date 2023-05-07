@@ -1,8 +1,7 @@
 package seesaw
 
 import (
-	"errors"
-	"strconv"
+	"fmt"
 	"time"
 )
 
@@ -37,8 +36,11 @@ func (d *Device) Begin() error {
 		return err
 	}
 
+	time.Sleep(defaultDelay)
+
 	var lastErr error
-	for i := 0; i < 10; i++ {
+	tries := 0
+	for ; tries < 20; tries++ {
 		hwid, err := d.ReadHardwareID()
 		if err == nil {
 			d.hwid = hwid
@@ -50,7 +52,7 @@ func (d *Device) Begin() error {
 	}
 
 	if lastErr != nil {
-		return lastErr
+		return fmt.Errorf("failed to read hardware ID after reset, tryed %d times: %w", tries, lastErr)
 	}
 
 	return nil
@@ -67,7 +69,18 @@ func (d *Device) ReadHardwareID() (byte, error) {
 		return hwid, nil
 	}
 
-	return 0, errors.New("unknown hardware ID: " + strconv.Itoa(int(hwid)))
+	return 0, fmt.Errorf("unknown hardware ID: %0X", hwid)
+}
+
+// ReadVersion reads the version bytes from the device (undocumented in the datasheet)
+func (d *Device) ReadVersion() (uint32, error) {
+
+	buf := make([]byte, 4)
+	err := d.Read(ModuleStatusBase, FunctionStatusVersion, buf, defaultDelay)
+	if err != nil {
+		return 0, err
+	}
+	return (uint32(buf[0]) << 24) | (uint32(buf[1]) << 16) | (uint32(buf[2]) << 8) | uint32(buf[3]), nil
 }
 
 // SoftReset triggers a soft-reset of seesaw
