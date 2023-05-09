@@ -441,6 +441,7 @@ func (d *Device) Rotation() drivers.Rotation {
 
 // SetRotation changes the rotation of the device (clock-wise)
 func (d *Device) SetRotation(rotation Rotation) error {
+	d.rotation = rotation
 	d.startWrite()
 	err := d.setRotation(rotation)
 	d.endWrite()
