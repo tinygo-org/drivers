@@ -21,6 +21,9 @@ import (
 // Deprecated: use drivers.Rotation instead.
 type Rotation = drivers.Rotation
 
+// The color format used on the display, like RGB565, RGB666, and RGB444.
+type ColorFormat uint8
+
 // FrameRate controls the frame rate used by the display.
 type FrameRate uint8
 
@@ -134,7 +137,7 @@ func (d *Device) Configure(cfg Config) {
 	d.sendCommand(SLPOUT, nil) // Exit sleep mode
 
 	// Memory initialization
-	d.sendCommand(COLMOD, []byte{0x55}) // Set color mode to 16-bit color
+	d.setColorFormat(ColorRGB565) // Set color mode to 16-bit color
 	time.Sleep(10 * time.Millisecond)
 
 	d.setRotation(d.rotation) // Memory orientation
@@ -432,6 +435,25 @@ func (d *Device) fillScreen(c color.RGBA) {
 	} else {
 		d.fillRectangle(0, 0, d.height, d.width, c)
 	}
+}
+
+// Control the color format that is used when writing to the screen.
+// The default is RGB565, setting it to any other value will break functions
+// like SetPixel, FillRectangle, etc. Instead, you can write color data in the
+// specified color format using DrawRGBBitmap8.
+func (d *Device) SetColorFormat(format ColorFormat) {
+	d.startWrite()
+	d.setColorFormat(format)
+	d.endWrite()
+}
+
+func (d *Device) setColorFormat(format ColorFormat) {
+	// Lower 4 bits set the color format used in SPI.
+	// Upper 4 bits set the color format used in the direct RGB interface.
+	// The RGB interface is not currently supported, so it is left at a
+	// reasonable default. Also, the RGB interface doesn't support RGB444.
+	colmod := byte(format) | 0x50
+	d.sendCommand(COLMOD, []byte{colmod})
 }
 
 // Rotation returns the current rotation of the device.
