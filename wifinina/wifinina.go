@@ -184,6 +184,11 @@ type Config struct {
 	Ack    machine.Pin
 	Gpio0  machine.Pin
 	Resetn machine.Pin
+	// ResetIsHigh controls if the RESET signal to the processor should be
+	// High or Low (the default). Set this to true for boards such as the
+	// Arduino MKR 1010, where the reset signal needs to go high instead of
+	// low.
+	ResetIsHigh bool
 
 	// Retries is how many attempts to connect before returning with a
 	// "Connect failed" error.  Zero means infinite retries.
@@ -354,9 +359,9 @@ func (w *wifinina) start() {
 
 	w.gpio0.High()
 	w.cs.High()
-	w.resetn.Low()
+	w.resetn.Set(w.cfg.ResetIsHigh)
 	time.Sleep(10 * time.Millisecond)
-	w.resetn.High()
+	w.resetn.Set(!w.cfg.ResetIsHigh)
 	time.Sleep(750 * time.Millisecond)
 
 	w.gpio0.Low()
