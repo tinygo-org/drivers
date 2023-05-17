@@ -263,6 +263,8 @@ func (err hwerr) Error() string {
 func (w *wifinina) reason() string {
 	reason := w.getReasonCode()
 	switch reason {
+	case 0:
+		return "unknown failure"
 	case 201:
 		return "no AP found"
 	case 202:
