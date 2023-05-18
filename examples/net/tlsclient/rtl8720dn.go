@@ -23,7 +23,7 @@ var cfg = rtl8720dn.Config{
 	Rx:       machine.PC24,
 	Baudrate: 614400,
 	// Watchdog (set to 0 to disable)
-	WatchdogTimeo: time.Duration(20 * time.Second),
+	WatchdogTimeout: time.Duration(20 * time.Second),
 }
 
 var netdev = rtl8720dn.New(&cfg)
