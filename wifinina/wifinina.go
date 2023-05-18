@@ -195,13 +195,13 @@ type Config struct {
 	Retries int
 
 	// Timeout duration for each connection attempt.  Default is 10sec.
-	ConnectTimeo time.Duration
+	ConnectTimeout time.Duration
 
 	// Watchdog ticker duration.  On tick, the watchdog will check for
 	// downed connection or hardware fault and try to recover the
 	// connection.  Default is 0secs, which means no watchdog.  Set to
 	// non-zero to enable watchodog.
-	WatchdogTimeo time.Duration
+	WatchdogTimeout time.Duration
 }
 
 type wifinina struct {
@@ -244,8 +244,8 @@ func New(cfg *Config) *wifinina {
 		resetn:       cfg.Resetn,
 	}
 
-	if w.cfg.ConnectTimeo == 0 {
-		w.cfg.ConnectTimeo = 10 * time.Second
+	if w.cfg.ConnectTimeout == 0 {
+		w.cfg.ConnectTimeout = 10 * time.Second
 	}
 
 	drivers.UseNetdev(&w)
@@ -404,7 +404,7 @@ func (w *wifinina) networkDown() bool {
 }
 
 func (w *wifinina) watchdog() {
-	ticker := time.NewTicker(w.cfg.WatchdogTimeo)
+	ticker := time.NewTicker(w.cfg.WatchdogTimeout)
 	for {
 		select {
 		case <-w.killWatchdog:
@@ -439,7 +439,7 @@ func (w *wifinina) netConnect(reset bool) error {
 	w.showDevice()
 
 	for i := 0; w.cfg.Retries == 0 || i < w.cfg.Retries; i++ {
-		if err := w.connectToAP(w.cfg.ConnectTimeo); err != nil {
+		if err := w.connectToAP(w.cfg.ConnectTimeout); err != nil {
 			switch err {
 			case drivers.ErrConnectTimeout, drivers.ErrConnectFailed:
 				continue
@@ -475,7 +475,7 @@ func (w *wifinina) NetConnect() error {
 
 	w.netConnected = true
 
-	if w.cfg.WatchdogTimeo != 0 {
+	if w.cfg.WatchdogTimeout != 0 {
 		go w.watchdog()
 	}
 
@@ -491,7 +491,7 @@ func (w *wifinina) NetDisconnect() {
 		return
 	}
 
-	if w.cfg.WatchdogTimeo != 0 {
+	if w.cfg.WatchdogTimeout != 0 {
 		w.killWatchdog <- true
 	}
 
