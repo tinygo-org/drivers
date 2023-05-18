@@ -63,7 +63,7 @@ type Config struct {
 	// downed connection and try to recover the connection.  Default is
 	// 0secs, which means no watchdog.  Set to non-zero to enable
 	// watchodog.
-	WatchdogTimeo time.Duration
+	WatchdogTimeout time.Duration
 }
 
 type rtl8720dn struct {
@@ -226,7 +226,7 @@ func (r *rtl8720dn) networkDown() bool {
 }
 
 func (r *rtl8720dn) watchdog() {
-	ticker := time.NewTicker(r.cfg.WatchdogTimeo)
+	ticker := time.NewTicker(r.cfg.WatchdogTimeout)
 	for {
 		select {
 		case <-r.killWatchdog:
@@ -290,7 +290,7 @@ func (r *rtl8720dn) NetConnect() error {
 
 	r.netConnected = true
 
-	if r.cfg.WatchdogTimeo != 0 {
+	if r.cfg.WatchdogTimeout != 0 {
 		go r.watchdog()
 	}
 
@@ -310,7 +310,7 @@ func (r *rtl8720dn) NetDisconnect() {
 		return
 	}
 
-	if r.cfg.WatchdogTimeo != 0 {
+	if r.cfg.WatchdogTimeout != 0 {
 		r.killWatchdog <- true
 	}
 	r.netDisconnect()

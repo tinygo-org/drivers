@@ -27,7 +27,7 @@ var cfg = wifinina.Config{
 	Gpio0:  machine.NINA_GPIO0,
 	Resetn: machine.NINA_RESETN,
 	// Watchdog (set to 0 to disable)
-	WatchdogTimeo: time.Duration(20 * time.Second),
+	WatchdogTimeout: time.Duration(20 * time.Second),
 }
 
 var netdev = wifinina.New(&cfg)
