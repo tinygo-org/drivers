@@ -108,7 +108,6 @@ tinygo build -size short -o ./build/test.hex -target=pico ./examples/qmi8658c/ma
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/ina260/main.go
 tinygo build -size short -o ./build/test.hex -target=nucleo-l432kc ./examples/aht20/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/console/
-tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/tinyfs/
 tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webclient/
 tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webserver/
 tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/mqttsub/

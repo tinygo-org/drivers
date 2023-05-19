@@ -1,8 +1,14 @@
 # SPI sdcard/mmc driver
 
-This package provides the driver for sdcard/mmc with SPI connection.  
-`examples/sdcard/console` shows a low-level access example.  
-`examples/sdcard/tinyfs` shows an example of using fatfs to read FAT32.  
+This package provides the driver for sdcard/mmc with SPI connection.
+
+To use a file system on the SDcard, please see the TinyFS repo:
+
+https://github.com/tinygo-org/tinyfs
+
+See `examples/sdcard/console` for a low-level access example.
+
+## Stack size
 
 If you use this package, you need to set `default-stack-size` in `targets/*.json`.  
 For example, `targets/wioterminal.json` has the following configuration.  
