@@ -34,7 +34,5 @@ tinygo.org/x/tinyfont v0.2.1/go.mod h1:eLqnYSrFRjt5STxWaMeOWJTzrKhXqpWw7nU3bPfKO
 tinygo.org/x/tinyfont v0.3.0 h1:HIRLQoI3oc+2CMhPcfv+Ig88EcTImE/5npjqOnMD4lM=
 tinygo.org/x/tinyfont v0.3.0/go.mod h1:+TV5q0KpwSGRWnN+ITijsIhrWYJkoUCp9MYELjKpAXk=
 tinygo.org/x/tinyfs v0.1.0/go.mod h1:ysc8Y92iHfhTXeyEM9+c7zviUQ4fN9UCFgSOFfMWv20=
-tinygo.org/x/tinyfs v0.2.0 h1:M0lwZC/dEGFt16XYN5GTQsif/qCkAN2qUVNxELVD1xg=
-tinygo.org/x/tinyfs v0.2.0/go.mod h1:6ZHYdvB3sFYeMB3ypmXZCNEnFwceKc61ADYTYHpep1E=
 tinygo.org/x/tinyterm v0.1.0 h1:80i+j+KWoxCFa/Xfp6pWbh79x+8zUdMXC1vaKj2QhkY=
 tinygo.org/x/tinyterm v0.1.0/go.mod h1:/DDhNnGwNF2/tNgHywvyZuCGnbH3ov49Z/6e8LPLRR4=
