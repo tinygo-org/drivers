@@ -125,3 +125,4 @@ tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examp
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ds18b20/main.go
 tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/lora/lorawan/atcmd/
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/as560x/main.go
+tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu6886/main.go
