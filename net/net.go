@@ -357,10 +357,7 @@ func ParseIP(s string) IP {
 
 // String returns the string form of the IP address ip.
 func (ip IP) String() string {
-	if len(ip) < 4 {
-		return ""
-	}
-	return strconv.Itoa(int(ip[0])) + "." + strconv.Itoa(int(ip[1])) + "." + strconv.Itoa(int(ip[2])) + "." + strconv.Itoa(int(ip[3]))
+	return string(ip)
 }
 
 // Conn is a generic stream-oriented network connection.
