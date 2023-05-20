@@ -14,8 +14,8 @@ func main() {
 	mpuDevice := mpu6050.New(machine.I2C0, mpu6050.DefaultAddress)
 
 	err := mpuDevice.Configure(mpu6050.Config{
-		AccRange:  mpu6050.ACCEL_RANGE_16,
-		GyroRange: mpu6050.GYRO_RANGE_2000,
+		AccelRange: mpu6050.ACCEL_RANGE_16,
+		GyroRange:  mpu6050.GYRO_RANGE_2000,
 	})
 	if err != nil {
 		panic(err.Error())
@@ -31,7 +31,7 @@ func main() {
 		println(mpuDevice.Acceleration())
 		print("angular velocity:")
 		println(mpuDevice.AngularVelocity())
-		print("temperature centigrade:")
+		print("temperature celsius:")
 		println(mpuDevice.Temperature() / 1000)
 	}
 }
