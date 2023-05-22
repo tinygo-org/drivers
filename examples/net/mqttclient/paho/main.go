@@ -1,5 +1,5 @@
-// This example is a MQTT client.  It sends machine.ReadTemparature() readings
-// to the broker every second for 10 seconds.
+// This example is an MQTT client built with the paho-mqtt package.  It sends
+// machine.CPUFrequency() readings to the broker every second for 10 seconds.
 //
 // Note: It may be necessary to increase the stack size when using
 // paho.mqtt.golang.  Use the -stack-size=4KB command line option.
@@ -76,6 +76,10 @@ func main() {
 	}
 
 	client.Disconnect(100)
+
+	for {
+		select {}
+	}
 }
 
 // Returns an int >= min, < max
