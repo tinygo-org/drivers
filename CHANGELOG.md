@@ -1,3 +1,81 @@
+0.25.0
+---
+
+- **core**
+    - add Sensor interface and Measurement type
+    - **delay**
+        - add new package for cycle-accurate delays
+
+- **new devices**
+    - **AS560x**
+        - Add support for ams AS560x on-axis magnetic rotary position sensors
+    - **onewire**
+        - first implementation of 1-wire protocol (#505)
+    - **mpu6886**
+        - initial implementation
+    - **ttp229**
+        - initial support for ttp229 (BSF)
+
+- **enhancements**
+    - **gps**
+        - make the date available in addition to the time (#532)
+    - **i2csoft**
+        - use cycle counting for delays
+    - **ili9341**
+        - add EnableTEOutput to be able to sync drawing with VSYNC
+        - add sleep mode
+        - unify rotation support
+    - **st7735**
+        - add DrawRGBBitmap8 method to draw raw RGB565 buffers
+        - add sleep mode
+        - unify rotation support
+    - **st7789**
+        - added DrawRGBBitmap8 (same as ili9341 & st7735)
+        - allow changing the color format using COLMOD
+        - make it possible to configure gamma
+        - support the chip select pin
+        - update saved rotation in SetRotation
+        - add sleep mode
+        - unify rotation support
+    - **sx126x/sx127x**
+        - Reduce spi buffer size, add missing select when using channels
+        - Remove heap alloc in interrupt, add non blocking channel send/receive, and other cleanups
+    - **wifinina**
+        - add generated strings, improved debugging system and messages
+        - add ResetIsHigh to control the behavior of the RESET pin for boards like the Arduino MKR 1010
+        - only add generated strings when using wifidebug tag
+
+- **bugfixes**
+    - **ds3231**
+        - Document incorrect leap year 2100
+        - Fix negative temperature conversion
+    - **ili9341**
+        - fix Size() for mirrored rotation
+    - **st7789**
+        - avoid heap allocations after the driver is created
+    - **net**
+        - Revert "(#501) make IP.String() method return something sensible"
+    - **wifinina**
+        - small timing adjustments in Configure() to better ensure device reset
+
+- **examples**
+    - **sdcard**
+        - remove tinyfs example and replace with link to tinyfs repo in docs
+    - **wifinina**
+        - improve connectToAP() and other needed minor corrections
+
+- **build**
+    - switch to ghcr.io for docker container
+    - run smoke tests in parallel
+    - **Makefile**
+        - add XTENSA=0 flag to skip Xtensa tests
+        - remove AVR=0 flag
+
+- **docs**
+    - remove full list of devices from README, better to keep it on the tinygo.org site
+    - update LICENSE year
+
+
 0.24.0
 ---
 - **new devices**
@@ -74,6 +152,7 @@
     - remove older format build tags
     - update to actions/checkout@v3
     - work around for CVE-2022-24765
+
 
 0.23.0
 ---
