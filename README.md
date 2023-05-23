@@ -52,7 +52,7 @@ func main() {
 
 ## Supported devices
 
-There are currently 94 devices supported. For the complete list, please see:
+There are currently 96 devices supported. For the complete list, please see:
 https://tinygo.org/docs/reference/devices/
 
 ## Contributing
