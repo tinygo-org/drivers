@@ -85,7 +85,7 @@ func main() {
 
 	for i := 0; i < 10; i++ {
 		if !client.IsConnected() {
-			log.Fatal("client disconnected")
+			log.Fatal("client disconnected: ", client.Err())
 		}
 
 		freq := float32(machine.CPUFrequency()) / 1000000
