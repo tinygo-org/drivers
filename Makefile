@@ -141,6 +141,8 @@ smoke-test:
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/tm1637/main.go
 	@md5sum ./build/test.hex
+	tinygo build -size short -o ./build/test.hex -target=arduino ./examples/tm1638/main.go
+	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/fourwire/main.go
 	@md5sum ./build/test.hex
 	tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/pyportal_touchpaint/main.go

@@ -133,6 +133,7 @@ The following 90 devices are supported.
 | [Stepper motor "Easystepper" controller](https://en.wikipedia.org/wiki/Stepper_motor)                                                                                                               | GPIO |
 | [Thermistor](https://www.farnell.com/datasheets/33552.pdf)                                                                                                                                          | ADC |
 | [TM1637 7-segment LED display](https://www.mcielectronics.cl/website_MCI/static/documents/Datasheet_TM1637.pdf)                                                                                     | I2C |
+| [TM1638 7-segment Display Keypad & LED Module](https://www.halloweenfreak.de/arduino/pdfs/qyf-tm1638-Shield.pdf)                                                                                    | GPIO |
 | [TMP102 I2C Temperature Sensor](https://download.mikroe.com/documents/datasheets/tmp102-data-sheet.pdf)                                                                                             | I2C |
 | [UC8151 All-in-one driver IC for ESL](https://www.buydisplay.com/download/ic/UC8151C.pdf)                                                                                                           | I2C |
 | [VEML6070 UV light sensor](https://www.vishay.com/docs/84277/veml6070.pdf)                                                                                                                          | I2C |
