@@ -99,6 +99,7 @@ func main() {
 
 		time.Sleep(time.Second)
 
+		conn.SetReadDeadline(time.Now().Add(10*time.Second))
 		err = client.HandleNext()
 		if err != nil {
 			log.Fatal("handle next: ", err)
