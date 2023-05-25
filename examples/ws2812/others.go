@@ -1,4 +1,4 @@
-//go:build !digispark && !arduino && !qtpy && !m5stamp_c3 && !thingplus_rp2040
+//go:build !digispark && !arduino && !qtpy && !m5stamp_c3 && !thingplus_rp2040 && !nano_rp2040 && !xiao && !xiao_rp2040 && !arduino_nano33
 
 package main
 
