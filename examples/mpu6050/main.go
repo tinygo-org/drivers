@@ -13,10 +13,8 @@ func main() {
 
 	mpuDevice := mpu6050.New(machine.I2C0, mpu6050.DefaultAddress)
 
-	err := mpuDevice.Configure(mpu6050.Config{
-		AccelRange: mpu6050.ACCEL_RANGE_16,
-		GyroRange:  mpu6050.GYRO_RANGE_2000,
-	})
+	// Configure the device with default configuration.
+	err := mpuDevice.Configure(mpu6050.Config{})
 	if err != nil {
 		panic(err.Error())
 	}

@@ -41,8 +41,9 @@ const (
 
 // Gyroscope ranges for Init configuration
 const (
+	rangeGyroDefault = iota
 	// 250°/s
-	RangeGyro250 RangeGyro = iota
+	RangeGyro250
 	// 500°/s
 	RangeGyro500
 	// 1000°/s
@@ -53,8 +54,9 @@ const (
 
 // Accelerometer ranges for Init configuration
 const (
+	rangeAccelDefault RangeAccel = iota
 	// 2g
-	RangeAccel2 RangeAccel = iota
+	RangeAccel2
 	// 4g
 	RangeAccel4
 	// 8g

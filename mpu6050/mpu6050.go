@@ -167,12 +167,13 @@ func (p *Device) setRangeGyro(gyroRange RangeGyro) (err error) {
 		p.gRange = 500
 	case RangeGyro1000:
 		p.gRange = 1000
-	case RangeGyro2000:
+	case RangeGyro2000, rangeGyroDefault:
+		gyroRange = RangeGyro2000
 		p.gRange = 2000
 	default:
 		return errInvalidRangeGyro
 	}
-	return p.writeMasked(_GYRO_CONFIG, _G_FS_SEL, uint8(gyroRange)<<_G_FS_SHIFT)
+	return p.writeMasked(_GYRO_CONFIG, _G_FS_SEL, uint8(gyroRange-1)<<_G_FS_SHIFT)
 }
 
 // setRangeAccel configures the full scale range of the accelerometer.
@@ -187,12 +188,13 @@ func (p *Device) setRangeAccel(accRange RangeAccel) (err error) {
 		p.aRange = 4
 	case RangeAccel8:
 		p.aRange = 8
-	case RangeAccel16:
+	case RangeAccel16, rangeAccelDefault:
+		accRange = RangeAccel16
 		p.aRange = 16
 	default:
 		return errInvalidRangeAccel
 	}
-	return p.writeMasked(_ACCEL_CONFIG, _AFS_SEL, uint8(accRange)<<_AFS_SHIFT)
+	return p.writeMasked(_ACCEL_CONFIG, _AFS_SEL, uint8(accRange-1)<<_AFS_SHIFT)
 }
 
 // Sleep sets the sleep bit on the power managment 1 field.
@@ -217,13 +219,4 @@ func b2u8(b bool) byte {
 		return 1
 	}
 	return 0
-}
-
-func DefaultConfig() Config {
-	return Config{
-		AccelRange:  RangeAccel16,
-		GyroRange:   RangeGyro2000,
-		sampleRatio: 0, // TODO add const values.
-		clkSel:      0,
-	}
 }
