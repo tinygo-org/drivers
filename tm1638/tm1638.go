@@ -1,4 +1,4 @@
-package main
+package tm1638
 
 /*
 	Example works with TM1638 with eight 7-segment indicators at odd addresses
