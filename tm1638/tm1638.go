@@ -1,155 +1,111 @@
+package main
+
 /*
-TM1638 is a chip manufactured by Titan Microelectronics.
-It integrates MCU digital interface, data latch, LED drive, and keypad scanning circuit.
+	Example works with TM1638 with eight 7-segment indicators at odd addresses
+	and eight LEDs at even addresses. Also eight buttons connected to first scan line.
+	Configuration implemented by board MDU1093.
 */
-package tm1638
 
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/tm1638"
 )
 
-// Device wraps the pins of the TM1638.
-type Device struct {
-	/* STB - When this pin is "LO" chip accepting transmission */
-	strobe machine.Pin
-	/* CLK - DIO pin reads data at the rising edge and outputs at the falling edge */
-	clock machine.Pin
-	/* DIO - This pin outputs/inputs serial data */
-	data machine.Pin
-}
+/*
 
-// Configuration parameters
-type Config struct {
-	/* Brightness level from 0 to 7 */
-	Brightness uint8
-}
+Odd items of toShow array contain bytes for 7-segment LEDs.
+Mapping for bits and segments shown bellow.
 
-const (
-	/* Address increasing mode: automatic address increased */
-	cmdAddressAutoIncrement = 0x40
-	/* Address increasing mode: fixed address */
-	cmdFixedAddress = 0x44
-	/* Read key scan data */
-	cmdReadKeyScan = 0x42
-	/* Display off */
-	cmdZeroBrightness = 0x80
-	/* Display on command. Bits 0-2 may contain brightness value */
-	cmdSetBrightness = 0x88
-	/* Address Setting Command is used to set the address of the display memory. Bits 0-3 used for address value */
-	cmdSetAddress = 0xC0
-	/* Max valid address */
-	maxAddress = 0x0F
-	/* Max brightness level */
-	MaxBrightness = 0x07
-)
+--- 0 ---
+|       |
+5       1
+|       |
+--- 6 ---
+|       |
+4       2
+|       |
+--- 3 ---.7
 
-// Create new TM1638 device
-func New(strobe machine.Pin, clock machine.Pin, data machine.Pin) Device {
-	strobe.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{strobe: strobe, clock: clock, data: data}
-}
+*/
 
-// Configure TM1638
-func (d *Device) Configure(config Config) {
-	d.Clear()
-	d.SetBrightness(config.Brightness)
-}
+func main() {
+	// codes of numbers from 0 to 7 at odd indexes described
+	toShow := []uint8{0x3f, 1, 0x06, 0, 0x5b, 1, 0x4f, 0, 0x66, 1, 0x6d, 0, 0x7d, 1, 0x07}
+	// buffer for keyboard scan
+	var keyBuffer = [4]uint8{0, 0, 0, 0}
 
-// Clear display memory
-func (d *Device) Clear() {
-	d.sendCommand(cmdAddressAutoIncrement)
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.write(cmdSetAddress)
-	for i := 0; i < 16; i++ {
-		d.write(0)
+	tm := tm1638.New(machine.D7, machine.D9, machine.D8) // strobe, clock, data
+	config := tm1638.Config{Brightness: tm1638.MaxBrightness}
+	tm.Configure(config)
+
+	// visualization of bit to segment mapping
+	for i := uint8(0); i < 8; i++ {
+		tm.Write(1<<uint8(i), uint8(i)<<1)
 	}
-	d.strobe.High()
-}
+	time.Sleep(time.Second * 3)
 
-// Set display brightness
-func (d *Device) SetBrightness(value uint8) {
-	if value == 0 {
-		d.sendCommand(cmdZeroBrightness)
-	} else {
-		if value > MaxBrightness {
-			value = MaxBrightness
+	// show eight numbers and light on odd LEDs
+	tm.WriteAt(toShow, 0)
+	time.Sleep(time.Millisecond * 1000)
+
+	// 7 levels of brightness
+	for i := uint8(0); i < 8; i++ {
+		tm.SetBrightness(i)
+		time.Sleep(time.Millisecond * 1000)
+	}
+	tm.Clear()
+
+	// light on and off each indicator and LED
+	for i := uint8(0); i < 16; i++ {
+		if i > 0 {
+			//
+			tm.Write(0x00, i-1)
 		}
-		d.sendCommand(cmdSetBrightness | value)
+		tm.Write(0x7F, i)
+		time.Sleep(time.Millisecond * 250)
 	}
-}
 
-// Write one display memory element
-func (d *Device) Write(data uint8, offset uint8) {
-	d.sendCommand(cmdFixedAddress)
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(cmdSetAddress | (offset & maxAddress))
-	d.write(data)
-	d.strobe.High()
-}
+	//  7-segment indicator index
+	var indicatorIndex uint8 = 0
+	// index of segment to switch on
+	segmentIndex := 0
 
-// Write array to display memory
-func (d *Device) WriteAt(data []uint8, offset uint8) {
-	d.sendCommand(cmdAddressAutoIncrement)
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(cmdSetAddress | (offset & maxAddress))
-	for _, element := range data {
-		d.write(element)
-	}
-	d.strobe.High()
-}
+	for {
+		// scan pressed keys
+		tm.ScanKeyboard(&keyBuffer)
 
-// Scan keyboard
-func (d *Device) ScanKeyboard(buffer *[4]uint8) {
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(cmdReadKeyScan)
-	d.data.Configure(machine.PinConfig{Mode: machine.PinInput})
-	d.transmissionDelay()
-	for index := range buffer {
-		var element uint8 = 0
-		for bitIndex := 0; bitIndex < 8; bitIndex++ {
-			d.clock.Low()
-			d.transmissionDelay()
-			if d.data.Get() {
-				element |= (1 << bitIndex)
+		// translate scan result into bits of one uint8
+		var firstScanLine uint8 = 0
+		for i := 0; i < len(keyBuffer); i++ {
+			firstScanLine |= (keyBuffer[i] << i)
+		}
+
+		// i is index of button
+		for i := 0; i < 8; i++ {
+			if (firstScanLine & (1 << i)) > 0 {
+				// LED switch on
+				tm.Write(0xff, 1+uint8(i)<<1)
+			} else {
+				// LED switch off
+				tm.Write(0x00, 1+uint8(i)<<1)
 			}
-			d.transmissionDelay()
-			d.clock.High()
-			d.transmissionDelay()
 		}
-		buffer[index] = element
+
+		// switch off all segments
+		tm.Write(0x00, indicatorIndex<<1)
+		if segmentIndex == 8 {
+			segmentIndex = 0
+			indicatorIndex++
+		}
+		if indicatorIndex == 9 {
+			indicatorIndex = 0
+		}
+		// next segment switch on
+		tm.Write(1<<segmentIndex, indicatorIndex<<1)
+		segmentIndex++
+
+		time.Sleep(time.Millisecond * 50)
 	}
-	d.strobe.High()
-}
-
-func (d *Device) sendCommand(command uint8) {
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(command)
-	d.strobe.High()
-}
-
-func (d *Device) write(value uint8) {
-	for i := 0; i < 8; i++ {
-		d.clock.Low()
-		d.transmissionDelay()
-		d.data.Set((value & (1 << i)) > 0)
-		d.transmissionDelay()
-		d.clock.High()
-		d.transmissionDelay()
-	}
-}
-
-func (d *Device) transmissionDelay() {
-	time.Sleep(time.Microsecond * time.Duration(2))
 }
