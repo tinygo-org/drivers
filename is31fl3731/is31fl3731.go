@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device implements TinyGo driver for Lumissil IS31FL3731 matrix LED driver
@@ -92,7 +93,7 @@ func (d *Device) Configure() (err error) {
 func (d *Device) selectCommand(command uint8) (err error) {
 	if command != d.selectedCommand {
 		d.selectedCommand = command
-		return d.bus.WriteRegister(d.Address, COMMAND, []byte{command})
+		return legacy.WriteRegister(d.bus, d.Address, COMMAND, []byte{command})
 	}
 
 	return nil
@@ -105,7 +106,7 @@ func (d *Device) writeFunctionRegister(operation uint8, data []byte) (err error)
 		return err
 	}
 
-	return d.bus.WriteRegister(d.Address, operation, data)
+	return legacy.WriteRegister(d.bus, d.Address, operation, data)
 }
 
 // enableLEDs enables only LEDs that are soldered on the set board. Enabled
@@ -119,7 +120,7 @@ func (d *Device) enableLEDs() (err error) {
 
 		// Enable every LED (16 columns x 9 rows)
 		for i := uint8(0); i < 16; i++ {
-			err = d.bus.WriteRegister(d.Address, i, []byte{0xFF})
+			err = legacy.WriteRegister(d.bus, d.Address, i, []byte{0xFF})
 			if err != nil {
 				return err
 			}
@@ -136,7 +137,7 @@ func (d *Device) setPixelPWD(frame, n, value uint8) (err error) {
 		return err
 	}
 
-	return d.bus.WriteRegister(d.Address, LED_PWM_OFFSET+n, []byte{value})
+	return legacy.WriteRegister(d.bus, d.Address, LED_PWM_OFFSET+n, []byte{value})
 }
 
 // SetActiveFrame sets frame to display with LEDs
@@ -165,7 +166,7 @@ func (d *Device) Fill(frame, value uint8) (err error) {
 	}
 
 	for i := uint8(0); i < 6; i++ {
-		err = d.bus.WriteRegister(d.Address, LED_PWM_OFFSET+i*24, data)
+		err = legacy.WriteRegister(d.bus, d.Address, LED_PWM_OFFSET+i*24, data)
 		if err != nil {
 			return err
 		}

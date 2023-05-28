@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // DeviceAdafruitCharlieWing15x7 implements TinyGo driver for Lumissil
@@ -47,20 +48,20 @@ func (d *DeviceAdafruitCharlieWing15x7) enableLEDs() (err error) {
 
 		// Enable left half
 		for i := uint8(0); i < 16; i += 2 {
-			err = d.bus.WriteRegister(d.Address, i, []byte{0b11111110})
+			err = legacy.WriteRegister(d.bus, d.Address, i, []byte{0b11111110})
 			if err != nil {
 				return err
 			}
 		}
 		// Enable right half
 		for i := uint8(3); i < 16; i += 2 {
-			err = d.bus.WriteRegister(d.Address, i, []byte{0b01111111})
+			err = legacy.WriteRegister(d.bus, d.Address, i, []byte{0b01111111})
 			if err != nil {
 				return err
 			}
 		}
 		// Disable invisible column on the right side
-		err = d.bus.WriteRegister(d.Address, 1, []byte{0b00000000})
+		err = legacy.WriteRegister(d.bus, d.Address, 1, []byte{0b00000000})
 		if err != nil {
 			return err
 		}

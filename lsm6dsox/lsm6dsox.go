@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -78,13 +79,13 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 	data := d.buf[:1]
 	// Configure accelerometer
 	data[0] = uint8(cfg.AccelRange) | uint8(cfg.AccelSampleRate)
-	err = d.bus.WriteRegister(uint8(d.Address), CTRL1_XL, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL1_XL, data)
 	if err != nil {
 		return
 	}
 	// Configure gyroscope
 	data[0] = uint8(cfg.GyroRange) | uint8(cfg.GyroSampleRate)
-	err = d.bus.WriteRegister(uint8(d.Address), CTRL2_G, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL2_G, data)
 	if err != nil {
 		return
 	}
@@ -96,7 +97,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := d.buf[:1]
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x6C
 }
 
@@ -106,7 +107,7 @@ func (d *Device) Connected() bool {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_A, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_A, data)
 	if err != nil {
 		return
 	}
@@ -122,7 +123,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_G, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_G, data)
 	if err != nil {
 		return
 	}
@@ -135,7 +136,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_TEMP_L, data)
 	if err != nil {
 		return
 	}

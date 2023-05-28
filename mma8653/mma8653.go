@@ -5,7 +5,10 @@
 // https://www.nxp.com/docs/en/data-sheet/MMA8653FC.pdf
 package mma8653 // import "tinygo.org/x/drivers/mma8653"
 
-import "tinygo.org/x/drivers"
+import (
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+)
 
 // Device wraps an I2C connection to a MMA8653 device.
 type Device struct {
@@ -26,27 +29,27 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x5A
 }
 
 // Configure sets up the device for communication.
 func (d *Device) Configure(speed DataRate, sensitivity Sensitivity) error {
 	// Set mode to STANDBY to be able to change the sensitivity.
-	err := d.bus.WriteRegister(uint8(d.Address), CTRL_REG1, []uint8{0})
+	err := legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_REG1, []uint8{0})
 	if err != nil {
 		return err
 	}
 
 	// Set sensitivity (2G, 4G, 8G).
-	err = d.bus.WriteRegister(uint8(d.Address), XYZ_DATA_CFG, []uint8{uint8(sensitivity)})
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), XYZ_DATA_CFG, []uint8{uint8(sensitivity)})
 	if err != nil {
 		return err
 	}
 	d.sensitivity = sensitivity
 
 	// Set mode to ACTIVE and set the data rate.
-	err = d.bus.WriteRegister(uint8(d.Address), CTRL_REG1, []uint8{(uint8(speed) << 3) | 1})
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_REG1, []uint8{(uint8(speed) << 3) | 1})
 	if err != nil {
 		return err
 	}
@@ -59,7 +62,7 @@ func (d *Device) Configure(speed DataRate, sensitivity Sensitivity) error {
 // -1000000.
 func (d Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	data := make([]byte, 6)
-	err = d.bus.ReadRegister(uint8(d.Address), OUT_X_MSB, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_X_MSB, data)
 	shift := uint32(8)
 	switch d.sensitivity {
 	case Sensitivity4G:

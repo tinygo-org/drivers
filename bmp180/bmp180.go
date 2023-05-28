@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // OversamplingMode is the oversampling ratio of the pressure measurement.
@@ -55,7 +56,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == CHIP_ID
 }
 
@@ -63,7 +64,7 @@ func (d *Device) Connected() bool {
 // read the calibration coefficients.
 func (d *Device) Configure() {
 	data := make([]byte, 22)
-	err := d.bus.ReadRegister(uint8(d.Address), AC1_MSB, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), AC1_MSB, data)
 	if err != nil {
 		return
 	}
@@ -141,10 +142,10 @@ func (d *Device) ReadAltitude() (int32, error) {
 
 // rawTemp returns the sensor's raw values of the temperature
 func (d *Device) rawTemp() (int32, error) {
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL, []byte{CMD_TEMP})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL, []byte{CMD_TEMP})
 	time.Sleep(5 * time.Millisecond)
 	data := make([]byte, 2)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_TEMP_MSB, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP_MSB, data)
 	if err != nil {
 		return 0, err
 	}
@@ -160,10 +161,10 @@ func (d *Device) calculateB5(rawTemp int32) int32 {
 
 // rawPressure returns the sensor's raw values of the pressure
 func (d *Device) rawPressure(mode OversamplingMode) (int32, error) {
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL, []byte{CMD_PRESSURE + byte(mode<<6)})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL, []byte{CMD_PRESSURE + byte(mode<<6)})
 	time.Sleep(pauseForReading(mode))
 	data := make([]byte, 3)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE_MSB, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_PRESSURE_MSB, data)
 	if err != nil {
 		return 0, err
 	}

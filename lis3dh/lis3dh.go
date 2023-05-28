@@ -3,7 +3,10 @@
 // Datasheet: https://www.st.com/resource/en/datasheet/lis3dh.pdf
 package lis3dh // import "tinygo.org/x/drivers/lis3dh"
 
-import "tinygo.org/x/drivers"
+import (
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+)
 
 // Device wraps an I2C connection to a LIS3DH device.
 type Device struct {
@@ -22,13 +25,13 @@ func New(bus drivers.I2C) Device {
 // Configure sets up the device for communication
 func (d *Device) Configure() {
 	// enable all axes, normal mode
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL1, []byte{0x07})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL1, []byte{0x07})
 
 	// 400Hz rate
 	d.SetDataRate(DATARATE_400_HZ)
 
 	// High res & BDU enabled
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL4, []byte{0x88})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL4, []byte{0x88})
 
 	// get current range
 	d.r = d.ReadRange()
@@ -38,7 +41,7 @@ func (d *Device) Configure() {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	if err != nil {
 		return false
 	}
@@ -48,27 +51,27 @@ func (d *Device) Connected() bool {
 // SetDataRate sets the speed of data collected by the LIS3DH.
 func (d *Device) SetDataRate(rate DataRate) {
 	ctl1 := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CTRL1, ctl1)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL1, ctl1)
 	if err != nil {
 		println(err.Error())
 	}
 	// mask off bits
 	ctl1[0] &^= 0xf0
 	ctl1[0] |= (byte(rate) << 4)
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL1, ctl1)
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL1, ctl1)
 }
 
 // SetRange sets the G range for LIS3DH.
 func (d *Device) SetRange(r Range) {
 	ctl := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CTRL4, ctl)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
 	if err != nil {
 		println(err.Error())
 	}
 	// mask off bits
 	ctl[0] &^= 0x30
 	ctl[0] |= (byte(r) << 4)
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL4, ctl)
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
 
 	// store the new range
 	d.r = r
@@ -77,7 +80,7 @@ func (d *Device) SetRange(r Range) {
 // ReadRange returns the current G range for LIS3DH.
 func (d *Device) ReadRange() (r Range) {
 	ctl := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CTRL4, ctl)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
 	if err != nil {
 		println(err.Error())
 	}
@@ -111,7 +114,7 @@ func (d *Device) ReadAcceleration() (int32, int32, int32, error) {
 
 // ReadRawAcceleration returns the raw x, y and z axis from the LIS3DH
 func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
-	d.bus.WriteRegister(uint8(d.Address), REG_OUT_X_L|0x80, nil)
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_OUT_X_L|0x80, nil)
 
 	data := []byte{0, 0, 0, 0, 0, 0}
 	d.bus.Tx(d.Address, nil, data)

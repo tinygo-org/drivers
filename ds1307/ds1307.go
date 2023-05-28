@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a DS1307 device.
@@ -44,7 +45,7 @@ func (d *Device) SetTime(t time.Time) error {
 // ReadTime returns the date and time
 func (d *Device) ReadTime() (time.Time, error) {
 	data := make([]byte, 8)
-	err := d.bus.ReadRegister(d.Address, uint8(TimeDate), data)
+	err := legacy.ReadRegister(d.bus, d.Address, uint8(TimeDate), data)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -105,7 +106,7 @@ func (d *Device) Read(data []uint8) (n int, err error) {
 	if int(d.AddressSRAM)+len(data)-1 > SRAMEndAddress {
 		return 0, errors.New("EOF")
 	}
-	err = d.bus.ReadRegister(d.Address, d.AddressSRAM, data)
+	err = legacy.ReadRegister(d.bus, d.Address, d.AddressSRAM, data)
 	if err != nil {
 		return 0, err
 	}
@@ -124,7 +125,7 @@ func (d *Device) SetOscillatorFrequency(sqw uint8) error {
 // IsOscillatorRunning returns if the oscillator is running
 func (d *Device) IsOscillatorRunning() bool {
 	data := []byte{0}
-	err := d.bus.ReadRegister(d.Address, uint8(TimeDate), data)
+	err := legacy.ReadRegister(d.bus, d.Address, uint8(TimeDate), data)
 	if err != nil {
 		return false
 	}
@@ -134,7 +135,7 @@ func (d *Device) IsOscillatorRunning() bool {
 // SetOscillatorRunning starts/stops internal oscillator by toggling halt bit
 func (d *Device) SetOscillatorRunning(running bool) error {
 	data := make([]byte, 3)
-	err := d.bus.ReadRegister(d.Address, uint8(TimeDate), data)
+	err := legacy.ReadRegister(d.bus, d.Address, uint8(TimeDate), data)
 	if err != nil {
 		return err
 	}

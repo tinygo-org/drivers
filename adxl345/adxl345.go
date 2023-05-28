@@ -5,7 +5,10 @@
 // Datasheet JP: http://www.analog.com/media/jp/technical-documentation/data-sheets/ADXL345_jp.pdf
 package adxl345 // import "tinygo.org/x/drivers/adxl345"
 
-import "tinygo.org/x/drivers"
+import (
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+)
 
 type Range uint8
 type Rate uint8
@@ -68,21 +71,21 @@ func New(bus drivers.I2C) Device {
 
 // Configure sets up the device for communication
 func (d *Device) Configure() {
-	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
-	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
-	d.bus.WriteRegister(uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
 }
 
 // Halt stops the sensor, values will not updated
 func (d *Device) Halt() {
 	d.powerCtl.measure = 0
-	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
 // Restart makes reading the sensor working again after a halt
 func (d *Device) Restart() {
 	d.powerCtl.measure = 1
-	d.bus.WriteRegister(uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_POWER_CTL, []byte{d.powerCtl.toByte()})
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -103,7 +106,7 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 // from the adxl345.
 func (d *Device) ReadRawAcceleration() (x int32, y int32, z int32) {
 	data := []byte{0, 0, 0, 0, 0, 0}
-	d.bus.ReadRegister(uint8(d.Address), REG_DATAX0, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), REG_DATAX0, data)
 
 	x = readIntLE(data[0], data[1])
 	y = readIntLE(data[2], data[3])
@@ -119,20 +122,20 @@ func (d *Device) UseLowPower(power bool) {
 	} else {
 		d.bwRate.lowPower = 0
 	}
-	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
 }
 
 // SetRate change the current rate of the sensor
 func (d *Device) SetRate(rate Rate) bool {
 	d.bwRate.rate = rate & 0x0F
-	d.bus.WriteRegister(uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_BW_RATE, []byte{d.bwRate.toByte()})
 	return true
 }
 
 // SetRange change the current range of the sensor
 func (d *Device) SetRange(sensorRange Range) bool {
 	d.dataFormat.sensorRange = sensorRange & 0x03
-	d.bus.WriteRegister(uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_DATA_FORMAT, []byte{d.dataFormat.toByte()})
 	return true
 }
 

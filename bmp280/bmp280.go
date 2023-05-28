@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // OversamplingMode is the oversampling ratio of the temperature or pressure measurement.
@@ -64,14 +65,14 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := make([]byte, 1)
-	d.bus.ReadRegister(uint8(d.Address), REG_ID, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), REG_ID, data)
 	return data[0] == CHIP_ID
 }
 
 // Reset preforms complete power-on-reset procedure.
 // It is required to call Configure afterwards.
 func (d *Device) Reset() {
-	d.bus.WriteRegister(uint8(d.Address), REG_RESET, []byte{CMD_RESET})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_RESET, []byte{CMD_RESET})
 }
 
 // Configure sets up the device for communication and
@@ -85,15 +86,15 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 
 	//  Write the configuration (standby, filter, spi 3 wire)
 	config := uint(d.Standby<<5) | uint(d.Filter<<2) | 0x00
-	d.bus.WriteRegister(uint8(d.Address), REG_CONFIG, []byte{byte(config)})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONFIG, []byte{byte(config)})
 
 	// Write the control (temperature oversampling, pressure oversampling,
 	config = uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
-	d.bus.WriteRegister(uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
+	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
 
 	// Read Calibration data
 	data := make([]byte, 24)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CALI, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALI, data)
 	if err != nil {
 		return
 	}
@@ -207,18 +208,18 @@ func (d *Device) readData(register int, n int) ([]byte, error) {
 	// After the measurement in FORCED mode, the sensor will return to SLEEP mode
 	if d.Mode != MODE_NORMAL {
 		config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(MODE_FORCED)
-		d.bus.WriteRegister(uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
+		legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
 	}
 
 	// Check STATUS register, wait if data is not available yet
 	status := make([]byte, 1)
-	for d.bus.ReadRegister(uint8(d.Address), uint8(REG_STATUS), status[0:]); status[0] != 4 && status[0] != 0; d.bus.ReadRegister(uint8(d.Address), uint8(REG_STATUS), status[0:]) {
+	for legacy.ReadRegister(d.bus, uint8(d.Address), uint8(REG_STATUS), status[0:]); status[0] != 4 && status[0] != 0; legacy.ReadRegister(d.bus, uint8(d.Address), uint8(REG_STATUS), status[0:]) {
 		time.Sleep(time.Millisecond)
 	}
 
 	// Read the requested register
 	data := make([]byte, n)
-	err := d.bus.ReadRegister(uint8(d.Address), uint8(register), data[:])
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), uint8(register), data[:])
 	return data, err
 }
 
