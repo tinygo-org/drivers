@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -95,7 +96,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 	if cfg.IsPedometer { // CONFIGURE AS PEDOMETER
 		// Configure accelerometer: 2G + 26Hz
 		data[0] = uint8(ACCEL_2G) | uint8(ACCEL_SR_26)
-		err = d.bus.WriteRegister(uint8(d.Address), CTRL1_XL, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL1_XL, data)
 		if err != nil {
 			return
 		}
@@ -105,40 +106,40 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 		if cfg.ResetStepCounter {
 			data[0] |= 0x02
 		}
-		err = d.bus.WriteRegister(uint8(d.Address), CTRL10_C, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL10_C, data)
 		if err != nil {
 			return
 		}
 
 		// Enable pedometer
 		data[0] = 0x40
-		err = d.bus.WriteRegister(uint8(d.Address), TAP_CFG, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), TAP_CFG, data)
 		if err != nil {
 			return
 		}
 	} else { // NORMAL USE
 		// Configure accelerometer
 		data[0] = uint8(d.accelRange) | uint8(d.accelSampleRate) | uint8(d.accelBandWidth)
-		err = d.bus.WriteRegister(uint8(d.Address), CTRL1_XL, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL1_XL, data)
 		if err != nil {
 			return
 		}
 
 		// Set ODR bit
-		err = d.bus.ReadRegister(uint8(d.Address), CTRL4_C, data)
+		err = legacy.ReadRegister(d.bus, uint8(d.Address), CTRL4_C, data)
 		if err != nil {
 			return
 		}
 		data[0] = data[0] &^ BW_SCAL_ODR_ENABLED
 		data[0] |= BW_SCAL_ODR_ENABLED
-		err = d.bus.WriteRegister(uint8(d.Address), CTRL4_C, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL4_C, data)
 		if err != nil {
 			return
 		}
 
 		// Configure gyroscope
 		data[0] = uint8(d.gyroRange) | uint8(d.gyroSampleRate)
-		err = d.bus.WriteRegister(uint8(d.Address), CTRL2_G, data)
+		err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL2_G, data)
 		if err != nil {
 			return
 		}
@@ -151,7 +152,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := d.buf[:1]
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x69
 }
 
@@ -161,7 +162,7 @@ func (d *Device) Connected() bool {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_XL, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_XL, data)
 	if err != nil {
 		return
 	}
@@ -186,7 +187,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.Address), OUTX_L_G, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_G, data)
 	if err != nil {
 		return
 	}
@@ -210,7 +211,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.Address), OUT_TEMP_L, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_TEMP_L, data)
 	if err != nil {
 		return
 	}
@@ -223,7 +224,7 @@ func (d *Device) ReadTemperature() (t int32, err error) {
 // ReadSteps returns the steps of the pedometer
 func (d *Device) ReadSteps() (s int32, err error) {
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.Address), STEP_COUNTER_L, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), STEP_COUNTER_L, data)
 	if err != nil {
 		return
 	}

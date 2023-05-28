@@ -8,6 +8,8 @@ package mcp23017
 
 import (
 	"errors"
+
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 const (
@@ -259,7 +261,7 @@ func (d *Device) writeRegisterAB(r register, val Pins) error {
 	// and the fact that registers alternate between A and B
 	// to write both ports in a single operation.
 	buf := [2]byte{uint8(val), uint8(val >> 8)}
-	return d.bus.WriteRegister(d.addr, uint8(r&^portB), buf[:])
+	return legacy.WriteRegister(d.bus, d.addr, uint8(r&^portB), buf[:])
 }
 
 func (d *Device) readRegisterAB(r register) (Pins, error) {
@@ -267,7 +269,7 @@ func (d *Device) readRegisterAB(r register) (Pins, error) {
 	// and the fact that registers alternate between A and B
 	// to read both ports in a single operation.
 	var buf [2]byte
-	if err := d.bus.ReadRegister(d.addr, uint8(r), buf[:]); err != nil {
+	if err := legacy.ReadRegister(d.bus, d.addr, uint8(r), buf[:]); err != nil {
 		return Pins(0), err
 	}
 	return Pins(buf[0]) | (Pins(buf[1]) << 8), nil

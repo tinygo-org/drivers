@@ -1,6 +1,9 @@
 package ina260
 
-import "tinygo.org/x/drivers"
+import (
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+)
 
 // Device wraps an I2C connection to an INA260 device.
 type Device struct {
@@ -97,7 +100,7 @@ func (d *Device) Power() int32 {
 // Read a register
 func (d *Device) ReadRegister(reg uint8) uint16 {
 	data := []byte{0, 0}
-	d.bus.ReadRegister(uint8(d.Address), reg, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), reg, data)
 	return (uint16(data[0]) << 8) | uint16(data[1])
 }
 
@@ -107,5 +110,5 @@ func (d *Device) WriteRegister(reg uint8, v uint16) {
 	data[0] = byte(v >> 8)
 	data[1] = byte(v & 0xff)
 
-	d.bus.WriteRegister(uint8(d.Address), reg, data)
+	legacy.WriteRegister(d.bus, uint8(d.Address), reg, data)
 }

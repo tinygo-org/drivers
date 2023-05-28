@@ -7,6 +7,7 @@ package axp192 // import "tinygo.org/x/drivers/axp192"
 
 import (
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Error uint8
@@ -248,10 +249,10 @@ func (d *Device) SetLDOEnable(number uint8, state bool) {
 }
 
 func (d *Device) write1Byte(reg, data uint8) {
-	d.bus.WriteRegister(d.Address, reg, []byte{data})
+	legacy.WriteRegister(d.bus, d.Address, reg, []byte{data})
 }
 
 func (d *Device) read8bit(reg uint8) uint8 {
-	d.bus.ReadRegister(d.Address, reg, d.buf[:1])
+	legacy.ReadRegister(d.bus, d.Address, reg, d.buf[:1])
 	return d.buf[0]
 }

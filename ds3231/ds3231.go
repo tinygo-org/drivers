@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Mode uint8
@@ -37,7 +38,7 @@ func (d *Device) Configure() bool {
 // IsTimeValid return true/false is the time in the device is valid
 func (d *Device) IsTimeValid() bool {
 	data := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_STATUS, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
 	if err != nil {
 		return false
 	}
@@ -47,7 +48,7 @@ func (d *Device) IsTimeValid() bool {
 // IsRunning returns if the oscillator is running
 func (d *Device) IsRunning() bool {
 	data := []uint8{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CONTROL, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
 	if err != nil {
 		return false
 	}
@@ -57,7 +58,7 @@ func (d *Device) IsRunning() bool {
 // SetRunning starts the internal oscillator
 func (d *Device) SetRunning(isRunning bool) error {
 	data := []uint8{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CONTROL, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func (d *Device) SetRunning(isRunning bool) error {
 	} else {
 		data[0] |= 1 << EOSC
 	}
-	err = d.bus.WriteRegister(uint8(d.Address), REG_CONTROL, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
 	if err != nil {
 		return err
 	}
@@ -86,12 +87,12 @@ func (d *Device) SetRunning(isRunning bool) error {
 // instead of 2100-03-01.
 func (d *Device) SetTime(dt time.Time) error {
 	data := []byte{0}
-	err := d.bus.ReadRegister(uint8(d.Address), REG_STATUS, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
 	if err != nil {
 		return err
 	}
 	data[0] &^= 1 << OSF
-	err = d.bus.WriteRegister(uint8(d.Address), REG_STATUS, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
 	if err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func (d *Device) SetTime(dt time.Time) error {
 	data[5] = uint8ToBCD(uint8(dt.Month()) | centuryFlag)
 	data[6] = uint8ToBCD(year)
 
-	err = d.bus.WriteRegister(uint8(d.Address), REG_TIMEDATE, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_TIMEDATE, data)
 	if err != nil {
 		return err
 	}
@@ -128,7 +129,7 @@ func (d *Device) SetTime(dt time.Time) error {
 // ReadTime returns the date and time
 func (d *Device) ReadTime() (dt time.Time, err error) {
 	data := make([]uint8, 7)
-	err = d.bus.ReadRegister(uint8(d.Address), REG_TIMEDATE, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_TIMEDATE, data)
 	if err != nil {
 		return
 	}
@@ -150,7 +151,7 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 // ReadTemperature returns the temperature in millicelsius (mC)
 func (d *Device) ReadTemperature() (int32, error) {
 	data := make([]uint8, 2)
-	err := d.bus.ReadRegister(uint8(d.Address), REG_TEMP, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP, data)
 	if err != nil {
 		return 0, err
 	}

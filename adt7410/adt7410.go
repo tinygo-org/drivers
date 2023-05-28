@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Error uint8
@@ -54,7 +55,7 @@ func (d *Device) Configure() (err error) {
 // Connected returns whether sensor has been found.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), RegID, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), RegID, data)
 	return data[0]&0xF8 == 0xC8
 }
 
@@ -81,11 +82,11 @@ func (d *Device) writeByte(reg uint8, data byte) {
 }
 
 func (d *Device) readByte(reg uint8) byte {
-	d.bus.ReadRegister(d.Address, reg, d.buf)
+	legacy.ReadRegister(d.bus, d.Address, reg, d.buf)
 	return d.buf[0]
 }
 
 func (d *Device) readUint16(reg uint8) uint16 {
-	d.bus.ReadRegister(d.Address, reg, d.buf)
+	legacy.ReadRegister(d.bus, d.Address, reg, d.buf)
 	return uint16(d.buf[0])<<8 | uint16(d.buf[1])
 }

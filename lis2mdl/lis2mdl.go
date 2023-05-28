@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a LIS2MDL device.
@@ -38,7 +39,7 @@ func New(bus drivers.I2C) Device {
 // Connected returns whether LIS2MDL sensor has been found.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == 0x40
 }
 
@@ -66,25 +67,25 @@ func (d *Device) Configure(cfg Configuration) {
 
 	// reset
 	cmd[0] = byte(1 << 5)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(100 * time.Millisecond)
 
 	// reboot
 	cmd[0] = byte(1 << 6)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(100 * time.Millisecond)
 
 	// bdu
 	cmd[0] = byte(1 << 4)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_C, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_C, cmd)
 
 	// Temperature compensation is on for magnetic sensor (0x80)
 	cmd[0] = byte(0x80)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_A, cmd)
 
 	// speed
 	cmd[0] = byte(0x80 | d.DataRate)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_A, cmd)
 }
 
 // ReadMagneticField reads the current magnetic field from the device and returns
@@ -93,11 +94,11 @@ func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 	// turn back on read mode, even though it is supposed to be continuous?
 	cmd := []byte{0}
 	cmd[0] = byte(0x80 | d.PowerMode<<4 | d.DataRate<<2 | d.SystemMode)
-	d.bus.WriteRegister(uint8(d.Address), CFG_REG_A, cmd)
+	legacy.WriteRegister(d.bus, uint8(d.Address), CFG_REG_A, cmd)
 	time.Sleep(10 * time.Millisecond)
 
 	data := make([]byte, 6)
-	d.bus.ReadRegister(uint8(d.Address), OUTX_L_REG, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_REG, data)
 
 	x = int32(int16((uint16(data[0]) << 8) | uint16(data[1])))
 	y = int32(int16((uint16(data[2]) << 8) | uint16(data[3])))

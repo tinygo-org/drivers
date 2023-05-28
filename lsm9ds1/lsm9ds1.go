@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -61,8 +62,8 @@ func New(bus drivers.I2C) *Device {
 // but "who am I" responses have unexpected values.
 func (d *Device) Connected() bool {
 	data1, data2 := d.buf[:1], d.buf[1:2]
-	d.bus.ReadRegister(d.AccelAddress, WHO_AM_I, data1)
-	d.bus.ReadRegister(d.MagAddress, WHO_AM_I_M, data2)
+	legacy.ReadRegister(d.bus, d.AccelAddress, WHO_AM_I, data1)
+	legacy.ReadRegister(d.bus, d.MagAddress, WHO_AM_I_M, data2)
 	return data1[0] == 0x68 && data2[0] == 0x3D
 }
 
@@ -72,7 +73,7 @@ func (d *Device) Connected() bool {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_XL, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_X_L_XL, data)
 	if err != nil {
 		return
 	}
@@ -88,7 +89,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_X_L_G, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_X_L_G, data)
 	if err != nil {
 		return
 	}
@@ -102,7 +103,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 // it in nT (nanotesla). 1 G (gauss) = 100_000 nT (nanotesla).
 func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.MagAddress), OUT_X_L_M, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.MagAddress), OUT_X_L_M, data)
 	if err != nil {
 		return
 	}
@@ -115,7 +116,7 @@ func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 // ReadTemperature returns the temperature in Celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_L, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_TEMP_L, data)
 	if err != nil {
 		return
 	}
@@ -171,7 +172,7 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	// Configure accelerometer
 	// Sample rate & measurement range
 	data[0] = uint8(cfg.AccelSampleRate)<<5 | uint8(cfg.AccelRange)<<3
-	err = d.bus.WriteRegister(d.AccelAddress, CTRL_REG6_XL, data)
+	err = legacy.WriteRegister(d.bus, d.AccelAddress, CTRL_REG6_XL, data)
 	if err != nil {
 		return
 	}
@@ -179,7 +180,7 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	// Configure gyroscope
 	// Sample rate & measurement range
 	data[0] = uint8(cfg.GyroSampleRate)<<5 | uint8(cfg.GyroRange)<<3
-	err = d.bus.WriteRegister(d.AccelAddress, CTRL_REG1_G, data)
+	err = legacy.WriteRegister(d.bus, d.AccelAddress, CTRL_REG1_G, data)
 	if err != nil {
 		return
 	}
@@ -190,14 +191,14 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	// High-performance mode XY axis
 	// Sample rate
 	data[0] = 0b10000000 | 0b01000000 | uint8(cfg.MagSampleRate)<<2
-	err = d.bus.WriteRegister(d.MagAddress, CTRL_REG1_M, data)
+	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG1_M, data)
 	if err != nil {
 		return
 	}
 
 	// Measurement range
 	data[0] = uint8(cfg.MagRange) << 5
-	err = d.bus.WriteRegister(d.MagAddress, CTRL_REG2_M, data)
+	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG2_M, data)
 	if err != nil {
 		return
 	}
@@ -205,14 +206,14 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	// Continuous-conversion mode
 	// https://electronics.stackexchange.com/questions/237397/continuous-conversion-vs-single-conversion-mode
 	data[0] = 0b00000000
-	err = d.bus.WriteRegister(d.MagAddress, CTRL_REG3_M, data)
+	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG3_M, data)
 	if err != nil {
 		return
 	}
 
 	// High-performance mode Z axis
 	data[0] = 0b00001000
-	err = d.bus.WriteRegister(d.MagAddress, CTRL_REG4_M, data)
+	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG4_M, data)
 	if err != nil {
 		return
 	}
