@@ -1,5 +1,6 @@
 /*
-TM1638 is an LED Controller
+TM1638 is a chip manufactured by Titan Microelectronics.
+It integrates MCU digital interface, data latch, LED drive, and keypad scanning circuit.
 */
 package tm1638
 
@@ -18,15 +19,29 @@ type Device struct {
 	data machine.Pin
 }
 
+// Configuration parameters
+type Config struct {
+	/* Brightness level from 0 to 7 */
+	Brightness uint8
+}
+
 const (
-	addressAutoIncrement = 0x40
-	fixedAddress         = 0x44
-	baseAddress          = 0xC0
-	maxAddress           = 0x0F
-	readKeys             = 0x42
-	brightness           = 0x88
-	maxBrightness        = 0x07
-	zeroBrightness       = 0x80
+	/* Address increasing mode: automatic address increased */
+	cmdAddressAutoIncrement = 0x40
+	/* Address increasing mode: fixed address */
+	cmdFixedAddress = 0x44
+	/* Read key scan data */
+	cmdReadKeyScan = 0x42
+	/* Display off */
+	cmdZeroBrightness = 0x80
+	/* Display on command. Bits 0-2 may contain brightness value */
+	cmdSetBrightness = 0x88
+	/* Address Setting Command is used to set the address of the display memory. Bits 0-3 used for address value */
+	cmdSetAddress = 0xC0
+	/* Max valid address */
+	maxAddress = 0x0F
+	/* Max brightness level */
+	MaxBrightness = 0x07
 )
 
 // Create new TM1638 device
@@ -37,18 +52,18 @@ func New(strobe machine.Pin, clock machine.Pin, data machine.Pin) Device {
 }
 
 // Configure TM1638
-func (d *Device) Configure() {
+func (d *Device) Configure(config Config) {
 	d.Clear()
-	d.Brightness(maxBrightness)
+	d.SetBrightness(config.Brightness)
 }
 
 // Clear display memory
 func (d *Device) Clear() {
-	d.sendCommand(addressAutoIncrement)
+	d.sendCommand(cmdAddressAutoIncrement)
 	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.strobe.Low()
 	d.transmissionDelay()
-	d.write(baseAddress)
+	d.write(cmdSetAddress)
 	for i := 0; i < 16; i++ {
 		d.write(0)
 	}
@@ -56,32 +71,35 @@ func (d *Device) Clear() {
 }
 
 // Set display brightness
-func (d *Device) Brightness(value uint8) {
+func (d *Device) SetBrightness(value uint8) {
 	if value == 0 {
-		d.sendCommand(zeroBrightness)
+		d.sendCommand(cmdZeroBrightness)
 	} else {
-		d.sendCommand(brightness | (value & maxBrightness))
+		if value > MaxBrightness {
+			value = MaxBrightness
+		}
+		d.sendCommand(cmdSetBrightness | value)
 	}
 }
 
 // Write one display memory element
-func (d *Device) Write(offset uint8, data uint8) {
-	d.sendCommand(fixedAddress)
+func (d *Device) Write(data uint8, offset uint8) {
+	d.sendCommand(cmdFixedAddress)
 	d.strobe.Low()
 	d.transmissionDelay()
 	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(baseAddress | (offset & maxAddress))
+	d.write(cmdSetAddress | (offset & maxAddress))
 	d.write(data)
 	d.strobe.High()
 }
 
 // Write array to display memory
-func (d *Device) WriteArray(offset uint8, data []uint8) {
-	d.sendCommand(addressAutoIncrement)
+func (d *Device) WriteAt(data []uint8, offset uint8) {
+	d.sendCommand(cmdAddressAutoIncrement)
 	d.strobe.Low()
 	d.transmissionDelay()
 	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(baseAddress | (offset & maxAddress))
+	d.write(cmdSetAddress | (offset & maxAddress))
 	for _, element := range data {
 		d.write(element)
 	}
@@ -93,7 +111,7 @@ func (d *Device) ScanKeyboard(buffer *[4]uint8) {
 	d.strobe.Low()
 	d.transmissionDelay()
 	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(readKeys)
+	d.write(cmdReadKeyScan)
 	d.data.Configure(machine.PinConfig{Mode: machine.PinInput})
 	d.transmissionDelay()
 	for index := range buffer {

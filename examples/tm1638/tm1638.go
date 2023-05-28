@@ -13,21 +13,46 @@ import (
 	"tinygo.org/x/drivers/tm1638"
 )
 
+/*
+
+Odd items of toShow array contain bytes for 7-segment LEDs.
+Mapping for bits and segments shown bellow.
+
+--- 0 ---
+|       |
+5       1
+|       |
+--- 6 ---
+|       |
+4       2
+|       |
+--- 3 ---.7
+
+*/
+
 func main() {
-	// codes of nombers from 0 to 7 at odd indexes
+	// codes of numbers from 0 to 7 at odd indexes described
 	toShow := []uint8{0x3f, 1, 0x06, 0, 0x5b, 1, 0x4f, 0, 0x66, 1, 0x6d, 0, 0x7d, 1, 0x07}
 	// buffer for keyboard scan
 	var keyBuffer = [4]uint8{0, 0, 0, 0}
 
 	tm := tm1638.New(machine.D7, machine.D9, machine.D8) // strobe, clock, data
-	tm.Configure()
+	config := tm1638.Config{Brightness: tm1638.MaxBrightness}
+	tm.Configure(config)
+
+	// visualization of bit to segment mapping
+	for i := uint8(0); i < 8; i++ {
+		tm.Write(1<<uint8(i), uint8(i)<<1)
+	}
+	time.Sleep(time.Second * 3)
+
 	// show eight numbers and light on odd LEDs
-	tm.WriteArray(0, toShow)
+	tm.WriteAt(toShow, 0)
 	time.Sleep(time.Millisecond * 1000)
 
 	// 7 levels of brightness
 	for i := uint8(0); i < 8; i++ {
-		tm.Brightness(i)
+		tm.SetBrightness(i)
 		time.Sleep(time.Millisecond * 1000)
 	}
 	tm.Clear()
@@ -36,9 +61,9 @@ func main() {
 	for i := uint8(0); i < 16; i++ {
 		if i > 0 {
 			//
-			tm.Write(i-1, 0x00)
+			tm.Write(0x00, i-1)
 		}
-		tm.Write(i, 0x7F)
+		tm.Write(0x7F, i)
 		time.Sleep(time.Millisecond * 250)
 	}
 
@@ -60,16 +85,16 @@ func main() {
 		// i is index of button
 		for i := 0; i < 8; i++ {
 			if (firstScanLine & (1 << i)) > 0 {
-				// switch on LED
-				tm.Write(1+uint8(i)<<1, 0xff)
+				// LED switch on
+				tm.Write(0xff, 1+uint8(i)<<1)
 			} else {
-				// switch off LEd
-				tm.Write(1+uint8(i)<<1, 0x00)
+				// LED switch off
+				tm.Write(0x00, 1+uint8(i)<<1)
 			}
 		}
 
 		// switch off all segments
-		tm.Write(indicatorIndex<<1, 0x00)
+		tm.Write(0x00, indicatorIndex<<1)
 		if segmentIndex == 8 {
 			segmentIndex = 0
 			indicatorIndex++
@@ -78,7 +103,7 @@ func main() {
 			indicatorIndex = 0
 		}
 		// next segment switch on
-		tm.Write(indicatorIndex<<1, 1<<segmentIndex)
+		tm.Write(1<<segmentIndex, indicatorIndex<<1)
 		segmentIndex++
 
 		time.Sleep(time.Millisecond * 50)
