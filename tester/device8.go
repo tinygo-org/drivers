@@ -38,6 +38,9 @@ func (d *I2CDevice8) ReadRegister(r uint8, buf []byte) error {
 	if d.Err != nil {
 		return d.Err
 	}
+	if len(buf) == 0 {
+		d.c.Fatalf("no register buffer to read into")
+	}
 	d.assertRegisterRange(r, buf)
 	copy(buf, d.Registers[r:])
 	return nil
@@ -55,8 +58,18 @@ func (d *I2CDevice8) WriteRegister(r uint8, buf []byte) error {
 
 // Tx implements I2C.Tx.
 func (bus *I2CDevice8) Tx(w, r []byte) error {
-	// TODO: implement this
-	return nil
+	switch len(w) {
+	case 0:
+		bus.c.Fatalf("i2c mock: need a write byte")
+		return nil
+	case 1:
+		return bus.ReadRegister(w[0], r)
+	default:
+		if len(r) > 0 || len(w) == 1 {
+			bus.c.Fatalf("i2c mock: unsupported lengths in Tx(%d, %d)", len(w), len(r))
+		}
+		return bus.WriteRegister(w[0], w[1:])
+	}
 }
 
 // assertRegisterRange asserts that reading or writing the given
