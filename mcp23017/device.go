@@ -9,6 +9,7 @@ package mcp23017
 import (
 	"errors"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 )
 
@@ -77,19 +78,12 @@ const (
 // address pins).
 var ErrInvalidHWAddress = errors.New("invalid hardware address")
 
-// I2C represents an I2C bus. It is notably implemented by the
-// machine.I2C type.
-type I2C interface {
-	ReadRegister(addr uint8, r uint8, buf []byte) error
-	WriteRegister(addr uint8, r uint8, buf []byte) error
-}
-
 // New returns a new MCP23017 device at the given I2C address
 // on the given bus.
 // It returns ErrInvalidHWAddress if the address isn't possible for the device.
 //
 // By default all pins are configured as inputs.
-func NewI2C(bus I2C, address uint8) (*Device, error) {
+func NewI2C(bus drivers.I2C, address uint8) (*Device, error) {
 	if address&hwAddressMask != hwAddress {
 		return nil, ErrInvalidHWAddress
 	}
@@ -117,7 +111,7 @@ type Device struct {
 
 	// bus holds the reference the I2C bus that the device lives on.
 	// It's an interface so that we can write tests for it.
-	bus  I2C
+	bus  drivers.I2C
 	addr uint8
 	// pins caches the most recent pin values that have been set.
 	// This enables us to change individual pin values without
