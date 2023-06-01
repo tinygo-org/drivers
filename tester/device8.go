@@ -34,7 +34,7 @@ func (d *I2CDevice8) Addr() uint8 {
 }
 
 // ReadRegister implements I2C.ReadRegister.
-func (d *I2CDevice8) ReadRegister(r uint8, buf []byte) error {
+func (d *I2CDevice8) readRegister(r uint8, buf []byte) error {
 	if d.Err != nil {
 		return d.Err
 	}
@@ -47,7 +47,7 @@ func (d *I2CDevice8) ReadRegister(r uint8, buf []byte) error {
 }
 
 // WriteRegister implements I2C.WriteRegister.
-func (d *I2CDevice8) WriteRegister(r uint8, buf []byte) error {
+func (d *I2CDevice8) writeRegister(r uint8, buf []byte) error {
 	if d.Err != nil {
 		return d.Err
 	}
@@ -63,12 +63,12 @@ func (bus *I2CDevice8) Tx(w, r []byte) error {
 		bus.c.Fatalf("i2c mock: need a write byte")
 		return nil
 	case 1:
-		return bus.ReadRegister(w[0], r)
+		return bus.readRegister(w[0], r)
 	default:
 		if len(r) > 0 || len(w) == 1 {
 			bus.c.Fatalf("i2c mock: unsupported lengths in Tx(%d, %d)", len(w), len(r))
 		}
-		return bus.WriteRegister(w[0], w[1:])
+		return bus.writeRegister(w[0], w[1:])
 	}
 }
 
