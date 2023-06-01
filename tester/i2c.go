@@ -38,12 +38,12 @@ func (bus *I2CBus) NewDevice(addr uint8) *I2CDevice8 {
 
 // ReadRegister implements I2C.ReadRegister.
 func (bus *I2CBus) ReadRegister(addr uint8, r uint8, buf []byte) error {
-	return bus.FindDevice(addr).ReadRegister(r, buf)
+	return bus.FindDevice(addr).readRegister(r, buf)
 }
 
 // WriteRegister implements I2C.WriteRegister.
 func (bus *I2CBus) WriteRegister(addr uint8, r uint8, buf []byte) error {
-	return bus.FindDevice(addr).WriteRegister(r, buf)
+	return bus.FindDevice(addr).writeRegister(r, buf)
 }
 
 // Tx implements I2C.Tx.

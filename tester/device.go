@@ -5,10 +5,10 @@ const MaxRegisters = 255
 
 type I2CDevice interface {
 	// ReadRegister implements I2C.ReadRegister.
-	ReadRegister(r uint8, buf []byte) error
+	readRegister(r uint8, buf []byte) error
 
 	// WriteRegister implements I2C.WriteRegister.
-	WriteRegister(r uint8, buf []byte) error
+	writeRegister(r uint8, buf []byte) error
 
 	// Tx implements I2C.Tx
 	Tx(w, r []byte) error
