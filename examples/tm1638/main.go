@@ -34,16 +34,24 @@ func main() {
 	// codes of numbers from 0 to 7 at odd indexes described
 	toShow := []uint8{0x3f, 1, 0x06, 0, 0x5b, 1, 0x4f, 0, 0x66, 1, 0x6d, 0, 0x7d, 1, 0x07}
 	// buffer for keyboard scan
-	var keyBuffer = [4]uint8{0, 0, 0, 0}
+	keyBuffer := [4]uint8{0, 0, 0, 0}
+	// display memory buffer
+	displayBuffer := make([]byte, 16)
 
 	tm := tm1638.New(machine.D7, machine.D9, machine.D8) // strobe, clock, data
 	config := tm1638.Config{Brightness: tm1638.MaxBrightness}
 	tm.Configure(config)
 
+	fill(displayBuffer, 0xFF)
+	tm.WriteAt(displayBuffer, 0)
+	time.Sleep(time.Second * 3)
+	fill(displayBuffer, 0)
+
 	// visualization of bit to segment mapping
 	for i := uint8(0); i < 8; i++ {
-		tm.Write(1<<uint8(i), uint8(i)<<1)
+		displayBuffer[uint8(i)<<1] = 1 << uint8(i)
 	}
+	tm.WriteAt(displayBuffer, 0)
 	time.Sleep(time.Second * 3)
 
 	// show eight numbers and light on odd LEDs
@@ -55,15 +63,15 @@ func main() {
 		tm.SetBrightness(i)
 		time.Sleep(time.Millisecond * 1000)
 	}
-	tm.Clear()
 
-	// light on and off each indicator and LED
-	for i := uint8(0); i < 16; i++ {
+	fill(displayBuffer, 0)
+	displayBuffer[0] = 0x7F
+	for i := 0; i < len(displayBuffer); i++ {
 		if i > 0 {
-			//
-			tm.Write(0x00, i-1)
+			// move light to next position
+			displayBuffer[i], displayBuffer[i-1] = displayBuffer[i-1], 0
 		}
-		tm.Write(0x7F, i)
+		tm.WriteAt(displayBuffer, 0)
 		time.Sleep(time.Millisecond * 250)
 	}
 
@@ -71,8 +79,10 @@ func main() {
 	var indicatorIndex uint8 = 0
 	// index of segment to switch on
 	segmentIndex := 0
-
 	for {
+		// prepare buffer
+		fill(displayBuffer, 0)
+
 		// scan pressed keys
 		tm.ScanKeyboard(&keyBuffer)
 
@@ -82,30 +92,34 @@ func main() {
 			firstScanLine |= (keyBuffer[i] << i)
 		}
 
-		// i is index of button
+		// switch LEDs on above the pressed buttons
 		for i := 0; i < 8; i++ {
 			if (firstScanLine & (1 << i)) > 0 {
 				// LED switch on
-				tm.Write(0xff, 1+uint8(i)<<1)
-			} else {
-				// LED switch off
-				tm.Write(0x00, 1+uint8(i)<<1)
+				displayBuffer[1+uint8(i)<<1] = 0xFF
 			}
 		}
 
-		// switch off all segments
-		tm.Write(0x00, indicatorIndex<<1)
+		// next segment switch on
+		displayBuffer[indicatorIndex<<1] = 1 << segmentIndex
+
+		segmentIndex++
 		if segmentIndex == 8 {
 			segmentIndex = 0
 			indicatorIndex++
 		}
-		if indicatorIndex == 9 {
+		if indicatorIndex == 8 {
 			indicatorIndex = 0
+			segmentIndex = 0
 		}
-		// next segment switch on
-		tm.Write(1<<segmentIndex, indicatorIndex<<1)
-		segmentIndex++
 
+		tm.WriteAt(displayBuffer, 0)
 		time.Sleep(time.Millisecond * 50)
+	}
+}
+
+func fill(values []byte, value byte) {
+	for i, _ := range values {
+		values[i] = value
 	}
 }
