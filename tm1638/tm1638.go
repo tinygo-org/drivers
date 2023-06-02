@@ -28,8 +28,6 @@ type Config struct {
 const (
 	/* Address increasing mode: automatic address increased */
 	cmdAddressAutoIncrement = 0x40
-	/* Address increasing mode: fixed address */
-	cmdFixedAddress = 0x44
 	/* Read key scan data */
 	cmdReadKeyScan = 0x42
 	/* Display off */
@@ -80,17 +78,6 @@ func (d *Device) SetBrightness(value uint8) {
 		}
 		d.sendCommand(cmdSetBrightness | value)
 	}
-}
-
-// Write one display memory element
-func (d *Device) Write(data uint8, offset uint8) {
-	d.sendCommand(cmdFixedAddress)
-	d.strobe.Low()
-	d.transmissionDelay()
-	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(cmdSetAddress | (offset & maxAddress))
-	d.write(data)
-	d.strobe.High()
 }
 
 // Write array to display memory
