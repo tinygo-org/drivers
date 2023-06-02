@@ -5,6 +5,7 @@ It integrates MCU digital interface, data latch, LED drive, and keypad scanning 
 package tm1638
 
 import (
+	"fmt"
 	"machine"
 	"time"
 )
@@ -81,16 +82,20 @@ func (d *Device) SetBrightness(value uint8) {
 }
 
 // Write array to display memory
-func (d *Device) WriteAt(data []uint8, offset uint8) {
+func (d *Device) WriteAt(data []byte, offset int64) (n int, err error) {
+	if offset < 1 || offset > maxAddress {
+		return 0, fmt.Errorf("WriteAt wrong offset")
+	}
 	d.sendCommand(cmdAddressAutoIncrement)
 	d.strobe.Low()
 	d.transmissionDelay()
 	d.data.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.write(cmdSetAddress | (offset & maxAddress))
+	d.write(cmdSetAddress | uint8(offset))
 	for _, element := range data {
 		d.write(element)
 	}
 	d.strobe.High()
+	return len(data), nil
 }
 
 /*
