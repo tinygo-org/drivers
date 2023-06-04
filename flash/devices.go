@@ -36,6 +36,8 @@ var DefaultDeviceIdentifier = DeviceIdentifierFunc(func(id JedecID) Attrs {
 		return S25FL216K()
 	case 0x1F4501:
 		return AT25DF081A()
+	case 0x856015:
+		return P25Q16H()
 	case 0xC22015:
 		return MX25L1606()
 	case 0xC22016:
@@ -72,6 +74,24 @@ var DefaultDeviceIdentifier = DeviceIdentifierFunc(func(id JedecID) Attrs {
 		return Attrs{JedecID: id}
 	}
 })
+
+// Settings for Puya Semi P25Q16H 16MiB QSPI flash.
+// Datasheet: https://www.puyasemi.com/uploadfiles/2018/08/20180807152503253.pdf
+func P25Q16H() Attrs {
+	return Attrs{
+		TotalSize:           1 << 24, // 16 MiB
+		StartUp:             12 * time.Microsecond,
+		JedecID:             JedecID{0x85, 0x60, 0x15},
+		MaxClockSpeedMHz:    104,
+		QuadEnableBitMask:   0x02,
+		HasSectorProtection: false,
+		SupportsFastRead:    true,
+		SupportsQSPI:        true,
+		SupportsQSPIWrites:  true,
+		WriteStatusSplit:    false,
+		SingleStatusByte:    true,
+	}
+}
 
 // Settings for the Cypress (was Spansion) S25FL064L 8MiB SPI flash.
 // Datasheet: http://www.cypress.com/file/316661/download
