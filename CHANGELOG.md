@@ -1,3 +1,80 @@
+0.24.0
+---
+- **new devices**
+    - **lora**
+        - created shared RadioEvent
+        - move shared config for sx126x/sx127x to single package
+    - **lorawan**
+        - add initial LoRaWAN stack support
+        - Basic implementation of Lorawan Regional Settings and EU868/AU915 regions
+    - **qmi8658c**
+        - Add support for the QMI8658C sensor (#467)
+    - **sh1106**
+        - add support for SH1106 display driver
+    - **sx127x**
+        - Driver for Semtech sx127x radio modules
+
+- **enhancements**
+    - **bme280**
+        - improve config support
+        - add ReadAltitude() function copied from BMP280 driver
+    - **buzzer**
+        - make all note durations float64
+        - no tone during rest
+    - **dht22**
+        - update DHT22 receive to use runtime/interrupt
+    - **gps**
+        - add support for GLL sentence type, add original sentence to gps errors
+        - improve error handling
+        - improve parsing and add tests to verify
+    - **microbitmatrix**
+        - add link to schema for microbit V2
+        - add smoke test for microbitmatrix with microbit-v2
+        - add support for brightness of led pixels
+        - harmonize v1 and v2 implementation
+        - move Size() to version agnostic part
+    - **mpu6050**
+        - add functions to configure clock, and scaling for accelerometer and gyroscope
+    - **net/http**
+        - add PostForm()
+    - **sx126x**
+        - add Reset() and needed pin
+        - move RadioController into separate file for clarity
+        - pre-define all errors to avoid heap allocations
+        - refactor to RadioController interface to more easily handle non-STM32WL boards and remove duplicated code
+
+    - **vl53l1x**
+        - Add getter for the effective SPAD count
+    - **wifinina**
+        - add support for http server (#480)
+
+- **bugfixes**
+    - **lsm303agr**
+        - fix I2C address auto increment for multi data read
+    - **net**
+        - (#501) make IP.String() method return something sensible
+    - **mpu6050**
+        - return I2C error when configuring fails
+    - **sx126x**
+        - fix in SetBandwidth function
+        - actually set the frequency when calling SetFrequency()
+        - correct RX/TX pin mapping for TheThingsIndustries GNSE board
+
+- **examples**
+    - **LoRaWAN**
+        - example with LoRaWAN AT command set implementation
+        - basic example
+        - update all remaining examples for refactored API
+    - **sx126x**
+        - fix bandwidth,tx power in lora//lora_continuous example
+    - **sx127x**
+        - rx/tx example
+
+- **build**
+    - remove older format build tags
+    - update to actions/checkout@v3
+    - work around for CVE-2022-24765
+
 0.23.0
 ---
 - **new devices**

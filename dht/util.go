@@ -1,5 +1,4 @@
 //go:build tinygo
-// +build tinygo
 
 package dht // import "tinygo.org/x/drivers/dht"
 

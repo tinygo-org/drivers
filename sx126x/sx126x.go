@@ -7,16 +7,19 @@ import (
 	"errors"
 	"time"
 
+	"machine"
+
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/lora"
 )
 
-// SX126X radio transceiver RF_IN and RF_OUT may be connected
-// to RF Switch. This interface allows the creation of struct
-// that can drive the RF Switch (Used in Lora RX and Lora Tx)
-type RFSwitch interface {
-	InitRFSwitch()
-	SetRfSwitchMode(mode int) error
-}
+var (
+	errWaitWhileBusyTimeout   = errors.New("WaitWhileBusy Timeout")
+	errLowPowerTxNotSupported = errors.New("RFSWITCH_TX_LP not supported")
+	errRadioNotFound          = errors.New("LoRa radio not found")
+	errUnexpectedRxRadioEvent = errors.New("Unexpected Radio Event during RX")
+	errUnexpectedTxRadioEvent = errors.New("Unexpected Radio Event during TX")
+)
 
 const (
 	DEVICE_TYPE_SX1261 = iota
@@ -31,58 +34,37 @@ const (
 )
 
 const (
-	RadioEventRxDone    = iota
-	RadioEventTxDone    = iota
-	RadioEventTimeout   = iota
-	RadioEventWatchdog  = iota
-	RadioEventCrcError  = iota
-	RadioEventUnhandled = iota
+	PERIOD_PER_SEC      = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
+	SPI_BUFFER_SIZE     = 256
+	RADIOEVENTCHAN_SIZE = 1
 )
 
-// RadioEvent are used for communicating in the radio Event Channel
-type RadioEvent struct {
-	EventType int
-	IRQStatus uint16
-	EventData []byte
-}
-
-const (
-	PERIOD_PER_SEC  = (uint32)(1000000 / 15.625) // SX1261 DS 13.1.4
-	SPI_BUFFER_SIZE = 256
-)
-
-// Device wraps an SPI connection to a SX127x device.
+// Device wraps an SPI connection to a SX126x device.
 type Device struct {
-	spi            drivers.SPI     // SPI bus for module communication
-	radioEventChan chan RadioEvent // Channel for Receiving events
-	loraConf       LoraConfig      // Current Lora configuration
-	rfswitch       RFSwitch        // RF Switch, if any
-	deepSleep      bool            // Internal Sleep state
-	deviceType     int             // sx1261,sx1262,sx1268 (defaults sx1261)
-	spiBuffer      [SPI_BUFFER_SIZE]uint8
+	spi            drivers.SPI          // SPI bus for module communication
+	rstPin         machine.Pin          // GPIO for reset pin
+	radioEventChan chan lora.RadioEvent // Channel for Receiving events
+	loraConf       lora.Config          // Current Lora configuration
+	controller     RadioController      // to manage interactions with the radio
+	deepSleep      bool                 // Internal Sleep state
+	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
+	spiTxBuf       []byte               // global Tx buffer to avoid heap allocations in interrupt
+	spiRxBuf       []byte               // global Rx buffer to avoid heap allocations in interrupt
+
 }
 
-// Config holds the LoRa configuration parameters
-type LoraConfig struct {
-	Freq           uint32 // Frequency
-	Cr             uint8  // Coding Rate
-	Sf             uint8  // Spread Factor
-	Bw             uint8  // Bandwidth
-	Ldr            uint8  // Low Data Rate
-	Preamble       uint16 // PreambleLength
-	SyncWord       uint16 // Sync Word
-	HeaderType     uint8  // Header : Implicit/explicit
-	Crc            uint8  // CRC : Yes/No
-	Iq             uint8  // iq : Standard/inverted
-	LoraTxPowerDBm int8   // Tx power in Dbm
+// New creates a new SX126x connection.
+func New(spi drivers.SPI) *Device {
+	return &Device{
+		spi:            spi,
+		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
+		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
+		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
+	}
 }
 
 const (
 	SX126X_RTC_FREQ_IN_HZ uint32 = 64000
-)
-
-var (
-	errUndefinedLoraConf = errors.New("Undefined Lora configuration")
 )
 
 // --------------------------------------------------
@@ -100,14 +82,8 @@ func timeoutMsToRtcSteps(timeoutMs uint32) uint32 {
 //	Channel and events
 //
 // --------------------------------------------------
-// NewRadioEvent() returns a new RadioEvent that can be used in the RadioChannel
-func NewRadioEvent(eType int, irqStatus uint16, eData []byte) RadioEvent {
-	r := RadioEvent{EventType: eType, IRQStatus: irqStatus, EventData: eData}
-	return r
-}
-
 // Get the RadioEvent channel of the device
-func (d *Device) GetRadioEventChan() chan RadioEvent {
+func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 	return d.radioEventChan
 }
 
@@ -116,15 +92,27 @@ func (d *Device) SetDeviceType(devType int) {
 	d.deviceType = devType
 }
 
-// SetRfSwitch let you define a custom RF Switch driver if needed
-func (d *Device) SetRfSwitch(rfswitch RFSwitch) {
-	d.rfswitch = rfswitch
-	d.rfswitch.InitRFSwitch()
+// SetRadioControl let you define the RadioController
+func (d *Device) SetRadioController(rc RadioController) error {
+	d.controller = rc
+	if err := d.controller.Init(); err != nil {
+		return err
+	}
+	d.controller.SetupInterrupts(d.HandleInterrupt)
+
+	return nil
 }
 
 // --------------------------------------------------
 // Operational modes functions
 // --------------------------------------------------
+
+func (d *Device) Reset() {
+	d.rstPin.Low()
+	time.Sleep(100 * time.Millisecond)
+	d.rstPin.High()
+	time.Sleep(100 * time.Millisecond)
+}
 
 // DetectDevice() tries to detect the radio module by changing SyncWord value
 func (d *Device) DetectDevice() bool {
@@ -156,18 +144,18 @@ func (d *Device) SetFs() {
 
 // SetTxContinuousWave set device in test mode to generate a continuous wave (RF tone)
 func (d *Device) SetTxContinuousWave() {
-	if d.rfswitch != nil {
-		d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+	if d.controller != nil {
+		d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 	}
 	d.ExecSetCommand(SX126X_CMD_SET_TX_CONTINUOUS_WAVE, []uint8{})
 }
 
 // SetTxContinuousPreamble set device in test mode to constantly modulate LoRa preamble symbols.
-// Take care to initialize all Lora settings like it's done in LoraTx before calling this function
+// Take care to initialize all Lora settings like it's done in Tx before calling this function
 // If you don't init properly all the settings, it'll fail
 func (d *Device) SetTxContinuousPreamble() {
-	if d.rfswitch != nil {
-		d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+	if d.controller != nil {
+		d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 	}
 	d.ExecSetCommand(SX126X_CMD_SET_TX_INFINITE_PREAMBLE, []uint8{})
 }
@@ -265,25 +253,29 @@ func (d *Device) SetRxTxFallbackMode(fallbackMode uint8) {
 // ReadRegister reads register value
 func (d *Device) ReadRegister(addr, size uint16) ([]uint8, error) {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send command
-	cmd := []uint8{SX126X_CMD_READ_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF), 0x00}
-	d.spi.Tx(cmd, nil)
-	ret := d.spiBuffer[0:size]
-	d.spi.Tx(nil, ret)
-	d.SpiSetNss(true)
-	d.WaitBusy()
-	return ret, nil
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, SX126X_CMD_READ_REGISTER, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF), 0x00)
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Read registers
+	d.spiRxBuf = d.spiRxBuf[0:size]
+	d.spi.Tx(nil, d.spiRxBuf)
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
+	return d.spiRxBuf, nil
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(addr uint16, data []uint8) {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
-	cmd := []uint8{SX126X_CMD_WRITE_REGISTER, uint8((addr & 0xFF00) >> 8), uint8(addr & 0x00FF)}
-	d.spi.Tx(append(cmd, data...), nil)
-	d.SpiSetNss(true)
-	d.WaitBusy()
+	d.controller.SetNss(false)
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, SX126X_CMD_WRITE_REGISTER, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, data...)
+	d.spi.Tx(d.spiTxBuf, nil)
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
 }
 
 // WriteBuffer write data from current buffer position
@@ -387,11 +379,11 @@ func (d *Device) SetPacketType(packetType uint8) {
 }
 
 // SetSyncWord defines the Sync Word to yse
-func (d *Device) SetSyncWord(syncword uint16) {
+func (d *Device) SetSyncWord(sw uint16) {
 	var p [2]uint8
-	d.loraConf.SyncWord = syncword
-	p[0] = uint8((syncword >> 8) & 0xFF)
-	p[1] = uint8((syncword >> 0) & 0xFF)
+	d.loraConf.SyncWord = sw
+	p[0] = uint8((d.loraConf.SyncWord >> 8) & 0xFF)
+	p[1] = uint8((d.loraConf.SyncWord >> 0) & 0xFF)
 	d.WriteRegister(SX126X_REG_LORA_SYNC_WORD_MSB, p[:])
 }
 
@@ -402,8 +394,8 @@ func (d *Device) GetSyncWord() uint16 {
 	return r
 }
 
-// SetLoraPublicNetwork sets Sync Word to 0x3444 (Public) or 0x1424 (Private)
-func (d *Device) SetLoraPublicNetwork(enable bool) {
+// SetPublicNetwork sets Sync Word to 0x3444 (Public) or 0x1424 (Private)
+func (d *Device) SetPublicNetwork(enable bool) {
 	if enable {
 		d.SetSyncWord(SX126X_LORA_MAC_PUBLIC_SYNCWORD)
 	} else {
@@ -496,12 +488,12 @@ func (d *Device) SetModulationParams(spreadingFactor, bandwidth, codingRate, low
 // CheckDeviceReady sleep until all busy flags clears
 func (d *Device) CheckDeviceReady() error {
 	if d.deepSleep == true {
-		d.SpiSetNss(false)
+		d.controller.SetNss(false)
 		time.Sleep(time.Millisecond)
-		d.SpiSetNss(true)
+		d.controller.SetNss(true)
 		d.deepSleep = false
 	}
-	return d.WaitBusy()
+	return d.controller.WaitWhileBusy()
 }
 
 // ExecSetCommand send a command to configure the peripheral
@@ -512,73 +504,98 @@ func (d *Device) ExecSetCommand(cmd uint8, buf []uint8) {
 	} else {
 		d.deepSleep = false
 	}
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send command and params
-	d.spi.Tx(append([]uint8{cmd}, buf...), nil)
-	d.SpiSetNss(true)
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, cmd)
+	d.spiTxBuf = append(d.spiTxBuf, buf...)
+	d.spi.Tx(d.spiTxBuf, nil)
+	d.controller.SetNss(true)
 	if cmd != SX126X_CMD_SET_SLEEP {
-		d.WaitBusy()
+		d.controller.WaitWhileBusy()
 	}
 }
 
 // ExecGetCommand queries the peripheral the peripheral
 func (d *Device) ExecGetCommand(cmd uint8, size uint8) []uint8 {
 	d.CheckDeviceReady()
-	d.SpiSetNss(false)
+	d.controller.SetNss(false)
 	// Send the command and flush first status byte (as not used)
-	d.spi.Tx([]uint8{cmd, 0x00}, nil)
-	d.spi.Tx(nil, d.spiBuffer[:size])
-	d.SpiSetNss(true)
-	d.WaitBusy()
-	return d.spiBuffer[:size]
+	d.spiTxBuf = d.spiTxBuf[:0]
+	d.spiTxBuf = append(d.spiTxBuf, cmd, 0x00)
+	d.spi.Tx(d.spiTxBuf, nil)
+	// Read resp
+	d.spiRxBuf = d.spiRxBuf[:size]
+	d.spi.Tx(nil, d.spiRxBuf)
+	d.controller.SetNss(true)
+	d.controller.WaitWhileBusy()
+	return d.spiRxBuf
 }
 
 //
 // Configuration
 //
 
-// SetLoraFrequency() Sets current Lora Frequency
+// SetFrequency() Sets current Lora Frequency
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraFrequency(freq uint32) {
-	d.loraConf.Freq = d.loraConf.Freq
+func (d *Device) SetFrequency(freq uint32) {
+	d.loraConf.Freq = freq
 }
 
-// SetLoraIqMode() defines the current IQ Mode (Standard/Inverted)
+// SetIqMode() defines the current IQ Mode (Standard/Inverted)
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraIqMode(mode uint8) {
+func (d *Device) SetIqMode(mode uint8) {
 	if mode == 0 {
-		d.loraConf.Iq = SX126X_LORA_IQ_STANDARD
+		d.loraConf.Iq = lora.IQStandard
 	} else {
-		d.loraConf.Iq = SX126X_LORA_IQ_INVERTED
+		d.loraConf.Iq = lora.IQInverted
 	}
 }
 
-// SetLoraCodingRate() sets current Lora Coding Rate
+// SetCodingRate() sets current Lora Coding Rate
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraCodingRate(cr uint8) {
+func (d *Device) SetCodingRate(cr uint8) {
 	d.loraConf.Cr = cr
 }
 
-// SetLoraBandwidth() sets current Lora Bandwidth
+// SetBandwidth() sets current Lora Bandwidth
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraBandwidth(bw uint8) {
-	d.loraConf.Cr = bw
+func (d *Device) SetBandwidth(bw uint8) {
+	d.loraConf.Bw = bw
 }
 
-// SetLoraCrc() sets current CRC mode (ON/OFF)
+// SetCrc() sets current CRC mode (ON/OFF)
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraCrc(enable bool) {
+func (d *Device) SetCrc(enable bool) {
 	if enable {
-		d.loraConf.Crc = SX126X_LORA_CRC_ON
+		d.loraConf.Crc = lora.CRCOn
 	} else {
-		d.loraConf.Crc = SX126X_LORA_CRC_OFF
+		d.loraConf.Crc = lora.CRCOn
 	}
 }
 
-// SetLoraSpreadingFactor setc surrent Lora Spreading Factor
+// SetSpreadingFactor sets current Lora Spreading Factor
 // NB: Change will be applied at next RX / TX
-func (d *Device) SetLoraSpreadingFactor(sf uint8) {
+func (d *Device) SetSpreadingFactor(sf uint8) {
 	d.loraConf.Sf = sf
+}
+
+// SetPreambleLength sets current Lora Preamble Length
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetPreambleLength(pl uint16) {
+	d.loraConf.Preamble = pl
+}
+
+// SetTxPowerDbm sets current Lora TX Power in DBm
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetTxPower(txpow int8) {
+	d.loraConf.LoraTxPowerDBm = txpow
+}
+
+// SetHeaderType sets implicit or explicit header mode
+// NB: Change will be applied at next RX / TX
+func (d *Device) SetHeaderType(headerType uint8) {
+	d.loraConf.HeaderType = headerType
 }
 
 //
@@ -587,9 +604,10 @@ func (d *Device) SetLoraSpreadingFactor(sf uint8) {
 //
 
 // LoraConfig() defines Lora configuration for next Lora operations
-func (d *Device) LoraConfig(cnf LoraConfig) {
+func (d *Device) LoraConfig(cnf lora.Config) {
 	// Save given configuration
 	d.loraConf = cnf
+	d.loraConf.SyncWord = syncword(int(cnf.SyncWord))
 	// Switch to standby prior to configuration changes
 	d.SetStandby()
 	// Clear errors, disable radio interrupts for the moment
@@ -599,24 +617,25 @@ func (d *Device) LoraConfig(cnf LoraConfig) {
 	// Define radio operation mode
 	d.SetPacketType(SX126X_PACKET_TYPE_LORA)
 	d.SetRfFrequency(d.loraConf.Freq)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetTxParams(d.loraConf.LoraTxPowerDBm, SX126X_PA_RAMP_200U)
 	d.SetSyncWord(d.loraConf.SyncWord)
 	d.SetBufferBaseAddress(0, 0)
 }
 
-// LoraTx sends a lora packet, (with timeout)
-func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
-
+// Tx sends a lora packet, (with timeout)
+func (d *Device) Tx(pkt []uint8, timeoutMs uint32) error {
 	if d.loraConf.Freq == 0 {
-		return errUndefinedLoraConf
+		return lora.ErrUndefinedLoraConf
 	}
-	if d.rfswitch != nil {
-		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_TX_HP)
+
+	if d.controller != nil {
+		err := d.controller.SetRfSwitchMode(RFSWITCH_TX_HP)
 		if err != nil {
 			return err
 		}
 	}
+
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 	irqVal := uint16(SX126X_IRQ_TX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
@@ -625,46 +644,48 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 	d.SetTxParams(d.loraConf.LoraTxPowerDBm, SX126X_PA_RAMP_200U)
 	d.SetBufferBaseAddress(0, 0)
 	d.WriteBuffer(pkt)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetPacketParam(d.loraConf.Preamble, d.loraConf.HeaderType, d.loraConf.Crc, uint8(len(pkt)), d.loraConf.Iq)
 	d.SetDioIrqParams(irqVal, irqVal, SX126X_IRQ_NONE, SX126X_IRQ_NONE)
 	d.SetSyncWord(d.loraConf.SyncWord)
 	d.SetTx(timeoutMsToRtcSteps(timeoutMs))
 
 	msg := <-d.GetRadioEventChan()
-	if msg.EventType != RadioEventTxDone {
-		return errors.New("Unexpected Radio Event while TX")
+	if msg.EventType != lora.RadioEventTxDone {
+		return errUnexpectedTxRadioEvent
 	}
 	return nil
 }
 
 // LoraRx tries to receive a Lora packet (with timeout in milliseconds)
-func (d *Device) LoraRx(timeoutMs uint32) ([]uint8, error) {
-
+func (d *Device) Rx(timeoutMs uint32) ([]uint8, error) {
 	if d.loraConf.Freq == 0 {
-		return nil, errUndefinedLoraConf
+		return nil, lora.ErrUndefinedLoraConf
 	}
-	if d.rfswitch != nil {
-		err := d.rfswitch.SetRfSwitchMode(RFSWITCH_RX)
+
+	if d.controller != nil {
+		err := d.controller.SetRfSwitchMode(RFSWITCH_RX)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 	irqVal := uint16(SX126X_IRQ_RX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_CRC_ERR)
 	d.SetStandby()
 	d.SetBufferBaseAddress(0, 0)
-	d.SetModulationParams(d.loraConf.Sf, d.loraConf.Bw, d.loraConf.Cr, d.loraConf.Ldr)
+	d.SetRfFrequency(d.loraConf.Freq)
+	d.SetModulationParams(d.loraConf.Sf, bandwidth(d.loraConf.Bw), d.loraConf.Cr, d.loraConf.Ldr)
 	d.SetPacketParam(d.loraConf.Preamble, d.loraConf.HeaderType, d.loraConf.Crc, 0xFF, d.loraConf.Iq)
 	d.SetDioIrqParams(irqVal, irqVal, SX126X_IRQ_NONE, SX126X_IRQ_NONE)
 	d.SetRx(timeoutMsToRtcSteps(timeoutMs))
 
 	msg := <-d.GetRadioEventChan()
 
-	if msg.EventType == RadioEventTimeout {
+	if msg.EventType == lora.RadioEventTimeout {
 		return nil, nil
-	} else if msg.EventType != RadioEventRxDone {
-		return nil, errors.New("Unexpected Radio Event while RX")
+	} else if msg.EventType != lora.RadioEventRxDone {
+		return nil, errUnexpectedRxRadioEvent
 	}
 
 	pLen, pStart := d.GetRxBufferStatus()
@@ -680,22 +701,68 @@ func (d *Device) HandleInterrupt() {
 	st := d.GetIrqStatus()
 	d.ClearIrqStatus(SX126X_IRQ_ALL)
 
-	rChan := d.GetRadioEventChan()
-
 	if (st & SX126X_IRQ_RX_DONE) > 0 {
-		rChan <- NewRadioEvent(RadioEventRxDone, st, nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventRxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX126X_IRQ_TX_DONE) > 0 {
-		rChan <- NewRadioEvent(RadioEventTxDone, st, nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTxDone, uint16(st), nil}:
+		default:
+		}
 	}
 
 	if (st & SX126X_IRQ_TIMEOUT) > 0 {
-		rChan <- NewRadioEvent(RadioEventTimeout, st, nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventTimeout, uint16(st), nil}:
+		default:
+		}
+
 	}
 
 	if (st & SX126X_IRQ_CRC_ERR) > 0 {
-		rChan <- NewRadioEvent(RadioEventCrcError, st, nil)
+		select {
+		case d.radioEventChan <- lora.RadioEvent{lora.RadioEventCrcError, uint16(st), nil}:
+
+		default:
+		}
 	}
 
+}
+
+func bandwidth(bw uint8) uint8 {
+	switch bw {
+	case lora.Bandwidth_7_8:
+		return SX126X_LORA_BW_7_8
+	case lora.Bandwidth_10_4:
+		return SX126X_LORA_BW_10_4
+	case lora.Bandwidth_15_6:
+		return SX126X_LORA_BW_15_6
+	case lora.Bandwidth_20_8:
+		return SX126X_LORA_BW_20_8
+	case lora.Bandwidth_31_25:
+		return SX126X_LORA_BW_31_25
+	case lora.Bandwidth_41_7:
+		return SX126X_LORA_BW_41_7
+	case lora.Bandwidth_62_5:
+		return SX126X_LORA_BW_62_5
+	case lora.Bandwidth_125_0:
+		return SX126X_LORA_BW_125_0
+	case lora.Bandwidth_250_0:
+		return SX126X_LORA_BW_250_0
+	case lora.Bandwidth_500_0:
+		return SX126X_LORA_BW_500_0
+	default:
+		return 0
+	}
+}
+
+func syncword(sw int) uint16 {
+	if sw == lora.SyncPublic {
+		return SX126X_LORA_MAC_PUBLIC_SYNCWORD
+	}
+	return SX126X_LORA_MAC_PRIVATE_SYNCWORD
 }

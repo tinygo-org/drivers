@@ -1,5 +1,7 @@
 package ili9341
 
+import "tinygo.org/x/drivers"
+
 type Rotation uint8
 
 const (
@@ -39,6 +41,8 @@ const (
 
 	PTLAR    = 0x30 ///< Partial Area
 	VSCRDEF  = 0x33 ///< Vertical Scrolling Definition
+	TEOFF    = 0x34 ///< TEOFF: Tearing Effect Line OFF
+	TEON     = 0x35 ///< TEON: Tearing Effect Line ON
 	MADCTL   = 0x36 ///< Memory Access Control
 	VSCRSADD = 0x37 ///< Vertical Scrolling Start Address
 	PIXFMT   = 0x3A ///< COLMOD: Pixel Format Set
@@ -77,13 +81,13 @@ const (
 )
 
 const (
-	Rotation0   Rotation = 0
-	Rotation90  Rotation = 1 // 90 degrees clock-wise rotation
-	Rotation180 Rotation = 2
-	Rotation270 Rotation = 3
+	Rotation0   = drivers.Rotation0
+	Rotation90  = drivers.Rotation90 // 90 degrees clock-wise rotation
+	Rotation180 = drivers.Rotation180
+	Rotation270 = drivers.Rotation270
 
-	Rotation0Mirror   Rotation = 4
-	Rotation90Mirror  Rotation = 5
-	Rotation180Mirror Rotation = 6
-	Rotation270Mirror Rotation = 7
+	Rotation0Mirror   = drivers.Rotation0Mirror
+	Rotation90Mirror  = drivers.Rotation90Mirror
+	Rotation180Mirror = drivers.Rotation180Mirror
+	Rotation270Mirror = drivers.Rotation270Mirror
 )

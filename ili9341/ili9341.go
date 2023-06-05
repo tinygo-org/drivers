@@ -5,19 +5,21 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
 	Width            int16
 	Height           int16
-	Rotation         Rotation
+	Rotation         drivers.Rotation
 	DisplayInversion bool
 }
 
 type Device struct {
 	width    int16
 	height   int16
-	rotation Rotation
+	rotation drivers.Rotation
 	driver   driver
 
 	x0, x1 int16 // cached address window; prevents useless/expensive
@@ -136,10 +138,12 @@ func (d *Device) Configure(config Config) {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (x, y int16) {
-	if d.rotation == 1 || d.rotation == 3 {
+	switch d.rotation {
+	case Rotation90, Rotation270, Rotation90Mirror, Rotation270Mirror:
 		return d.height, d.width
+	default: // Rotation0, Rotation180, etc
+		return d.width, d.height
 	}
-	return d.width, d.height
 }
 
 // SetPixel modifies the internal buffer.
@@ -154,6 +158,18 @@ func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 // Display sends the buffer (if any) to the screen.
 func (d *Device) Display() error {
 	return nil
+}
+
+// EnableTEOutput enables the TE ("tearing effect") line.
+// The TE line goes high when the screen is not currently being updated and can
+// be used to start drawing. When used correctly, it can avoid tearing entirely.
+func (d *Device) EnableTEOutput(on bool) {
+	if on {
+		cmdBuf[0] = 0
+		d.sendCommand(TEON, cmdBuf[:1]) // M=0 (V-blanking only, no H-blanking)
+	} else {
+		d.sendCommand(TEOFF, nil) // TEOFF
+	}
 }
 
 // DrawRGBBitmap copies an RGB bitmap to the internal buffer at given coordinates
@@ -241,13 +257,41 @@ func (d *Device) FillScreen(c color.RGBA) {
 	}
 }
 
-// GetRotation returns the current rotation of the device
-func (d *Device) GetRotation() Rotation {
+// Set the sleep mode for this LCD panel. When sleeping, the panel uses a lot
+// less power. The LCD won't display an image anymore, but the memory contents
+// will be kept.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		// Shut down LCD panel.
+		d.sendCommand(SLPIN, nil)
+		time.Sleep(5 * time.Millisecond) // 5ms required by the datasheet
+	} else {
+		// Turn the LCD panel back on.
+		d.sendCommand(SLPOUT, nil)
+		// Note: the ili9341 documentation says that it is needed to wait at
+		// least 120ms before going to sleep again. Sleeping here would not be
+		// practical (delays turning on the screen too much), so just hope the
+		// screen won't need to sleep again for at least 120ms.
+		// In practice, it's unlikely the user will set the display to sleep
+		// again within 120ms.
+	}
+	return nil
+}
+
+// Rotation returns the current rotation of the device.
+func (d *Device) Rotation() drivers.Rotation {
 	return d.rotation
 }
 
-// SetRotation changes the rotation of the device (clock-wise)
-func (d *Device) SetRotation(rotation Rotation) {
+// GetRotation returns the current rotation of the device.
+//
+// Deprecated: use Rotation instead.
+func (d *Device) GetRotation() drivers.Rotation {
+	return d.rotation
+}
+
+// SetRotation changes the rotation of the device (clock-wise).
+func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 8 {
 	case Rotation0:
@@ -255,21 +299,22 @@ func (d *Device) SetRotation(rotation Rotation) {
 	case Rotation90:
 		madctl = MADCTL_MV | MADCTL_BGR
 	case Rotation180:
-		madctl = MADCTL_MY | MADCTL_BGR
+		madctl = MADCTL_MY | MADCTL_BGR | MADCTL_ML
 	case Rotation270:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	case Rotation0Mirror:
 		madctl = MADCTL_BGR
 	case Rotation90Mirror:
-		madctl = MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	case Rotation180Mirror:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_BGR | MADCTL_ML
 	case Rotation270Mirror:
-		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR
+		madctl = MADCTL_MX | MADCTL_MY | MADCTL_MV | MADCTL_BGR | MADCTL_ML
 	}
 	cmdBuf[0] = madctl
 	d.sendCommand(MADCTL, cmdBuf[:1])
 	d.rotation = rotation
+	return nil
 }
 
 // SetScrollArea sets an area to scroll with fixed top/bottom or left/right parts of the display

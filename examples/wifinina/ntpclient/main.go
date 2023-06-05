@@ -61,6 +61,7 @@ func main() {
 	waitSerial()
 
 	connectToAP()
+	displayIP()
 
 	// now make UDP connection
 	ip := net.ParseIP(ntpHost)
@@ -111,9 +112,7 @@ func getCurrentTime(conn *net.UDPSerialConn) (time.Time, error) {
 		} else if n == 0 {
 			continue // no packet received yet
 		} else if n != NTP_PACKET_SIZE {
-			if n != NTP_PACKET_SIZE {
-				return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
-			}
+			return time.Time{}, fmt.Errorf("expected NTP packet size of %d: %d", NTP_PACKET_SIZE, n)
 		}
 		return parseNTPpacket(), nil
 	}
@@ -151,29 +150,42 @@ func clearBuffer() {
 	}
 }
 
+const retriesBeforeFailure = 3
+
 // connect to access point
 func connectToAP() {
 	time.Sleep(2 * time.Second)
-	println("Connecting to " + ssid)
-	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
-	if err != nil { // error connecting to AP
-		for {
-			println(err)
-			time.Sleep(1 * time.Second)
+	var err error
+	for i := 0; i < retriesBeforeFailure; i++ {
+		println("Connecting to " + ssid)
+		err = adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+		if err == nil {
+			println("Connected.")
+
+			return
 		}
 	}
 
-	println("Connected.")
+	// error connecting to AP
+	failMessage(err.Error())
+}
 
-	time.Sleep(2 * time.Second)
+func displayIP() {
 	ip, _, _, err := adaptor.GetIP()
 	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
 		message(err.Error())
 		time.Sleep(1 * time.Second)
 	}
-	message(ip.String())
+	message("IP address: " + ip.String())
 }
 
 func message(format string, args ...interface{}) {
 	println(fmt.Sprintf(format, args...), "\r")
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }

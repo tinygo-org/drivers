@@ -1,5 +1,4 @@
 //go:build !xiao_ble
-// +build !xiao_ble
 
 package lsm6ds3tr
 

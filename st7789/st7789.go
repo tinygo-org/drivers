@@ -17,10 +17,19 @@ import (
 )
 
 // Rotation controls the rotation used by the display.
-type Rotation uint8
+//
+// Deprecated: use drivers.Rotation instead.
+type Rotation = drivers.Rotation
+
+// The color format used on the display, like RGB565, RGB666, and RGB444.
+type ColorFormat uint8
 
 // FrameRate controls the frame rate used by the display.
 type FrameRate uint8
+
+var (
+	errOutOfBounds = errors.New("rectangle coordinates outside display area")
+)
 
 // Device wraps an SPI connection.
 type Device struct {
@@ -35,22 +44,29 @@ type Device struct {
 	rowOffsetCfg    int16
 	columnOffset    int16
 	rowOffset       int16
-	rotation        Rotation
+	rotation        drivers.Rotation
 	frameRate       FrameRate
 	batchLength     int32
 	isBGR           bool
 	vSyncLines      int16
+	cmdBuf          [1]byte
+	buf             [6]byte
 }
 
 // Config is the configuration for the display
 type Config struct {
 	Width        int16
 	Height       int16
-	Rotation     Rotation
+	Rotation     drivers.Rotation
 	RowOffset    int16
 	ColumnOffset int16
 	FrameRate    FrameRate
 	VSyncLines   int16
+
+	// Gamma control. Look in the LCD panel datasheet or provided example code
+	// to find these values. If not set, the defaults will be used.
+	PVGAMCTRL []uint8 // Positive voltage gamma control (14 bytes)
+	NVGAMCTRL []uint8 // Negative voltage gamma control (14 bytes)
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
@@ -112,25 +128,25 @@ func (d *Device) Configure(cfg Config) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Common initialization
-	d.Command(SWRESET)                 // Soft reset
+	d.startWrite()
+	d.sendCommand(SWRESET, nil) // Soft reset
+	d.endWrite()
 	time.Sleep(150 * time.Millisecond) //
+	d.startWrite()
 
-	d.Command(SLPOUT)                  // Exit sleep mode
-	time.Sleep(500 * time.Millisecond) //
+	d.sendCommand(SLPOUT, nil) // Exit sleep mode
 
 	// Memory initialization
-	d.Command(COLMOD)                 // Set color mode
-	d.Data(0x55)                      //   16-bit color
-	time.Sleep(10 * time.Millisecond) //
+	d.setColorFormat(ColorRGB565) // Set color mode to 16-bit color
+	time.Sleep(10 * time.Millisecond)
 
-	d.SetRotation(d.rotation) // Memory orientation
+	d.setRotation(d.rotation) // Memory orientation
 
 	d.setWindow(0, 0, d.width, d.height)   // Full draw window
-	d.FillScreen(color.RGBA{0, 0, 0, 255}) // Clear screen
+	d.fillScreen(color.RGBA{0, 0, 0, 255}) // Clear screen
 
 	// Framerate
-	d.Command(FRCTRL2)         // Frame rate for normal mode
-	d.Data(uint8(d.frameRate)) // Default is 60Hz
+	d.sendCommand(FRCTRL2, []byte{byte(d.frameRate)}) // Frame rate for normal mode (default 60Hz)
 
 	// Frame vertical sync and "porch"
 	//
@@ -140,24 +156,64 @@ func (d *Device) Configure(cfg Config) {
 	fp := uint8(d.vSyncLines / 2)         // Split the desired pause half and half
 	bp := uint8(d.vSyncLines - int16(fp)) // between front and back porch.
 
-	d.Command(PORCTRL)
-	d.Data(bp)   // Back porch 5bit     (0x7F max 0x08 default)
-	d.Data(fp)   // Front porch 5bit    (0x7F max 0x08 default)
-	d.Data(0x00) // Seprarate porch     (TODO: what is this?)
-	d.Data(0x22) // Idle mode porch     (4bit-back 4bit-front 0x22 default)
-	d.Data(0x22) // Partial mode porch  (4bit-back 4bit-front 0x22 default)
+	d.sendCommand(PORCTRL, []byte{
+		bp,   // Back porch 5bit     (0x7F max 0x08 default)
+		fp,   // Front porch 5bit    (0x7F max 0x08 default)
+		0x00, // Seprarate porch     (TODO: what is this?)
+		0x22, // Idle mode porch     (4bit-back 4bit-front 0x22 default)
+		0x22, // Partial mode porch  (4bit-back 4bit-front 0x22 default)
+	})
 
 	// Ready to display
-	d.Command(INVON)                  // Inversion ON
+	d.sendCommand(INVON, nil)         // Inversion ON
 	time.Sleep(10 * time.Millisecond) //
 
-	d.Command(NORON)                  // Normal mode ON
+	// Set gamma tables, if configured.
+	if len(cfg.PVGAMCTRL) == 14 {
+		d.sendCommand(GMCTRP1, cfg.PVGAMCTRL) // PVGAMCTRL: Positive Voltage Gamma Control
+	}
+	if len(cfg.NVGAMCTRL) == 14 {
+		d.sendCommand(GMCTRN1, cfg.NVGAMCTRL) // NVGAMCTRL: Negative Voltage Gamma Control
+	}
+
+	d.sendCommand(NORON, nil)         // Normal mode ON
 	time.Sleep(10 * time.Millisecond) //
 
-	d.Command(DISPON)                 // Screen ON
+	d.sendCommand(DISPON, nil)        // Screen ON
 	time.Sleep(10 * time.Millisecond) //
 
+	d.endWrite()
 	d.blPin.High() // Backlight ON
+}
+
+// Send a command with data to the display. It does not change the chip select
+// pin (it must be low when calling). The DC pin is left high after return,
+// meaning that data can be sent right away.
+func (d *Device) sendCommand(command uint8, data []byte) error {
+	d.cmdBuf[0] = command
+	d.dcPin.Low()
+	err := d.bus.Tx(d.cmdBuf[:1], nil)
+	d.dcPin.High()
+	if len(data) != 0 {
+		err = d.bus.Tx(data, nil)
+	}
+	return err
+}
+
+// startWrite must be called at the beginning of all exported methods to set the
+// chip select pin low.
+func (d *Device) startWrite() {
+	if d.csPin != machine.NoPin {
+		d.csPin.Low()
+	}
+}
+
+// endWrite must be called at the end of all exported methods to set the chip
+// select pin high.
+func (d *Device) endWrite() {
+	if d.csPin != machine.NoPin {
+		d.csPin.High()
+	}
 }
 
 // Sync waits for the display to hit the next VSYNC pause
@@ -207,9 +263,17 @@ func (d *Device) SyncToScanLine(scanline uint16) {
 
 // GetScanLine reads the current scanline value from the display
 func (d *Device) GetScanLine() uint16 {
+	d.startWrite()
 	data := []uint8{0x00, 0x00}
-	d.Rx(GSCAN, data)
-	return uint16(data[0])<<8 + uint16(data[1])
+	d.dcPin.Low()
+	d.bus.Transfer(GSCAN)
+	d.dcPin.High()
+	for i := range data {
+		data[i], _ = d.bus.Transfer(0xFF)
+	}
+	scanline := uint16(data[0])<<8 + uint16(data[1])
+	d.endWrite()
+	return scanline
 }
 
 // GetHighestScanLine calculates the last scanline id in the frame before VSYNC pause
@@ -232,8 +296,8 @@ func (d *Device) Display() error {
 // SetPixel sets a pixel in the screen
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	if x < 0 || y < 0 ||
-		(((d.rotation == NO_ROTATION || d.rotation == ROTATION_180) && (x >= d.width || y >= d.height)) ||
-			((d.rotation == ROTATION_90 || d.rotation == ROTATION_270) && (x >= d.height || y >= d.width))) {
+		(((d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180) && (x >= d.width || y >= d.height)) ||
+			((d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270) && (x >= d.height || y >= d.width))) {
 		return
 	}
 	d.FillRectangle(x, y, 1, 1, c)
@@ -243,15 +307,22 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 func (d *Device) setWindow(x, y, w, h int16) {
 	x += d.columnOffset
 	y += d.rowOffset
-	d.Tx([]uint8{CASET}, true)
-	d.Tx([]uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)}, false)
-	d.Tx([]uint8{RASET}, true)
-	d.Tx([]uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)}, false)
-	d.Command(RAMWR)
+	copy(d.buf[:4], []uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)})
+	d.sendCommand(CASET, d.buf[:4])
+	copy(d.buf[:4], []uint8{uint8(y >> 8), uint8(y), uint8((y + h - 1) >> 8), uint8(y + h - 1)})
+	d.sendCommand(RASET, d.buf[:4])
+	d.sendCommand(RAMWR, nil)
 }
 
 // FillRectangle fills a rectangle at a given coordinates with a color
 func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
+	d.startWrite()
+	err := d.fillRectangle(x, y, width, height, c)
+	d.endWrite()
+	return err
+}
+
+func (d *Device) fillRectangle(x, y, width, height int16, c color.RGBA) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
 		x >= k || (x+width) > k || y >= i || (y+height) > i {
@@ -269,13 +340,29 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	}
 	j := int32(width) * int32(height)
 	for j > 0 {
+		// The DC pin is already set to data in the setWindow call, so we can
+		// just write bytes on the SPI bus.
 		if j >= d.batchLength {
-			d.Tx(data, false)
+			d.bus.Tx(data, nil)
 		} else {
-			d.Tx(data[:j*2], false)
+			d.bus.Tx(data[:j*2], nil)
 		}
 		j -= d.batchLength
 	}
+	return nil
+}
+
+// DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
+	k, i := d.Size()
+	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
+		x >= k || (x+w) > k || y >= i || (y+h) > i {
+		return errOutOfBounds
+	}
+	d.startWrite()
+	d.setWindow(x, y, w, h)
+	d.bus.Tx(data, nil)
+	d.endWrite()
 	return nil
 }
 
@@ -289,6 +376,7 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []col
 	if int32(width)*int32(height) != int32(len(buffer)) {
 		return errors.New("buffer length does not match with rectangle size")
 	}
+	d.startWrite()
 	d.setWindow(x, y, width, height)
 
 	k := int32(width) * int32(height)
@@ -304,14 +392,17 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []col
 				data[i*2+1] = c2
 			}
 		}
+		// The DC pin is already set to data in the setWindow call, so we don't
+		// have to set it here.
 		if k >= d.batchLength {
-			d.Tx(data, false)
+			d.bus.Tx(data, nil)
 		} else {
-			d.Tx(data[:k*2], false)
+			d.bus.Tx(data[:k*2], nil)
 		}
 		k -= d.batchLength
 		offset += d.batchLength
 	}
+	d.endWrite()
 	return nil
 }
 
@@ -333,81 +424,80 @@ func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
 
 // FillScreen fills the screen with a given color
 func (d *Device) FillScreen(c color.RGBA) {
+	d.startWrite()
+	d.fillScreen(c)
+	d.endWrite()
+}
+
+func (d *Device) fillScreen(c color.RGBA) {
 	if d.rotation == NO_ROTATION || d.rotation == ROTATION_180 {
-		d.FillRectangle(0, 0, d.width, d.height, c)
+		d.fillRectangle(0, 0, d.width, d.height, c)
 	} else {
-		d.FillRectangle(0, 0, d.height, d.width, c)
+		d.fillRectangle(0, 0, d.height, d.width, c)
 	}
 }
 
+// Control the color format that is used when writing to the screen.
+// The default is RGB565, setting it to any other value will break functions
+// like SetPixel, FillRectangle, etc. Instead, you can write color data in the
+// specified color format using DrawRGBBitmap8.
+func (d *Device) SetColorFormat(format ColorFormat) {
+	d.startWrite()
+	d.setColorFormat(format)
+	d.endWrite()
+}
+
+func (d *Device) setColorFormat(format ColorFormat) {
+	// Lower 4 bits set the color format used in SPI.
+	// Upper 4 bits set the color format used in the direct RGB interface.
+	// The RGB interface is not currently supported, so it is left at a
+	// reasonable default. Also, the RGB interface doesn't support RGB444.
+	colmod := byte(format) | 0x50
+	d.sendCommand(COLMOD, []byte{colmod})
+}
+
+// Rotation returns the current rotation of the device.
+func (d *Device) Rotation() drivers.Rotation {
+	return d.rotation
+}
+
 // SetRotation changes the rotation of the device (clock-wise)
-func (d *Device) SetRotation(rotation Rotation) {
+func (d *Device) SetRotation(rotation Rotation) error {
+	d.rotation = rotation
+	d.startWrite()
+	err := d.setRotation(rotation)
+	d.endWrite()
+	return err
+}
+
+func (d *Device) setRotation(rotation Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 4 {
-	case 0:
+	case drivers.Rotation0:
 		madctl = MADCTL_MX | MADCTL_MY
 		d.rowOffset = d.rowOffsetCfg
 		d.columnOffset = d.columnOffsetCfg
-		break
-	case 1:
+	case drivers.Rotation90:
 		madctl = MADCTL_MY | MADCTL_MV
 		d.rowOffset = d.columnOffsetCfg
 		d.columnOffset = d.rowOffsetCfg
-		break
-	case 2:
+	case drivers.Rotation180:
 		d.rowOffset = 0
 		d.columnOffset = 0
-		break
-	case 3:
+	case drivers.Rotation270:
 		madctl = MADCTL_MX | MADCTL_MV
 		d.rowOffset = 0
 		d.columnOffset = 0
-		break
 	}
 	if d.isBGR {
 		madctl |= MADCTL_BGR
 	}
-	d.Command(MADCTL)
-	d.Data(madctl)
-}
-
-// Command sends a command to the display.
-func (d *Device) Command(command uint8) {
-	d.Tx([]byte{command}, true)
-}
-
-// Data sends data to the display.
-func (d *Device) Data(data uint8) {
-	d.Tx([]byte{data}, false)
-}
-
-// Tx sends data to the display
-func (d *Device) Tx(data []byte, isCommand bool) {
-	if isCommand {
-		d.dcPin.Low()
-	} else {
-		d.dcPin.High()
-	}
-	d.csPin.Low()
-	d.bus.Tx(data, nil)
-	d.csPin.High()
-}
-
-// Rx reads data from the display
-func (d *Device) Rx(command uint8, data []byte) {
-	d.dcPin.Low()
-	d.csPin.Low()
-	d.bus.Transfer(command)
-	d.dcPin.High()
-	for i := range data {
-		data[i], _ = d.bus.Transfer(0xFF)
-	}
-	d.csPin.High()
+	return d.sendCommand(MADCTL, []byte{madctl})
 }
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
-	if d.rotation == NO_ROTATION || d.rotation == ROTATION_180 {
+	if d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180 {
 		return d.width, d.height
 	}
 	return d.height, d.width
@@ -422,13 +512,39 @@ func (d *Device) EnableBacklight(enable bool) {
 	}
 }
 
+// Set the sleep mode for this LCD panel. When sleeping, the panel uses a lot
+// less power. The LCD won't display an image anymore, but the memory contents
+// will be kept.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		d.startWrite()
+		d.sendCommand(SLPIN, nil)
+		d.endWrite()
+		time.Sleep(5 * time.Millisecond) // 5ms required by the datasheet
+	} else {
+		// Turn the LCD panel back on.
+		d.startWrite()
+		d.sendCommand(SLPOUT, nil)
+		d.endWrite()
+		// Note: the st7789 documentation says that it is needed to wait at
+		// least 120ms before going to sleep again. Sleeping here would not be
+		// practical (delays turning on the screen too much), so just hope the
+		// screen won't need to sleep again for at least 120ms.
+		// In practice, it's unlikely the user will set the display to sleep
+		// again within 120ms.
+	}
+	return nil
+}
+
 // InvertColors inverts the colors of the screen
 func (d *Device) InvertColors(invert bool) {
+	d.startWrite()
 	if invert {
-		d.Command(INVON)
+		d.sendCommand(INVON, nil)
 	} else {
-		d.Command(INVOFF)
+		d.sendCommand(INVOFF, nil)
 	}
+	d.endWrite()
 }
 
 // IsBGR changes the color mode (RGB/BGR)
@@ -438,23 +554,29 @@ func (d *Device) IsBGR(bgr bool) {
 
 // SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
-	d.Command(VSCRDEF)
-	d.Tx([]uint8{
+	copy(d.buf[:6], []uint8{
 		uint8(topFixedArea >> 8), uint8(topFixedArea),
 		uint8(d.height - topFixedArea - bottomFixedArea>>8), uint8(d.height - topFixedArea - bottomFixedArea),
-		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)},
-		false)
+		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)})
+	d.startWrite()
+	d.sendCommand(VSCRDEF, d.buf[:6])
+	d.endWrite()
 }
 
 // SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
-	d.Command(VSCRSADD)
-	d.Tx([]uint8{uint8(line >> 8), uint8(line)}, false)
+	d.buf[0] = uint8(line >> 8)
+	d.buf[1] = uint8(line)
+	d.startWrite()
+	d.sendCommand(VSCRSADD, d.buf[:2])
+	d.endWrite()
 }
 
 // StopScroll returns the display to its normal state.
 func (d *Device) StopScroll() {
-	d.Command(NORON)
+	d.startWrite()
+	d.sendCommand(NORON, nil)
+	d.endWrite()
 }
 
 // RGBATo565 converts a color.RGBA to uint16 used in the display

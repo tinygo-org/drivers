@@ -1,5 +1,4 @@
 //go:build qtpy || m5stamp_c3
-// +build qtpy m5stamp_c3
 
 package main
 
