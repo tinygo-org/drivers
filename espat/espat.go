@@ -30,14 +30,11 @@ import (
 	"sync"
 	"time"
 
-	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netlink"
 )
 
 type Config struct {
-	// AP creditials
-	Ssid       string
-	Passphrase string
-
 	// UART config
 	Uart *machine.UART
 	Tx   machine.Pin
@@ -62,25 +59,18 @@ type Device struct {
 	mu     sync.Mutex
 }
 
-func New(cfg *Config) *Device {
-	d := Device{
+func NewDevice(cfg *Config) *Device {
+	return &Device{
 		cfg:      cfg,
 		response: make([]byte, 1500),
 		data:     make([]byte, 0, 1500),
 	}
-
-	drivers.UseNetdev(&d)
-
-	// assert that driver implements Netlinker
-	var _ drivers.Netlinker = (*Device)(nil)
-
-	return &d
 }
 
-func (d *Device) NetConnect() error {
+func (d *Device) NetConnect(params *netlink.ConnectParams) error {
 
-	if len(d.cfg.Ssid) == 0 {
-		return drivers.ErrMissingSSID
+	if len(params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
 	}
 
 	d.uart = d.cfg.Uart
@@ -98,17 +88,17 @@ func (d *Device) NetConnect() error {
 
 	if !d.Connected() {
 		fmt.Printf("FAILED\r\n")
-		return drivers.ErrConnectFailed
+		return netlink.ErrConnectFailed
 	}
 
 	fmt.Printf("CONNECTED\r\n")
 
 	// Connect to Wifi AP
-	fmt.Printf("Connecting to Wifi SSID '%s'...", d.cfg.Ssid)
+	fmt.Printf("Connecting to Wifi SSID '%s'...", params.Ssid)
 
 	d.SetWifiMode(WifiModeClient)
 
-	err := d.ConnectToAP(d.cfg.Ssid, d.cfg.Passphrase, 10 /* secs */)
+	err := d.ConnectToAP(params.Ssid, params.Passphrase, 10 /* secs */)
 	if err != nil {
 		fmt.Printf("FAILED\r\n")
 		return err
@@ -128,11 +118,18 @@ func (d *Device) NetConnect() error {
 
 func (d *Device) NetDisconnect() {
 	d.DisconnectFromAP()
-	fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", d.cfg.Ssid)
+	fmt.Printf("\r\nDisconnected from Wifi\r\n\r\n")
 }
 
-func (d *Device) NetNotify(cb func(drivers.NetlinkEvent)) {
+func (d *Device) NetNotify(cb func(netlink.Event)) {
 	// Not supported
+}
+
+func (d *Device) SendEth(pkt []byte) error {
+	return netlink.ErrNotSupported
+}
+
+func (d *Device) RecvEthFunc(cb func(pkt []byte) error) {
 }
 
 func (d *Device) GetHostByName(name string) (net.IP, error) {
@@ -141,7 +138,7 @@ func (d *Device) GetHostByName(name string) (net.IP, error) {
 }
 
 func (d *Device) GetHardwareAddr() (net.HardwareAddr, error) {
-	return net.HardwareAddr{}, drivers.ErrNotSupported
+	return net.HardwareAddr{}, netlink.ErrNotSupported
 }
 
 func (d *Device) GetIPAddr() (net.IP, error) {
@@ -162,22 +159,22 @@ func (d *Device) GetIPAddr() (net.IP, error) {
 func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 
 	switch domain {
-	case drivers.AF_INET:
+	case netdev.AF_INET:
 	default:
-		return -1, drivers.ErrFamilyNotSupported
+		return -1, netdev.ErrFamilyNotSupported
 	}
 
 	switch {
-	case protocol == drivers.IPPROTO_TCP && stype == drivers.SOCK_STREAM:
-	case protocol == drivers.IPPROTO_TLS && stype == drivers.SOCK_STREAM:
-	case protocol == drivers.IPPROTO_UDP && stype == drivers.SOCK_DGRAM:
+	case protocol == netdev.IPPROTO_TCP && stype == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_TLS && stype == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_UDP && stype == netdev.SOCK_DGRAM:
 	default:
-		return -1, drivers.ErrProtocolNotSupported
+		return -1, netdev.ErrProtocolNotSupported
 	}
 
 	// Only supporting single connection mode, so only one socket at a time
 	if d.socket.inUse {
-		return -1, drivers.ErrNoMoreSockets
+		return -1, netdev.ErrNoMoreSockets
 	}
 	d.socket.inUse = true
 	d.socket.protocol = protocol
@@ -198,11 +195,11 @@ func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 	var lport = strconv.Itoa(d.socket.lport)
 
 	switch d.socket.protocol {
-	case drivers.IPPROTO_TCP:
+	case netdev.IPPROTO_TCP:
 		err = d.ConnectTCPSocket(addr, rport)
-	case drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_UDP:
 		err = d.ConnectUDPSocket(addr, rport, lport)
-	case drivers.IPPROTO_TLS:
+	case netdev.IPPROTO_TLS:
 		err = d.ConnectSSLSocket(host, rport)
 	}
 
@@ -219,22 +216,22 @@ func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 func (d *Device) Listen(sockfd int, backlog int) error {
 	switch d.socket.protocol {
-	case drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_UDP:
 	default:
-		return drivers.ErrProtocolNotSupported
+		return netdev.ErrProtocolNotSupported
 	}
 	return nil
 }
 
 func (d *Device) Accept(sockfd int, ip net.IP, port int) (int, error) {
-	return -1, drivers.ErrNotSupported
+	return -1, netdev.ErrNotSupported
 }
 
 func (d *Device) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
 	// Check if we've timed out
 	if !deadline.IsZero() {
 		if time.Now().After(deadline) {
-			return -1, drivers.ErrTimeout
+			return -1, netdev.ErrTimeout
 		}
 	}
 	err := d.StartSocketSend(len(buf))
@@ -290,7 +287,7 @@ func (d *Device) Recv(sockfd int, buf []byte, flags int, deadline time.Time) (in
 		// Check if we've timed out
 		if !deadline.IsZero() {
 			if time.Now().After(deadline) {
-				return -1, drivers.ErrTimeout
+				return -1, netdev.ErrTimeout
 			}
 		}
 
@@ -318,7 +315,7 @@ func (d *Device) Close(sockfd int) error {
 }
 
 func (d *Device) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
-	return drivers.ErrNotSupported
+	return netdev.ErrNotSupported
 }
 
 // Connected checks if there is communication with the ESP8266/ESP32.
