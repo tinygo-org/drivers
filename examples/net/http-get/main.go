@@ -9,6 +9,8 @@
 //     examples/net/webclient (for HTTP)
 //     examples/net/tlsclient (for HTTPS)
 
+//go:build pyportal || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal
+
 package main
 
 import (
@@ -20,6 +22,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -31,7 +36,13 @@ func main() {
 
 	waitSerial()
 
-	if err := netdev.NetConnect(); err != nil {
+	link, _ := probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 

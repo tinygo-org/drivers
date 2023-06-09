@@ -4,6 +4,8 @@
 //
 // nc -lk 8080
 
+//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal || challenger_rp2040
+
 package main
 
 import (
@@ -15,7 +17,9 @@ import (
 	"strconv"
 	"time"
 
-	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -25,12 +29,20 @@ var (
 )
 
 var buf = &bytes.Buffer{}
+var link netlink.Netlinker
+var dev netdev.Netdever
 
 func main() {
 
 	waitSerial()
 
-	if err := netdev.NetConnect(); err != nil {
+	link, dev = probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -48,9 +60,9 @@ func sendBatch() {
 
 	// make TCP connection
 	message("---------------\r\nDialing TCP connection")
-	fd, _ := netdev.Socket(drivers.AF_INET, drivers.SOCK_STREAM, drivers.IPPROTO_TCP)
-	err := netdev.Connect(fd, "", ip, port)
-	for ; err != nil; err = netdev.Connect(fd, "", ip, port) {
+	fd, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
+	err := dev.Connect(fd, "", ip, port)
+	for ; err != nil; err = dev.Connect(fd, "", ip, port) {
 		message(err.Error())
 		time.Sleep(5 * time.Second)
 	}
@@ -67,7 +79,7 @@ func sendBatch() {
 		fmt.Fprint(buf,
 			"\r---------------------------- i == ", i, " ----------------------------"+
 				"\r---------------------------- i == ", i, " ----------------------------")
-		if w, err = netdev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
+		if w, err = dev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
 			println("error:", err.Error(), "\r")
 			break
 		}
@@ -79,12 +91,12 @@ func sendBatch() {
 	fmt.Fprint(buf, "\nWrote ", n, " bytes in ", ms, " ms\r\n")
 	message(buf.String())
 
-	if _, err := netdev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
+	if _, err := dev.Send(fd, buf.Bytes(), 0, time.Time{}); err != nil {
 		println("error:", err.Error(), "\r")
 	}
 
 	println("Disconnecting TCP...")
-	netdev.Close(fd)
+	dev.Close(fd)
 }
 
 func message(msg string) {
