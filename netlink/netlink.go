@@ -99,5 +99,5 @@ type Netlinker interface {
 
 	// RecvEth callback function for receiving Ethernet pkt
 	// TODO describe content of pkt
-	RecvEthFunc(func(pkt []byte) error)
+	RecvEthFunc(cb func(pkt []byte) error)
 }
