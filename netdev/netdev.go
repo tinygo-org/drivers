@@ -1,4 +1,6 @@
-package drivers
+// L3/L4 network/transport layer
+
+package netdev
 
 import (
 	"errors"
@@ -32,6 +34,7 @@ var (
 var (
 	ErrFamilyNotSupported   = errors.New("Address family not supported")
 	ErrProtocolNotSupported = errors.New("Socket protocol/type not supported")
+	ErrStartingDHCPClient   = errors.New("Error starting DHPC client")
 	ErrNoMoreSockets        = errors.New("No more sockets")
 	ErrClosingSocket        = errors.New("Error closing socket")
 	ErrNotSupported         = errors.New("Not supported")
@@ -47,28 +50,31 @@ func (e *timeoutError) Timeout() bool   { return true }
 func (e *timeoutError) Temporary() bool { return true }
 
 //go:linkname UseNetdev net.useNetdev
-func UseNetdev(dev netdever)
+func UseNetdev(dev Netdever)
 
-// Netdev is TinyGo's network device driver model.  Network drivers implement
-// the netdever interface, providing a common network I/O interface to TinyGo's
-// "net" package.  The interface is modeled after the BSD socket interface.
-// net.Conn implementations (TCPConn, UDPConn, and TLSConn) use the netdev
-// interface for device I/O access.
+// Netdever is TinyGo's OSI L3/L4 network/transport layer interface.  Network
+// drivers implement the Netdever interface, providing a common network L3/L4
+// interface to TinyGo's "net" package.  net.Conn implementations (TCPConn,
+// UDPConn, and TLSConn) use the Netdever interface for device I/O access.
 //
-// A netdever is passed to the "net" package using UseNetdev().
+// A Netdever is passed to the "net" package using UseNetdev().
 //
-// Just like a net.Conn, multiple goroutines may invoke methods on a netdever
+// Just like a net.Conn, multiple goroutines may invoke methods on a Netdever
 // simultaneously.
 //
-// NOTE: The netdever interface is mirrored in tinygo/src/net/netdev.go.
+// NOTE: The Netdever interface is mirrored in tinygo/src/net/netdev.go.
 // NOTE: If making changes to this interface, mirror the changes in
 // NOTE: tinygo/src/net/netdev.go, and vice-versa.
 
-type netdever interface {
+type Netdever interface {
 
 	// GetHostByName returns the IP address of either a hostname or IPv4
 	// address in standard dot notation
 	GetHostByName(name string) (net.IP, error)
+
+	// GetIPAddr returns IP address assigned to the interface, either by
+	// DHCP or statically
+	GetIPAddr() (net.IP, error)
 
 	// Berkely Sockets-like interface, Go-ified.  See man page for socket(2), etc.
 	Socket(domain int, stype int, protocol int) (int, error)
