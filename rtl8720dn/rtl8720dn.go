@@ -16,7 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netlink"
 )
 
 var _debug debug = debugBasic
@@ -42,10 +43,6 @@ type socket struct {
 }
 
 type Config struct {
-	// AP creditials
-	Ssid       string
-	Passphrase string
-
 	// Enable
 	En machine.Pin
 
@@ -54,27 +51,19 @@ type Config struct {
 	Tx       machine.Pin
 	Rx       machine.Pin
 	Baudrate uint32
-
-	// Retries is how many attempts to connect before returning with a
-	// "Connect failed" error.  Zero means infinite retries.
-	Retries int
-
-	// Watchdog ticker duration.  On tick, the watchdog will check for
-	// downed connection and try to recover the connection.  Default is
-	// 0secs, which means no watchdog.  Set to non-zero to enable
-	// watchodog.
-	WatchdogTimeout time.Duration
 }
 
 type rtl8720dn struct {
 	cfg      *Config
-	notifyCb func(drivers.NetlinkEvent)
+	notifyCb func(netlink.Event)
 	mu       sync.Mutex
 
 	uart *machine.UART
 	seq  uint64
 
 	debug bool
+
+	params *netlink.ConnectParams
 
 	netConnected bool
 	driverShown  bool
@@ -91,46 +80,39 @@ func newSocket(protocol int) *socket {
 }
 
 func New(cfg *Config) *rtl8720dn {
-	r := rtl8720dn{
+	return &rtl8720dn{
 		debug:        (_debug & debugRpc) != 0,
 		cfg:          cfg,
 		sockets:      make(map[sock]*socket),
 		killWatchdog: make(chan bool),
 	}
-
-	drivers.UseNetdev(&r)
-
-	// assert that rtl8720dn implements Netlinker
-	var _ drivers.Netlinker = (*rtl8720dn)(nil)
-
-	return &r
 }
 
 func (r *rtl8720dn) startDhcpc() error {
 	if result := r.rpc_tcpip_adapter_dhcpc_start(0); result == -1 {
-		return drivers.ErrStartingDHCPClient
+		return netdev.ErrStartingDHCPClient
 	}
 	return nil
 }
 
 func (r *rtl8720dn) connectToAP() error {
 
-	if len(r.cfg.Ssid) == 0 {
-		return drivers.ErrMissingSSID
+	if len(r.params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
 	}
 
 	if debugging(debugBasic) {
-		fmt.Printf("Connecting to Wifi SSID '%s'...", r.cfg.Ssid)
+		fmt.Printf("Connecting to Wifi SSID '%s'...", r.params.Ssid)
 	}
 
 	// Start the connection process
 	securityType := uint32(0x00400004)
-	result := r.rpc_wifi_connect(r.cfg.Ssid, r.cfg.Passphrase, securityType, -1, 0)
+	result := r.rpc_wifi_connect(r.params.Ssid, r.params.Passphrase, securityType, -1, 0)
 	if result == -1 {
 		if debugging(debugBasic) {
 			fmt.Printf("FAILED\r\n")
 		}
-		return drivers.ErrConnectFailed
+		return netlink.ErrConnectFailed
 	}
 
 	if debugging(debugBasic) {
@@ -138,7 +120,7 @@ func (r *rtl8720dn) connectToAP() error {
 	}
 
 	if r.notifyCb != nil {
-		r.notifyCb(drivers.NetlinkEventNetUp)
+		r.notifyCb(netlink.EventNetUp)
 	}
 
 	return r.startDhcpc()
@@ -226,7 +208,7 @@ func (r *rtl8720dn) networkDown() bool {
 }
 
 func (r *rtl8720dn) watchdog() {
-	ticker := time.NewTicker(r.cfg.WatchdogTimeout)
+	ticker := time.NewTicker(r.params.WatchdogTimeout)
 	for {
 		select {
 		case <-r.killWatchdog:
@@ -238,7 +220,7 @@ func (r *rtl8720dn) watchdog() {
 					fmt.Printf("Watchdog: Wifi NOT CONNECTED, trying again...\r\n")
 				}
 				if r.notifyCb != nil {
-					r.notifyCb(drivers.NetlinkEventNetDown)
+					r.notifyCb(netlink.EventNetDown)
 				}
 				r.netConnect(false)
 			}
@@ -255,9 +237,9 @@ func (r *rtl8720dn) netConnect(reset bool) error {
 	}
 	r.showDevice()
 
-	for i := 0; r.cfg.Retries == 0 || i < r.cfg.Retries; i++ {
+	for i := 0; r.params.Retries == 0 || i < r.params.Retries; i++ {
 		if err := r.connectToAP(); err != nil {
-			if err == drivers.ErrConnectFailed {
+			if err == netlink.ErrConnectFailed {
 				continue
 			}
 			return err
@@ -266,21 +248,23 @@ func (r *rtl8720dn) netConnect(reset bool) error {
 	}
 
 	if r.networkDown() {
-		return drivers.ErrConnectFailed
+		return netlink.ErrConnectFailed
 	}
 
 	r.showIP()
 	return nil
 }
 
-func (r *rtl8720dn) NetConnect() error {
+func (r *rtl8720dn) NetConnect(params *netlink.ConnectParams) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.netConnected {
-		return drivers.ErrConnected
+		return netlink.ErrConnected
 	}
+
+	r.params = params
 
 	r.showDriver()
 
@@ -290,7 +274,7 @@ func (r *rtl8720dn) NetConnect() error {
 
 	r.netConnected = true
 
-	if r.cfg.WatchdogTimeout != 0 {
+	if r.params.WatchdogTimeout != 0 {
 		go r.watchdog()
 	}
 
@@ -310,7 +294,7 @@ func (r *rtl8720dn) NetDisconnect() {
 		return
 	}
 
-	if r.cfg.WatchdogTimeout != 0 {
+	if r.params.WatchdogTimeout != 0 {
 		r.killWatchdog <- true
 	}
 	r.netDisconnect()
@@ -319,16 +303,23 @@ func (r *rtl8720dn) NetDisconnect() {
 	r.netConnected = false
 
 	if debugging(debugBasic) {
-		fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", r.cfg.Ssid)
+		fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", r.params.Ssid)
 	}
 
 	if r.notifyCb != nil {
-		r.notifyCb(drivers.NetlinkEventNetDown)
+		r.notifyCb(netlink.EventNetDown)
 	}
 }
 
-func (r *rtl8720dn) NetNotify(cb func(drivers.NetlinkEvent)) {
+func (r *rtl8720dn) NetNotify(cb func(netlink.Event)) {
 	r.notifyCb = cb
+}
+
+func (r *rtl8720dn) SendEth(pkt []byte) error {
+	return netlink.ErrNotSupported
+}
+
+func (r *rtl8720dn) RecvEthFunc(cb func(pkt []byte) error) {
 }
 
 func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
@@ -343,7 +334,7 @@ func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
 	var ip [4]byte
 	result := r.rpc_netconn_gethostbyname(name, ip[:])
 	if result == -1 {
-		return net.IP{}, drivers.ErrHostUnknown
+		return net.IP{}, netdev.ErrHostUnknown
 	}
 
 	return net.IP(ip[:]), nil
@@ -396,9 +387,9 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	}
 
 	switch domain {
-	case drivers.AF_INET:
+	case netdev.AF_INET:
 	default:
-		return -1, drivers.ErrFamilyNotSupported
+		return -1, netdev.ErrFamilyNotSupported
 	}
 
 	var newSock int32
@@ -407,22 +398,22 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	defer r.mu.Unlock()
 
 	switch {
-	case protocol == drivers.IPPROTO_TCP && stype == drivers.SOCK_STREAM:
-		newSock = r.rpc_lwip_socket(drivers.AF_INET, drivers.SOCK_STREAM,
-			drivers.IPPROTO_TCP)
-	case protocol == drivers.IPPROTO_TLS && stype == drivers.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_TCP && stype == netdev.SOCK_STREAM:
+		newSock = r.rpc_lwip_socket(netdev.AF_INET, netdev.SOCK_STREAM,
+			netdev.IPPROTO_TCP)
+	case protocol == netdev.IPPROTO_TLS && stype == netdev.SOCK_STREAM:
 		// TODO Investigate: using client number as socket number;
 		// TODO this may cause a problem if mixing TLS and non-TLS sockets?
 		newSock = int32(r.clientTLS())
-	case protocol == drivers.IPPROTO_UDP && stype == drivers.SOCK_DGRAM:
-		newSock = r.rpc_lwip_socket(drivers.AF_INET, drivers.SOCK_DGRAM,
-			drivers.IPPROTO_UDP)
+	case protocol == netdev.IPPROTO_UDP && stype == netdev.SOCK_DGRAM:
+		newSock = r.rpc_lwip_socket(netdev.AF_INET, netdev.SOCK_DGRAM,
+			netdev.IPPROTO_UDP)
 	default:
-		return -1, drivers.ErrProtocolNotSupported
+		return -1, netdev.ErrProtocolNotSupported
 	}
 
 	if newSock == -1 {
-		return -1, drivers.ErrNoMoreSockets
+		return -1, netdev.ErrNoMoreSockets
 	}
 
 	socket := newSocket(protocol)
@@ -434,7 +425,7 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 func addrToName(ip net.IP, port int) []byte {
 	name := make([]byte, 16)
 	name[0] = 0x00
-	name[1] = drivers.AF_INET
+	name[1] = netdev.AF_INET
 	name[2] = byte(port >> 8)
 	name[3] = byte(port)
 	if len(ip) == 4 {
@@ -461,13 +452,13 @@ func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
 	var name = addrToName(ip, port)
 
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_bind(int32(sock), name, uint32(len(name)))
 		if result == -1 {
 			return fmt.Errorf("Bind to %s:%d failed", ip, port)
 		}
 	default:
-		return drivers.ErrProtocolNotSupported
+		return netdev.ErrProtocolNotSupported
 	}
 
 	return nil
@@ -492,12 +483,12 @@ func (r *rtl8720dn) Connect(sockfd int, host string, ip net.IP, port int) error 
 
 	// Start the connection
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_connect(int32(sock), name, uint32(len(name)))
 		if result == -1 {
 			return fmt.Errorf("Connect to %s:%d failed", ip, port)
 		}
-	case drivers.IPPROTO_TLS:
+	case netdev.IPPROTO_TLS:
 		result := r.rpc_wifi_start_ssl_client(uint32(sock),
 			host, uint32(port), 0)
 		if result == -1 {
@@ -521,22 +512,22 @@ func (r *rtl8720dn) Listen(sockfd int, backlog int) error {
 	var socket = r.sockets[sock]
 
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP:
+	case netdev.IPPROTO_TCP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
 		}
-		result = r.rpc_lwip_fcntl(int32(sock), drivers.F_SETFL, O_NONBLOCK)
+		result = r.rpc_lwip_fcntl(int32(sock), netdev.F_SETFL, O_NONBLOCK)
 		if result == -1 {
 			return fmt.Errorf("Fcntl failed")
 		}
-	case drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_listen(int32(sock), int32(backlog))
 		if result == -1 {
 			return fmt.Errorf("Listen failed")
 		}
 	default:
-		return drivers.ErrProtocolNotSupported
+		return netdev.ErrProtocolNotSupported
 	}
 
 	return nil
@@ -557,9 +548,9 @@ func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	var addr = addrToName(ip, port)
 
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP:
+	case netdev.IPPROTO_TCP:
 	default:
-		return -1, drivers.ErrProtocolNotSupported
+		return -1, netdev.ErrProtocolNotSupported
 	}
 
 	for {
@@ -606,18 +597,18 @@ func (r *rtl8720dn) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, 
 	// Check if we've timed out
 	if !deadline.IsZero() {
 		if time.Now().After(deadline) {
-			return -1, drivers.ErrTimeout
+			return -1, netdev.ErrTimeout
 		}
 	}
 
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_send(int32(sock), buf, 0x00000008)
 		if result == -1 {
 			return -1, fmt.Errorf("Send error")
 		}
 		return int(result), nil
-	case drivers.IPPROTO_TLS:
+	case netdev.IPPROTO_TLS:
 		result := r.rpc_wifi_send_ssl_data(uint32(sock), buf, uint16(len(buf)))
 		if result == -1 {
 			return -1, fmt.Errorf("TLS Send error")
@@ -625,7 +616,7 @@ func (r *rtl8720dn) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, 
 		return int(result), nil
 	}
 
-	return -1, drivers.ErrProtocolNotSupported
+	return -1, netdev.ErrProtocolNotSupported
 }
 
 func (r *rtl8720dn) Send(sockfd int, buf []byte, flags int,
@@ -681,15 +672,15 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 		// Check if we've timed out
 		if !deadline.IsZero() {
 			if time.Now().After(deadline) {
-				return -1, drivers.ErrTimeout
+				return -1, netdev.ErrTimeout
 			}
 		}
 
 		switch socket.protocol {
-		case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
+		case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 			n = r.rpc_lwip_recv(int32(sock), buf[:length],
 				uint32(length), 0x00000008, 0)
-		case drivers.IPPROTO_TLS:
+		case netdev.IPPROTO_TLS:
 			n = r.rpc_wifi_get_ssl_receive(uint32(sock),
 				buf[:length], int32(length))
 		}
@@ -734,15 +725,15 @@ func (r *rtl8720dn) Close(sockfd int) error {
 	}
 
 	switch socket.protocol {
-	case drivers.IPPROTO_TCP, drivers.IPPROTO_UDP:
+	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result = r.rpc_lwip_close(int32(sock))
-	case drivers.IPPROTO_TLS:
+	case netdev.IPPROTO_TLS:
 		r.rpc_wifi_stop_ssl_socket(uint32(sock))
 		r.rpc_wifi_ssl_client_destroy(uint32(sock))
 	}
 
 	if result == -1 {
-		return drivers.ErrClosingSocket
+		return netdev.ErrClosingSocket
 	}
 
 	socket.inuse = false
@@ -756,7 +747,7 @@ func (r *rtl8720dn) SetSockOpt(sockfd int, level int, opt int, value interface{}
 		fmt.Printf("[SetSockOpt] sockfd: %d\r\n", sockfd)
 	}
 
-	return drivers.ErrNotSupported
+	return netdev.ErrNotSupported
 }
 
 func (r *rtl8720dn) disconnect() error {

@@ -6,8 +6,6 @@
 
 //go:build wioterminal
 
-// +build: wioterminal
-
 package main
 
 import (
@@ -21,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/ili9341"
-	"tinygo.org/x/drivers/rtl8720dn"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
 )
@@ -34,18 +32,6 @@ var (
 )
 
 var (
-	netcfg = rtl8720dn.Config{
-		Ssid:       ssid,
-		Passphrase: pass,
-		En:         machine.RTL8720D_CHIP_PU,
-		Uart:       machine.UART3,
-		Tx:         machine.PB24,
-		Rx:         machine.PC24,
-		Baudrate:   614400,
-	}
-
-	netdev = rtl8720dn.New(&netcfg)
-
 	display = ili9341.NewSPI(
 		machine.SPI3,
 		machine.LCD_DC,
@@ -65,17 +51,6 @@ var (
 
 	font = &proggy.TinySZ8pt7b
 )
-
-func notify(e drivers.NetlinkEvent) {
-	switch e {
-	case drivers.NetlinkEventNetUp:
-		fmt.Println("Wifi connection UP")
-		fmt.Fprintf(terminal, "Wifi connection UP")
-	case drivers.NetlinkEventNetDown:
-		fmt.Println("Wifi connection DOWN")
-		fmt.Fprintf(terminal, "Wifi connection DOWN")
-	}
-}
 
 func main() {
 
@@ -100,9 +75,13 @@ func main() {
 
 	fmt.Fprintf(terminal, "Connecting to %s...\r\n", ssid)
 
-	netdev.NetNotify(notify)
+	link, _ := probe.Probe()
 
-	if err := netdev.NetConnect(); err != nil {
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 

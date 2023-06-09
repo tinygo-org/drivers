@@ -4,6 +4,8 @@
 // Note: It may be necessary to increase the stack size when using
 // paho.mqtt.golang.  Use the -stack-size=4KB command line option.
 
+//go:build pyportal || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal || challenger_rp2040
+
 package main
 
 import (
@@ -14,6 +16,8 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -37,7 +41,13 @@ var connectionLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, 
 func main() {
 	waitSerial()
 
-	if err := netdev.NetConnect(); err != nil {
+	link, _ := probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 

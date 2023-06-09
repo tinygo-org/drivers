@@ -6,6 +6,8 @@
 // Note: It may be necessary to increase the stack size when using
 // "golang.org/x/net/websocket".  Use the -stack-size=4KB command line option.
 
+//go:build pyportal || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal
+
 package main
 
 import (
@@ -16,6 +18,8 @@ import (
 	"time"
 
 	"golang.org/x/net/websocket"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -40,12 +44,18 @@ func waitSerial() {
 func main() {
 	waitSerial()
 
-	if err := netdev.NetConnect(); err != nil {
+	link, _ := probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	http.Handle("/echo", websocket.Handler(EchoServer))
-	err := http.ListenAndServe(port, nil)
+	err = http.ListenAndServe(port, nil)
 	if err != nil {
 		panic("ListenAndServe: " + err.Error())
 	}
