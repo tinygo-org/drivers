@@ -6,6 +6,8 @@
 // Note: It may be necessary to increase the stack size when using "net/http".
 // Use the -stack-size=4KB command line option.
 
+//go:build pyportal || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal
+
 package main
 
 import (
@@ -15,6 +17,9 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -37,7 +42,13 @@ func main() {
 
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	if err := netdev.NetConnect(); err != nil {
+	link, _ := probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -48,7 +59,7 @@ func main() {
 	http.HandleFunc("/off", LED_OFF)
 	http.HandleFunc("/on", LED_ON)
 
-	err := http.ListenAndServe(port, nil)
+	err = http.ListenAndServe(port, nil)
 	for err != nil {
 		fmt.Printf("error: %s\r\n", err.Error())
 		time.Sleep(5 * time.Second)

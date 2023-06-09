@@ -3,6 +3,8 @@
 // It creates a UDP connection to request the current time and parse the
 // response from a NTP server.  The system time is set to NTP time.
 
+//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal || challenger_rp2040
+
 package main
 
 import (
@@ -13,6 +15,9 @@ import (
 	"net"
 	"runtime"
 	"time"
+
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 var (
@@ -30,7 +35,13 @@ func main() {
 
 	waitSerial()
 
-	if err := netdev.NetConnect(); err != nil {
+	link, _ := probe.Probe()
+
+	err := link.NetConnect(&netlink.ConnectParams{
+		Ssid:       ssid,
+		Passphrase: pass,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -49,7 +60,7 @@ func main() {
 	}
 
 	conn.Close()
-	netdev.NetDisconnect()
+	link.NetDisconnect()
 
 	runtime.AdjustTimeOffset(-1 * int64(time.Since(t)))
 
