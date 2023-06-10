@@ -36,6 +36,6 @@ func main() {
 			println(err.Error())
 			continue
 		}
-		println("PPM:", dev.CO2PPM())
+		println("PPM:", dev.PPMCO2())
 	}
 }
