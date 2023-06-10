@@ -87,7 +87,7 @@ func NewDevI2C(bus drivers.I2C, addr uint8) *DevI2C {
 }
 
 // PPM returns the CO2 parts per million read in the last Update call.
-func (d *DevI2C) CO2PPM() int32 {
+func (d *DevI2C) PPMCO2() int32 {
 	return d.lastMeasurement
 }
 
