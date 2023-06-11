@@ -1,5 +1,5 @@
 /*
-TM1638 is a chip manufactured by Titan Microelectronics.
+Package tm1638 provides a driver for TM1638 IC manufactured by Titan Microelectronics.
 It integrates MCU digital interface, data latch, LED drive, and keypad scanning circuit.
 */
 package tm1638
@@ -19,7 +19,7 @@ type Device struct {
 	data machine.Pin
 }
 
-// Configuration parameters
+// Config contains IC configuration
 type Config struct {
 	/* Brightness level from 0 to 7 */
 	Brightness uint8
@@ -36,13 +36,13 @@ const (
 	cmdSetBrightness = 0x88
 	/* Address Setting Command is used to set the address of the display memory. Bits 0-3 used for address value */
 	cmdSetAddress = 0xC0
-	/* Max valid address */
-	maxAddress = 0x0F
-	/* Max brightness level */
+	// MaxAddress is max valid address of display memory
+	MaxAddress = 0x0F
+	// MaxBrightness is max display brightness level
 	MaxBrightness = 0x07
 )
 
-// Create new TM1638 device
+// New Create new TM1638 device
 func New(strobe machine.Pin, clock machine.Pin, data machine.Pin) Device {
 	strobe.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -68,7 +68,7 @@ func (d *Device) Clear() {
 	d.strobe.High()
 }
 
-// Set display brightness
+// SetBrightness changes display brightness
 func (d *Device) SetBrightness(value uint8) {
 	if value == 0 {
 		d.sendCommand(cmdZeroBrightness)
@@ -80,7 +80,7 @@ func (d *Device) SetBrightness(value uint8) {
 	}
 }
 
-// Write array to display memory
+// WriteAt writes array to display memory
 func (d *Device) WriteAt(data []byte, offset int64) (n int, err error) {
 	d.sendCommand(cmdAddressAutoIncrement)
 	d.strobe.Low()
@@ -95,6 +95,8 @@ func (d *Device) WriteAt(data []byte, offset int64) (n int, err error) {
 }
 
 /*
+	ScanKeyboard fill buffer with keyboard scan data.
+
 Keyboard scan matrix has 3 rows (K1-K3) and 8 (KS1-KS8) columns.
 Each button connected to one K and KS line of IC.
 
@@ -124,7 +126,7 @@ func (d *Device) ScanKeyboard(buffer *[4]uint8) {
 			d.clock.Low()
 			d.transmissionDelay()
 			if d.data.Get() {
-				element |= (1 << bitIndex)
+				element |= 1 << bitIndex
 			}
 			d.transmissionDelay()
 			d.clock.High()
