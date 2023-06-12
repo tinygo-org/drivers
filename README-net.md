@@ -1,12 +1,10 @@
-#### Table of Contents
+### Table of Contents
 
 - ["net" Package](#net-package)
 - [Using "net" Package](#using-net-package)
 - [Using "net/http" Package](#using-nethttp-package)
 - [Using "crypto/tls" Package](#using-cryptotls-package)
 - [Using Sockets](#using-sockets)
-- [Netdev and Netlink](#netdev-and-netlink)
-- [Writing a New Netdev Driver](#writing-a-new-netdev-driver)
 
 ## "net" Package
 
@@ -14,7 +12,7 @@ TinyGo's "net" package is ported from Go.  The port offers a subset of Go's
 "net" package.  The subset maintains Go 1 compatiblity guarantee.  A Go
 application that uses "net" will most-likey just work on TinyGo if the usage is
 within the subset offered.  (There may be external constraints such as limited
-SRAM on embedded environment that may limit full functionality).
+SRAM on some targets that may limit full "net" functionality).
 
 Continue below for details on using "net" and "net/http" packages.
 
@@ -24,121 +22,110 @@ TinyGo's "net" package.
 ## Using "net" Package
 
 Ideally, TinyGo's "net" package would be Go's "net" package and applications
-using "net" would just work, as-is.  TinyGo's net package is a partial port
-from Go's net package, replacing OS socket syscalls with netdev socket calls.
-
-Netdev is TinyGo's network device driver model; read more about
-[Netdev](#netdev-and-netlink).
+using "net" would just work, as-is.  TinyGo's net package is a partial port of
+Go's net package, so some things may not work because they have not been
+ported.
 
 There are a few features excluded during the porting process, in particular:
 
 - No IPv6 support
 - No DualStack support
 
-Run ```go doc -all ./src/net``` in TinyGo repo to see full listing.
+Run ```go doc -all ./src/net``` in TinyGo repo to see full listing of what has
+been ported.  Here is a list of things known to work.  You can find examples
+of these at [examples/net](examples/net/).
+
+### What is Known to Work
+
+(These are all IPv4 only).
+
+- TCP client and server
+- UDP client
+- TLS client
+- HTTP client and server
+- HTTPS client
+- NTP client (UDP)
+- MQTT client (paho & natiu)
+- WebSocket client and server
+
+Multiple sockets can be opened in a single app.  For example, the app could run
+as an http server listen on port :80 and also use NTP to get the current time
+or send something over MQTT.  There is a practical limit to the number of
+active sockets per app, around 8 or 10, so don't go crazy.
 
 Applications using Go's net package will need a few setup steps to work with
-TinyGo's net package.
+TinyGo's net package.  The steps are required before using "net".
 
-### Step 1: Create the netdev for your target device.
+### Step 1: Probe to Load Network Driver
 
-The available netdev are:
-
-- [wifinina]: ESP32 WiFi co-controller running Arduino WiFiNINA firmware
-
-	targets: pyportal arduino_nano33 nano_rp2040 metro_m4_airlift
-		 arduino_mkrwifi1010 matrixportal_m4
-
-- [rtl8720dn]: RealTek WiFi rtl8720dn co-controller
-
-	targets: wioterminal
-
-- [espat]: ESP32/ESP8266 WiFi co-controller running Espressif AT firmware
-
-	targets: TBD
-
-This example configures and creates a wifinina netdev using New().
+Call Probe() to load the correct network driver for your target.  Probe()
+allows the app to work on multiple targets.
 
 ```go
-import "tinygo.org/x/drivers/wifinina"
+package main
 
-func main() {
-	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
-	netdev := wifinina.New(&cfg)
-	...
-}
-```
-
-New() registers the netdev with the "net" package using net.useNetdev().
-
-The Config structure is netdev-specific; consult the specific netdev package
-for Config details.  In this case, the WiFi credentials are passed, but other
-settings are typically passed such as device configuration.
-
-### Step 2: Connect to an IP Network
-
-Before the net package is fully functional, connect the netdev to an underlying
-IP network.  For example, a WiFi netdev would connect to a WiFi access point or
-become a WiFi access point; either way, once connected, the netdev has a
-station IP address and is connected on the IP network.  Similarly, a LTE netdev
-would connect to a LTE provider, giving the device an IP address on the LTE
-network.
-
-Using the Netlinker interface, Call netdev.NetConnect() to connect the device
-to an IP network.  Call netdev.NetDisconnect() to disconnect.  Continuing example:
-
-```go
 import (
-	"tinygo.org/x/drivers/wifinina"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 func main() {
-	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
-	netdev := wifinina.New(&cfg)
 
-	netdev.NetConnect()
+	// load network driver for target
+	link, dev := probe.Probe()
 
-	// "net" package calls here
+	...	
+}
+```
 
-	netdev.NetDisconnect()
+Probe() will load the driver with default configuration for the target.  For
+custom configuration, the app can open code Probe() for the target
+requirements.
+
+Probe() returns a [Netlinker](netlink/README.md) and a
+[Netdever](netdev/README.md), interfaces implemented by the network driver.
+Next, we'll use the Netlinker interface to connect the target to an IP network.
+
+### Step 2: Connect to an IP Network
+
+Before the net package is fully functional, we need to connect the target to an
+IP network.
+
+```go
+package main
+
+import (
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
+)
+
+func main() {
+
+	// load network driver for target
+	link, _ := probe.Probe()
+
+	// Connect target to IP network
+	link.NetConnect(&netlink.ConnectParams{
+		Ssid:       "my SSID",
+		Passphrase: "my passphrase",
+	})
+
+	// OK to use "net" from here on
+	...	
 }
 ```
 
 Optionally, get notified of IP network connects and disconnects:
 
 ```go
-	netdev.Notify(func(e drivers.NetlinkEvent) {
+	link.Notify(func(e netlink.Event) {
 		switch e {
-		case drivers.NetlinkEventNetUp:
-			println("Network UP")
-		case drivers.NetlinkEventNetDown:
-			println("Network DOWN")
+		case netlink.EventNetUp:   println("Network UP")
+		case netlink.EventNetDown: println("Network DOWN")
 	})
 ```
 
-Here is a simple example of an http server listening on port :8080, before and
-after:
+Here is an example of an http server listening on port :8080:
 
-#### Before
-```go
-package main
-
-import (
-	"fmt"
-	"net/http"
-)
-
-func main() {
-	http.HandleFunc("/", HelloServer)
-	http.ListenAndServe(":8080", nil)
-}
-
-func HelloServer(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
-}
-```
-
-#### After
 ```go
 package main
 
@@ -146,20 +133,28 @@ import (
 	"fmt"
 	"net/http"
 
-	"tinygo.org/x/drivers/wifinina"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
-
-func main() {
-	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
-	netdev := wifinina.New(&cfg)
-	netdev.NetConnect()
-
-	http.HandleFunc("/", HelloServer)
-	http.ListenAndServe(":8080", nil)
-}
 
 func HelloServer(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+}
+
+func main() {
+
+	// load network driver for target
+	link, _ := probe.Probe()
+
+	// Connect target to IP network
+	link.NetConnect(&netlink.ConnectParams{
+		Ssid:       "my SSID",
+		Passphrase: "my passphrase",
+	})
+
+	// Serve it up
+	http.HandleFunc("/", HelloServer)
+	http.ListenAndServe(":8080", nil)
 }
 ```
 
@@ -191,17 +186,17 @@ protocol.  This is different from Go's crypto/tls package which handles the TLS
 protocol in software.
 
 TinyGo's TLS support is only available for client applications.  You can
-http.Get() to an http:// or https:// address, but you cannot
-http.ListenAndServeTLS() an https server.
+http.Get() to an https:// address, but you cannot http.ListenAndServeTLS() an
+https server.
 
 The offloading hardware has pre-defined TLS certificates built-in.
 
 ## Using Sockets
 
-A netdev implements a BSD socket-like interface so an application can make direct
-socket calls, bypassing the net package.
+The Netdever interface is a BSD socket-like interface so an application can make direct
+socket calls, bypassing the "net" package for the lowest overhead.
 
-Here is a simple TCP application using direct sockets:
+Here is a simple TCP client application using direct sockets:
 
 ```go
 package main
@@ -209,81 +204,30 @@ package main
 import (
 	"net"  // only need to parse IP address
 
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/wifinina"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netlink"
+	"tinygo.org/x/drivers/netlink/probe"
 )
 
 func main() {
-	cfg := wifinina.Config{Ssid: "foo", Passphrase: "bar"}
-	netdev := wifinina.New(&cfg)
 
-	// ignoring error handling
+	// load network driver for target
+	link, dev := probe.Probe()
 
-	netdev.NetConnect()
+	// Connect target to IP network
+	link.NetConnect(&netlink.ConnectParams{
+		Ssid:       "my SSID",
+		Passphrase: "my passphrase",
+	})
 
-	sock, _ := netdev.Socket(drivers.AF_INET, drivers.SOCK_STREAM, drivers.IPPROTO_TCP)
+	// omit error handling
 
-        netdev.Connect(sock, "", net.ParseIP("10.0.0.100"), 8080)
-	netdev.Send(sock, []bytes("hello"), 0, 0)
+	sock, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
 
-	netdev.Close(sock)
+        dev.Connect(sock, "", net.ParseIP("10.0.0.100"), 8080)
+	dev.Send(sock, []bytes("hello"), 0, 0)
+
+	dev.Close(sock)
+	link.NetDisconnect()
 }
 ```
-
-## Netdev and Netlink
-
-Netdev is TinyGo's network device driver model.  Network drivers implement the
-netdever interface, providing a common network I/O interface to TinyGo's "net"
-package.  The interface is modeled after the BSD socket interface.  net.Conn
-implementations (TCPConn, UDPConn, and TLSConn) use the netdev interface for
-device I/O access.  For example, net.DialTCP, which returns a net.TCPConn,
-calls netdev.Socket() and netdev.Connect():
-
-```go
-func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-
-        fd, _ := netdev.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
-
-        netdev.Connect(fd, "", raddr.IP, raddr.Port)
-
-        return &TCPConn{
-                fd:    fd,
-                laddr: laddr,
-                raddr: raddr,
-        }, nil
-}
-```
-
-Network drivers also (optionally) implement the Netlinker interface.  This
-interface is not used by TinyGo's "net" package, but rather provides the TinyGo
-application direct access to the network device for common settings and control
-that fall outside of netdev's socket interface.
-
-## Writing a New Netdev Driver
-
-A new netdev driver will implement the netdever and optionally the Netlinker
-interfaces.  See the wifinina or rtl8720dn drivers for examples.
-
-#### Locking
-
-Multiple goroutines may invoke methods on a net.Conn simultaneously, and since
-the net package translates net.Conn calls into netdev socket calls, it follows
-that multiple goroutines may invoke socket calls, so locking is required to
-keep socket calls from stepping on one another.
-
-Don't hold a lock while Time.Sleep()ing waiting for a hardware operation to
-finish.  Unlocking while sleeping let's other goroutines make progress.  If the
-sleep period is really small, then you can get away with holding the lock.
-
-#### Sockfd
-
-The netdev socket interface uses a socket fd (int) to represent a socket
-connection (end-point).  Each net.Conn maps 1:1 to a fd.  The number of fds
-available is a hardware limitation.  Wifinina, for example, can hand out 10
-fds.
-
-### Testing
-
-The netdev driver should minimally run all of the example/net examples.
-
-TODO: automate testing to catch regressions.

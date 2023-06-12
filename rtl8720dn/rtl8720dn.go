@@ -315,13 +315,6 @@ func (r *rtl8720dn) NetNotify(cb func(netlink.Event)) {
 	r.notifyCb = cb
 }
 
-func (r *rtl8720dn) SendEth(pkt []byte) error {
-	return netlink.ErrNotSupported
-}
-
-func (r *rtl8720dn) RecvEthFunc(cb func(pkt []byte) error) {
-}
-
 func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
 
 	if debugging(debugNetdev) {
