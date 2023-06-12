@@ -10,7 +10,7 @@ type Stack struct {
 
 func NewStack(link netlink.Netlinker) *Stack {
 	s := Stack{link: link}
-	s.link.RecvEthFunc(s.recvEth)
+	s.link.RecvEthHandle(s.recvEth)
 	return &s
 }
 

@@ -36,6 +36,6 @@ func (v *Vlan) SendEth(pkt []byte) error {
 	return nil
 }
 
-func (v *Vlan) RecvEthFunc(cb func(pkt []byte) error) {
-	v.recvEth = cb
+func (v *Vlan) RecvEthHandle(handler func(pkt []byte) error) {
+	v.recvEth = handler
 }

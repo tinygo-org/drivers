@@ -34,6 +34,6 @@ func (b *Bridge) SendEth(pkt []byte) error {
 	return nil
 }
 
-func (b *Bridge) RecvEthFunc(cb func(pkt []byte) error) {
-	b.recvEth = cb
+func (b *Bridge) RecvEthHandle(handler func(pkt []byte) error) {
+	b.recvEth = handler
 }
