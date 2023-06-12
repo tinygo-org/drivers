@@ -13,6 +13,7 @@ var (
 	ErrConnectFailed     = errors.New("Connect failed")
 	ErrConnectTimeout    = errors.New("Connect timed out")
 	ErrMissingSSID       = errors.New("Missing WiFi SSID")
+	ErrAuthFailure       = errors.New("Wifi authentication failure")
 	ErrAuthTypeNoGood    = errors.New("Wifi authorization type not supported")
 	ErrConnectModeNoGood = errors.New("Connect mode not supported")
 	ErrNotSupported      = errors.New("Not supported")
@@ -50,14 +51,19 @@ const (
 const DefaultConnectTimeout = 10 * time.Second
 
 type ConnectParams struct {
+
 	// Connect mode
 	ConnectMode
+
 	// SSID of Wifi AP
 	Ssid string
+
 	// Passphrase of Wifi AP
 	Passphrase string
+
 	// Wifi authorization type
 	AuthType
+
 	// Wifi country code as two-char string.  E.g. "XX" for world-wide,
 	// "US" for USA, etc.
 	Country string
@@ -92,12 +98,4 @@ type Netlinker interface {
 
 	// GetHardwareAddr returns device MAC address
 	GetHardwareAddr() (net.HardwareAddr, error)
-
-	// SendEth sends an Ethernet packet
-	// TODO describe content of pkt
-	SendEth(pkt []byte) error
-
-	// RecvEth callback function for receiving Ethernet pkt
-	// TODO describe content of pkt
-	RecvEthFunc(cb func(pkt []byte) error)
 }
