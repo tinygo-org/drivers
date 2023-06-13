@@ -233,9 +233,9 @@ func (d *Device) IsConnected() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	isConnected := !(s == TCPStateListen || s == TCPStateClosed ||
-		s == TCPStateFinWait1 || s == TCPStateFinWait2 || s == TCPStateTimeWait ||
-		s == TCPStateSynSent || s == TCPStateSynRcvd || s == TCPStateCloseWait)
+	isConnected := !(s == uint8(TCPStateListen) || s == uint8(TCPStateClosed) ||
+		s == uint8(TCPStateFinWait1) || s == uint8(TCPStateFinWait2) || s == uint8(TCPStateTimeWait) ||
+		s == uint8(TCPStateSynSent) || s == uint8(TCPStateSynRcvd) || s == uint8(TCPStateCloseWait))
 	// TODO: investigate if the below is necessary (as per Arduino driver)
 	//if !isConnected {
 	//	//close socket buffer?
@@ -247,7 +247,7 @@ func (d *Device) IsConnected() (bool, error) {
 
 func (d *Device) status() (uint8, error) {
 	if d.sock == NoSocketAvail {
-		return TCPStateClosed, nil
+		return uint8(TCPStateClosed), nil
 	}
 	return d.GetClientState(d.sock)
 }
@@ -260,7 +260,7 @@ func (d *Device) stop() error {
 	start := time.Now()
 	for time.Since(start) < 5*time.Second {
 		st, _ := d.status()
-		if st == TCPStateClosed {
+		if st == uint8(TCPStateClosed) {
 			break
 		}
 		time.Sleep(1 * time.Millisecond)

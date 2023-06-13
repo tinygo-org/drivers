@@ -50,6 +50,7 @@ func main() {
 
 	// connect to access point
 	connectToAP()
+	displayIP()
 
 	// now make UDP connection
 	ip := net.ParseIP(hubIP)
@@ -57,7 +58,10 @@ func main() {
 	laddr := &net.UDPAddr{Port: 2222}
 
 	println("Dialing UDP connection...")
-	conn, _ := net.DialUDP("udp", laddr, raddr)
+	conn, err := net.DialUDP("udp", laddr, raddr)
+	if err != nil {
+		failMessage(err.Error())
+	}
 
 	for {
 		// send data
@@ -74,28 +78,42 @@ func main() {
 	println("Done.")
 }
 
+const retriesBeforeFailure = 3
+
 // connect to access point
 func connectToAP() {
 	time.Sleep(2 * time.Second)
-	println("Connecting to " + ssid)
-	err := adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
-	if err != nil { // error connecting to AP
-		for {
-			println(err)
-			time.Sleep(1 * time.Second)
+	var err error
+	for i := 0; i < retriesBeforeFailure; i++ {
+		println("Connecting to " + ssid)
+		err = adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
+		if err == nil {
+			println("Connected.")
+
+			return
 		}
 	}
 
-	println("Connected.")
+	// error connecting to AP
+	failMessage(err.Error())
+}
 
+func displayIP() {
 	ip, _, _, err := adaptor.GetIP()
 	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
 		message(err.Error())
 		time.Sleep(1 * time.Second)
 	}
-	message(ip.String())
+	message("IP address: " + ip.String())
 }
 
 func message(msg string) {
 	println(msg, "\r")
+}
+
+func failMessage(msg string) {
+	for {
+		println(msg)
+		time.Sleep(1 * time.Second)
+	}
 }

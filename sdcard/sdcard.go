@@ -1,3 +1,9 @@
+// package sdcard provides a TinyGo driver for sdcard/mmc devices
+// using a SPI connection.
+//
+// To use a file system on the SDcard, please see the TinyFS repo:
+//
+// https://github.com/tinygo-org/tinyfs
 package sdcard
 
 import (

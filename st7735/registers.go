@@ -1,5 +1,7 @@
 package st7735
 
+import "tinygo.org/x/drivers"
+
 // Registers
 const (
 	NOP        = 0x00
@@ -52,8 +54,8 @@ const (
 	GREENTAB   Model = 0
 	MINI80x160 Model = 1
 
-	NO_ROTATION  Rotation = 0
-	ROTATION_90  Rotation = 1 // 90 degrees clock-wise rotation
-	ROTATION_180 Rotation = 2
-	ROTATION_270 Rotation = 3
+	NO_ROTATION  = drivers.Rotation0
+	ROTATION_90  = drivers.Rotation90 // 90 degrees clock-wise rotation
+	ROTATION_180 = drivers.Rotation180
+	ROTATION_270 = drivers.Rotation270
 )

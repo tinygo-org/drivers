@@ -12,3 +12,19 @@ type Displayer interface {
 	// Display sends the buffer (if any) to the screen.
 	Display() error
 }
+
+// Rotation is how much a display has been rotated. Displays can be rotated, and
+// sometimes also mirrored.
+type Rotation uint8
+
+// Clockwise rotation of the screen.
+const (
+	Rotation0 = iota
+	Rotation90
+	Rotation180
+	Rotation270
+	Rotation0Mirror
+	Rotation90Mirror
+	Rotation180Mirror
+	Rotation270Mirror
+)
