@@ -320,10 +320,16 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 // SetScrollArea sets an area to scroll with fixed top/bottom or left/right parts of the display
 // Rotation affects scroll direction
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+	if d.height < 320 {
+		// The screen doesn't use the full 320 pixel height.
+		// Enlarge the bottom fixed area to fill the 320 pixel height, so that
+		// bottomFixedArea starts from the visible bottom of the screen.
+		bottomFixedArea += 320 - d.height
+	}
 	cmdBuf[0] = uint8(topFixedArea >> 8)
 	cmdBuf[1] = uint8(topFixedArea)
-	cmdBuf[2] = uint8(d.height - topFixedArea - bottomFixedArea>>8)
-	cmdBuf[3] = uint8(d.height - topFixedArea - bottomFixedArea)
+	cmdBuf[2] = uint8((320 - topFixedArea - bottomFixedArea) >> 8)
+	cmdBuf[3] = uint8(320 - topFixedArea - bottomFixedArea)
 	cmdBuf[4] = uint8(bottomFixedArea >> 8)
 	cmdBuf[5] = uint8(bottomFixedArea)
 	d.sendCommand(VSCRDEF, cmdBuf[:6])

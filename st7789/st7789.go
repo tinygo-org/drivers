@@ -554,9 +554,16 @@ func (d *Device) IsBGR(bgr bool) {
 
 // SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+	if d.height < 320 {
+		// The screen doesn't use the full 320 pixel height.
+		// Enlarge the bottom fixed area to fill the 320 pixel height, so that
+		// bottomFixedArea starts from the visible bottom of the screen.
+		bottomFixedArea += 320 - d.height
+	}
+	verticalScrollArea := 320 - topFixedArea - bottomFixedArea
 	copy(d.buf[:6], []uint8{
 		uint8(topFixedArea >> 8), uint8(topFixedArea),
-		uint8(d.height - topFixedArea - bottomFixedArea>>8), uint8(d.height - topFixedArea - bottomFixedArea),
+		uint8(verticalScrollArea >> 8), uint8(verticalScrollArea),
 		uint8(bottomFixedArea >> 8), uint8(bottomFixedArea)})
 	d.startWrite()
 	d.sendCommand(VSCRDEF, d.buf[:6])

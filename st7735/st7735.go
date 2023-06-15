@@ -235,6 +235,8 @@ func (d *Device) setWindow(x, y, w, h int16) {
 
 // SetScrollWindow sets an area to scroll with fixed top and bottom parts of the display
 func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+	// TODO: this code is broken, see the st7789 and ili9341 implementations for
+	// how to do this correctly.
 	d.Command(VSCRDEF)
 	d.Tx([]uint8{
 		uint8(topFixedArea >> 8), uint8(topFixedArea),
