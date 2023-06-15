@@ -474,20 +474,20 @@ func (d *Device) setRotation(rotation Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 4 {
 	case drivers.Rotation0:
-		madctl = MADCTL_MX | MADCTL_MY
-		d.rowOffset = d.rowOffsetCfg
-		d.columnOffset = d.columnOffsetCfg
-	case drivers.Rotation90:
-		madctl = MADCTL_MY | MADCTL_MV
-		d.rowOffset = d.columnOffsetCfg
-		d.columnOffset = d.rowOffsetCfg
-	case drivers.Rotation180:
 		d.rowOffset = 0
 		d.columnOffset = 0
-	case drivers.Rotation270:
+	case drivers.Rotation90:
 		madctl = MADCTL_MX | MADCTL_MV
 		d.rowOffset = 0
 		d.columnOffset = 0
+	case drivers.Rotation180:
+		madctl = MADCTL_MX | MADCTL_MY
+		d.rowOffset = d.rowOffsetCfg
+		d.columnOffset = d.columnOffsetCfg
+	case drivers.Rotation270:
+		madctl = MADCTL_MY | MADCTL_MV
+		d.rowOffset = d.columnOffsetCfg
+		d.columnOffset = d.rowOffsetCfg
 	}
 	if d.isBGR {
 		madctl |= MADCTL_BGR
