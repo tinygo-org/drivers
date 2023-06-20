@@ -558,7 +558,13 @@ func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 		// The screen doesn't use the full 320 pixel height.
 		// Enlarge the bottom fixed area to fill the 320 pixel height, so that
 		// bottomFixedArea starts from the visible bottom of the screen.
-		bottomFixedArea += 320 - d.height
+		topFixedArea += d.rowOffset
+		bottomFixedArea += (320 - d.height) - d.rowOffset
+	}
+	if d.rotation == drivers.Rotation180 {
+		// The screen is rotated by 180°, so we have to switch the top and
+		// bottom fixed area.
+		topFixedArea, bottomFixedArea = bottomFixedArea, topFixedArea
 	}
 	verticalScrollArea := 320 - topFixedArea - bottomFixedArea
 	copy(d.buf[:6], []uint8{
@@ -572,6 +578,11 @@ func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 
 // SetScroll sets the vertical scroll address of the display.
 func (d *Device) SetScroll(line int16) {
+	if d.rotation == drivers.Rotation180 {
+		// The screen is rotated by 180°, so we have to invert the scroll line
+		// (taking care of the RowOffset).
+		line = (319 - d.rowOffset) - line
+	}
 	d.buf[0] = uint8(line >> 8)
 	d.buf[1] = uint8(line)
 	d.startWrite()
