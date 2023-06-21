@@ -13,6 +13,7 @@ tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/apa
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/at24cx/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bh1750/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/blinkm/main.go
+tinygo build -size short -o ./build/test.hex -target=pinetime     ./examples/bma42x/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmi160/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp180/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp280/main.go
