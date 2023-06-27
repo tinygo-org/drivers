@@ -28,11 +28,6 @@ var (
 	port string = ":80"
 )
 
-var (
-	// this is the ESP chip that has the WIFININA firmware flashed on it
-	adaptor *wifinina.Device
-)
-
 var led = machine.LED
 
 func main() {
@@ -181,44 +176,4 @@ func cnt(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set(`Content-Type`, `application/json`)
 	fmt.Fprintf(w, `{"cnt": %d}`, counter)
-}
-
-const retriesBeforeFailure = 3
-
-// connect to access point
-func connectToAP() {
-	time.Sleep(2 * time.Second)
-	var err error
-	for i := 0; i < retriesBeforeFailure; i++ {
-		println("Connecting to " + ssid)
-		err = adaptor.ConnectToAccessPoint(ssid, pass, 10*time.Second)
-		if err == nil {
-			println("Connected.")
-
-			return
-		}
-	}
-
-	// error connecting to AP
-	failMessage(err.Error())
-}
-
-func displayIP() {
-	ip, _, _, err := adaptor.GetIP()
-	for ; err != nil; ip, _, _, err = adaptor.GetIP() {
-		message(err.Error())
-		time.Sleep(1 * time.Second)
-	}
-	message("IP address: " + ip.String())
-}
-
-func message(msg string) {
-	println(msg, "\r")
-}
-
-func failMessage(msg string) {
-	for {
-		println(msg)
-		time.Sleep(1 * time.Second)
-	}
 }
