@@ -4,7 +4,6 @@ package probe
 
 import (
 	"machine"
-	"time"
 
 	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/netlink"
