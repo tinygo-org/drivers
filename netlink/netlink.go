@@ -51,14 +51,19 @@ const (
 const DefaultConnectTimeout = 10 * time.Second
 
 type ConnectParams struct {
+
 	// Connect mode
 	ConnectMode
+
 	// SSID of Wifi AP
 	Ssid string
+
 	// Passphrase of Wifi AP
 	Passphrase string
+
 	// Wifi authorization type
 	AuthType
+
 	// Wifi country code as two-char string.  E.g. "XX" for world-wide,
 	// "US" for USA, etc.
 	Country string
