@@ -98,13 +98,4 @@ type Netlinker interface {
 
 	// GetHardwareAddr returns device MAC address
 	GetHardwareAddr() (net.HardwareAddr, error)
-
-	// SendEth sends an Ethernet pkt
-	// TODO describe content of pkt
-	SendEth(pkt []byte) error
-
-	// RecvEthHandle sets handler for receiving an Ethernet pkt.  The
-	// handler MUST not hold references to the pkt on return.
-	// TODO describe content of pkt
-	RecvEthHandle(handler func(pkt []byte) error)
 }

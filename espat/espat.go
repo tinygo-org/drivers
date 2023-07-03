@@ -125,13 +125,6 @@ func (d *Device) NetNotify(cb func(netlink.Event)) {
 	// Not supported
 }
 
-func (d *Device) SendEth(pkt []byte) error {
-	return netlink.ErrNotSupported
-}
-
-func (d *Device) RecvEthHandle(handler func(pkt []byte) error) {
-}
-
 func (d *Device) GetHostByName(name string) (net.IP, error) {
 	ip, err := d.GetDNS(name)
 	return net.ParseIP(ip), err
