@@ -498,13 +498,6 @@ func (w *wifinina) NetNotify(cb func(netlink.Event)) {
 	w.notifyCb = cb
 }
 
-func (w *wifinina) SendEth(pkt []byte) error {
-	return netlink.ErrNotSupported
-}
-
-func (w *wifinina) RecvEthHandle(handler func(pkt []byte) error) {
-}
-
 func (w *wifinina) GetHostByName(name string) (net.IP, error) {
 
 	if debugging(debugNetdev) {
