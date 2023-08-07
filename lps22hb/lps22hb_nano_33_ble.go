@@ -5,6 +5,8 @@ package lps22hb
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Configure sets up the LPS22HB device for communication.

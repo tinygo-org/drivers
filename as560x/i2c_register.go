@@ -159,7 +159,7 @@ func (r *i2cRegister) write(bus drivers.I2C, deviceAddress uint8, value uint16) 
 	}
 
 	// Write the register from the buffer over I2C
-	err := bus.WriteRegister(deviceAddress, r.host.address, buf)
+	err := legacy.WriteRegister(bus, deviceAddress, r.host.address, buf)
 	// after successful I2C write, cache this value if the host register (if also readable)
 	// Note we cache the entire buffer without applying shift/mask
 	if nil == err && r.host.attributes&reg_read != 0 {
