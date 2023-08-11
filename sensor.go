@@ -16,6 +16,8 @@ const (
 	MagneticField
 	Luminosity
 	Time
+	// Gas or liquid concentration, usually measured in ppm (parts per million).
+	Concentration
 	// Add Measurements above AllMeasurements.
 
 	// AllMeasurements is the OR of all Measurement values. It ensures all measurements are done.

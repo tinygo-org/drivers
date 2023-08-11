@@ -4,6 +4,7 @@
 # avoid a race condition between writing the output and reading the result to
 # get an md5sum).
 
+
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adt7410/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adxl345/main.go
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/amg88xx
@@ -128,3 +129,6 @@ tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/lo
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/as560x/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu6886/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ttp229/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ndir/main_ndir.go
