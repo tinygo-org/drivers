@@ -28,7 +28,7 @@ func TestWhoAmI(t *testing.T) {
 	c.Assert(dev.Connected(), qt.Equals, false)
 }
 
-func TestGetViolet(t *testing.T) {
+func TestReadViolet(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -36,14 +36,14 @@ func TestGetViolet(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getViolet(), qt.Equals, float32(0.15625))
+	c.Assert(dev.ReadViolet(), qt.Equals, float32(0.15625))
 
 	fake.Registers[VCalReg+1] = byte(0b00111111)
-	c.Assert(dev.getViolet(), qt.Not(qt.Equals), float32(0.15625))
+	c.Assert(dev.ReadViolet(), qt.Not(qt.Equals), float32(0.15625))
 
 }
 
-func TestGetBlue(t *testing.T) {
+func TestReadBlue(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -51,14 +51,14 @@ func TestGetBlue(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getBlue(), qt.Equals, float32(0.22222))
+	c.Assert(dev.ReadBlue(), qt.Equals, float32(0.22222))
 
 	fake.Registers[BCalReg+1] = byte(0b00111111)
-	c.Assert(dev.getBlue(), qt.Not(qt.Equals), float32(0.22222))
+	c.Assert(dev.ReadBlue(), qt.Not(qt.Equals), float32(0.22222))
 
 }
 
-func TestGetGreen(t *testing.T) {
+func TestReadGreen(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -66,14 +66,14 @@ func TestGetGreen(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getGreen(), qt.Equals, float32(1.45))
+	c.Assert(dev.ReadGreen(), qt.Equals, float32(1.45))
 
 	fake.Registers[GCalReg+1] = byte(0b00000001)
-	c.Assert(dev.getGreen(), qt.Not(qt.Equals), float32(1.45))
+	c.Assert(dev.ReadGreen(), qt.Not(qt.Equals), float32(1.45))
 
 }
 
-func TestGetYellow(t *testing.T) {
+func TestReadYellow(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -81,14 +81,14 @@ func TestGetYellow(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getYellow(), qt.Equals, float32(0.00002))
+	c.Assert(dev.ReadYellow(), qt.Equals, float32(0.00002))
 
 	fake.Registers[YCalReg+1] = byte(0b00000001)
-	c.Assert(dev.getYellow(), qt.Not(qt.Equals), float32(0.00002))
+	c.Assert(dev.ReadYellow(), qt.Not(qt.Equals), float32(0.00002))
 
 }
 
-func TestGetOrange(t *testing.T) {
+func TestReadOrange(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -96,14 +96,14 @@ func TestGetOrange(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getOrange(), qt.Equals, float32(0.15625))
+	c.Assert(dev.ReadOrange(), qt.Equals, float32(0.15625))
 
 	fake.Registers[OCalReg+1] = byte(0b00000001)
-	c.Assert(dev.getOrange(), qt.Not(qt.Equals), float32(0.15625))
+	c.Assert(dev.ReadOrange(), qt.Not(qt.Equals), float32(0.15625))
 
 }
 
-func TestGetRed(t *testing.T) {
+func TestReadRed(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -111,14 +111,14 @@ func TestGetRed(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getRed(), qt.Equals, float32(0.15625))
+	c.Assert(dev.ReadRed(), qt.Equals, float32(0.15625))
 
 	fake.Registers[RCalReg+1] = byte(0b00000001)
-	c.Assert(dev.getRed(), qt.Not(qt.Equals), float32(0.15625))
+	c.Assert(dev.ReadRed(), qt.Not(qt.Equals), float32(0.15625))
 
 }
 
-func TestGetRGB(t *testing.T) {
+func TestReadRGB(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -126,10 +126,10 @@ func TestGetRGB(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getRGB(), qt.Equals, [3]float32{0.15625, 1.45, 0.22222})
+	c.Assert(dev.ReadRGB(), qt.Equals, [3]float32{0.15625, 1.45, 0.22222})
 }
 
-func TestGetColors(t *testing.T) {
+func TestReadColors(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -137,10 +137,10 @@ func TestGetColors(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getColors(), qt.Equals, [6]float32{0.15625, 0.22222, 1.45, 0.00002, 0.15625, 0.15625})
+	c.Assert(dev.ReadColors(), qt.Equals, [6]float32{0.15625, 0.22222, 1.45, 0.00002, 0.15625, 0.15625})
 }
 
-func TestGetTemp(t *testing.T) {
+func TestReadTemp(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := tester.NewI2CDevice(c, DefaultAddress)
@@ -148,10 +148,10 @@ func TestGetTemp(t *testing.T) {
 	bus.AddDevice(fake)
 
 	dev := New(bus)
-	c.Assert(dev.getTemp(), qt.Equals, int(25))
+	c.Assert(dev.ReadTemp(), qt.Equals, int(25))
 
 	fake.Registers[TempReg] = byte(0b01010011)
-	c.Assert(dev.getTemp(), qt.Equals, int(83))
+	c.Assert(dev.ReadTemp(), qt.Equals, int(83))
 
 }
 
