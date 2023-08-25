@@ -71,62 +71,62 @@ func (d *Device) writeByte(reg uint8, data byte) {
 }
 
 /*
-	Data Caller Functions
+	Data Reader Functions
 */
 
-func (d *Device) getColors() [6]float32 {
-	v := d.getViolet()
-	b := d.getBlue()
-	g := d.getGreen()
-	y := d.getYellow()
-	o := d.getOrange()
-	r := d.getRed()
+func (d *Device) ReadColors() [6]float32 {
+	v := d.ReadViolet()
+	b := d.ReadBlue()
+	g := d.ReadGreen()
+	y := d.ReadYellow()
+	o := d.ReadOrange()
+	r := d.ReadRed()
 	return [6]float32{v, b, g, y, o, r}
 }
 
-// getRGB returns RGB Values
-func (d *Device) getRGB() [3]float32 {
-	return [3]float32{d.getRed(), d.getGreen(), d.getBlue()}
+// ReadRGB returns RGB Values
+func (d *Device) ReadRGB() [3]float32 {
+	return [3]float32{d.ReadRed(), d.ReadGreen(), d.ReadBlue()}
 }
 
-// getViolet returns Violet measurement
-func (d *Device) getViolet() float32 {
+// ReadViolet returns Violet measurement
+func (d *Device) ReadViolet() float32 {
 	value := d.readUint32(VCalReg)
 	return math.Float32frombits(value)
 }
 
-// getBlue returns Blue measurement
-func (d *Device) getBlue() float32 {
+// ReadBlue returns Blue measurement
+func (d *Device) ReadBlue() float32 {
 	value := d.readUint32(BCalReg)
 	return math.Float32frombits(value)
 }
 
-// getGreen returns Green measurement
-func (d *Device) getGreen() float32 {
+// ReadGreen returns Green measurement
+func (d *Device) ReadGreen() float32 {
 	value := d.readUint32(GCalReg)
 	return math.Float32frombits(value)
 }
 
-// getYellow returns Yellow measurement
-func (d *Device) getYellow() float32 {
+// ReadYellow returns Yellow measurement
+func (d *Device) ReadYellow() float32 {
 	value := d.readUint32(YCalReg)
 	return math.Float32frombits(value)
 }
 
-// getOrange returns Orange measurement
-func (d *Device) getOrange() float32 {
+// ReadOrange returns Orange measurement
+func (d *Device) ReadOrange() float32 {
 	value := d.readUint32(OCalReg)
 	return math.Float32frombits(value)
 }
 
-// getRed returns Red measurement
-func (d *Device) getRed() float32 {
+// ReadRed returns Red measurement
+func (d *Device) ReadRed() float32 {
 	value := d.readUint32(RCalReg)
 	return math.Float32frombits(value)
 }
 
-// getTemp returns Temperature of Sensor in °C
-func (d *Device) getTemp() int {
+// ReadTemp returns Temperature of Sensor in °C
+func (d *Device) ReadTemp() int {
 	value := d.readByte(TempReg)
 	return int(value)
 }
