@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	i2c    = machine.I2CO
+	i2c    = machine.I2C0
 	sensor = as7262.New(i2c)
 )
 
