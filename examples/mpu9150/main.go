@@ -1,4 +1,4 @@
-// Connects to an MPU6050 I2C accelerometer/gyroscope.
+// Connects to an MPU9150 I2C accelerometer/gyroscope.
 package main
 
 import (
