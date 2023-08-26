@@ -132,3 +132,4 @@ tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/t
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/ndir/main_ndir.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ndir/main_ndir.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.hex -target=arduino ./examples/as7262/main.go
