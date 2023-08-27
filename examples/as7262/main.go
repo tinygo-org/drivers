@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"machine"
 	"time"
 	"tinygo.org/x/drivers/as7262"
@@ -13,20 +12,21 @@ var (
 )
 
 func main() {
-
 	i2c.Configure(machine.I2CConfig{Frequency: machine.TWI_FREQ_100KHZ})
 	sensor.Configure()
 
 	if sensor.Connected() {
+		colorNames := [6]string{"Violet", "Blue", "Green", "Yellow", "Orange", "Red"}
 		for {
 			// read sensor colors (will read all 6 colors)
 			colors := sensor.ReadColors()
-			fmt.Printf("Colors: %v", colors)
-			time.Sleep(time.Second)
+			for i, c := range colors {
+				println(colorNames[i], ": ", c)
+			}
 
 			// read sensor temperature
 			temp := sensor.ReadTemp()
-			fmt.Printf("Temperature: %d", temp)
+			println("Temperature: ", temp)
 			time.Sleep(time.Second)
 		}
 	} else {
