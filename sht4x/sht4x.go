@@ -18,18 +18,15 @@ const (
 // Device represents a SHT4x sensor
 type Device struct {
 	bus     drivers.I2C
-	address uint8
+	Address uint8
 }
 
 // New creates a new SHT4x connection. The I2C bus must already be
 // configured.
-func New(bus drivers.I2C, addr uint8) Device {
-	if addr == 0 {
-		addr = DefaultAddress
-	}
+func New(bus drivers.I2C) Device {
 	return Device{
 		bus:     bus,
-		address: addr,
+		Address: DefaultAddress,
 	}
 }
 
@@ -53,7 +50,7 @@ func (d *Device) ReadTemperatureHumidity() (temperatureMilliCelsius int32, relat
 
 // rawReadings returns the sensor's raw values of the temperature and humidity
 func (d *Device) rawReadings() (uint16, uint16, error) {
-	err := d.bus.Tx(uint16(d.address), []byte{commandMeasurement}, nil)
+	err := d.bus.Tx(uint16(d.Address), []byte{commandMeasurement}, nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -62,7 +59,7 @@ func (d *Device) rawReadings() (uint16, uint16, error) {
 	time.Sleep(10 * time.Millisecond)
 
 	var data [6]byte
-	err = d.bus.Tx(uint16(d.address), nil, data[:])
+	err = d.bus.Tx(uint16(d.Address), nil, data[:])
 	if err != nil {
 		return 0, 0, err
 	}

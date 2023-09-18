@@ -10,7 +10,7 @@ import (
 
 func main() {
 	machine.I2C0.Configure(machine.I2CConfig{})
-	sensor := sht4x.New(machine.I2C0, sht4x.DefaultAddress)
+	sensor := sht4x.New(machine.I2C0)
 
 	for {
 		temp, humidity, _ := sensor.ReadTemperatureHumidity()
