@@ -1,3 +1,40 @@
+0.26.0
+---
+- **core**
+    - i2c iface refactor: Resolve #559
+    - fix uses of legacy i2c WriteRegister calls
+    - add correct Tx implementation for mock I2C interfaces
+    - bump golang.org/x/net version
+
+- **new devices**
+    - **bma42x**
+        - add new BMA421/BMA425 driver
+    - **ndir**
+        - add Sandbox Electronics NDIR CO2 sensor driver (#580)
+    - **mpu9150**
+        - implement driver for Mpu9150 (#596)
+    - **sht4x**
+        - implement driver for sht4x (#597)
+    - **pcf8523**
+        - implement driver for pcf8523 (#599)
+
+- **enhancements**
+    - **ssd1306**
+        - improve bus error handling
+
+- **bugfixes**
+    - **st7789**
+        - fix scrolling when rotated by 180°
+    - **st7789**
+        - fix incorrect Rotation configuration
+        - fix SetScrollArea
+    - **ili9341**
+        - fix SetScrollArea
+
+- **build**
+    - use latest tag of tinygo-dev container for running tests
+
+
 0.25.0
 ---
 
