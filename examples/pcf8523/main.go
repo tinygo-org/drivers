@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"machine"
 	"time"
 	"tinygo.org/x/drivers/pcf8523"
@@ -29,7 +28,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("tick-tock, it's: %s", ts)
+		println("tick-tock, it's: " + ts.String())
 		time.Sleep(2 * time.Second)
 	}
 }
