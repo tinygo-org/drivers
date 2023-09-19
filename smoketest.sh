@@ -63,6 +63,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544
 tinygo build -size short -o ./build/test.hex -target=arduino ./examples/servo
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/shifter/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht3x/main.go
+tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht4x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/shtc3/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1306/i2c_128x32/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1306/spi_128x64/main.go
