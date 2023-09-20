@@ -44,7 +44,7 @@ func New(i2c drivers.I2C) *Device {
 
 // deviceStatus returns StatusReg of as7262
 func (d *Device) deviceStatus() byte {
-	d.buf[0] = 0
+	d.buf[0] = 0b00000000
 	legacy.ReadRegister(d.bus, DefaultAddress, StatusReg, d.buf)
 	return d.buf[0]
 }
@@ -60,6 +60,7 @@ func (d *Device) readReady() bool {
 }
 
 func (d *Device) readByte(reg byte) byte {
+	d.buf[0] = 0b00000000
 	for {
 		if d.writeReady() {
 			break
@@ -93,8 +94,7 @@ func (d *Device) writeByte(reg byte, value byte) {
 		}
 	}
 
-	d.buf[0] = value
-	legacy.WriteRegister(d.bus, d.Address, WriteReg, d.buf)
+	legacy.WriteRegister(d.bus, d.Address, WriteReg, []byte{value})
 }
 
 /*
