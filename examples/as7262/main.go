@@ -12,24 +12,14 @@ var (
 )
 
 func main() {
-	i2c.Configure(machine.I2CConfig{Frequency: machine.TWI_FREQ_100KHZ})
-	sensor.Configure()
+	i2c.Configure(machine.I2CConfig{Frequency: machine.KHz * 100})
+	sensor.Configure(true, 64, 17.857, 2)
 
-	if sensor.Connected() {
-		colorNames := [6]string{"Violet", "Blue", "Green", "Yellow", "Orange", "Red"}
-		for {
-			// read sensor colors (will read all 6 colors)
-			colors := sensor.ReadColors()
-			for i, c := range colors {
-				println(colorNames[i], ": ", c)
-			}
-
-			// read sensor temperature
-			temp := sensor.ReadTemp()
-			println("Temperature: ", temp)
-			time.Sleep(time.Second)
-		}
-	} else {
-		panic("as7262 not connected to I2C")
+	println("Starting ...")
+	for {
+		sensor.Led(true)
+		time.Sleep(time.Millisecond * 800)
+		sensor.Led(false)
+		time.Sleep(time.Millisecond * 800)
 	}
 }
