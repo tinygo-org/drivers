@@ -119,13 +119,3 @@ func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mo
 	t := byte(int(integrationTime*2.8) & 0xff)
 	d.writeByte(IntegrationTimeReg, t)
 }
-
-func (d *Device) Led(status bool) {
-	var led byte
-	if status {
-		led = 0b00000111
-	} else {
-		led = 0b00000110
-	}
-	d.writeByte(LedRegister, led)
-}
