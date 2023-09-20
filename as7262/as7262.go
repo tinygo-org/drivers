@@ -3,6 +3,7 @@ package as7262
 import (
 	"time"
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Error uint8
@@ -28,6 +29,7 @@ type Device struct {
 	Address uint8
 }
 
+// New returns pointer of new as7262 device
 func New(i2c drivers.I2C) *Device {
 	return &Device{
 		bus:     i2c,
@@ -43,7 +45,7 @@ func New(i2c drivers.I2C) *Device {
 // deviceStatus returns StatusReg of as7262
 func (d *Device) deviceStatus() byte {
 	d.buf[0] = 0
-	d.bus.ReadRegister(DefaultAddress, StatusReg, d.buf)
+	legacy.ReadRegister(d.bus, DefaultAddress, StatusReg, d.buf)
 	return d.buf[0]
 }
 
@@ -64,7 +66,7 @@ func (d *Device) readByte(reg byte) byte {
 		}
 	}
 
-	d.bus.WriteRegister(d.Address, WriteReg, []byte{reg})
+	legacy.WriteRegister(d.bus, d.Address, WriteReg, []byte{reg})
 
 	for {
 		if d.readReady() {
@@ -72,7 +74,7 @@ func (d *Device) readByte(reg byte) byte {
 		}
 	}
 
-	d.bus.ReadRegister(d.Address, ReadReg, d.buf)
+	legacy.ReadRegister(d.bus, d.Address, ReadReg, d.buf)
 	return d.buf[0]
 }
 
@@ -83,7 +85,7 @@ func (d *Device) writeByte(reg byte, value byte) {
 		}
 	}
 
-	d.bus.WriteRegister(d.Address, WriteReg, []byte{reg | 0x80})
+	legacy.WriteRegister(d.bus, d.Address, WriteReg, []byte{reg | 0x80})
 
 	for {
 		if d.writeReady() {
@@ -92,8 +94,12 @@ func (d *Device) writeByte(reg byte, value byte) {
 	}
 
 	d.buf[0] = value
-	d.bus.WriteRegister(d.Address, WriteReg, d.buf)
+	legacy.WriteRegister(d.bus, d.Address, WriteReg, d.buf)
 }
+
+/*
+	Official as7262 functions (exported)
+*/
 
 // Configure as7262 behaviour
 func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mode int) {
