@@ -18,10 +18,12 @@ func newVControlReg() *vControlReg {
 	}
 }
 
+// encode register to a complete byte for writing
 func (r *vControlReg) encode() byte {
 	return r.reset | r.interrupt | r.gain | r.bank | r.dataReady
 }
 
+// decode register to represent as7262 internal state
 func (r *vControlReg) decode(encoded byte) {
 	r.reset = encoded & 0b10000000
 	r.interrupt = encoded & 0b01000000
@@ -30,6 +32,7 @@ func (r *vControlReg) decode(encoded byte) {
 	r.dataReady = encoded & 0b00000010
 }
 
+// setReset bit which will soft reset the as7262 sensor
 func (r *vControlReg) setReset(reset bool) {
 	if reset {
 		r.reset |= 0b10000000
