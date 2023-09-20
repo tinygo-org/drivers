@@ -1,15 +1,26 @@
-// Package as7262 provides a driver for the as7262 6-channel visible spectral_id device
-//
-// Datasheet: https://ams.com/documents/20143/36005/AS7262_DS000486_5-00.pdf
-
-package as7262 // import "tinygo.org/x/drivers/as7262"
+package as7262
 
 import (
-	"math"
 	"time"
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
+
+type Error uint8
+
+const (
+	ErrInvalidID Error = 0x1
+	TxValid      byte  = 0x02
+	RxValid      byte  = 0x01
+)
+
+func (e Error) Error() string {
+	switch e {
+	case ErrInvalidID:
+		return "Invalid chip ID"
+	default:
+		return "Unknown error"
+	}
+}
 
 type Device struct {
 	bus     drivers.I2C
@@ -17,116 +28,98 @@ type Device struct {
 	Address uint8
 }
 
-// New returns AS7262 device for the provided I2C bus using default address of 0x49 (1001001)
 func New(i2c drivers.I2C) *Device {
 	return &Device{
 		bus:     i2c,
-		buf:     make([]byte, 4),
+		buf:     []byte{0},
 		Address: DefaultAddress,
 	}
 }
 
-// Configure soft resets device and returns
-func (d *Device) Configure() (err error) {
-	controlRegValue := d.readByte(ControlReg)
-	controlRegValue |= 0x80
-
-	// soft reset device 0x04:7
-	d.writeByte(ControlReg, controlRegValue)
-	time.Sleep(100 * time.Millisecond)
-	return
-}
-
-// Connected returns if HardwareVersion (Device type == 01000000)
-func (d *Device) Connected() bool {
-	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, d.Address, HardwareVersionReg, data)
-	if err != nil {
-		return false
-	}
-	return data[0] == 0x40
-}
-
 /*
-	Communication Functions
+	Internal Functions
 */
 
-// readByte read byte from device register
-func (d *Device) readByte(reg uint8) byte {
-	legacy.ReadRegister(d.bus, d.Address, reg, d.buf)
+// deviceStatus returns StatusReg of as7262
+func (d *Device) deviceStatus() byte {
+	d.buf[0] = 0
+	d.bus.ReadRegister(DefaultAddress, StatusReg, d.buf)
 	return d.buf[0]
 }
 
-func (d *Device) readUint32(reg uint8) uint32 {
-	legacy.ReadRegister(d.bus, d.Address, reg, d.buf)
-	// shift bytes for uint32 from reg (start) + 3 more regs
-	return uint32(d.buf[0])<<24 | uint32(d.buf[1])<<16 | uint32(d.buf[2])<<8 | uint32(d.buf[3])
+// writeReady returns true if as7262 is ready to write write-register
+func (d *Device) writeReady() bool {
+	return d.deviceStatus()&TxValid == 0
 }
 
-// writeByte write byte to device register
-func (d *Device) writeByte(reg uint8, data byte) {
-	d.buf[0] = reg
-	d.buf[1] = data
-	d.bus.Tx(uint16(d.Address), d.buf, nil)
+// readReady return true if as7262 is ready to read read-register
+func (d *Device) readReady() bool {
+	return d.deviceStatus()&RxValid != 0
 }
 
-/*
-	Data Reader Functions
-*/
+func (d *Device) readByte(reg byte) byte {
+	for {
+		if d.writeReady() {
+			break
+		}
+	}
 
-func (d *Device) ReadColors() [6]float32 {
-	v := d.ReadViolet()
-	b := d.ReadBlue()
-	g := d.ReadGreen()
-	y := d.ReadYellow()
-	o := d.ReadOrange()
-	r := d.ReadRed()
-	return [6]float32{v, b, g, y, o, r}
+	d.bus.WriteRegister(d.Address, WriteReg, []byte{reg})
+
+	for {
+		if d.readReady() {
+			break
+		}
+	}
+
+	d.bus.ReadRegister(d.Address, ReadReg, d.buf)
+	return d.buf[0]
 }
 
-// ReadRGB returns RGB Values
-func (d *Device) ReadRGB() [3]float32 {
-	return [3]float32{d.ReadRed(), d.ReadGreen(), d.ReadBlue()}
+func (d *Device) writeByte(reg byte, value byte) {
+	for {
+		if d.writeReady() {
+			break
+		}
+	}
+
+	d.bus.WriteRegister(d.Address, WriteReg, []byte{reg | 0x80})
+
+	for {
+		if d.writeReady() {
+			break
+		}
+	}
+
+	d.buf[0] = value
+	d.bus.WriteRegister(d.Address, WriteReg, d.buf)
 }
 
-// ReadViolet returns Violet measurement
-func (d *Device) ReadViolet() float32 {
-	value := d.readUint32(VCalReg)
-	return math.Float32frombits(value)
+// Configure as7262 behaviour
+func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mode int) {
+	cr := newVControlReg()
+	cr.setReset(reset)
+	cr.setGain(gain)
+	cr.setMode(mode)
+	crEncoded := cr.encode()
+
+	// write ControlReg and read full ControlReg
+	d.writeByte(ControlReg, crEncoded)
+	time.Sleep(time.Second * 2)
+	d.readByte(ControlReg)
+	cr.decode(d.buf[0])
+
+	// set integrationTime: float32 as ms
+	t := byte(int(integrationTime*2.8) & 0xff)
+	d.writeByte(IntegrationTimeReg, t)
 }
 
-// ReadBlue returns Blue measurement
-func (d *Device) ReadBlue() float32 {
-	value := d.readUint32(BCalReg)
-	return math.Float32frombits(value)
-}
-
-// ReadGreen returns Green measurement
-func (d *Device) ReadGreen() float32 {
-	value := d.readUint32(GCalReg)
-	return math.Float32frombits(value)
-}
-
-// ReadYellow returns Yellow measurement
-func (d *Device) ReadYellow() float32 {
-	value := d.readUint32(YCalReg)
-	return math.Float32frombits(value)
-}
-
-// ReadOrange returns Orange measurement
-func (d *Device) ReadOrange() float32 {
-	value := d.readUint32(OCalReg)
-	return math.Float32frombits(value)
-}
-
-// ReadRed returns Red measurement
-func (d *Device) ReadRed() float32 {
-	value := d.readUint32(RCalReg)
-	return math.Float32frombits(value)
-}
-
-// ReadTemp returns Temperature of Sensor in °C
-func (d *Device) ReadTemp() int {
-	value := d.readByte(TempReg)
-	return int(value)
+func (d *Device) Led(status bool) {
+	var led byte
+	if status {
+		led = 0b00000111
+	} else {
+		led = 0b00000110
+	}
+	d.writeByte(LedRegister, led)
 }

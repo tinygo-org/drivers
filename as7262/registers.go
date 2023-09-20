@@ -4,25 +4,21 @@ const (
 	// DefaultAddress Address is default I2C address of AS7262
 	DefaultAddress = 0x49
 
-	/*
-		Version Registers
-	*/
-	// HardwareVersionReg Hardware Version Register (0x00:0x01)
-	HardwareVersionReg = 0x00 // device type number 0x00, hardware version 0x01
-	// FirmwareVersionReg Firmware Version Register (0x02:0x03)
-	FirmwareVersionReg = 0x02 //
+	// StatusReg
+	StatusReg = 0x00
+	// WriteReg
+	WriteReg = 0x01
+	// ReadReg
+	ReadReg = 0x02
 
-	/*
-		Control Registers
-	*/
-	// ControlReg Control Register
+	// ControlReg
 	ControlReg = 0x04
-	// IntegrationReg Integration Time Register
-	IntegrationReg = 0x05
-	// TempReg Temperature Register
-	TempReg = 0x06
-	// LedReg Control LED Register
-	LedReg = 0x7
+	// IntegrationTimeReg
+	IntegrationTimeReg = 0x05
+	// TempRegister
+	TempRegister = 0x06
+	// LedRegister
+	LedRegister = 0x07
 
 	/*
 		Sensor Raw Data Registers
