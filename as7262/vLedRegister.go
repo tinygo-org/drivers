@@ -16,24 +16,24 @@ func newVLedControlReg() *vLedControlReg {
 	}
 }
 
-// encode register to a complete byte for writing
-func (r *vLedControlReg) encode() byte {
-	return r.illuminationCurrentLimit |
-		r.illuminationStatus |
-		r.indicatorCurrentLimit |
-		r.indicatorStatus
+// encodeLedReg register to a complete byte for writing
+func (d *Device) encodeLedReg() byte {
+	return d.vLedControlReg.illuminationCurrentLimit |
+		d.vLedControlReg.illuminationStatus |
+		d.vLedControlReg.indicatorCurrentLimit |
+		d.vLedControlReg.indicatorStatus
 }
 
-// decode register to represent as7262 internal state
-func (r *vLedControlReg) decode(encoded byte) {
-	r.illuminationCurrentLimit = encoded & 0b00110000
-	r.illuminationStatus = encoded & 0b00001000
-	r.indicatorCurrentLimit = encoded & 0b00000110
-	r.indicatorStatus = encoded & 0b00000001
+// decodeLedReg register to represent as7262 internal state
+func (d *Device) decodeLedReg(encoded byte) {
+	d.vLedControlReg.illuminationCurrentLimit = encoded & 0b00110000
+	d.vLedControlReg.illuminationStatus = encoded & 0b00001000
+	d.vLedControlReg.indicatorCurrentLimit = encoded & 0b00000110
+	d.vLedControlReg.indicatorStatus = encoded & 0b00000001
 }
 
-// setIlCur
-func (r *vLedControlReg) setIlCr(ilCurLim float32) {
+// setIlCr
+func (d *Device) setIlCr(ilCurLim float32) {
 	// values: 12.5, 25, 50, 100 (defaults to 50)
 	var cr byte
 	switch ilCurLim {
@@ -48,21 +48,21 @@ func (r *vLedControlReg) setIlCr(ilCurLim float32) {
 	}
 
 	//bitwise clear operation & setting bit 4:5
-	r.illuminationCurrentLimit &= 0b11001111
-	r.illuminationCurrentLimit |= cr << 4
+	d.vLedControlReg.illuminationCurrentLimit &= 0b11001111
+	d.vLedControlReg.illuminationCurrentLimit |= cr << 4
 }
 
 // setIlOn
-func (r *vLedControlReg) setIlOn(ilOn bool) {
+func (d *Device) setIlOn(ilOn bool) {
 	if ilOn {
-		r.illuminationStatus |= 0b00001000
+		d.vLedControlReg.illuminationStatus |= 0b00001000
 	} else {
-		r.illuminationStatus &= 0b11110111
+		d.vLedControlReg.illuminationStatus &= 0b11110111
 	}
 }
 
 // setInCur
-func (r *vLedControlReg) setInCur(inCurLim float32) {
+func (d *Device) setInCur(inCurLim float32) {
 	// values: 1, 2, 4, 8 (defaults to 8)
 	var cr byte
 	switch inCurLim {
@@ -77,30 +77,29 @@ func (r *vLedControlReg) setInCur(inCurLim float32) {
 	}
 
 	//bitwise clear operation & setting bit 4:5
-	r.indicatorCurrentLimit &= 0b11111001
-	r.indicatorCurrentLimit |= cr << 1
+	d.vLedControlReg.indicatorCurrentLimit &= 0b11111001
+	d.vLedControlReg.indicatorCurrentLimit |= cr << 1
 }
 
 // setInOn
-func (r *vLedControlReg) setInOn(inOn bool) {
+func (d *Device) setInOn(inOn bool) {
 	if inOn {
-		r.indicatorStatus |= 0b00000001
+		d.vLedControlReg.indicatorStatus |= 0b00000001
 	} else {
-		r.indicatorStatus &= 0b11111110
+		d.vLedControlReg.indicatorStatus &= 0b11111110
 	}
 }
 
 // ConfigureLed with all possible configurations
 func (d *Device) ConfigureLed(ilCurLim float32, ilOn bool, inCurLim float32, inOn bool) {
-	lr := newVLedControlReg()
-	lr.setIlCr(ilCurLim)
-	lr.setIlOn(ilOn)
-	lr.setInCur(inCurLim)
-	lr.setInOn(inOn)
-	lrEncoded := lr.encode()
+	d.setIlCr(ilCurLim)
+	d.setIlOn(ilOn)
+	d.setInCur(inCurLim)
+	d.setInOn(inOn)
+	lrEncoded := d.encodeLedReg()
 
 	// write ControlReg and read full ControlReg
 	d.writeByte(LedRegister, lrEncoded)
 	d.readByte(LedRegister)
-	lr.decode(d.buf[0])
+	d.decodeLedReg(d.buf[0])
 }

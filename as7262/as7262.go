@@ -23,17 +23,21 @@ func (e Error) Error() string {
 }
 
 type Device struct {
-	bus     drivers.I2C
-	buf     []byte
-	Address uint8
+	bus            drivers.I2C
+	buf            []byte
+	Address        uint8
+	vControlReg    *vControlReg
+	vLedControlReg *vLedControlReg
 }
 
 // New returns pointer of new as7262 device
 func New(i2c drivers.I2C) *Device {
 	return &Device{
-		bus:     i2c,
-		buf:     []byte{0},
-		Address: DefaultAddress,
+		bus:            i2c,
+		buf:            []byte{0},
+		Address:        DefaultAddress,
+		vControlReg:    newVControlReg(),
+		vLedControlReg: newVLedControlReg(),
 	}
 }
 

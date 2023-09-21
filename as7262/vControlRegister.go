@@ -20,31 +20,35 @@ func newVControlReg() *vControlReg {
 	}
 }
 
-// encode register to a complete byte for writing
-func (r *vControlReg) encode() byte {
-	return r.reset | r.interrupt | r.gain | r.bank | r.dataReady
+// encodeCReg register to a complete byte for writing
+func (d *Device) encodeCReg() byte {
+	return d.vControlReg.reset |
+		d.vControlReg.interrupt |
+		d.vControlReg.gain |
+		d.vControlReg.bank |
+		d.vControlReg.dataReady
 }
 
-// decode register to represent as7262 internal state
-func (r *vControlReg) decode(encoded byte) {
-	r.reset = encoded & 0b10000000
-	r.interrupt = encoded & 0b01000000
-	r.gain = encoded & 0b00110000
-	r.bank = encoded & 0b00001100
-	r.dataReady = encoded & 0b00000010
+// decodeCReg register to represent as7262 internal state
+func (d *Device) decodeCReg(encoded byte) {
+	d.vControlReg.reset = encoded & 0b10000000
+	d.vControlReg.interrupt = encoded & 0b01000000
+	d.vControlReg.gain = encoded & 0b00110000
+	d.vControlReg.bank = encoded & 0b00001100
+	d.vControlReg.dataReady = encoded & 0b00000010
 }
 
 // setReset bit which will soft reset the as7262 sensor
-func (r *vControlReg) setReset(reset bool) {
+func (d *Device) setReset(reset bool) {
 	if reset {
-		r.reset |= 0b10000000
+		d.vControlReg.reset |= 0b10000000
 	} else {
-		r.reset &= 0b01111111
+		d.vControlReg.reset &= 0b01111111
 	}
 }
 
 // setGain sets bit 4:5 of VControlReg for gain
-func (r *vControlReg) setGain(gain float32) {
+func (d *Device) setGain(gain float32) {
 	// set gain (defaults to 64)
 	// values: 1, 3.7, 16, 64
 	var g byte
@@ -60,33 +64,32 @@ func (r *vControlReg) setGain(gain float32) {
 	}
 
 	// bitwise clear operation & setting bit 4:5
-	r.gain &= 0b11001111
-	r.gain |= g << 4
+	d.vControlReg.gain &= 0b11001111
+	d.vControlReg.gain |= g << 4
 }
 
 // setMode sets bit 2:3 of VControlReg for mode
-func (r *vControlReg) setMode(mode int) {
+func (d *Device) setMode(mode int) {
 	// set mode: 0, 1, 2, 3
 	m := byte(mode)
 
 	// bitwise clear operation & setting bit 4:5
-	r.bank &= 0b11110011
-	r.bank |= m << 2
+	d.vControlReg.bank &= 0b11110011
+	d.vControlReg.bank |= m << 2
 }
 
 // Configure as7262 behaviour
 func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mode int) {
-	cr := newVControlReg()
-	cr.setReset(reset)
-	cr.setGain(gain)
-	cr.setMode(mode)
-	crEncoded := cr.encode()
+	d.setReset(reset)
+	d.setGain(gain)
+	d.setMode(mode)
+	crEncoded := d.encodeCReg()
 
 	// write ControlReg and read full ControlReg
 	d.writeByte(ControlReg, crEncoded)
 	time.Sleep(time.Second * 2)
 	d.readByte(ControlReg)
-	cr.decode(d.buf[0])
+	d.decodeCReg(d.buf[0])
 
 	// set integrationTime: float32 as ms
 	t := byte(int(integrationTime*2.8) & 0xff)
