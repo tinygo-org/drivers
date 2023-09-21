@@ -1,7 +1,6 @@
 package as7262
 
 import (
-	"time"
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 )
@@ -95,27 +94,4 @@ func (d *Device) writeByte(reg byte, value byte) {
 	}
 
 	legacy.WriteRegister(d.bus, d.Address, WriteReg, []byte{value})
-}
-
-/*
-	Official as7262 functions (exported)
-*/
-
-// Configure as7262 behaviour
-func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mode int) {
-	cr := newVControlReg()
-	cr.setReset(reset)
-	cr.setGain(gain)
-	cr.setMode(mode)
-	crEncoded := cr.encode()
-
-	// write ControlReg and read full ControlReg
-	d.writeByte(ControlReg, crEncoded)
-	time.Sleep(time.Second * 2)
-	d.readByte(ControlReg)
-	cr.decode(d.buf[0])
-
-	// set integrationTime: float32 as ms
-	t := byte(int(integrationTime*2.8) & 0xff)
-	d.writeByte(IntegrationTimeReg, t)
 }

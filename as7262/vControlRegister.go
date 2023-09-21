@@ -1,5 +1,7 @@
 package as7262
 
+import "time"
+
 type vControlReg struct {
 	reset     byte
 	interrupt byte
@@ -70,4 +72,23 @@ func (r *vControlReg) setMode(mode int) {
 	// bitwise clear operation & setting bit 4:5
 	r.bank &= 0b11110011
 	r.bank |= m << 2
+}
+
+// Configure as7262 behaviour
+func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mode int) {
+	cr := newVControlReg()
+	cr.setReset(reset)
+	cr.setGain(gain)
+	cr.setMode(mode)
+	crEncoded := cr.encode()
+
+	// write ControlReg and read full ControlReg
+	d.writeByte(ControlReg, crEncoded)
+	time.Sleep(time.Second * 2)
+	d.readByte(ControlReg)
+	cr.decode(d.buf[0])
+
+	// set integrationTime: float32 as ms
+	t := byte(int(integrationTime*2.8) & 0xff)
+	d.writeByte(IntegrationTimeReg, t)
 }
