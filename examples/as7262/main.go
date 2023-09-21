@@ -14,6 +14,7 @@ var (
 func main() {
 	i2c.Configure(machine.I2CConfig{Frequency: machine.KHz * 100})
 	sensor.Configure(true, 64, 30, 2)
+	sensor.ConfigureLed(12.5, false, 8, true)
 
 	println("Starting ...")
 	for {
