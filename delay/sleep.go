@@ -49,7 +49,7 @@ func Sleep(duration time.Duration) {
 	//   * The CPU frequency is lower than 256MHz. If it is higher, long sleep
 	//     times (1-16ms) may not work correctly.
 	cycles := uint32(duration) * (machine.CPUFrequency() / 1000_000) / 1000
-	slept := C.tinygo_drivers_sleep(cycles)
+	slept := C.tinygo_drivers_sleep(C.uint32_t(cycles))
 	if !slept {
 		// Fallback for platforms without inline assembly support.
 		time.Sleep(duration)
