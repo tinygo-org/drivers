@@ -87,7 +87,7 @@ func (d *Device) Configure(reset bool, gain float32, integrationTime float32, mo
 
 	// write ControlReg and read full ControlReg
 	d.writeByte(ControlReg, crEncoded)
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second)
 	d.readByte(ControlReg)
 	d.decodeCReg(d.buf[0])
 
