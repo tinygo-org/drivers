@@ -1,3 +1,5 @@
+// tinygo flash -target arduino examples/as7262/main.go && tinygo monitor -baudrate 9600
+
 package main
 
 import (
@@ -13,12 +15,13 @@ var (
 
 func main() {
 	i2c.Configure(machine.I2CConfig{Frequency: machine.KHz * 100})
-	sensor.Configure(true, 64, 30, 2)
-	sensor.ConfigureLed(12.5, false, 8, true)
+	sensor.Configure(true, 64, 17.857, 2)
+	//sensor.ConfigureLed(12.5, true, 8, true)
 
 	println("Starting ...")
+
 	for {
-		println("need more context")
+		println("Value: ", sensor.Temperature())
 		time.Sleep(time.Millisecond * 800)
 	}
 }
