@@ -7,27 +7,48 @@ const (
 	AU915_DEFAULT_TX_POWER_DBM = 20
 )
 
+type ChannelAU struct {
+	frequency       uint32
+	bandwidth       uint8
+	spreadingFactor uint8
+	codingRate      uint8
+	preambleLength  uint16
+	txPowerDBm      int8
+}
+
+// Getter functions
+func (c *ChannelAU) Frequency() uint32      { return c.frequency }
+func (c *ChannelAU) Bandwidth() uint8       { return c.bandwidth }
+func (c *ChannelAU) SpreadingFactor() uint8 { return c.spreadingFactor }
+func (c *ChannelAU) CodingRate() uint8      { return c.codingRate }
+func (c *ChannelAU) PreambleLength() uint16 { return c.preambleLength }
+func (c *ChannelAU) TxPowerDBm() int8       { return c.txPowerDBm }
+
+func (c *ChannelAU) Next() bool {
+	return false
+}
+
 type RegionSettingsAU915 struct {
-	joinRequestChannel *Channel
-	joinAcceptChannel  *Channel
-	uplinkChannel      *Channel
+	joinRequestChannel *ChannelAU
+	joinAcceptChannel  *ChannelAU
+	uplinkChannel      *ChannelAU
 }
 
 func AU915() *RegionSettingsAU915 {
 	return &RegionSettingsAU915{
-		joinRequestChannel: &Channel{lora.MHz_916_8,
+		joinRequestChannel: &ChannelAU{lora.MHz_916_8,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_5,
 			AU915_DEFAULT_PREAMBLE_LEN,
 			AU915_DEFAULT_TX_POWER_DBM},
-		joinAcceptChannel: &Channel{lora.MHz_923_3,
+		joinAcceptChannel: &ChannelAU{lora.MHz_923_3,
 			lora.Bandwidth_500_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_5,
 			AU915_DEFAULT_PREAMBLE_LEN,
 			AU915_DEFAULT_TX_POWER_DBM},
-		uplinkChannel: &Channel{lora.MHz_916_8,
+		uplinkChannel: &ChannelAU{lora.MHz_916_8,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_5,
@@ -36,14 +57,18 @@ func AU915() *RegionSettingsAU915 {
 	}
 }
 
-func (r *RegionSettingsAU915) JoinRequestChannel() *Channel {
+func Next(c *ChannelAU) bool {
+	return false
+}
+
+func (r *RegionSettingsAU915) JoinRequestChannel() Channel {
 	return r.joinRequestChannel
 }
 
-func (r *RegionSettingsAU915) JoinAcceptChannel() *Channel {
+func (r *RegionSettingsAU915) JoinAcceptChannel() Channel {
 	return r.joinAcceptChannel
 }
 
-func (r *RegionSettingsAU915) UplinkChannel() *Channel {
+func (r *RegionSettingsAU915) UplinkChannel() Channel {
 	return r.uplinkChannel
 }
