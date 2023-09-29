@@ -32,22 +32,21 @@ func (c *ChannelUS) Next() bool {
 		freq, ok := stepFrequency125(c.frequency)
 		if ok {
 			c.frequency = freq
-			return true
 		} else {
 			c.frequency = lora.Mhz_903_0
-			return true
+			c.bandwidth = lora.Bandwidth_500_0
 		}
 	case lora.Bandwidth_500_0:
 		freq, ok := stepFrequency500(c.frequency)
 		if ok {
 			c.frequency = freq
-			return true
 		} else {
+			// there are no more frequencies to check after sweeping all 8 500 kHz channels
 			return false
 		}
 	}
 
-	return false
+	return true
 }
 
 func stepFrequency125(freq uint32) (uint32, bool) {
