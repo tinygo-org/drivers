@@ -11,7 +11,7 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-// Device wraps an I2C connection to a DS3231 device.
+// Device wraps an I2C connection to an AT24CX device.
 type Device struct {
 	bus               drivers.I2C
 	Address           uint16
