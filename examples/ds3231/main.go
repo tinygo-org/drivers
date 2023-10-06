@@ -1,4 +1,4 @@
-// Connects to an DS3231 I2C Real Time Clock (RTC).
+// Connects to an MAG3110 I2C magnetometer.
 package main
 
 import (
