@@ -51,7 +51,7 @@ type Buser interface {
 
 type VccMode uint8
 
-// NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
+// NewI2C creates a new SH1106 connection. The I2C wire must already be configured.
 func NewI2C(bus drivers.I2C) Device {
 	return Device{
 		bus: &I2CBus{
@@ -61,7 +61,7 @@ func NewI2C(bus drivers.I2C) Device {
 	}
 }
 
-// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
+// NewSPI creates a new SH1106 connection. The SPI wire must already be configured.
 func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
