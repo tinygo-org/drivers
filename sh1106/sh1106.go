@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an SPI connection.
@@ -283,9 +284,10 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 // tx sends data to the display (I2CBus implementation)
 func (b *I2CBus) tx(data []byte, isCommand bool) {
 	if isCommand {
+		legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
 		b.wire.WriteRegister(uint8(b.Address), 0x00, data)
 	} else {
-		b.wire.WriteRegister(uint8(b.Address), 0x40, data)
+		legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
 	}
 }
 
