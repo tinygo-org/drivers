@@ -24,6 +24,14 @@ func (c *ChannelEU) CodingRate() uint8      { return c.codingRate }
 func (c *ChannelEU) PreambleLength() uint16 { return c.preambleLength }
 func (c *ChannelEU) TxPowerDBm() int8       { return c.txPowerDBm }
 
+// Set functions
+func (c *ChannelEU) SetFrequency(v uint32)      { c.frequency = v }
+func (c *ChannelEU) SetBandwidth(v uint8)       { c.bandwidth = v }
+func (c *ChannelEU) SetSpreadingFactor(v uint8) { c.spreadingFactor = v }
+func (c *ChannelEU) SetCodingRate(v uint8)      { c.codingRate = v }
+func (c *ChannelEU) SetPreambleLength(v uint16) { c.preambleLength = v }
+func (c *ChannelEU) SetTxPowerDBm(v int8)       { c.txPowerDBm = v }
+
 func (c *ChannelEU) Next() bool {
 	return false
 }
