@@ -26,6 +26,15 @@ func (c *ChannelUS) CodingRate() uint8      { return c.codingRate }
 func (c *ChannelUS) PreambleLength() uint16 { return c.preambleLength }
 func (c *ChannelUS) TxPowerDBm() int8       { return c.txPowerDBm }
 
+// Set functions
+// TODO: validate input
+func (c *ChannelUS) SetFrequency(v uint32)      { c.frequency = v }
+func (c *ChannelUS) SetBandwidth(v uint8)       { c.bandwidth = v }
+func (c *ChannelUS) SetSpreadingFactor(v uint8) { c.spreadingFactor = v }
+func (c *ChannelUS) SetCodingRate(v uint8)      { c.codingRate = v }
+func (c *ChannelUS) SetPreambleLength(v uint16) { c.preambleLength = v }
+func (c *ChannelUS) SetTxPowerDBm(v int8)       { c.txPowerDBm = v }
+
 func (c *ChannelUS) Next() bool {
 	switch c.Bandwidth() {
 	case lora.Bandwidth_125_0:
