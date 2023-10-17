@@ -30,11 +30,11 @@ const (
 var (
 	ActiveRadio    lora.Radio
 	Retries        = 15
-	regionSettings region.RegionSettings
+	regionSettings region.Settings
 )
 
 // UseRegionSettings sets current Lorawan Regional parameters
-func UseRegionSettings(rs region.RegionSettings) {
+func UseRegionSettings(rs region.Settings) {
 	regionSettings = rs
 }
 
