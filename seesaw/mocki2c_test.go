@@ -3,6 +3,7 @@ package seesaw
 import (
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -17,7 +18,9 @@ type mocki2c struct {
 }
 
 func (m *mocki2c) Tx(addr uint16, w, r []byte) error {
-	assertEquals(m.t, addr, m.addr)
+	if addr != m.addr {
+		m.t.Errorf("unexpected i2c address write, want: %v , got %v", m.addr, addr)
+	}
 	if len(m.handlers) == 0 {
 		ws := hex.EncodeToString(w)
 		rs := hex.EncodeToString(r)
@@ -38,8 +41,14 @@ func newMockDev(t *testing.T, addr uint16, handlers ...I2CHandleFunc) *mocki2c {
 
 func when(expectedWrite, returningRead []byte, returningError error) I2CHandleFunc {
 	return func(t *testing.T, w, r []byte) error {
-		assertEquals(t, w, expectedWrite)
-		assertEquals(t, len(r), len(returningRead))
+		if !reflect.DeepEqual(w, expectedWrite) {
+			t.Errorf("unexpected write. want: %v, got: %v", expectedWrite, w)
+		}
+
+		if len(r) != len(returningRead) {
+			t.Errorf("read buffer has wrong size. want: %v, got: %v", len(returningRead), len(r))
+		}
+
 		if r != nil {
 			copy(r, returningRead)
 		}

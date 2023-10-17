@@ -1,14 +1,21 @@
 // Package seesaw provides a driver implementation to communicate with Adafruit's seesaw chip.
-// There are many Adafruit boards that use a seesaw. Moisture sensors, LED keyboards, ...
+// There are many Adafruit boards that use a seesaw. Soil moisture sensors, LED keyboards, etc.
+//
+//   - Documentation: https://learn.adafruit.com/adafruit-seesaw-atsamd09-breakout/overview
+//   - Arduino driver: https://github.com/adafruit/Adafruit_Seesaw
+//   - Seesaw firmware: https://github.com/adafruit/seesaw
 package seesaw
 
 import (
 	"errors"
 	"strconv"
 	"time"
+
 	"tinygo.org/x/drivers"
 )
 
+// DefaultAddress is the I2C address the chips have by default. Most boards
+// built on top of it come with their own respective default addresses.
 const DefaultAddress = 0x49
 
 // empirically determined standardDelay, the one from the official library seems to be too short (250us)
@@ -18,16 +25,6 @@ const (
 	seesawHwIdCodeSAMD09  = 0x55 // HW ID code for SAMD09
 	seesawHwIdCodeTINY8x7 = 0x87 // HW ID code for ATtiny817
 )
-
-type Seesaw interface {
-
-	// Read reads a number of bytes from the device after sending the read command and waiting 'delay'. The delays depend
-	// on the module and function and are documented in the seesaw datasheet
-	Read(module ModuleBaseAddress, function FunctionAddress, buf []byte, delay time.Duration) error
-
-	// Write writes an entire array into a given module and function
-	Write(module ModuleBaseAddress, function FunctionAddress, buf []byte) error
-}
 
 type Device struct {
 	bus           drivers.I2C
@@ -54,8 +51,7 @@ func (d *Device) SoftReset() error {
 }
 
 func (d *Device) waitForReset() error {
-
-	//give the device a little bit of time to reset
+	// give the device a little bit of time to reset
 	time.Sleep(time.Second)
 
 	var lastErr error
@@ -115,8 +111,8 @@ func (d *Device) Read(module ModuleBaseAddress, function FunctionAddress, buf []
 		return err
 	}
 
-	//This is needed for the client seesaw device to flush its RX buffer and process the command.
-	//See seesaw datasheet for timings for specific modules.
+	// This is needed for the client seesaw device to flush its RX buffer and process the command.
+	// See seesaw datasheet for timings for specific modules.
 	time.Sleep(delay)
 
 	return d.bus.Tx(d.Address, nil, buf)
