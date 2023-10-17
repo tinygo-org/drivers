@@ -21,16 +21,16 @@ loraConnect: Connected !
 tinygo flash -target pico ./examples/lora/lorawan/basic-demo
 ```
 
-## PyBadge with LoRa Featherwing 
+## PyBadge with LoRa Featherwing for EU868 region
 
 ```
-tinygo flash -target pybadge -tags featherwing ./examples/lora/lorawan/basic-demo
+tinygo flash -target pybadge -tags featherwing -ldflags="-X main.reg=EU868" ./examples/lora/lorawan/basic-demo
 ```
 
-## LoRa-E5 
+## LoRa-E5 for US915 region
 
 ```
-tinygo flash -target lorae5 ./examples/lora/lorawan/basic-demo
+tinygo flash -target lorae5 -ldflags="-X main.reg=US915" ./examples/lora/lorawan/basic-demo
 ```
 
 
