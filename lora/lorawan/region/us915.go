@@ -10,30 +10,8 @@ const (
 )
 
 type ChannelUS struct {
-	frequency       uint32
-	bandwidth       uint8
-	spreadingFactor uint8
-	codingRate      uint8
-	preambleLength  uint16
-	txPowerDBm      int8
+	channel
 }
-
-// Getter functions
-func (c *ChannelUS) Frequency() uint32      { return c.frequency }
-func (c *ChannelUS) Bandwidth() uint8       { return c.bandwidth }
-func (c *ChannelUS) SpreadingFactor() uint8 { return c.spreadingFactor }
-func (c *ChannelUS) CodingRate() uint8      { return c.codingRate }
-func (c *ChannelUS) PreambleLength() uint16 { return c.preambleLength }
-func (c *ChannelUS) TxPowerDBm() int8       { return c.txPowerDBm }
-
-// Set functions
-// TODO: validate input
-func (c *ChannelUS) SetFrequency(v uint32)      { c.frequency = v }
-func (c *ChannelUS) SetBandwidth(v uint8)       { c.bandwidth = v }
-func (c *ChannelUS) SetSpreadingFactor(v uint8) { c.spreadingFactor = v }
-func (c *ChannelUS) SetCodingRate(v uint8)      { c.codingRate = v }
-func (c *ChannelUS) SetPreambleLength(v uint16) { c.preambleLength = v }
-func (c *ChannelUS) SetTxPowerDBm(v int8)       { c.txPowerDBm = v }
 
 func (c *ChannelUS) Next() bool {
 	switch c.Bandwidth() {
@@ -76,43 +54,29 @@ func stepFrequency500(freq uint32) (uint32, bool) {
 	return f, true
 }
 
-type RegionSettingsUS915 struct {
-	joinRequestChannel *ChannelUS
-	joinAcceptChannel  *ChannelUS
-	uplinkChannel      *ChannelUS
+type SettingsUS915 struct {
+	settings
 }
 
-func US915() *RegionSettingsUS915 {
-	return &RegionSettingsUS915{
-		joinRequestChannel: &ChannelUS{lora.MHz_902_3,
+func US915() *SettingsUS915 {
+	return &SettingsUS915{settings: settings{
+		joinRequestChannel: &ChannelUS{channel: channel{lora.MHz_902_3,
 			lora.Bandwidth_125_0,
 			lora.SpreadingFactor10,
 			lora.CodingRate4_5,
 			US915_DEFAULT_PREAMBLE_LEN,
-			US915_DEFAULT_TX_POWER_DBM},
-		joinAcceptChannel: &ChannelUS{0,
+			US915_DEFAULT_TX_POWER_DBM}},
+		joinAcceptChannel: &ChannelUS{channel: channel{0,
 			lora.Bandwidth_500_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_5,
 			US915_DEFAULT_PREAMBLE_LEN,
-			US915_DEFAULT_TX_POWER_DBM},
-		uplinkChannel: &ChannelUS{lora.Mhz_903_0,
+			US915_DEFAULT_TX_POWER_DBM}},
+		uplinkChannel: &ChannelUS{channel: channel{lora.Mhz_903_0,
 			lora.Bandwidth_500_0,
 			lora.SpreadingFactor9,
 			lora.CodingRate4_5,
 			US915_DEFAULT_PREAMBLE_LEN,
-			US915_DEFAULT_TX_POWER_DBM},
-	}
-}
-
-func (r *RegionSettingsUS915) JoinRequestChannel() Channel {
-	return r.joinRequestChannel
-}
-
-func (r *RegionSettingsUS915) JoinAcceptChannel() Channel {
-	return r.joinAcceptChannel
-}
-
-func (r *RegionSettingsUS915) UplinkChannel() Channel {
-	return r.uplinkChannel
+			US915_DEFAULT_TX_POWER_DBM}},
+	}}
 }
