@@ -1,5 +1,3 @@
-// Package seesaw provides a driver for the "i2c to whathever interface" called seesaw
-// documentation: https://learn.adafruit.com/adafruit-seesaw-atsamd09-breakout/overview
 package seesaw
 
 type ModuleBaseAddress byte
