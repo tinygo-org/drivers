@@ -23,13 +23,18 @@ func (sr *SimLoraRadio) Rx(timeoutMs uint32) ([]uint8, error) {
 	return nil, nil
 }
 
-func (sr *SimLoraRadio) SetFrequency(freq uint32)    {}
-func (sr *SimLoraRadio) SetIqMode(mode uint8)        {}
-func (sr *SimLoraRadio) SetCodingRate(cr uint8)      {}
-func (sr *SimLoraRadio) SetBandwidth(bw uint8)       {}
-func (sr *SimLoraRadio) SetCrc(enable bool)          {}
-func (sr *SimLoraRadio) SetSpreadingFactor(sf uint8) {}
-func (sr *SimLoraRadio) LoraConfig(cnf lora.Config)  {}
+func (sr *SimLoraRadio) SetFrequency(freq uint32)       {}
+func (sr *SimLoraRadio) SetIqMode(mode uint8)           {}
+func (sr *SimLoraRadio) SetCodingRate(cr uint8)         {}
+func (sr *SimLoraRadio) SetBandwidth(bw uint8)          {}
+func (sr *SimLoraRadio) SetCrc(enable bool)             {}
+func (sr *SimLoraRadio) SetSpreadingFactor(sf uint8)    {}
+func (sr *SimLoraRadio) SetHeaderType(headerType uint8) {}
+func (sr *SimLoraRadio) SetPreambleLength(pLen uint16)  {}
+func (sr *SimLoraRadio) SetPublicNetwork(enabled bool)  {}
+func (sr *SimLoraRadio) SetSyncWord(syncWord uint16)    {}
+func (sr *SimLoraRadio) SetTxPower(txPower int8)        {}
+func (sr *SimLoraRadio) LoraConfig(cnf lora.Config)     {}
 
 func FirmwareVersion() string {
 	return "simulator " + CurrentVersion()
