@@ -26,7 +26,7 @@ type Device struct {
 }
 
 // deprecated, use NewWS2812 or NewSK6812 depending on which device you want.
-// calls NewWS2812() to avoid breaking everyone's existing code. 
+// calls NewWS2812() to avoid breaking everyone's existing code.
 func New(pin machine.Pin) Device {
 	return NewWS2812(pin)
 }
