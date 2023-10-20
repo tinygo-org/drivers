@@ -12,17 +12,10 @@ import (
 
 var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
 
-type deviceType uint8
-
-const (
-	WS2812 deviceType = iota // RGB, uses 3 bytes
-	SK6812                   // RGBA / RGBW, uses 4 bytes
-)
-
 // Device wraps a pin object for an easy driver interface.
 type Device struct {
-	Pin        machine.Pin
-	deviceType deviceType
+	Pin            machine.Pin
+	writeColorFunc func(Device, []color.RGBA) error
 }
 
 // deprecated, use NewWS2812 or NewSK6812 depending on which device you want.
@@ -36,8 +29,8 @@ func New(pin machine.Pin) Device {
 // to configure it as an output pin before calling New.
 func NewWS2812(pin machine.Pin) Device {
 	return Device{
-		Pin:        pin,
-		deviceType: WS2812,
+		Pin:            pin,
+		writeColorFunc: writeColorsRGB,
 	}
 }
 
@@ -46,8 +39,8 @@ func NewWS2812(pin machine.Pin) Device {
 // to configure it as an output pin before calling New.
 func NewSK6812(pin machine.Pin) Device {
 	return Device{
-		Pin:        pin,
-		deviceType: SK6812,
+		Pin:            pin,
+		writeColorFunc: writeColorsRGBA,
 	}
 }
 
@@ -62,16 +55,10 @@ func (d Device) Write(buf []byte) (n int, err error) {
 // Write the given color slice out using the WS2812 protocol.
 // Colors are sent out in the usual GRB(A) format.
 func (d Device) WriteColors(buf []color.RGBA) (err error) {
-	switch d.deviceType {
-	case WS2812:
-		err = d.writeColorsRGB(buf)
-	case SK6812:
-		err = d.writeColorsRGBA(buf)
-	}
-	return
+	return d.writeColorFunc(d, buf)
 }
 
-func (d Device) writeColorsRGB(buf []color.RGBA) (err error) {
+func writeColorsRGB(d Device, buf []color.RGBA) (err error) {
 	for _, color := range buf {
 		d.WriteByte(color.G)       // green
 		d.WriteByte(color.R)       // red
@@ -80,7 +67,7 @@ func (d Device) writeColorsRGB(buf []color.RGBA) (err error) {
 	return
 }
 
-func (d Device) writeColorsRGBA(buf []color.RGBA) (err error) {
+func writeColorsRGBA(d Device, buf []color.RGBA) (err error) {
 	for _, color := range buf {
 		d.WriteByte(color.G)       // green
 		d.WriteByte(color.R)       // red
