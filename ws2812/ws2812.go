@@ -12,26 +12,42 @@ import (
 
 var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
 
-type DeviceType uint8
+type deviceType uint8
 
 const (
-	WS2812 DeviceType = iota // RGB
-	SK6812                   // RGBA / RGBW
+	WS2812 deviceType = iota // RGB, uses 3 bytes
+	SK6812                   // RGBA / RGBW, uses 4 bytes
 )
 
 // Device wraps a pin object for an easy driver interface.
 type Device struct {
 	Pin        machine.Pin
-	DeviceType DeviceType
+	deviceType deviceType
 }
 
-// New returns a new WS2812 driver. It does not touch the pin object: you have
+// deprecated, use NewWS2812 or NewSK6812 depending on which device you want.
+// calls NewWS2812() to avoid breaking everyone's existing code. 
+func New(pin machine.Pin) Device {
+	return NewWS2812(pin)
+}
+
+// New returns a new WS2812(RGB) driver.
+// It does not touch the pin object: you have
 // to configure it as an output pin before calling New.
-// WS2812 is for RGB, SK6812 is for RGBA
-func New(pin machine.Pin, deviceType DeviceType) Device {
+func NewWS2812(pin machine.Pin) Device {
 	return Device{
 		Pin:        pin,
-		DeviceType: deviceType,
+		deviceType: WS2812,
+	}
+}
+
+// New returns a new SK6812(RGBA) driver.
+// It does not touch the pin object: you have
+// to configure it as an output pin before calling New.
+func NewSK6812(pin machine.Pin) Device {
+	return Device{
+		Pin:        pin,
+		deviceType: SK6812,
 	}
 }
 
@@ -46,7 +62,7 @@ func (d Device) Write(buf []byte) (n int, err error) {
 // Write the given color slice out using the WS2812 protocol.
 // Colors are sent out in the usual GRB(A) format.
 func (d Device) WriteColors(buf []color.RGBA) (err error) {
-	switch d.DeviceType {
+	switch d.deviceType {
 	case WS2812:
 		err = d.writeColorsRGB(buf)
 	case SK6812:
