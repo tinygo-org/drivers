@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // calibrationCoefficients reads at startup and stores the calibration coefficients
@@ -98,19 +99,19 @@ func (d *Device) ConfigureWithSettings(config Config) {
 	}
 
 	var data [24]byte
-	err := d.bus.ReadRegister(uint8(d.Address), REG_CALIBRATION, data[:])
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION, data[:])
 	if err != nil {
 		return
 	}
 
 	var h1 [1]byte
-	err = d.bus.ReadRegister(uint8(d.Address), REG_CALIBRATION_H1, h1[:])
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION_H1, h1[:])
 	if err != nil {
 		return
 	}
 
 	var h2lsb [7]byte
-	err = d.bus.ReadRegister(uint8(d.Address), REG_CALIBRATION_H2LSB, h2lsb[:])
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION_H2LSB, h2lsb[:])
 	if err != nil {
 		return
 	}
@@ -137,12 +138,12 @@ func (d *Device) ConfigureWithSettings(config Config) {
 
 	d.Reset()
 
-	d.bus.WriteRegister(uint8(d.Address), CTRL_CONFIG, []byte{byte(d.Config.Period<<5) | byte(d.Config.IIR<<2)})
-	d.bus.WriteRegister(uint8(d.Address), CTRL_HUMIDITY_ADDR, []byte{byte(d.Config.Humidity)})
+	legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_CONFIG, []byte{byte(d.Config.Period<<5) | byte(d.Config.IIR<<2)})
+	legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_HUMIDITY_ADDR, []byte{byte(d.Config.Humidity)})
 
 	// Normal mode, start measuring now
 	if d.Config.Mode == ModeNormal {
-		d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+		legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_MEAS_ADDR, []byte{
 			byte(d.Config.Temperature<<5) |
 				byte(d.Config.Pressure<<2) |
 				byte(d.Config.Mode)})
@@ -153,13 +154,13 @@ func (d *Device) ConfigureWithSettings(config Config) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(uint8(d.Address), WHO_AM_I, data)
+	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
 	return data[0] == CHIP_ID
 }
 
 // Reset the device
 func (d *Device) Reset() {
-	d.bus.WriteRegister(uint8(d.Address), CMD_RESET, []byte{0xB6})
+	legacy.WriteRegister(d.bus, uint8(d.Address), CMD_RESET, []byte{0xB6})
 }
 
 // SetMode can set the device to Sleep, Normal or Forced mode
@@ -170,7 +171,7 @@ func (d *Device) Reset() {
 func (d *Device) SetMode(mode Mode) {
 	d.Config.Mode = mode
 
-	d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+	legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_MEAS_ADDR, []byte{
 		byte(d.Config.Temperature<<5) |
 			byte(d.Config.Pressure<<2) |
 			byte(d.Config.Mode)})
@@ -252,7 +253,7 @@ func readIntLE(msb byte, lsb byte) int16 {
 func (d *Device) readData() (data [8]byte, err error) {
 	if d.Config.Mode == ModeForced {
 		// Write the CTRL_MEAS register to trigger a measurement
-		d.bus.WriteRegister(uint8(d.Address), CTRL_MEAS_ADDR, []byte{
+		legacy.WriteRegister(d.bus, uint8(d.Address), CTRL_MEAS_ADDR, []byte{
 			byte(d.Config.Temperature<<5) |
 				byte(d.Config.Pressure<<2) |
 				byte(d.Config.Mode)})
@@ -260,7 +261,7 @@ func (d *Device) readData() (data [8]byte, err error) {
 		time.Sleep(d.measurementDelay())
 	}
 
-	err = d.bus.ReadRegister(uint8(d.Address), REG_PRESSURE, data[:])
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_PRESSURE, data[:])
 	if err != nil {
 		println(err)
 		return

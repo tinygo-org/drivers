@@ -2,10 +2,10 @@
 
 package lps22hb
 
-import "tinygo.org/x/drivers"
+import "tinygo.org/x/drivers/internal/legacy"
 
 // Configure sets up the LPS22HB device for communication.
 func (d *Device) Configure() {
 	// set to block update mode
-	d.bus.WriteRegister(d.Address, LPS22HB_CTRL1_REG, []byte{0x02})
+	legacy.WriteRegister(d.bus, d.Address, LPS22HB_CTRL1_REG, []byte{0x02})
 }

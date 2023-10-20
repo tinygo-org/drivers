@@ -8,6 +8,9 @@ package mcp23017
 
 import (
 	"errors"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 const (
@@ -75,19 +78,12 @@ const (
 // address pins).
 var ErrInvalidHWAddress = errors.New("invalid hardware address")
 
-// I2C represents an I2C bus. It is notably implemented by the
-// machine.I2C type.
-type I2C interface {
-	ReadRegister(addr uint8, r uint8, buf []byte) error
-	WriteRegister(addr uint8, r uint8, buf []byte) error
-}
-
 // New returns a new MCP23017 device at the given I2C address
 // on the given bus.
 // It returns ErrInvalidHWAddress if the address isn't possible for the device.
 //
 // By default all pins are configured as inputs.
-func NewI2C(bus I2C, address uint8) (*Device, error) {
+func NewI2C(bus drivers.I2C, address uint8) (*Device, error) {
 	if address&hwAddressMask != hwAddress {
 		return nil, ErrInvalidHWAddress
 	}
@@ -115,7 +111,7 @@ type Device struct {
 
 	// bus holds the reference the I2C bus that the device lives on.
 	// It's an interface so that we can write tests for it.
-	bus  I2C
+	bus  drivers.I2C
 	addr uint8
 	// pins caches the most recent pin values that have been set.
 	// This enables us to change individual pin values without
@@ -259,7 +255,7 @@ func (d *Device) writeRegisterAB(r register, val Pins) error {
 	// and the fact that registers alternate between A and B
 	// to write both ports in a single operation.
 	buf := [2]byte{uint8(val), uint8(val >> 8)}
-	return d.bus.WriteRegister(d.addr, uint8(r&^portB), buf[:])
+	return legacy.WriteRegister(d.bus, d.addr, uint8(r&^portB), buf[:])
 }
 
 func (d *Device) readRegisterAB(r register) (Pins, error) {
@@ -267,7 +263,7 @@ func (d *Device) readRegisterAB(r register) (Pins, error) {
 	// and the fact that registers alternate between A and B
 	// to read both ports in a single operation.
 	var buf [2]byte
-	if err := d.bus.ReadRegister(d.addr, uint8(r), buf[:]); err != nil {
+	if err := legacy.ReadRegister(d.bus, d.addr, uint8(r), buf[:]); err != nil {
 		return Pins(0), err
 	}
 	return Pins(buf[0]) | (Pins(buf[1]) << 8), nil

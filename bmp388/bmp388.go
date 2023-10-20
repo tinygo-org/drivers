@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 var (
@@ -240,10 +241,10 @@ func (d *Device) configurationError() bool {
 
 func (d *Device) readRegister(register byte, len int) (data []byte, err error) {
 	data = make([]byte, len)
-	err = d.bus.ReadRegister(d.Address, register, data)
+	err = legacy.ReadRegister(d.bus, d.Address, register, data)
 	return
 }
 
 func (d *Device) writeRegister(register byte, data byte) error {
-	return d.bus.WriteRegister(d.Address, register, []byte{data})
+	return legacy.WriteRegister(d.bus, d.Address, register, []byte{data})
 }

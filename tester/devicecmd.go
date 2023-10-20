@@ -50,7 +50,7 @@ func (d *I2CDeviceCmd) Addr() uint8 {
 }
 
 // ReadRegister implements I2C.ReadRegister.
-func (d *I2CDeviceCmd) ReadRegister(r uint8, buf []byte) error {
+func (d *I2CDeviceCmd) readRegister(r uint8, buf []byte) error {
 	if d.Err != nil {
 		return d.Err
 	}
@@ -59,7 +59,7 @@ func (d *I2CDeviceCmd) ReadRegister(r uint8, buf []byte) error {
 }
 
 // WriteRegister implements I2C.WriteRegister.
-func (d *I2CDeviceCmd) WriteRegister(r uint8, buf []byte) error {
+func (d *I2CDeviceCmd) writeRegister(r uint8, buf []byte) error {
 	if d.Err != nil {
 		return d.Err
 	}

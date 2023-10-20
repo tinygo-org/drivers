@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a APDS-9960 device.
@@ -68,7 +69,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	d.bus.ReadRegister(d.Address, APDS9960_ID_REG, data)
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_ID_REG, data)
 	return data[0] == 0xAB
 }
 
@@ -80,7 +81,7 @@ func (d *Device) GetMode() uint8 {
 // DisableAll turns off the device and all functions
 func (d *Device) DisableAll() {
 	d.enable(enableConfig{})
-	d.bus.WriteRegister(d.Address, APDS9960_GCONF4_REG, []byte{0x00})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_GCONF4_REG, []byte{0x00})
 	d.mode = MODE_NONE
 	d.gesture.detected = GESTURE_NONE
 }
@@ -88,13 +89,13 @@ func (d *Device) DisableAll() {
 // SetProximityPulse sets proximity pulse length (4, 8, 16, 32) and count (1~64)
 // default: 16, 64
 func (d *Device) SetProximityPulse(length, count uint8) {
-	d.bus.WriteRegister(d.Address, APDS9960_PPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_PPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
 }
 
 // SetGesturePulse sets gesture pulse length (4, 8, 16, 32) and count (1~64)
 // default: 16, 64
 func (d *Device) SetGesturePulse(length, count uint8) {
-	d.bus.WriteRegister(d.Address, APDS9960_GPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_GPULSE_REG, []byte{getPulseLength(length)<<6 | getPulseCount(count)})
 }
 
 // SetADCIntegrationCycles sets ALS/color ADC internal integration cycles (1~256, 1 cycle = 2.78 ms)
@@ -103,14 +104,14 @@ func (d *Device) SetADCIntegrationCycles(cycles uint16) {
 	if cycles > 256 {
 		cycles = 256
 	}
-	d.bus.WriteRegister(d.Address, APDS9960_ATIME_REG, []byte{uint8(256 - cycles)})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_ATIME_REG, []byte{uint8(256 - cycles)})
 }
 
 // SetGains sets proximity/gesture gain (1, 2, 4, 8x) and ALS/color gain (1, 4, 16, 64x)
 // default: 1, 1, 4
 func (d *Device) SetGains(proximityGain, gestureGain, colorGain uint8) {
-	d.bus.WriteRegister(d.Address, APDS9960_CONTROL_REG, []byte{getProximityGain(proximityGain)<<2 | getALSGain(colorGain)})
-	d.bus.WriteRegister(d.Address, APDS9960_GCONF2_REG, []byte{getProximityGain(gestureGain) << 5})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_CONTROL_REG, []byte{getProximityGain(proximityGain)<<2 | getALSGain(colorGain)})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_GCONF2_REG, []byte{getProximityGain(gestureGain) << 5})
 }
 
 // LEDBoost sets proximity and gesture LED current level (100, 150, 200, 300 (%))
@@ -127,7 +128,7 @@ func (d *Device) LEDBoost(percent uint16) {
 	case 300:
 		v = 3
 	}
-	d.bus.WriteRegister(d.Address, APDS9960_CONFIG2_REG, []byte{0x01 | v<<4})
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_CONFIG2_REG, []byte{0x01 | v<<4})
 }
 
 // Setthreshold sets threshold (0~255) for detecting gestures
@@ -168,7 +169,7 @@ func (d *Device) ReadProximity() (proximity int32) {
 		return 0
 	}
 	data := []byte{0}
-	d.bus.ReadRegister(d.Address, APDS9960_PDATA_REG, data)
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_PDATA_REG, data)
 	return 255 - int32(data[0])
 }
 
@@ -195,14 +196,14 @@ func (d *Device) ReadColor() (r int32, g int32, b int32, clear int32) {
 		return
 	}
 	data := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	d.bus.ReadRegister(d.Address, APDS9960_CDATAL_REG, data[:1])
-	d.bus.ReadRegister(d.Address, APDS9960_CDATAH_REG, data[1:2])
-	d.bus.ReadRegister(d.Address, APDS9960_RDATAL_REG, data[2:3])
-	d.bus.ReadRegister(d.Address, APDS9960_RDATAH_REG, data[3:4])
-	d.bus.ReadRegister(d.Address, APDS9960_GDATAL_REG, data[4:5])
-	d.bus.ReadRegister(d.Address, APDS9960_GDATAH_REG, data[5:6])
-	d.bus.ReadRegister(d.Address, APDS9960_BDATAL_REG, data[6:7])
-	d.bus.ReadRegister(d.Address, APDS9960_BDATAH_REG, data[7:])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_CDATAL_REG, data[:1])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_CDATAH_REG, data[1:2])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_RDATAL_REG, data[2:3])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_RDATAH_REG, data[3:4])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_GDATAL_REG, data[4:5])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_GDATAH_REG, data[5:6])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_BDATAL_REG, data[6:7])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_BDATAH_REG, data[7:])
 	clear = int32(uint16(data[1])<<8 | uint16(data[0]))
 	r = int32(uint16(data[3])<<8 | uint16(data[2]))
 	g = int32(uint16(data[5])<<8 | uint16(data[4]))
@@ -234,13 +235,13 @@ func (d *Device) GestureAvailable() bool {
 	data := []byte{0, 0, 0, 0}
 
 	// check GVALID
-	d.bus.ReadRegister(d.Address, APDS9960_GSTATUS_REG, data[:1])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_GSTATUS_REG, data[:1])
 	if data[0]&0x01 == 0 {
 		return false
 	}
 
 	// get number of data sets available in FIFO
-	d.bus.ReadRegister(d.Address, APDS9960_GFLVL_REG, data[:1])
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_GFLVL_REG, data[:1])
 	availableDataSets := data[0]
 	if availableDataSets == 0 {
 		return false
@@ -249,10 +250,10 @@ func (d *Device) GestureAvailable() bool {
 	// read up, down, left and right proximity data from FIFO
 	var dataSets [32][4]uint8
 	for i := uint8(0); i < availableDataSets; i++ {
-		d.bus.ReadRegister(d.Address, APDS9960_GFIFO_U_REG, data[:1])
-		d.bus.ReadRegister(d.Address, APDS9960_GFIFO_D_REG, data[1:2])
-		d.bus.ReadRegister(d.Address, APDS9960_GFIFO_L_REG, data[2:3])
-		d.bus.ReadRegister(d.Address, APDS9960_GFIFO_R_REG, data[3:4])
+		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_U_REG, data[:1])
+		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_D_REG, data[1:2])
+		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_L_REG, data[2:3])
+		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_R_REG, data[3:4])
 		for j := uint8(0); j < 4; j++ {
 			dataSets[i][j] = data[j]
 		}
@@ -385,7 +386,7 @@ func (d *Device) enable(cfg enableConfig) {
 	}
 
 	data := []byte{gen<<6 | pien<<5 | aien<<4 | wen<<3 | pen<<2 | aen<<1 | pon}
-	d.bus.WriteRegister(d.Address, APDS9960_ENABLE_REG, data)
+	legacy.WriteRegister(d.bus, d.Address, APDS9960_ENABLE_REG, data)
 
 	if cfg.PON {
 		time.Sleep(time.Millisecond * 10)
@@ -394,7 +395,7 @@ func (d *Device) enable(cfg enableConfig) {
 
 func (d *Device) readStatus(param string) bool {
 	data := []byte{0}
-	d.bus.ReadRegister(d.Address, APDS9960_STATUS_REG, data)
+	legacy.ReadRegister(d.bus, d.Address, APDS9960_STATUS_REG, data)
 
 	switch param {
 	case "CPSAT":

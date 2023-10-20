@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a LSM303AGR device.
@@ -52,8 +53,8 @@ func New(bus drivers.I2C) *Device {
 // It does two "who am I" requests and checks the responses.
 func (d *Device) Connected() bool {
 	data1, data2 := []byte{0}, []byte{0}
-	d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_WHO_AM_I, data1)
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_WHO_AM_I, data2)
+	legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_WHO_AM_I, data1)
+	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_WHO_AM_I, data2)
 	return data1[0] == 0x33 && data2[0] == 0x40
 }
 
@@ -104,26 +105,26 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 	data := d.buf[:1]
 
 	data[0] = byte(d.AccelDataRate<<4 | d.AccelPowerMode | 0x07)
-	err = d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG1_A, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.AccelAddress), ACCEL_CTRL_REG1_A, data)
 	if err != nil {
 		return
 	}
 
 	data[0] = byte(0x80 | d.AccelRange<<4)
-	err = d.bus.WriteRegister(uint8(d.AccelAddress), ACCEL_CTRL_REG4_A, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.AccelAddress), ACCEL_CTRL_REG4_A, data)
 	if err != nil {
 		return
 	}
 
 	data[0] = byte(0xC0)
-	err = d.bus.WriteRegister(uint8(d.AccelAddress), TEMP_CFG_REG_A, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.AccelAddress), TEMP_CFG_REG_A, data)
 	if err != nil {
 		return
 	}
 
 	// Temperature compensation is on for magnetic sensor
 	data[0] = byte(0x80 | d.MagPowerMode<<4 | d.MagDataRate<<2 | d.MagSystemMode)
-	err = d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.MagAddress), MAG_MR_REG_M, data)
 	if err != nil {
 		return
 	}
@@ -137,7 +138,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), ACCEL_OUT_AUTO_INC, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_OUT_AUTO_INC, data)
 	if err != nil {
 		return
 	}
@@ -183,14 +184,14 @@ func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 	if d.MagSystemMode == MAG_SYSTEM_SINGLE {
 		cmd := d.buf[:1]
 		cmd[0] = byte(0x80 | d.MagPowerMode<<4 | d.MagDataRate<<2 | d.MagSystemMode)
-		err = d.bus.WriteRegister(uint8(d.MagAddress), MAG_MR_REG_M, cmd)
+		err = legacy.WriteRegister(d.bus, uint8(d.MagAddress), MAG_MR_REG_M, cmd)
 		if err != nil {
 			return
 		}
 	}
 
 	data := d.buf[0:6]
-	d.bus.ReadRegister(uint8(d.MagAddress), MAG_OUT_AUTO_INC, data)
+	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_OUT_AUTO_INC, data)
 
 	x = int32(int16((uint16(data[1])<<8 | uint16(data[0]))))
 	y = int32(int16((uint16(data[3])<<8 | uint16(data[2]))))
@@ -219,7 +220,7 @@ func (d *Device) ReadCompass() (h int32, err error) {
 func (d *Device) ReadTemperature() (t int32, err error) {
 
 	data := d.buf[:2]
-	err = d.bus.ReadRegister(uint8(d.AccelAddress), OUT_TEMP_AUTO_INC, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_TEMP_AUTO_INC, data)
 	if err != nil {
 		return
 	}

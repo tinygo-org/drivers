@@ -5,7 +5,10 @@
 // https://www.qstcorp.com/upload/pdf/202202/%EF%BC%88%E5%B7%B2%E4%BC%A0%EF%BC%89QMI8658C%20datasheet%20rev%200.9.pdf
 package qmi8656c
 
-import "tinygo.org/x/drivers"
+import (
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+)
 
 // Device wraps the I2C connection to the QMIC8658 sensor
 type Device struct {
@@ -179,12 +182,12 @@ func (d *Device) ReadTemperature() (int32, error) {
 
 // Convenience method to read the register and avoid repetition.
 func (d *Device) ReadRegister(reg uint8, buf []byte) error {
-	return d.bus.ReadRegister(uint8(d.Address), reg, buf)
+	return legacy.ReadRegister(d.bus, uint8(d.Address), reg, buf)
 }
 
 // Convenience method to write the register and avoid repetition.
 func (d *Device) WriteRegister(reg uint8, v uint16) error {
 	data := []byte{byte(v)}
-	err := d.bus.WriteRegister(uint8(d.Address), reg, data)
+	err := legacy.WriteRegister(d.bus, uint8(d.Address), reg, data)
 	return err
 }

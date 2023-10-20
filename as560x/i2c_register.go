@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // registerAttributes is a bitfield of attributes for a register
@@ -94,7 +95,7 @@ func (r *i2cRegister) readShiftAndMask(bus drivers.I2C, deviceAddress uint8, shi
 			buf = buffer[:]
 		}
 		// Read the host register over I2C
-		err := bus.ReadRegister(deviceAddress, r.host.address, buf)
+		err := legacy.ReadRegister(bus, deviceAddress, r.host.address, buf)
 		if nil != err {
 			return 0, err
 		}
@@ -158,7 +159,7 @@ func (r *i2cRegister) write(bus drivers.I2C, deviceAddress uint8, value uint16) 
 	}
 
 	// Write the register from the buffer over I2C
-	err := bus.WriteRegister(deviceAddress, r.host.address, buf)
+	err := legacy.WriteRegister(bus, deviceAddress, r.host.address, buf)
 	// after successful I2C write, cache this value if the host register (if also readable)
 	// Note we cache the entire buffer without applying shift/mask
 	if nil == err && r.host.attributes&reg_read != 0 {

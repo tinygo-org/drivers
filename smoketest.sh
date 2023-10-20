@@ -4,6 +4,8 @@
 # avoid a race condition between writing the output and reading the result to
 # get an md5sum).
 
+
+tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/adafruit4650
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adt7410/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adxl345/main.go
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/amg88xx
@@ -13,6 +15,7 @@ tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/apa
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/at24cx/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bh1750/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/blinkm/main.go
+tinygo build -size short -o ./build/test.hex -target=pinetime     ./examples/bma42x/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmi160/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp180/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp280/main.go
@@ -58,6 +61,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544
 tinygo build -size short -o ./build/test.hex -target=arduino ./examples/servo
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/shifter/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht3x/main.go
+tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht4x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/shtc3/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1306/i2c_128x32/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1306/spi_128x64/main.go
@@ -93,6 +97,7 @@ tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examp
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/max72xx/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/dht/main.go
 # tinygo build -size short -o ./build/test.hex -target=arduino ./examples/keypad4x4/main.go
+tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/pcf8523/
 tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/alarm/
 tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/clkout/
 tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/time/
@@ -117,6 +122,11 @@ tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/lo
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/as560x/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu6886/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ttp229/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ndir/main_ndir.go
+tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu9150/main.go
+tinygo build -size short -o ./build/test.hex -target=macropad-rp2040 ./examples/sh1106/macropad_spi
 # network examples (espat)
 tinygo build -size short -o ./build/test.hex -target=challenger-rp2040 ./examples/net/ntpclient/
 # network examples (wifinina)
