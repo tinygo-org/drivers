@@ -285,7 +285,6 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 func (b *I2CBus) tx(data []byte, isCommand bool) {
 	if isCommand {
 		legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
-		b.wire.WriteRegister(uint8(b.Address), 0x00, data)
 	} else {
 		legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
 	}
