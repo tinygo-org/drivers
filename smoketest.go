@@ -133,7 +133,7 @@ func runSmokeTest(filename string) error {
 		result := <-job.resultChan
 		os.Stdout.Write(job.output.Bytes())
 		if result != nil {
-			return err
+			return result
 		}
 	}
 
