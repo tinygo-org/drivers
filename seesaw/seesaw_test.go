@@ -2,7 +2,6 @@ package seesaw
 
 import (
 	"testing"
-	"time"
 
 	"github.com/frankban/quicktest"
 )
@@ -57,9 +56,10 @@ func TestDevice_Read(t *testing.T) {
 	)
 
 	sut := New(mocked)
+	sut.ReadDelay = 0
 
 	var buf [5]byte
-	err := sut.Read(ModuleTouchBase, FunctionTouchChannelOffset, buf[:], time.Nanosecond)
+	err := sut.Read(ModuleTouchBase, FunctionTouchChannelOffset, buf[:])
 
 	qt := quicktest.New(t)
 	qt.Assert(err, quicktest.IsNil)

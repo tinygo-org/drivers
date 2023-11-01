@@ -4,6 +4,7 @@ import (
 	"machine"
 	"strconv"
 	"time"
+
 	"tinygo.org/x/drivers/seesaw"
 )
 
@@ -18,8 +19,11 @@ func main() {
 
 	dev.Address = 0x36
 
+	// the soil sensor is especially slow, let's give it some more time
+	dev.ReadDelay = readDelay
+
 	var buf [2]byte
-	err := dev.Read(seesaw.ModuleTouchBase, seesaw.FunctionTouchChannelOffset, buf[:], readDelay)
+	err := dev.Read(seesaw.ModuleTouchBase, seesaw.FunctionTouchChannelOffset, buf[:])
 	if err != nil {
 		panic(err)
 	}
