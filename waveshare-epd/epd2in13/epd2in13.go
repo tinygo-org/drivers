@@ -179,18 +179,22 @@ func (d *Device) SetLUT(fullUpdate bool) {
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
-// The display have 2 colors: black and white
-// We use RGBA(0,0,0, 255) as white (transparent)
-// Anything else as black
+// The display have 2 colors: black and white. We use a very simple cutoff to
+// determine whether a pixel is black or white (darker colors are black, lighter
+// colors are white).
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	x, y = d.xy(x, y)
 	if x < 0 || x >= d.logicalWidth || y < 0 || y >= d.height {
 		return
 	}
 	byteIndex := (x + y*d.logicalWidth) / 8
-	if c.R == 0 && c.G == 0 && c.B == 0 { // TRANSPARENT / WHITE
+	// Very simle black/white split.
+	// This isn't very accurate (especially for sRGB colors) but is close enough
+	// to the truth that it probably doesn't matter much - especially on an
+	// e-paper display.
+	if int(c.R)+int(c.G)+int(c.B) > 128*3 { // light, convert to white
 		d.buffer[byteIndex] |= 0x80 >> uint8(x%8)
-	} else { // WHITE / EMPTY
+	} else { // dark, convert to black
 		d.buffer[byteIndex] &^= 0x80 >> uint8(x%8)
 	}
 }
