@@ -131,6 +131,17 @@ func (d *Device) DeepSleep() {
 	d.WaitUntilIdle()
 }
 
+// Set the sleep mode of the panel. The display will still show its contents,
+// but will go into a lower-power state.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		d.DeepSleep()
+	} else {
+		d.Reset()
+	}
+	return nil
+}
+
 // SendCommand sends a command to the display
 func (d *Device) SendCommand(command uint8) {
 	d.sendDataCommand(true, command)
