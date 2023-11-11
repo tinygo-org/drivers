@@ -8,15 +8,16 @@ import (
 	"tinygo.org/x/drivers/examples/ili9341/initdisplay"
 	"tinygo.org/x/drivers/examples/ili9341/pyportal_boing/graphics"
 	"tinygo.org/x/drivers/ili9341"
+	"tinygo.org/x/drivers/pixel"
 )
 
 const (
-	BGCOLOR    = 0xAD75
-	GRIDCOLOR  = 0xA815
-	BGSHADOW   = 0x5285
-	GRIDSHADOW = 0x600C
-	RED        = 0xF800
-	WHITE      = 0xFFFF
+	BGCOLOR    = pixel.RGB565BE(0x75AD)
+	GRIDCOLOR  = pixel.RGB565BE(0x15A8)
+	BGSHADOW   = pixel.RGB565BE(0x8552)
+	GRIDSHADOW = pixel.RGB565BE(0x0C60)
+	RED        = pixel.RGB565BE(0x00F8)
+	WHITE      = pixel.RGB565BE(0xFFFF)
 
 	YBOTTOM = 123  // Ball Y coord at bottom
 	YBOUNCE = -3.5 // Upward velocity on ball bounce
@@ -25,7 +26,7 @@ const (
 )
 
 var (
-	frameBuffer = [(graphics.BALLHEIGHT + 8) * (graphics.BALLWIDTH + 8) * 2]uint8{}
+	frameBuffer = pixel.NewImage[pixel.RGB565BE](graphics.BALLWIDTH+8, graphics.BALLHEIGHT+8)
 
 	startTime int64
 	frame     int64
@@ -41,7 +42,7 @@ var (
 	balloldy  float32
 
 	// Color table for ball rotation effect
-	palette [16]uint16
+	palette [16]pixel.RGB565BE
 )
 
 var (
@@ -108,6 +109,7 @@ func main() {
 
 		width = maxx - minx + 1
 		height = maxy - miny + 1
+		buffer := frameBuffer.Rescale(int(width), int(height))
 
 		// Ball animation frame # is incremented opposite the ball's X velocity
 		ballframe -= ballvx * 0.5
@@ -128,7 +130,7 @@ func main() {
 		}
 
 		// Only the changed rectangle is drawn into the 'renderbuf' array...
-		var c uint16              //, *destPtr;
+		var c pixel.RGB565BE      //, *destPtr;
 		bx := minx - int16(ballx) // X relative to ball bitmap (can be negative)
 		by := miny - int16(bally) // Y relative to ball bitmap (can be negative)
 		bgx := minx               // X relative to background bitmap (>= 0)
@@ -149,19 +151,20 @@ func main() {
 					(by >= 0) && (by < graphics.BALLHEIGHT) { // inside the ball bitmap area?
 					// Yes, do ball compositing math...
 					p = graphics.Ball[int(by*(graphics.BALLWIDTH/2))+int(bx1/2)] // Get packed value (2 pixels)
+					var nibble uint8
 					if (bx1 & 1) != 0 {
-						c = uint16(p & 0xF)
+						nibble = p & 0xF
 					} else {
-						c = uint16(p >> 4)
+						nibble = p >> 4
 					} // Unpack high or low nybble
-					if c == 0 { // Outside ball - just draw grid
+					if nibble == 0 { // Outside ball - just draw grid
 						if graphics.Background[bgidx]&(0x80>>(bgx1&7)) != 0 {
 							c = GRIDCOLOR
 						} else {
 							c = BGCOLOR
 						}
-					} else if c > 1 { // In ball area...
-						c = palette[c]
+					} else if nibble > 1 { // In ball area...
+						c = palette[nibble]
 					} else { // In shadow area...
 						if graphics.Background[bgidx]&(0x80>>(bgx1&7)) != 0 {
 							c = GRIDSHADOW
@@ -176,8 +179,7 @@ func main() {
 						c = BGCOLOR
 					}
 				}
-				frameBuffer[(y*int(width)+x)*2] = byte(c >> 8)
-				frameBuffer[(y*int(width)+x)*2+1] = byte(c)
+				buffer.Set(x, y, c)
 				bx1++ // Increment bitmap position counters (X axis)
 				bgx1++
 			}
@@ -188,7 +190,7 @@ func main() {
 			bgy++
 		}
 
-		display.DrawRGBBitmap8(minx, miny, frameBuffer[:width*height*2], width, height)
+		display.DrawBitmap(minx, miny, buffer)
 
 		// Show approximate frame rate
 		frame++
@@ -205,6 +207,7 @@ func DrawBackground() {
 	w, h := display.Size()
 	byteWidth := (w + 7) / 8 // Bitmap scanline pad = whole byte
 	var b uint8
+	buffer := frameBuffer.Rescale(int(w), 1)
 	for j := int16(0); j < h; j++ {
 		for k := int16(0); k < w; k++ {
 			if k&7 > 0 {
@@ -213,13 +216,11 @@ func DrawBackground() {
 				b = graphics.Background[j*byteWidth+k/8]
 			}
 			if b&0x80 == 0 {
-				frameBuffer[2*k] = byte(BGCOLOR >> 8)
-				frameBuffer[2*k+1] = byte(BGCOLOR & 0xFF)
+				buffer.Set(int(k), 0, BGCOLOR)
 			} else {
-				frameBuffer[2*k] = byte(GRIDCOLOR >> 8)
-				frameBuffer[2*k+1] = byte(GRIDCOLOR & 0xFF)
+				buffer.Set(int(k), 0, GRIDCOLOR)
 			}
 		}
-		display.DrawRGBBitmap8(0, j, frameBuffer[0:w*2], w, 1)
+		display.DrawBitmap(0, j, buffer)
 	}
 }
