@@ -382,6 +382,8 @@ func (d *DeviceOf[T]) fillRectangle(x, y, width, height int16, c color.RGBA) err
 }
 
 // DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+//
+// Deprecated: use DrawBitmap instead.
 func (d *DeviceOf[T]) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
@@ -393,6 +395,13 @@ func (d *DeviceOf[T]) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error
 	d.bus.Tx(data, nil)
 	d.endWrite()
 	return nil
+}
+
+// DrawBitmap copies the bitmap to the internal buffer on the screen at the
+// given coordinates. It returns once the image data has been sent completely.
+func (d *DeviceOf[T]) DrawBitmap(x, y int16, bitmap pixel.Image[T]) error {
+	width, height := bitmap.Size()
+	return d.DrawRGBBitmap8(x, y, bitmap.RawBuffer(), int16(width), int16(height))
 }
 
 // FillRectangleWithBuffer fills buffer with a rectangle at a given coordinates.
