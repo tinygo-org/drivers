@@ -71,9 +71,12 @@ func (d *Driver) ConnectTCPSocket(addr, port string) error {
 	name[6] = byte(ipaddr[2])
 	name[7] = byte(ipaddr[3])
 
-	_, err = d.Rpc_lwip_connect(socket, name, uint32(len(name)))
+	result, err := d.Rpc_lwip_connect(socket, name, uint32(len(name)))
 	if err != nil {
 		return err
+	}
+	if result == -1 {
+		return fmt.Errorf("failed to connect to %d.%d.%d.%d port %s", addr[0], addr[1], addr[2], addr[3], port)
 	}
 
 	readset := []byte{}
