@@ -16,7 +16,7 @@ import (
 // particular display. Each pixel is at least 1 byte in size.
 // The color format is sRGB (or close to it) in all cases.
 type Color interface {
-	RGB888 | RGB565BE | RGB444BE
+	RGB888 | RGB565BE | RGB555 | RGB444BE
 
 	BaseColor
 }
@@ -46,6 +46,8 @@ func NewColor[T Color](r, g, b uint8) T {
 		return any(NewRGB888(r, g, b)).(T)
 	case RGB565BE:
 		return any(NewRGB565BE(r, g, b)).(T)
+	case RGB555:
+		return any(NewRGB555(r, g, b)).(T)
 	case RGB444BE:
 		return any(NewRGB444BE(r, g, b)).(T)
 	default:
@@ -136,6 +138,35 @@ func (c RGB565BE) RGBA() color.RGBA {
 	// Correct color rounding, so that 0xff roundtrips back to 0xff.
 	color.R |= color.R >> 5
 	color.G |= color.G >> 6
+	color.B |= color.B >> 5
+	return color
+}
+
+// Color format used on the GameBoy Advance among others.
+//
+// Colors are stored as native endian values, with bits 0bbbbbgg_gggrrrrr (red
+// is least significant, blue is most significant).
+type RGB555 uint16
+
+func NewRGB555(r, g, b uint8) RGB555 {
+	return RGB555(r)>>3 | (RGB555(g)>>3)<<5 | (RGB555(b)>>3)<<10
+}
+
+func (c RGB555) BitsPerPixel() int {
+	// 15 bits per pixel, but there are 16 bits when stored
+	return 16
+}
+
+func (c RGB555) RGBA() color.RGBA {
+	color := color.RGBA{
+		R: uint8(c>>10) << 3,
+		G: uint8(c>>5) << 3,
+		B: uint8(c) << 3,
+		A: 255,
+	}
+	// Correct color rounding, so that 0xff roundtrips back to 0xff.
+	color.R |= color.R >> 5
+	color.G |= color.G >> 5
 	color.B |= color.B >> 5
 	return color
 }
