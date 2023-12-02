@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"machine"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,8 +45,8 @@ type Config struct {
 type socket struct {
 	inUse    bool
 	protocol int
-	lip      net.IP
-	lport    int
+	lip      netip.Addr
+	lport    uint16
 }
 
 type Device struct {
@@ -106,7 +107,7 @@ func (d *Device) NetConnect(params *netlink.ConnectParams) error {
 
 	fmt.Printf("CONNECTED\r\n")
 
-	ip, err := d.GetIPAddr()
+	ip, err := d.Addr()
 	if err != nil {
 		return err
 	}
@@ -125,28 +126,31 @@ func (d *Device) NetNotify(cb func(netlink.Event)) {
 	// Not supported
 }
 
-func (d *Device) GetHostByName(name string) (net.IP, error) {
+func (d *Device) GetHostByName(name string) (netip.Addr, error) {
 	ip, err := d.GetDNS(name)
-	return net.ParseIP(ip), err
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return netip.ParseAddr(ip)
 }
 
 func (d *Device) GetHardwareAddr() (net.HardwareAddr, error) {
 	return net.HardwareAddr{}, netlink.ErrNotSupported
 }
 
-func (d *Device) GetIPAddr() (net.IP, error) {
+func (d *Device) Addr() (netip.Addr, error) {
 	resp, err := d.GetClientIP()
 	if err != nil {
-		return net.IP{}, err
+		return netip.Addr{}, err
 	}
 	prefix := "+CIPSTA:ip:"
 	for _, line := range strings.Split(resp, "\n") {
 		if ok := strings.HasPrefix(line, prefix); ok {
 			ip := line[len(prefix)+1 : len(line)-2]
-			return net.ParseIP(ip), nil
+			return netip.ParseAddr(ip)
 		}
 	}
-	return net.IP{}, fmt.Errorf("Error getting IP address")
+	return netip.Addr{}, fmt.Errorf("Error getting IP address")
 }
 
 func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
@@ -175,17 +179,17 @@ func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 	return 0, nil
 }
 
-func (d *Device) Bind(sockfd int, ip net.IP, port int) error {
-	d.socket.lip = ip
-	d.socket.lport = port
+func (d *Device) Bind(sockfd int, ip netip.AddrPort) error {
+	d.socket.lip = ip.Addr()
+	d.socket.lport = ip.Port()
 	return nil
 }
 
-func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
+func (d *Device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 	var err error
-	var addr = ip.String()
-	var rport = strconv.Itoa(port)
-	var lport = strconv.Itoa(d.socket.lport)
+	var addr = ip.Addr().String()
+	var rport = strconv.Itoa(int(ip.Port()))
+	var lport = strconv.Itoa(int(d.socket.lport))
 
 	switch d.socket.protocol {
 	case netdev.IPPROTO_TCP:
@@ -198,9 +202,9 @@ func (d *Device) Connect(sockfd int, host string, ip net.IP, port int) error {
 
 	if err != nil {
 		if host == "" {
-			return fmt.Errorf("Connect to %s:%d timed out", ip, port)
+			return fmt.Errorf("Connect to %s timed out", ip)
 		} else {
-			return fmt.Errorf("Connect to %s:%d timed out", host, port)
+			return fmt.Errorf("Connect to %s:%d timed out", host, ip.Port())
 		}
 	}
 
@@ -216,7 +220,7 @@ func (d *Device) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (d *Device) Accept(sockfd int, ip net.IP, port int) (int, error) {
+func (d *Device) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 	return -1, netdev.ErrNotSupported
 }
 
