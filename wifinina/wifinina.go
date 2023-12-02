@@ -17,6 +17,7 @@ import (
 	"machine"
 	"math/bits"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -164,8 +165,7 @@ type hwerr uint8
 
 type socket struct {
 	protocol int
-	ip       net.IP
-	port     int
+	ip       netip.AddrPort
 	inuse    bool
 }
 
@@ -375,9 +375,9 @@ func (w *wifinina) showIP() {
 	if debugging(debugBasic) {
 		ip, subnet, gateway := w.getIP()
 		fmt.Printf("\r\n")
-		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip.String())
-		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet.String())
-		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway.String())
+		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip)
+		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet)
+		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway)
 		fmt.Printf("\r\n")
 	}
 }
@@ -498,7 +498,7 @@ func (w *wifinina) NetNotify(cb func(netlink.Event)) {
 	w.notifyCb = cb
 }
 
-func (w *wifinina) GetHostByName(name string) (net.IP, error) {
+func (w *wifinina) GetHostByName(name string) (netip.Addr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHostByName] name: %s\r\n", name)
@@ -509,10 +509,15 @@ func (w *wifinina) GetHostByName(name string) (net.IP, error) {
 
 	ip := w.getHostByName(name)
 	if ip == "" {
-		return net.IP{}, netdev.ErrHostUnknown
+		return netip.Addr{}, netdev.ErrHostUnknown
 	}
 
-	return net.IP([]byte(ip)), nil
+	addr, ok := netip.AddrFromSlice([]byte(ip))
+	if !ok {
+		return netip.Addr{}, netdev.ErrMalAddr
+	}
+
+	return addr, nil
 }
 
 func (w *wifinina) GetHardwareAddr() (net.HardwareAddr, error) {
@@ -527,7 +532,7 @@ func (w *wifinina) GetHardwareAddr() (net.HardwareAddr, error) {
 	return w.getMACAddr(), nil
 }
 
-func (w *wifinina) GetIPAddr() (net.IP, error) {
+func (w *wifinina) Addr() (netip.Addr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetIPAddr]\r\n")
@@ -538,7 +543,7 @@ func (w *wifinina) GetIPAddr() (net.IP, error) {
 
 	ip, _, _ := w.getIP()
 
-	return net.IP(ip), nil
+	return ip, nil
 }
 
 // See man socket(2) for standard Berkely sockets for Socket, Bind, etc.
@@ -579,10 +584,10 @@ func (w *wifinina) Socket(domain int, stype int, protocol int) (int, error) {
 	return int(sock), nil
 }
 
-func (w *wifinina) Bind(sockfd int, ip net.IP, port int) error {
+func (w *wifinina) Bind(sockfd int, ip netip.AddrPort) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+		fmt.Printf("[Bind] sockfd: %d, addr: %s\r\n", sockfd, ip)
 	}
 
 	w.mu.Lock()
@@ -595,29 +600,28 @@ func (w *wifinina) Bind(sockfd int, ip net.IP, port int) error {
 	case netdev.IPPROTO_TCP:
 	case netdev.IPPROTO_TLS:
 	case netdev.IPPROTO_UDP:
-		w.startServer(sock, uint16(port), protoModeUDP)
+		w.startServer(sock, ip.Port(), protoModeUDP)
 	}
 
-	socket.ip, socket.port = ip, port
+	socket.ip = ip
 
 	return nil
 }
 
-func toUint32(ip net.IP) uint32 {
-	ip = ip.To4()
+func toUint32(ip [4]byte) uint32 {
 	return uint32(ip[0])<<24 |
 		uint32(ip[1])<<16 |
 		uint32(ip[2])<<8 |
 		uint32(ip[3])
 }
 
-func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
+func (w *wifinina) Connect(sockfd int, host string, ip netip.AddrPort) error {
 
 	if debugging(debugNetdev) {
 		if host == "" {
-			fmt.Printf("[Connect] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+			fmt.Printf("[Connect] sockfd: %d, addr: %s\r\n", sockfd, ip)
 		} else {
-			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, port)
+			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, ip.Port())
 		}
 	}
 
@@ -630,11 +634,11 @@ func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
 	// Start the connection
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
-		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeTCP)
+		w.startClient(sock, "", toUint32(ip.Addr().As4()), ip.Port(), protoModeTCP)
 	case netdev.IPPROTO_TLS:
-		w.startClient(sock, host, 0, uint16(port), protoModeTLS)
+		w.startClient(sock, host, 0, ip.Port(), protoModeTLS)
 	case netdev.IPPROTO_UDP:
-		w.startClient(sock, "", toUint32(ip), uint16(port), protoModeUDP)
+		w.startClient(sock, "", toUint32(ip.Addr().As4()), ip.Port(), protoModeUDP)
 		return nil
 	}
 
@@ -643,9 +647,9 @@ func (w *wifinina) Connect(sockfd int, host string, ip net.IP, port int) error {
 	}
 
 	if host == "" {
-		return fmt.Errorf("Connect to %s:%d failed", ip, port)
+		return fmt.Errorf("Connect to %s failed", ip)
 	} else {
-		return fmt.Errorf("Connect to %s:%d failed", host, port)
+		return fmt.Errorf("Connect to %s:%d failed", host, ip.Port())
 	}
 }
 
@@ -663,7 +667,7 @@ func (w *wifinina) Listen(sockfd int, backlog int) error {
 
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
-		w.startServer(sock, uint16(socket.port), protoModeTCP)
+		w.startServer(sock, socket.ip.Port(), protoModeTCP)
 	case netdev.IPPROTO_UDP:
 	default:
 		return netdev.ErrProtocolNotSupported
@@ -672,10 +676,10 @@ func (w *wifinina) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (w *wifinina) Accept(sockfd int, ip net.IP, port int) (int, error) {
+func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s:%d\r\n", sockfd, ip, port)
+		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, ip)
 	}
 
 	w.mu.Lock()
@@ -1210,7 +1214,7 @@ func (w *wifinina) faultf(f string, args ...any) {
 	}
 }
 
-func (w *wifinina) getIP() (ip, subnet, gateway net.IP) {
+func (w *wifinina) getIP() (ip, subnet, gateway netip.Addr) {
 	if debugging(debugCmd) {
 		fmt.Printf("    [cmdGetIPAddr]\r\n")
 	}
@@ -1220,10 +1224,9 @@ func (w *wifinina) getIP() (ip, subnet, gateway net.IP) {
 		w.faultf("getIP wanted l=3, got l=%d", l)
 		return
 	}
-	ip, subnet, gateway = make([]byte, 4), make([]byte, 4), make([]byte, 4)
-	copy(ip[:], sl[0])
-	copy(subnet[:], sl[1])
-	copy(gateway[:], sl[2])
+	ip, _ = netip.AddrFromSlice([]byte(sl[0])[:4])
+	subnet, _ = netip.AddrFromSlice([]byte(sl[1])[:4])
+	gateway, _ = netip.AddrFromSlice([]byte(sl[2])[:4])
 	return
 }
 
