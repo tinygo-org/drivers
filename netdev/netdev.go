@@ -4,7 +4,7 @@ package netdev
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 	"time"
 	_ "unsafe" // to use go:linkname
 )
@@ -28,6 +28,7 @@ const (
 // GethostByName() errors
 var (
 	ErrHostUnknown = errors.New("Host unknown")
+	ErrMalAddr     = errors.New("Malformed address")
 )
 
 // Socket errors
@@ -70,18 +71,18 @@ type Netdever interface {
 
 	// GetHostByName returns the IP address of either a hostname or IPv4
 	// address in standard dot notation
-	GetHostByName(name string) (net.IP, error)
+	GetHostByName(name string) (netip.Addr, error)
 
-	// GetIPAddr returns IP address assigned to the interface, either by
+	// Addr returns IP address assigned to the interface, either by
 	// DHCP or statically
-	GetIPAddr() (net.IP, error)
+	Addr() (netip.Addr, error)
 
 	// Berkely Sockets-like interface, Go-ified.  See man page for socket(2), etc.
 	Socket(domain int, stype int, protocol int) (int, error)
-	Bind(sockfd int, ip net.IP, port int) error
-	Connect(sockfd int, host string, ip net.IP, port int) error
+	Bind(sockfd int, ip netip.AddrPort) error
+	Connect(sockfd int, host string, ip netip.AddrPort) error
 	Listen(sockfd int, backlog int) error
-	Accept(sockfd int, ip net.IP, port int) (int, error)
+	Accept(sockfd int, ip netip.AddrPort) (int, error)
 	Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Close(sockfd int) error

@@ -12,6 +12,7 @@ import (
 	"io"
 	"machine"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -195,9 +196,9 @@ func (r *rtl8720dn) showIP() {
 	if debugging(debugBasic) {
 		ip, subnet, gateway, _ := r.getIP()
 		fmt.Printf("\r\n")
-		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip.String())
-		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet.String())
-		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway.String())
+		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip)
+		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet)
+		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway)
 		fmt.Printf("\r\n")
 	}
 }
@@ -315,7 +316,7 @@ func (r *rtl8720dn) NetNotify(cb func(netlink.Event)) {
 	r.notifyCb = cb
 }
 
-func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
+func (r *rtl8720dn) GetHostByName(name string) (netip.Addr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetHostByName] name: %s\r\n", name)
@@ -327,10 +328,15 @@ func (r *rtl8720dn) GetHostByName(name string) (net.IP, error) {
 	var ip [4]byte
 	result := r.rpc_netconn_gethostbyname(name, ip[:])
 	if result == -1 {
-		return net.IP{}, netdev.ErrHostUnknown
+		return netip.Addr{}, netdev.ErrHostUnknown
 	}
 
-	return net.IP(ip[:]), nil
+	addr, ok := netip.AddrFromSlice(ip[:])
+	if !ok {
+		return netip.Addr{}, netdev.ErrMalAddr
+	}
+
+	return addr, nil
 }
 
 func (r *rtl8720dn) GetHardwareAddr() (net.HardwareAddr, error) {
@@ -348,7 +354,7 @@ func (r *rtl8720dn) GetHardwareAddr() (net.HardwareAddr, error) {
 	return net.HardwareAddr(addr), err
 }
 
-func (r *rtl8720dn) GetIPAddr() (net.IP, error) {
+func (r *rtl8720dn) Addr() (netip.Addr, error) {
 
 	if debugging(debugNetdev) {
 		fmt.Printf("[GetIPAddr]\r\n")
@@ -359,7 +365,7 @@ func (r *rtl8720dn) GetIPAddr() (net.IP, error) {
 
 	ip, _, _, err := r.getIP()
 
-	return net.IP(ip), err
+	return ip, err
 }
 
 func (r *rtl8720dn) clientTLS() uint32 {
@@ -415,26 +421,26 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	return int(newSock), nil
 }
 
-func addrToName(ip net.IP, port int) []byte {
+func ipToName(ip netip.AddrPort) []byte {
 	name := make([]byte, 16)
 	name[0] = 0x00
 	name[1] = netdev.AF_INET
-	name[2] = byte(port >> 8)
-	name[3] = byte(port)
-	if len(ip) == 4 {
-		name[4] = byte(ip[0])
-		name[5] = byte(ip[1])
-		name[6] = byte(ip[2])
-		name[7] = byte(ip[3])
+	name[2] = byte(ip.Port() >> 8)
+	name[3] = byte(ip.Port())
+	if ip.Addr().Is4() {
+		addr := ip.Addr().As4()
+		name[4] = byte(addr[0])
+		name[5] = byte(addr[1])
+		name[6] = byte(addr[2])
+		name[7] = byte(addr[3])
 	}
-
 	return name
 }
 
-func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
+func (r *rtl8720dn) Bind(sockfd int, ip netip.AddrPort) error {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+		fmt.Printf("[Bind] sockfd: %d, addr: %s\r\n", sockfd, ip)
 	}
 
 	r.mu.Lock()
@@ -442,13 +448,13 @@ func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
 
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
-	var name = addrToName(ip, port)
+	var name = ipToName(ip)
 
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_bind(int32(sock), name, uint32(len(name)))
 		if result == -1 {
-			return fmt.Errorf("Bind to %s:%d failed", ip, port)
+			return fmt.Errorf("Bind to %s failed", ip)
 		}
 	default:
 		return netdev.ErrProtocolNotSupported
@@ -457,11 +463,13 @@ func (r *rtl8720dn) Bind(sockfd int, ip net.IP, port int) error {
 	return nil
 }
 
-func (r *rtl8720dn) Connect(sockfd int, host string, ip net.IP, port int) error {
+func (r *rtl8720dn) Connect(sockfd int, host string, ip netip.AddrPort) error {
+
+	port := ip.Port()
 
 	if debugging(debugNetdev) {
 		if host == "" {
-			fmt.Printf("[Connect] sockfd: %d, addr: %s:%d\r\n", sockfd, ip, port)
+			fmt.Printf("[Connect] sockfd: %d, addr: %s\r\n", sockfd, ip)
 		} else {
 			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, port)
 		}
@@ -472,14 +480,14 @@ func (r *rtl8720dn) Connect(sockfd int, host string, ip net.IP, port int) error 
 
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
-	var name = addrToName(ip, port)
+	var name = ipToName(ip)
 
 	// Start the connection
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
 		result := r.rpc_lwip_connect(int32(sock), name, uint32(len(name)))
 		if result == -1 {
-			return fmt.Errorf("Connect to %s:%d failed", ip, port)
+			return fmt.Errorf("Connect to %s failed", ip)
 		}
 	case netdev.IPPROTO_TLS:
 		result := r.rpc_wifi_start_ssl_client(uint32(sock),
@@ -526,10 +534,10 @@ func (r *rtl8720dn) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
+func (r *rtl8720dn) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s:%d\r\n", sockfd, ip, port)
+		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, ip)
 	}
 
 	r.mu.Lock()
@@ -538,7 +546,7 @@ func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 	var newSock int32
 	var lsock = sock(sockfd)
 	var socket = r.sockets[lsock]
-	var addr = addrToName(ip, port)
+	var name = ipToName(ip)
 
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
@@ -554,8 +562,8 @@ func (r *rtl8720dn) Accept(sockfd int, ip net.IP, port int) (int, error) {
 		r.mu.Lock()
 
 		// Check if a client connected.  O_NONBLOCK is set on lsock.
-		addrlen := uint32(len(addr))
-		newSock = r.rpc_lwip_accept(int32(lsock), addr, &addrlen)
+		namelen := uint32(len(name))
+		newSock = r.rpc_lwip_accept(int32(lsock), name, &namelen)
 		if newSock == -1 {
 			// No new client
 			time.Sleep(100 * time.Millisecond)
@@ -761,16 +769,15 @@ func (r *rtl8720dn) getMACAddr() string {
 	return string(mac[:])
 }
 
-func (r *rtl8720dn) getIP() (ip, subnet, gateway net.IP, err error) {
+func (r *rtl8720dn) getIP() (ip, subnet, gateway netip.Addr, err error) {
 	var ip_info [12]byte
 	result := r.rpc_tcpip_adapter_get_ip_info(0, ip_info[:])
 	if result == -1 {
 		err = fmt.Errorf("Get IP info failed")
 		return
 	}
-	ip, subnet, gateway = make([]byte, 4), make([]byte, 4), make([]byte, 4)
-	copy(ip[:], ip_info[0:4])
-	copy(subnet[:], ip_info[4:8])
-	copy(gateway[:], ip_info[8:12])
+	ip, _ = netip.AddrFromSlice(ip_info[0:4])
+	subnet, _ = netip.AddrFromSlice(ip_info[4:8])
+	gateway, _ = netip.AddrFromSlice(ip_info[8:12])
 	return
 }
