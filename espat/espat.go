@@ -45,8 +45,7 @@ type Config struct {
 type socket struct {
 	inUse    bool
 	protocol int
-	lip      netip.Addr
-	lport    uint16
+	laddr    netip.AddrPort
 }
 
 type Device struct {
@@ -180,8 +179,7 @@ func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 }
 
 func (d *Device) Bind(sockfd int, ip netip.AddrPort) error {
-	d.socket.lip = ip.Addr()
-	d.socket.lport = ip.Port()
+	d.socket.laddr = ip
 	return nil
 }
 
@@ -189,7 +187,7 @@ func (d *Device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 	var err error
 	var addr = ip.Addr().String()
 	var rport = strconv.Itoa(int(ip.Port()))
-	var lport = strconv.Itoa(int(d.socket.lport))
+	var lport = strconv.Itoa(int(d.socket.laddr.Port()))
 
 	switch d.socket.protocol {
 	case netdev.IPPROTO_TCP:
