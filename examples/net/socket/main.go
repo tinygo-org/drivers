@@ -13,8 +13,7 @@ import (
 	"fmt"
 	"log"
 	"machine"
-	"net"
-	"strconv"
+	"net/netip"
 	"time"
 
 	"tinygo.org/x/drivers/netdev"
@@ -54,15 +53,13 @@ func main() {
 
 func sendBatch() {
 
-	host, sport, _ := net.SplitHostPort(addr)
-	ip := net.ParseIP(host).To4()
-	port, _ := strconv.Atoi(sport)
+	addrPort, _ := netip.ParseAddrPort(addr)
 
 	// make TCP connection
 	message("---------------\r\nDialing TCP connection")
 	fd, _ := dev.Socket(netdev.AF_INET, netdev.SOCK_STREAM, netdev.IPPROTO_TCP)
-	err := dev.Connect(fd, "", ip, port)
-	for ; err != nil; err = dev.Connect(fd, "", ip, port) {
+	err := dev.Connect(fd, "", addrPort)
+	for ; err != nil; err = dev.Connect(fd, "", addrPort) {
 		message(err.Error())
 		time.Sleep(5 * time.Second)
 	}
