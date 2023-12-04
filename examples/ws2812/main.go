@@ -19,7 +19,7 @@ func main() {
 
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	ws := ws2812.New(neo)
+	ws := ws2812.NewWS2812(neo)
 	rg := false
 
 	for {
