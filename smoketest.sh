@@ -140,4 +140,4 @@ tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/
 # network examples (rtl8720dn)
 tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/webclient/
 tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/webserver/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/mqttclient/paho/
+#tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/mqttclient/paho/
