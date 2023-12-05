@@ -132,14 +132,14 @@ tinygo build -size short -o ./build/test.hex -target=macropad-rp2040 ./examples/
 # network examples (espat)
 tinygo build -size short -o ./build/test.hex -target=challenger-rp2040 ./examples/net/ntpclient/
 # network examples (wifinina)
-tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/net/http-get/
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/net/tcpclient/
-tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/websocket/dial/
-tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift ./examples/net/socket/
-tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 ./examples/net/webstatic/
-tinygo build -size short -o ./build/test.hex -target=arduino-mkrwifi1010 ./examples/net/tlsclient/
-tinygo build -size short -o ./build/test.hex -target=nano-rp2040 ./examples/net/mqttclient/natiu/
+tinygo build -size short -o ./build/test.hex -target=pyportal -stack-size 8kb ./examples/net/http-get/
+tinygo build -size short -o ./build/test.hex -target=arduino-nano33 -stack-size 8kb ./examples/net/tcpclient/
+tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/websocket/dial/
+tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift -stack-size 8kb ./examples/net/socket/
+tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic/
+tinygo build -size short -o ./build/test.hex -target=arduino-mkrwifi1010 -stack-size 8kb ./examples/net/tlsclient/
+tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/mqttclient/natiu/
 # network examples (rtl8720dn)
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/webclient/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/webserver/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/net/mqttclient/paho/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webclient/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webserver/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/mqttclient/paho/
