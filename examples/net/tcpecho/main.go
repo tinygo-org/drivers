@@ -30,16 +30,18 @@ var (
 var buf [1024]byte
 
 func echo(conn net.Conn) {
+	println("Client", conn.RemoteAddr(), "connected")
 	defer conn.Close()
 	_, err := io.CopyBuffer(conn, conn, buf[:])
 	if err != nil && err != io.EOF {
 		log.Fatal(err.Error())
 	}
+	println("Client", conn.RemoteAddr(), "closed")
 }
 
 func main() {
 
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	link, _ := probe.Probe()
 
@@ -51,6 +53,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	println("Starting TCP server listening on", port)
 	l, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatal(err.Error())
