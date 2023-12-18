@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-//go:linkname UseNetdev net.useNetdev
-func UseNetdev(dev Stack)
+//go:linkname UseStack net.useNetdev
+func UseStack(stack Stack)
 
 // GethostByName() errors
 var (
@@ -59,6 +59,16 @@ type Link interface {
 	// [MAC address]: https://en.wikipedia.org/wiki/MAC_address
 	HardwareAddr6() ([6]byte, error)
 	LinkStatus() LinkStatus
+}
+
+type EthLinkPoller interface {
+	Link
+	// SendEth sends an Ethernet packet
+	SendEth(pkt []byte) error
+	// RecvEthHandle sets recieve Ethernet packet callback function
+	RecvEthHandle(func(pkt []byte) error)
+	// PollOne tries to receive one Ethernet packet and returns true if one was
+	PollOne() (bool, error)
 }
 
 type LinkWifi interface {
