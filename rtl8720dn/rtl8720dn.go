@@ -437,6 +437,12 @@ func ipToName(ip netip.AddrPort) []byte {
 	return name
 }
 
+func nameToIp(name []byte) netip.AddrPort {
+	port := uint16(name[2])<<8 | uint16(name[3])
+	addr, _ := netip.AddrFromSlice(name[4:8])
+	return netip.AddrPortFrom(addr, port)
+}
+
 func (r *rtl8720dn) Bind(sockfd int, ip netip.AddrPort) error {
 
 	if debugging(debugNetdev) {
@@ -534,10 +540,10 @@ func (r *rtl8720dn) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (r *rtl8720dn) Accept(sockfd int, ip netip.AddrPort) (int, error) {
+func (r *rtl8720dn) Accept(sockfd int) (int, netip.AddrPort, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, ip)
+		fmt.Printf("[Accept] sockfd: %d\r\n", sockfd)
 	}
 
 	r.mu.Lock()
@@ -546,12 +552,12 @@ func (r *rtl8720dn) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 	var newSock int32
 	var lsock = sock(sockfd)
 	var socket = r.sockets[lsock]
-	var name = ipToName(ip)
+	var name = ipToName(netip.AddrPort{})
 
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, netip.AddrPort{}, netdev.ErrProtocolNotSupported
 	}
 
 	for {
@@ -570,6 +576,14 @@ func (r *rtl8720dn) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 			continue
 		}
 
+		// Get remote peer ip:port
+		namelen = uint32(len(name))
+		result := r.rpc_lwip_getpeername(int32(newSock), name, &namelen)
+		if result == -1 {
+			return -1, netip.AddrPort{}, fmt.Errorf("Getpeername failed")
+		}
+		raddr := nameToIp(name)
+
 		// If we've already seen this socket, we can re-use
 		// the socket and return it.  But, only if the socket
 		// is closed.  If it's not closed, we'll just come back
@@ -582,12 +596,12 @@ func (r *rtl8720dn) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 				continue
 			}
 			// Reuse client socket
-			return int(newSock), nil
+			return int(newSock), raddr, nil
 		}
 
 		// Create new socket for client and return fd
 		r.sockets[sock(newSock)] = newSocket(socket.protocol)
-		return int(newSock), nil
+		return int(newSock), raddr, nil
 	}
 }
 

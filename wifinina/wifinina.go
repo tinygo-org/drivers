@@ -676,10 +676,10 @@ func (w *wifinina) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
+func (w *wifinina) Accept(sockfd int) (int, netip.AddrPort, error) {
 
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d, peer: %s\r\n", sockfd, ip)
+		fmt.Printf("[Accept] sockfd: %d\r\n", sockfd)
 	}
 
 	w.mu.Lock()
@@ -692,7 +692,7 @@ func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
 	default:
-		return -1, netdev.ErrProtocolNotSupported
+		return -1, netip.AddrPort{}, netdev.ErrProtocolNotSupported
 	}
 
 	for {
@@ -704,7 +704,7 @@ func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 
 		// Check if we've faulted
 		if w.fault != nil {
-			return -1, w.fault
+			return -1, netip.AddrPort{}, w.fault
 		}
 
 		// TODO: BUG: Currently, a sock that is 100% busy will always be
@@ -720,6 +720,8 @@ func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 			continue
 		}
 
+		raddr := w.getRemoteData(client)
+
 		// If we've already seen this socket, we can reuse
 		// the socket and return it.  But, only if the socket
 		// is closed.  If it's not closed, we'll just come back
@@ -732,12 +734,12 @@ func (w *wifinina) Accept(sockfd int, ip netip.AddrPort) (int, error) {
 				continue
 			}
 			// Reuse client socket
-			return int(client), nil
+			return int(client), raddr, nil
 		}
 
 		// Create new socket for client and return fd
 		w.sockets[client] = newSocket(socket.protocol)
-		return int(client), nil
+		return int(client), raddr, nil
 	}
 }
 
@@ -1121,6 +1123,23 @@ func (w *wifinina) accept(s sock) sock {
 	}
 
 	return newsock
+}
+
+func (w *wifinina) getRemoteData(s sock) netip.AddrPort {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetRemoteData] sock: %d\r\n", s)
+	}
+
+	sl := make([]string, 2)
+	l := w.reqRspStr1(cmdGetRemoteData, uint8(s), sl)
+	if l != 2 {
+		w.faultf("getRemoteData wanted l=2, got l=%d", l)
+		return netip.AddrPort{}
+	}
+	ip, _ := netip.AddrFromSlice([]byte(sl[0])[:4])
+	port := binary.BigEndian.Uint16([]byte(sl[1]))
+	return netip.AddrPortFrom(ip, port)
 }
 
 // insertDataBuf adds data to the buffer used for sending UDP data

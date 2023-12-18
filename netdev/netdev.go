@@ -82,7 +82,7 @@ type Netdever interface {
 	Bind(sockfd int, ip netip.AddrPort) error
 	Connect(sockfd int, host string, ip netip.AddrPort) error
 	Listen(sockfd int, backlog int) error
-	Accept(sockfd int, ip netip.AddrPort) (int, error)
+	Accept(sockfd int) (int, netip.AddrPort, error)
 	Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Close(sockfd int) error

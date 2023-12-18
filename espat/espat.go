@@ -218,8 +218,8 @@ func (d *Device) Listen(sockfd int, backlog int) error {
 	return nil
 }
 
-func (d *Device) Accept(sockfd int, ip netip.AddrPort) (int, error) {
-	return -1, netdev.ErrNotSupported
+func (d *Device) Accept(sockfd int) (int, netip.AddrPort, error) {
+	return -1, netip.AddrPort{}, netdev.ErrNotSupported
 }
 
 func (d *Device) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
