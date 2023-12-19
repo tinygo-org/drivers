@@ -168,9 +168,6 @@ const (
 
 type WifiAutoconnectParams struct {
 	WifiParams
-	// NOTE ON FIELDS BELOW: These fields seem like a leaky abstraction- they can
-	// be implemented as an external "AutoConnect" function that is called in
-	// a goroutine that performs auto connect and whatnot.
 
 	// Retries is how many attempts to connect before returning with a
 	// "Connect failed" error.  Zero means infinite retries.
