@@ -64,7 +64,7 @@ type Link interface {
 	MTU() int
 }
 
-type EthLinkPoller interface {
+type EthPollerLink interface {
 	Link
 	// SendEth sends an Ethernet packet
 	SendEth(pkt []byte) error
