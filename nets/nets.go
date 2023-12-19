@@ -58,7 +58,10 @@ type Link interface {
 	//
 	// [MAC address]: https://en.wikipedia.org/wiki/MAC_address
 	HardwareAddr6() ([6]byte, error)
+	// LinkStatus returns the state of the connection.
 	LinkStatus() LinkStatus
+	// MTU returns the maximum transmission unit size.
+	MTU() int
 }
 
 type EthLinkPoller interface {
