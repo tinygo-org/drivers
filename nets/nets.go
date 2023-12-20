@@ -113,9 +113,9 @@ type Resolver interface {
 	GetHostByName(name string) (netip.Addr, error)
 }
 
-// L4WifiInterface is returned by `Probe` function for devices that communicate
+// WifiStack is returned by `Probe` function for devices that communicate
 // on the OSI level 4 (transport) layer.
-type L4WifiInterface interface {
+type WifiStack interface {
 	InterfaceWifi
 	SocketStack
 }
@@ -184,7 +184,7 @@ type WifiAutoconnectParams struct {
 	WatchdogTimeout time.Duration
 }
 
-func StartWifiAutoconnect(dev L4WifiInterface, cfg WifiAutoconnectParams) error {
+func StartWifiAutoconnect(dev WifiStack, cfg WifiAutoconnectParams) error {
 	if dev == nil {
 		return ErrConnectModeNoGood
 	}
