@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-//go:linkname UseSocketStack net.useNetdev
-func UseSocketStack(stack SocketStack)
+//go:linkname UseStack net.useNetdev
+func UseStack(stack Stack)
 
 // GethostByName() errors
 var (
@@ -59,13 +59,16 @@ type Interface interface {
 	//
 	// [MAC address]: https://en.wikipedia.org/wiki/MAC_address
 	HardwareAddr6() ([6]byte, error)
-	// Flags returns the net.Flag values for the interface. It includes state of connection.
-	Flags() net.Flags
+	// NetFlags returns the net.Flag values for the interface. It includes state of connection.
+	NetFlags() net.Flags
 	// MTU returns the maximum transmission unit size.
 	MTU() int
+	// Notify to register callback for network events. May not be supported for certain devices.
+	NetNotify(cb func(Event)) error
 }
 
-type EthPoller interface {
+// InterfaceEthPoller is implemented by devices that send/receive ethernet packets.
+type InterfaceEthPoller interface {
 	Interface
 	// SendEth sends an Ethernet packet
 	SendEth(pkt []byte) error
@@ -75,17 +78,24 @@ type EthPoller interface {
 	PollOne() (bool, error)
 }
 
+// InterfaceWifi is implemented by a interface device that has the capacity
+// to connect to wifi networks.
 type InterfaceWifi interface {
 	Interface
 	// Connect device to network
 	NetConnect(params WifiParams) error
 	// Disconnect device from network
 	NetDisconnect()
-	// Notify to register callback for network events
-	NetNotify(cb func(Event))
 }
 
-type SocketStack interface {
+// InterfaceEthPollWifi is implemented by devices that connect to wifi networks
+// and send/receive ethernet packets (OSI level 2).
+type InterfaceEthPollWifi interface {
+	InterfaceWifi
+	InterfaceEthPoller
+}
+
+type Stack interface {
 	// GetHostByName returns the IP address of either a hostname or IPv4
 	// address in standard dot notation
 	// GetHostByName(name string) (netip.Addr, error)
@@ -99,7 +109,7 @@ type SocketStack interface {
 	Bind(sockfd int, ip netip.AddrPort) error
 	Connect(sockfd int, host string, ip netip.AddrPort) error
 	Listen(sockfd int, backlog int) error
-	Accept(sockfd int, ip netip.AddrPort) (int, error)
+	Accept(sockfd int) (int, netip.AddrPort, error)
 	Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error)
 	Close(sockfd int) error
@@ -113,11 +123,11 @@ type Resolver interface {
 	GetHostByName(name string) (netip.Addr, error)
 }
 
-// WifiStack is returned by `Probe` function for devices that communicate
+// StackWifi is returned by `Probe` function for devices that communicate
 // on the OSI level 4 (transport) layer.
-type WifiStack interface {
+type StackWifi interface {
 	InterfaceWifi
-	SocketStack
+	Stack
 }
 
 type WifiParams struct {
@@ -184,7 +194,7 @@ type WifiAutoconnectParams struct {
 	WatchdogTimeout time.Duration
 }
 
-func StartWifiAutoconnect(dev WifiStack, cfg WifiAutoconnectParams) error {
+func StartWifiAutoconnect(dev InterfaceWifi, cfg WifiAutoconnectParams) error {
 	if dev == nil {
 		return ErrConnectModeNoGood
 	}
@@ -200,7 +210,7 @@ func StartWifiAutoconnect(dev WifiStack, cfg WifiAutoconnectParams) error {
 			}
 			for cfg.WatchdogTimeout != 0 {
 				time.Sleep(cfg.WatchdogTimeout)
-				if dev.Flags()&net.FlagRunning == 0 {
+				if dev.NetFlags()&net.FlagRunning == 0 {
 					i = 0
 					goto RECONNECT
 				}
