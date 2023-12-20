@@ -2,12 +2,13 @@ package nets
 
 import (
 	"errors"
+	"net"
 	"net/netip"
 	"time"
 )
 
-//go:linkname UseStack net.useNetdev
-func UseStack(stack Stack)
+//go:linkname UseSocketStack net.useNetdev
+func UseSocketStack(stack SocketStack)
 
 // GethostByName() errors
 var (
@@ -36,36 +37,36 @@ var (
 )
 
 const (
-	AF_INET       = 0x2
-	SOCK_STREAM   = 0x1
-	SOCK_DGRAM    = 0x2
-	SOL_SOCKET    = 0x1
-	SO_KEEPALIVE  = 0x9
-	SOL_TCP       = 0x6
-	TCP_KEEPINTVL = 0x5
-	IPPROTO_TCP   = 0x6
-	IPPROTO_UDP   = 0x11
+	_AF_INET       = 0x2
+	_SOCK_STREAM   = 0x1
+	_SOCK_DGRAM    = 0x2
+	_SOL_SOCKET    = 0x1
+	_SO_KEEPALIVE  = 0x9
+	_SOL_TCP       = 0x6
+	_TCP_KEEPINTVL = 0x5
+	_IPPROTO_TCP   = 0x6
+	_IPPROTO_UDP   = 0x11
 	// Made up, not a real IP protocol number.  This is used to create a
 	// TLS socket on the device, assuming the device supports mbed TLS.
-	IPPROTO_TLS = 0xFE
-	F_SETFL     = 0x4
+	_IPPROTO_TLS = 0xFE
+	_F_SETFL     = 0x4
 )
 
-// Link is the minimum interface that need be implemented by any network
-// device driver.
-type Link interface {
-	// HardwareAddr6 returns the device's 6-byte [MAC address], a.k.a EUI-48.
+// Interface is the minimum interface that need be implemented by any network
+// device driver and is based on [net.Interface].
+type Interface interface {
+	// HardwareAddr6 returns the device's 6-byte [MAC address].
 	//
 	// [MAC address]: https://en.wikipedia.org/wiki/MAC_address
 	HardwareAddr6() ([6]byte, error)
-	// LinkStatus returns the state of the connection.
-	LinkStatus() LinkStatus
+	// Flags returns the net.Flag values for the interface. It includes state of connection.
+	Flags() net.Flags
 	// MTU returns the maximum transmission unit size.
 	MTU() int
 }
 
-type EthPollerLink interface {
-	Link
+type EthPoller interface {
+	Interface
 	// SendEth sends an Ethernet packet
 	SendEth(pkt []byte) error
 	// RecvEthHandle sets recieve Ethernet packet callback function
@@ -74,8 +75,8 @@ type EthPollerLink interface {
 	PollOne() (bool, error)
 }
 
-type LinkWifi interface {
-	Link
+type InterfaceWifi interface {
+	Interface
 	// Connect device to network
 	NetConnect(params WifiParams) error
 	// Disconnect device from network
@@ -84,10 +85,10 @@ type LinkWifi interface {
 	NetNotify(cb func(Event))
 }
 
-type Stack interface {
+type SocketStack interface {
 	// GetHostByName returns the IP address of either a hostname or IPv4
 	// address in standard dot notation
-	GetHostByName(name string) (netip.Addr, error)
+	// GetHostByName(name string) (netip.Addr, error)
 
 	// Addr returns IP address assigned to the interface, either by
 	// DHCP or statically
@@ -105,10 +106,18 @@ type Stack interface {
 	SetSockOpt(sockfd int, level int, opt int, value interface{}) error
 }
 
-// Netdev is returned by `Probe` function.
-type Netdev interface {
-	LinkWifi
-	Stack
+// Should have UseResolver package level function that replaces the Go Resolver?
+type Resolver interface {
+	// GetHostByName returns the IP address of either a hostname or IPv4
+	// address in standard dot notation
+	GetHostByName(name string) (netip.Addr, error)
+}
+
+// L4WifiInterface is returned by `Probe` function for devices that communicate
+// on the OSI level 4 (transport) layer.
+type L4WifiInterface interface {
+	InterfaceWifi
+	SocketStack
 }
 
 type WifiParams struct {
@@ -158,14 +167,6 @@ const (
 	AuthTypeWPA2Mixed        // WPA2/WPA mixed authorization
 )
 
-type LinkStatus uint8
-
-const (
-	LinkDown LinkStatus = iota
-	LinkConnecting
-	LinkUp
-)
-
 type WifiAutoconnectParams struct {
 	WifiParams
 
@@ -183,7 +184,7 @@ type WifiAutoconnectParams struct {
 	WatchdogTimeout time.Duration
 }
 
-func StartWifiAutoconnect(dev Netdev, cfg WifiAutoconnectParams) error {
+func StartWifiAutoconnect(dev L4WifiInterface, cfg WifiAutoconnectParams) error {
 	if dev == nil {
 		return ErrConnectModeNoGood
 	}
@@ -199,7 +200,7 @@ func StartWifiAutoconnect(dev Netdev, cfg WifiAutoconnectParams) error {
 			}
 			for cfg.WatchdogTimeout != 0 {
 				time.Sleep(cfg.WatchdogTimeout)
-				if dev.LinkStatus() == LinkDown {
+				if dev.Flags()&net.FlagRunning == 0 {
 					i = 0
 					goto RECONNECT
 				}
