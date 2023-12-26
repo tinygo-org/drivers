@@ -8,17 +8,16 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a APDS-9960 device.
 type Device struct {
 	bus     drivers.I2C
+	_txerr  error
+	gesture gestureData
+	buf     [8]byte
 	Address uint8
 	mode    uint8
-	gesture gestureData
-	buf     [32]byte
-	_txerr  error
 }
 
 // Configuration for APDS-9960 device.
@@ -48,17 +47,7 @@ type gestureData struct {
 	received    bool
 }
 
-// for enabling various device function
-type enableConfig struct {
-	GEN  bool
-	PIEN bool
-	AIEN bool
-	WEN  bool
-	PEN  bool
-	AEN  bool
-	PON  bool
-}
-
+// for enabling various device functions.
 type encfg uint8
 
 // data := []byte{gen<<6 | pien<<5 | aien<<4 | wen<<3 | pen<<2 | aen<<1 | pon}
@@ -113,7 +102,7 @@ func (d *Device) DisableAll() error {
 	return err
 }
 
-// SetProximityPulse sets proximity pulse length (4, 8, 16, 32) and count (1~64)
+// SetProximityPulse sets proximity pulse length (4, 8, 16, 32) and count (1..64)
 // default: 16, 64
 func (d *Device) SetProximityPulse(length, count uint8) error {
 	d.txNew()
@@ -121,7 +110,7 @@ func (d *Device) SetProximityPulse(length, count uint8) error {
 	return d.txErr()
 }
 
-// SetGesturePulse sets gesture pulse length (4, 8, 16, 32) and count (1~64)
+// SetGesturePulse sets gesture pulse length (4, 8, 16, 32) and count (1..64)
 // default: 16, 64
 func (d *Device) SetGesturePulse(length, count uint8) error {
 	d.txNew()
@@ -129,8 +118,8 @@ func (d *Device) SetGesturePulse(length, count uint8) error {
 	return d.txErr()
 }
 
-// SetADCIntegrationCycles sets ALS/color ADC internal integration cycles (1~256, 1 cycle = 2.78 ms)
-// default: 4 (~10 ms)
+// SetADCIntegrationCycles sets ALS/color ADC internal integration cycles (1..256, 1 cycle = 2.78 ms)
+// default: 4 (approx. 10 ms)
 func (d *Device) SetADCIntegrationCycles(cycles uint16) error {
 	if cycles > 256 {
 		cycles = 256
@@ -168,13 +157,13 @@ func (d *Device) LEDBoost(percent uint16) error {
 	return d.txErr()
 }
 
-// Setthreshold sets threshold (0~255) for detecting gestures
+// Setthreshold sets threshold (0..255) for detecting gestures
 // default: 30
 func (d *Device) Setthreshold(t uint8) {
 	d.gesture.threshold = t
 }
 
-// Setsensitivity sets sensivity (0~100) for detecting gestures
+// Setsensitivity sets sensivity (0..100) for detecting gestures
 // default: 20
 func (d *Device) Setsensitivity(s uint8) {
 	if s > 100 {
@@ -198,6 +187,14 @@ func (d *Device) EnableProximity() error {
 	return err
 }
 
+// Err returns the current error state of the device if encountered during I2C communication.
+// After a call to Err the error is cleared.
+func (d *Device) Err() error {
+	err := d.txErr()
+	d.txNew()
+	return err
+}
+
 // ProximityAvailable reports if proximity data is available
 func (d *Device) ProximityAvailable() bool {
 	if d.mode != MODE_PROXIMITY {
@@ -207,7 +204,7 @@ func (d *Device) ProximityAvailable() bool {
 	return err == nil && status.PVALID()
 }
 
-// ReadProximity reads proximity data (0~255)
+// ReadProximity reads proximity data (0..255)
 func (d *Device) ReadProximity() (proximity int32) {
 	if d.mode != MODE_PROXIMITY {
 		return 0
@@ -218,11 +215,14 @@ func (d *Device) ReadProximity() (proximity int32) {
 }
 
 // EnableColor starts the color engine
-func (d *Device) EnableColor() error {
+func (d *Device) EnableColor() (err error) {
 	if d.mode != MODE_NONE {
-		d.DisableAll()
+		err = d.DisableAll()
+		if err != nil {
+			return err
+		}
 	}
-	err := d.enable(enPON | enAEN | enWEN)
+	err = d.enable(enPON | enAEN | enWEN)
 	if err == nil {
 		d.mode = MODE_COLOR
 	}
@@ -300,11 +300,14 @@ func (d *Device) GestureAvailable() bool {
 	data := d.buf[:]
 	// read up, down, left and right proximity data from FIFO
 	var dataSets [32][4]uint8
+	const numAddrs = APDS9960_GFIFO_R_REG - APDS9960_GFIFO_U_REG + 1
 	for i := uint8(0); i < availableDataSets; i++ {
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_U_REG, data[:1])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_D_REG, data[1:2])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_L_REG, data[2:3])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_R_REG, data[3:4])
+		for j := uint8(0); j < numAddrs; j++ {
+			data[j] = d.txRead8(j + APDS9960_GFIFO_U_REG)
+		}
+		if d.txErr() != nil {
+			return false
+		}
 		for j := uint8(0); j < 4; j++ {
 			dataSets[i][j] = data[j]
 		}
@@ -366,9 +369,11 @@ func (d *Device) ReadGesture() (gesture int32) {
 
 // private functions
 
-func (d *Device) configureDevice(cfg Configuration) {
-	d.DisableAll() // turn off everything
-
+func (d *Device) configureDevice(cfg Configuration) error {
+	err := d.DisableAll() // turn off everything
+	if err != nil {
+		return err
+	}
 	// "default" settings
 	if cfg.ProximityPulseLength == 0 {
 		cfg.ProximityPulseLength = 16
@@ -401,14 +406,23 @@ func (d *Device) configureDevice(cfg Configuration) {
 		d.gesture.sensitivity = 20
 	}
 
-	d.SetProximityPulse(cfg.ProximityPulseLength, cfg.ProximityPulseCount)
-	d.SetGesturePulse(cfg.GesturePulseLength, cfg.GesturePulseCount)
-	d.SetGains(cfg.ProximityGain, cfg.GestureGain, cfg.ColorGain)
-	d.SetADCIntegrationCycles(cfg.ADCIntegrationCycles)
-
-	if cfg.LEDBoost > 0 {
-		d.LEDBoost(cfg.LEDBoost)
+	err = d.SetProximityPulse(cfg.ProximityPulseLength, cfg.ProximityPulseCount)
+	if err != nil {
+		return err
 	}
+	err = d.SetGesturePulse(cfg.GesturePulseLength, cfg.GesturePulseCount)
+	if err != nil {
+		return err
+	}
+	err = d.SetGains(cfg.ProximityGain, cfg.GestureGain, cfg.ColorGain)
+	if err != nil {
+		return err
+	}
+	err = d.SetADCIntegrationCycles(cfg.ADCIntegrationCycles)
+	if err == nil && cfg.LEDBoost > 0 {
+		err = d.LEDBoost(cfg.LEDBoost)
+	}
+	return err
 }
 
 func (d *Device) enable(cfg encfg) error {
@@ -434,6 +448,7 @@ func (d *Device) txRead8(addr uint8) uint8 {
 	d._txerr = d.bus.Tx(uint16(d.Address), d.buf[:1], d.buf[1:2])
 	return d.buf[1]
 }
+
 func (d *Device) txWrite8(addr uint8, val uint8) {
 	if d._txerr != nil {
 		return
