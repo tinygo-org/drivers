@@ -68,18 +68,16 @@ const (
 type Drive uint8
 
 const (
-	_ Drive = iota
-	Drive12_5mA
-	Drive25mA
+	Drive100mA Drive = iota
 	Drive50mA
-	Drive100mA
+	Drive25mA
+	Drive12_5mA
 )
 
 type Config struct {
-	StartMode Enable
-	LEDDrive  Drive
-	// ALSGain       ALSGain
-	// ProximityGain ProxGain
+	ProxGain ProxGain
+	ALSGain  ALSGain
+	LEDDrive Drive
 }
 
 func (d *Dev) Init(cfg Config) error {
@@ -92,16 +90,13 @@ func (d *Dev) Init(cfg Config) error {
 	d.txWrite8(regPPULSE, 0x04)
 	d.txWrite8(regWTIME, 0xee) // set default wait time.
 	d.txWrite8(regPTIME, 0xff) // set default pulse count.
-	if d.txErr() != nil {
-		return d.txErr()
-	}
-	if cfg.LEDDrive != 0 {
-		err := d.SetLEDDrive(cfg.LEDDrive)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+
+	var ctlval uint8 = 0b10 << 4 // Use Channel 1 diode.
+	ctlval |= uint8(cfg.LEDDrive&0b11) << 6
+	ctlval |= uint8(cfg.ProxGain&0b11) << 2
+	ctlval |= uint8(cfg.ALSGain & 0b11)
+	d.txWrite8(regCONTROL, ctlval)
+	return d.txErr()
 }
 
 func (d *Dev) Status() (Status, error) {
@@ -125,7 +120,6 @@ func (d *Dev) enableLightSensor(withInterrupts bool) error {
 }
 
 func (d *Dev) setAmbientLightGain() {
-
 }
 
 func (d *Dev) EnableProximity() error {
@@ -158,7 +152,7 @@ func (d *Dev) setProxIntHighThresh(hiThresh uint16) error {
 func (d *Dev) LEDDrive() (Drive, error) {
 	d.txNew()
 	val := (d.txRead8(regCONTROL) >> 6) & 0b11
-	return 3 - Drive(val), d.txErr()
+	return Drive(val), d.txErr()
 }
 
 // SetLEDDrive drive strength for proximity and ALS
@@ -172,7 +166,6 @@ func (d *Dev) SetLEDDrive(drive Drive) error {
 	if drive > 3 {
 		return errInvalidParam
 	}
-	drive = 3 - drive
 	current, err := d.LEDDrive()
 	if err != nil {
 		return err
