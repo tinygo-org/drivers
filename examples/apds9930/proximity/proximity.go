@@ -22,7 +22,7 @@ func main() {
 	}
 	sensor := apds9930.New(bus, 0x39)
 
-	err = sensor.Init()
+	err = sensor.Init(apds9930.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +32,11 @@ func main() {
 	}
 	println("proximity enabled!")
 	for {
-		time.Sleep(50 * time.Millisecond)
+		stat, _ := sensor.Status()
+		if !stat.ProximityAvailable() {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
 		prox := sensor.ReadProximity()
 		println("proximity:", prox)
 	}

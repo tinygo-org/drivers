@@ -1,6 +1,10 @@
 package apds9930
 
 const (
+	protoAutoInc = 0xA0
+)
+
+const (
 	regENABLE  = 0x00
 	regATIME   = 0x01
 	regPTIME   = 0x02
