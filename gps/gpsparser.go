@@ -116,7 +116,7 @@ func findTime(val string) time.Time {
 	s, _ := strconv.ParseInt(val[4:6], 10, 8)
 	ms := int64(0)
 	if len(val) > 6 {
-		ms, _ = strconv.ParseInt(val[7:], 10, 16)
+		ms, _ = strconv.ParseInt(val[7:9], 10, 16)
 	}
 	t := time.Date(0, 0, 0, int(h), int(m), int(s), int(ms), time.UTC)
 
