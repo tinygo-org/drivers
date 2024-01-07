@@ -1,6 +1,7 @@
 package netif
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -117,11 +118,13 @@ type Stack interface {
 	SetSockOpt(sockfd int, level int, opt int, value interface{}) error
 }
 
-// Should have UseResolver package level function that replaces the Go Resolver?
+// Resolver is implemented by DNS resolvers, notably Go's [net.DefaultResolver].
 type Resolver interface {
-	// GetHostByName returns the IP address of either a hostname or IPv4
-	// address in standard dot notation
-	GetHostByName(name string) (netip.Addr, error)
+	// LookupNetIP looks up host using the local resolver.
+	// It returns a slice of that host's IP addresses of the type specified by
+	// network.
+	// The network must be one of "ip", "ip4" or "ip6".
+	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
 // StackWifi is returned by `Probe` function for devices that communicate
