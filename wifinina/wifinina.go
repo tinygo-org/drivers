@@ -165,7 +165,8 @@ type hwerr uint8
 
 type socket struct {
 	protocol int
-	ip       netip.AddrPort
+	laddr    netip.AddrPort // Set in Bind()
+	raddr    netip.AddrPort // Set in Connect()
 	inuse    bool
 }
 
@@ -603,7 +604,7 @@ func (w *wifinina) Bind(sockfd int, ip netip.AddrPort) error {
 		w.startServer(sock, ip.Port(), protoModeUDP)
 	}
 
-	socket.ip = ip
+	socket.laddr = ip
 
 	return nil
 }
@@ -638,7 +639,8 @@ func (w *wifinina) Connect(sockfd int, host string, ip netip.AddrPort) error {
 	case netdev.IPPROTO_TLS:
 		w.startClient(sock, host, 0, ip.Port(), protoModeTLS)
 	case netdev.IPPROTO_UDP:
-		w.startClient(sock, "", toUint32(ip.Addr().As4()), ip.Port(), protoModeUDP)
+		// See start in sendUDP()
+		socket.raddr = ip
 		return nil
 	}
 
@@ -667,7 +669,7 @@ func (w *wifinina) Listen(sockfd int, backlog int) error {
 
 	switch socket.protocol {
 	case netdev.IPPROTO_TCP:
-		w.startServer(sock, socket.ip.Port(), protoModeTCP)
+		w.startServer(sock, socket.laddr.Port(), protoModeTCP)
 	case netdev.IPPROTO_UDP:
 	default:
 		return netdev.ErrProtocolNotSupported
@@ -794,7 +796,10 @@ func (w *wifinina) sendTCP(sock sock, buf []byte, deadline time.Time) (int, erro
 	return -1, netdev.ErrTimeout
 }
 
-func (w *wifinina) sendUDP(sock sock, buf []byte, deadline time.Time) (int, error) {
+func (w *wifinina) sendUDP(sock sock, raddr netip.AddrPort, buf []byte, deadline time.Time) (int, error) {
+
+	// Start a client for each send
+	w.startClient(sock, "", toUint32(raddr.Addr().As4()), raddr.Port(), protoModeUDP)
 
 	// Queue it
 	ok := w.insertDataBuf(sock, buf)
@@ -826,7 +831,7 @@ func (w *wifinina) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, e
 	case netdev.IPPROTO_TCP, netdev.IPPROTO_TLS:
 		return w.sendTCP(sock, buf, deadline)
 	case netdev.IPPROTO_UDP:
-		return w.sendUDP(sock, buf, deadline)
+		return w.sendUDP(sock, socket.raddr, buf, deadline)
 	}
 
 	return -1, netdev.ErrProtocolNotSupported
