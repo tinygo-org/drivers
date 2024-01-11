@@ -13,6 +13,7 @@ var (
 	ErrConnectFailed     = errors.New("Connect failed")
 	ErrConnectTimeout    = errors.New("Connect timed out")
 	ErrMissingSSID       = errors.New("Missing WiFi SSID")
+	ErrShortPassphrase   = errors.New("Invalid Wifi Passphrase < 8 chars")
 	ErrAuthFailure       = errors.New("Wifi authentication failure")
 	ErrAuthTypeNoGood    = errors.New("Wifi authorization type not supported")
 	ErrConnectModeNoGood = errors.New("Connect mode not supported")
