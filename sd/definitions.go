@@ -347,55 +347,62 @@ func upToNull(buf []byte) []byte {
 	return buf[:nullIdx]
 }
 
+type (
+	command    byte
+	appcommand byte
+)
+
+// SD commands and application commands.
 const (
-	CMD0_GO_IDLE_STATE              = 0
-	CMD1_SEND_OP_CND                = 1
-	CMD2_ALL_SEND_CID               = 2
-	CMD3_SEND_RELATIVE_ADDR         = 3
-	CMD4_SET_DSR                    = 4
-	CMD6_SWITCH_FUNC                = 6
-	CMD7_SELECT_DESELECT_CARD       = 7
-	CMD8_SEND_IF_COND               = 8
-	CMD9_SEND_CSD                   = 9
-	CMD10_SEND_CID                  = 10
-	CMD12_STOP_TRANSMISSION         = 12
-	CMD13_SEND_STATUS               = 13
-	CMD15_GO_INACTIVE_STATE         = 15
-	CMD16_SET_BLOCKLEN              = 16
-	CMD17_READ_SINGLE_BLOCK         = 17
-	CMD18_READ_MULTIPLE_BLOCK       = 18
-	CMD24_WRITE_BLOCK               = 24
-	CMD25_WRITE_MULTIPLE_BLOCK      = 25
-	CMD27_PROGRAM_CSD               = 27
-	CMD28_SET_WRITE_PROT            = 28
-	CMD29_CLR_WRITE_PROT            = 29
-	CMD30_SEND_WRITE_PROT           = 30
-	CMD32_ERASE_WR_BLK_START_ADDR   = 32
-	CMD33_ERASE_WR_BLK_END_ADDR     = 33
-	CMD38_ERASE                     = 38
-	CMD42_LOCK_UNLOCK               = 42
-	CMD55_APP_CMD                   = 55
-	CMD56_GEN_CMD                   = 56
-	CMD58_READ_OCR                  = 58
-	CMD59_CRC_ON_OFF                = 59
-	ACMD6_SET_BUS_WIDTH             = 6
-	ACMD13_SD_STATUS                = 13
-	ACMD22_SEND_NUM_WR_BLOCKS       = 22
-	ACMD23_SET_WR_BLK_ERASE_COUNT   = 23
-	ACMD41_SD_APP_OP_COND           = 41
-	ACMD42_SET_CLR_CARD_DETECT      = 42
-	ACMD51_SEND_SCR                 = 51
-	ACMD18_SECURE_READ_MULTI_BLOCK  = 18
-	ACMD25_SECURE_WRITE_MULTI_BLOCK = 25
-	ACMD26_SECURE_WRITE_MKB         = 26
-	ACMD38_SECURE_ERASE             = 38
-	ACMD43_GET_MKB                  = 43
-	ACMD44_GET_MID                  = 44
-	ACMD45_SET_CER_RN1              = 45
-	ACMD46_SET_CER_RN2              = 46
-	ACMD47_SET_CER_RES2             = 47
-	ACMD48_SET_CER_RES1             = 48
-	ACMD49_CHANGE_SECURE_AREA       = 49
+	cmdGoIdleState         command = 0
+	cmdSendOpCnd           command = 1
+	cmdAllSendCID          command = 2
+	cmdSendRelativeAddr    command = 3
+	cmdSetDSR              command = 4
+	cmdSwitchFunc          command = 6
+	cmdSelectDeselectCard  command = 7
+	cmdSendIfCond          command = 8
+	cmdSendCSD             command = 9
+	cmdSendCID             command = 10
+	cmdStopTransmission    command = 12
+	cmdSendStatus          command = 13
+	cmdGoInactiveState     command = 15
+	cmdSetBlocklen         command = 16
+	cmdReadSingleBlock     command = 17
+	cmdReadMultipleBlock   command = 18
+	cmdWriteBlock          command = 24
+	cmdWriteMultipleBlock  command = 25
+	cmdProgramCSD          command = 27
+	cmdSetWriteProt        command = 28
+	cmdClrWriteProt        command = 29
+	cmdSendWriteProt       command = 30
+	cmdEraseWrBlkStartAddr command = 32
+	cmdEraseWrBlkEndAddr   command = 33
+	cmdErase               command = 38
+	cmdLockUnlock          command = 42
+	cmdAppCmd              command = 55
+	cmdGenCmd              command = 56
+	cmdReadOCR             command = 58
+	cmdCRCOnOff            command = 59
+
+	acmdSET_BUS_WIDTH            appcommand = 6
+	acmdSD_STATUS                appcommand = 13
+	acmdSEND_NUM_WR_BLOCKS       appcommand = 22
+	acmdSET_WR_BLK_ERASE_COUNT   appcommand = 23
+	acmdSD_APP_OP_COND           appcommand = 41
+	acmdSET_CLR_CARD_DETECT      appcommand = 42
+	acmdSEND_SCR                 appcommand = 51
+	acmdSECURE_READ_MULTI_BLOCK  appcommand = 18
+	acmdSECURE_WRITE_MULTI_BLOCK appcommand = 25
+	acmdSECURE_WRITE_MKB         appcommand = 26
+	acmdSECURE_ERASE             appcommand = 38
+	acmdGET_MKB                  appcommand = 43
+	acmdGET_MID                  appcommand = 44
+	acmdSET_CER_RN1              appcommand = 45
+	acmdSET_CER_RN2              appcommand = 46
+	acmdSET_CER_RES2             appcommand = 47
+	acmdSET_CER_RES1             appcommand = 48
+	acmdCHANGE_SECURE_AREA       appcommand = 49
 )
 
 // CSD enum types.
@@ -497,10 +504,14 @@ func CRC16(buf []byte) (crc uint16) {
 
 // CRC7 computes the CRC7 checksum for a given payload using the polynomial x^7 + x^3 + 1.
 func CRC7(data []byte) (crc uint8) {
+	return crc7noshift(data) >> 1
+}
+
+func crc7noshift(data []byte) (crc uint8) {
 	for _, b := range data {
 		crc = crc7_table[crc^b]
 	}
-	return crc >> 1
+	return crc
 }
 
 var crc7_table = [256]byte{

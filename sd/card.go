@@ -71,7 +71,7 @@ func (d *SPICard) Init() error {
 	tm := d.timers[0].setTimeout(2 * time.Second)
 	for !tm.expired() {
 		// Wait up to 2 seconds to be the same as the Arduino
-		result, err := d.cmd(CMD0_GO_IDLE_STATE, 0, 0x95)
+		result, err := d.cmd(cmdGoIdleState, 0, 0x95)
 		if err != nil {
 			return err
 		}
@@ -85,39 +85,38 @@ func (d *SPICard) Init() error {
 	}
 
 	// CMD8: determine card version
-	r1, err := d.cmd(CMD8_SEND_IF_COND, 0x01AA, 0x87)
+	r1, err := d.cmd(cmdSendIfCond, 0x01AA, 0x87)
 	if err != nil {
 		return err
 	}
 	if r1.IllegalCmdError() {
 		d.kind = TypeSD1
 		return errCardNotSupported
-	} else {
-		// r7 response
-		status := byte(0)
-		for i := 0; i < 3; i++ {
-			var err error
-			status, err = d.bus.Transfer(0xFF)
-			if err != nil {
-				return err
-			}
-		}
-		if (status & 0x0F) != 0x01 {
-			return makeResponseError(response1(status))
-		}
-
-		for i := 3; i < 4; i++ {
-			var err error
-			status, err = d.bus.Transfer(0xFF)
-			if err != nil {
-				return err
-			}
-		}
-		if status != 0xAA {
-			return makeResponseError(response1(status))
-		}
-		d.kind = TypeSD2
 	}
+	// r7 response
+	status := byte(0)
+	for i := 0; i < 3; i++ {
+		var err error
+		status, err = d.bus.Transfer(0xFF)
+		if err != nil {
+			return err
+		}
+	}
+	if (status & 0x0F) != 0x01 {
+		return makeResponseError(response1(status))
+	}
+
+	for i := 3; i < 4; i++ {
+		var err error
+		status, err = d.bus.Transfer(0xFF)
+		if err != nil {
+			return err
+		}
+	}
+	if status != 0xAA {
+		return makeResponseError(response1(status))
+	}
+	d.kind = TypeSD2
 
 	// initialize card and send host supports SDHC if SD2
 	arg := uint32(0)
@@ -129,7 +128,7 @@ func (d *SPICard) Init() error {
 	ok = false
 	tm = tm.setTimeout(2 * time.Second)
 	for !tm.expired() {
-		r1, err = d.appCmd(ACMD41_SD_APP_OP_COND, arg)
+		r1, err = d.appCmd(acmdSD_APP_OP_COND, arg)
 		if err != nil {
 			return err
 		}
@@ -143,7 +142,7 @@ func (d *SPICard) Init() error {
 
 	// if SD2 read OCR register to check for SDHC card
 	if d.kind == TypeSD2 {
-		err := d.cmdEnsure0Status(CMD58_READ_OCR, 0, 0xFF)
+		err := d.cmdEnsure0Status(cmdReadOCR, 0, 0xFF)
 		if err != nil {
 			return err
 		}
@@ -160,7 +159,7 @@ func (d *SPICard) Init() error {
 			d.bus.Transfer(0xFF)
 		}
 	}
-	err = d.cmdEnsure0Status(CMD16_SET_BLOCKLEN, 0x0200, 0xff)
+	err = d.cmdEnsure0Status(cmdSetBlocklen, 0x0200, 0xff)
 	if err != nil {
 		return err
 	}
@@ -200,7 +199,8 @@ func (d *SPICard) ReadBlock(block int64, dst []byte) error {
 	if d.kind != TypeSDHC {
 		block <<= 9
 	}
-	err := d.cmdEnsure0Status(CMD17_READ_SINGLE_BLOCK, uint32(block), 0xFF)
+
+	err := d.cmdEnsure0Status(cmdReadSingleBlock, uint32(block), 0)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (d *SPICard) WriteBlock(block int64, src []byte) error {
 	if d.kind != TypeSDHC {
 		block <<= 9
 	}
-	err := d.cmdEnsure0Status(CMD24_WRITE_BLOCK, uint32(block), 0xFF)
+	err := d.cmdEnsure0Status(cmdWriteBlock, uint32(block), 0xFF)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (d *SPICard) CSD() CSD { return d.csd }
 
 func (d *SPICard) readCID() (CID, error) {
 	buf := d.buf[len(d.buf)-16:]
-	if err := d.readRegister(CMD10_SEND_CID, buf); err != nil {
+	if err := d.readRegister(cmdSendCID, buf); err != nil {
 		return CID{}, err
 	}
 	return DecodeCID(buf)
@@ -286,13 +286,13 @@ func (d *SPICard) readCID() (CID, error) {
 
 func (d *SPICard) readCSD() (CSD, error) {
 	buf := d.buf[len(d.buf)-16:]
-	if err := d.readRegister(CMD9_SEND_CSD, buf); err != nil {
+	if err := d.readRegister(cmdSendCSD, buf); err != nil {
 		return CSD{}, err
 	}
 	return DecodeCSD(buf)
 }
 
-func (d *SPICard) readRegister(cmd uint8, dst []byte) error {
+func (d *SPICard) readRegister(cmd command, dst []byte) error {
 	err := d.cmdEnsure0Status(cmd, 0, 0xFF)
 	if err != nil {
 		return err
@@ -315,15 +315,15 @@ func (d *SPICard) readRegister(cmd uint8, dst []byte) error {
 	return nil
 }
 
-func (d *SPICard) appCmd(cmd byte, arg uint32) (response1, error) {
-	status, err := d.cmd(CMD55_APP_CMD, 0, 0xFF)
+func (d *SPICard) appCmd(cmd appcommand, arg uint32) (response1, error) {
+	status, err := d.cmd(cmdAppCmd, 0, 0xFF)
 	if err != nil {
 		return status, err
 	}
-	return d.cmd(cmd, arg, 0xFF)
+	return d.cmd(command(cmd), arg, 0xFF)
 }
 
-func (d *SPICard) cmdEnsure0Status(cmd byte, arg uint32, crc byte) error {
+func (d *SPICard) cmdEnsure0Status(cmd command, arg uint32, crc byte) error {
 	status, err := d.cmd(cmd, arg, crc)
 	if err != nil {
 		return err
@@ -334,17 +334,10 @@ func (d *SPICard) cmdEnsure0Status(cmd byte, arg uint32, crc byte) error {
 	return nil
 }
 
-func putCmd(dst []byte, cmd byte, arg uint32) {
-	if len(dst) < 6 {
-		panic("bad buflength")
+func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1, error) {
+	if cmd >= 1<<6 {
+		panic("invalid SD command")
 	}
-	dst[0] = 0x40 | cmd
-	binary.BigEndian.PutUint32(dst[1:5], arg)
-	dst[5] = CRC7(dst[:5])<<1 | 1 // CRC and stop bit.
-}
-
-// 0100000000000000000000000000000000000000
-func (d *SPICard) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	d.csEnable(true)
 
 	if cmd != 12 {
@@ -353,8 +346,17 @@ func (d *SPICard) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 
 	// create and send the command
 	buf := d.bufcmd[:6]
-	putCmd(buf, cmd, arg)
-	buf[5] = crc
+	// Start bit is always zero; transmitter bit is one since we are Host.
+	const transmitterBit = 1 << 6
+	buf[0] = transmitterBit | byte(cmd)
+	binary.BigEndian.PutUint32(buf[1:5], arg)
+	if precalculatedCRC != 0 {
+		buf[5] = precalculatedCRC
+	} else {
+		// CRC and end bit which is always 1.
+		buf[5] = crc7noshift(buf[:5]) | 1
+	}
+
 	err := d.bus.Tx(buf, nil)
 	if err != nil {
 		return 0, err
