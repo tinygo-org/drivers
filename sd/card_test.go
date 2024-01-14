@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCRC(t *testing.T) {
+func TestCRC16(t *testing.T) {
 	tests := []struct {
 		block   string
 		wantcrc uint16
@@ -24,6 +24,63 @@ func TestCRC(t *testing.T) {
 		gotcrc := CRC16(b)
 		if gotcrc != tt.wantcrc {
 			t.Errorf("calculateCRC(%s) = %#x, want %#x", tt.block, gotcrc, tt.wantcrc)
+		}
+	}
+}
+
+func TestCRC7(t *testing.T) {
+	const cmdSendMask = 0x40
+	tests := []struct {
+		data    []byte
+		wantCRC uint8
+	}{
+		{ // See CRC7 Examples from section 4.5 of the SD Card Physical Layer Simplified Specification.
+			data:    []byte{cmdSendMask, 5: 0}, // CMD0, arg=0
+			wantCRC: 0b1001010,
+		},
+		{
+			data:    []byte{cmdSendMask | 17, 5: 0}, // CMD17, arg=0
+			wantCRC: 0b0101010,
+		},
+		{
+			data:    []byte{17, 4: 0b1001, 5: 0}, // Response of CMD17
+			wantCRC: 0b0110011,
+		},
+		{ // CSD for a 8GB card.
+			data:    []byte{64, 14, 0, 50, 83, 89, 0, 0, 60, 1, 127, 128, 10, 64, 0},
+			wantCRC: 0b1100101,
+		},
+	}
+
+	for _, tt := range tests {
+		gotcrc := CRC7(tt.data[:])
+		if gotcrc != tt.wantCRC {
+			t.Errorf("got crc=%#b, want=%#b", gotcrc, tt.wantCRC)
+		}
+	}
+
+	cmdTests := []struct {
+		cmd     byte
+		arg     uint32
+		wantCRC uint8
+	}{
+		{
+			cmd:     CMD0_GO_IDLE_STATE,
+			arg:     0,
+			wantCRC: 0x95,
+		},
+		{
+			cmd:     CMD8_SEND_IF_COND,
+			arg:     0x1AA,
+			wantCRC: 0x87,
+		},
+	}
+	var dst [6]byte
+	for _, test := range cmdTests {
+		putCmd(dst[:], test.cmd, test.arg)
+		gotcrc := dst[5]
+		if gotcrc != test.wantCRC {
+			t.Errorf("got crc=%#x, want=%#x", gotcrc, test.wantCRC)
 		}
 	}
 }

@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	sdcard := sd.NewCard(spibus, SPI_CS_PIN.Set)
+	sdcard := sd.NewSPICard(spibus, SPI_CS_PIN.Set)
 
 	err = sdcard.Init()
 	if err != nil {
@@ -47,20 +47,24 @@ func main() {
 		data := csd.RawCopy()
 		crc := sd.CRC7(data[:15])
 		always1 := data[15]&(1<<7) != 0
-		println("CSD not valid got", crc, "want", data[15]&^(1<<7), "always1:", always1)
+		fmt.Printf("ourCRC7=%#b theirCRC7=%#b for data %d\n", crc, csd.CRC7(), data[:15])
+		println("CSD not valid got", crc, "want", csd.CRC7(), "always1:", always1)
+		return
 	} else {
 		println("CSD valid!")
 	}
+
 	fmt.Printf("name=%s\ncsd=\n%s\n", pname, csd.String())
-	return
+
 	var buf [512]byte
-	for i := 1; i < 11; i += 1 {
-		time.Sleep(time.Millisecond)
-		err = sdcard.ReadBlock(uint32(i), buf[:])
+	for i := 0; i < 11; i += 1 {
+		time.Sleep(100 * time.Millisecond)
+		err = sdcard.ReadBlock(int64(i), buf[:])
 		if err != nil {
 			println("err reading block", i, ":", err.Error())
 			continue
 		}
-		fmt.Printf("block %d crc=%#x:\n\t%#x\n", i, sdcard.LastReadCRC(), buf[:])
+		expectCRC := sd.CRC16(buf[:])
+		fmt.Printf("block %d theircrc=%#x ourcrc=%#x:\n\t%#x\n", i, sdcard.LastReadCRC(), expectCRC, buf[:])
 	}
 }

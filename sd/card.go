@@ -3,6 +3,7 @@ package sd
 import (
 	"encoding/binary"
 	"errors"
+	"math"
 	"runtime"
 	"strconv"
 	"time"
@@ -21,33 +22,36 @@ var (
 	errNeed512          = errors.New("sd:need 512 bytes for I/O")
 	errWrite            = errors.New("sd:write")
 	errWriteTimeout     = errors.New("sd:write timeout")
+	errOOB              = errors.New("sd:oob block access")
+	errNoblocks         = errors.New("sd:no readable blocks")
 )
 
 type digitalPinout func(b bool)
 
-type Card struct {
-	bus     drivers.SPI
-	cs      digitalPinout
-	bufcmd  [6]byte
-	buf     [512]byte
-	bufTok  [1]byte
-	kind    CardKind
-	cid     CID
-	csd     CSD
-	lastCRC uint16
-	timers  [2]timer
+type SPICard struct {
+	bus       drivers.SPI
+	cs        digitalPinout
+	bufcmd    [6]byte
+	buf       [512]byte
+	bufTok    [1]byte
+	kind      CardKind
+	cid       CID
+	csd       CSD
+	lastCRC   uint16
+	timers    [2]timer
+	numblocks int64
 }
 
-func NewCard(spi drivers.SPI, cs digitalPinout) *Card {
-	return &Card{bus: spi, cs: cs}
+func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
+	return &SPICard{bus: spi, cs: cs}
 }
 
-func (c *Card) csEnable(b bool) { c.cs(!b) }
+func (c *SPICard) csEnable(b bool) { c.cs(!b) }
 
 // LastReadCRC returns the CRC for the last ReadBlock operation.
-func (c *Card) LastReadCRC() uint16 { return c.lastCRC }
+func (c *SPICard) LastReadCRC() uint16 { return c.lastCRC }
 
-func (d *Card) Init() error {
+func (d *SPICard) Init() error {
 	dummy := d.buf[:]
 	for i := range dummy {
 		dummy[i] = 0xFF
@@ -92,7 +96,7 @@ func (d *Card) Init() error {
 		status := byte(0)
 		for i := 0; i < 3; i++ {
 			var err error
-			status, err = d.bus.Transfer(byte(0xFF))
+			status, err = d.bus.Transfer(0xFF)
 			if err != nil {
 				return err
 			}
@@ -103,7 +107,7 @@ func (d *Card) Init() error {
 
 		for i := 3; i < 4; i++ {
 			var err error
-			status, err = d.bus.Transfer(byte(0xFF))
+			status, err = d.bus.Transfer(0xFF)
 			if err != nil {
 				return err
 			}
@@ -143,7 +147,7 @@ func (d *Card) Init() error {
 			return err
 		}
 
-		statusb, err := d.bus.Transfer(byte(0xFF))
+		statusb, err := d.bus.Transfer(0xFF)
 		if err != nil {
 			return err
 		}
@@ -152,7 +156,7 @@ func (d *Card) Init() error {
 		}
 		// discard rest of ocr - contains allowed voltage range
 		for i := 1; i < 4; i++ {
-			d.bus.Transfer(byte(0xFF))
+			d.bus.Transfer(0xFF)
 		}
 	}
 	err = d.cmdEnsure0Status(CMD16_SET_BLOCKLEN, 0x0200, 0xff)
@@ -169,20 +173,33 @@ func (d *Card) Init() error {
 	if err != nil {
 		return err
 	}
+	nb := d.csd.NumberOfBlocks()
+	if nb > math.MaxUint32 {
+		return errCardNotSupported
+	} else if nb == 0 {
+		return errNoblocks
+	}
+	d.numblocks = int64(nb)
 	return nil
 }
 
-// ReadData reads 512 bytes from sdcard into dst.
-func (d *Card) ReadBlock(block uint32, dst []byte) error {
+func (d *SPICard) NumberOfBlocks() uint64 {
+	return uint64(d.numblocks)
+}
+
+// ReadBlock reads 512 bytes from sdcard into dst.
+func (d *SPICard) ReadBlock(block int64, dst []byte) error {
 	if len(dst) != 512 {
 		return errNeed512
+	} else if block >= d.numblocks {
+		return errOOB
 	}
 
 	// use address if not SDHC card
 	if d.kind != TypeSDHC {
 		block <<= 9
 	}
-	err := d.cmdEnsure0Status(CMD17_READ_SINGLE_BLOCK, block, 0xFF)
+	err := d.cmdEnsure0Status(CMD17_READ_SINGLE_BLOCK, uint32(block), 0xFF)
 	if err != nil {
 		return err
 	}
@@ -198,23 +215,25 @@ func (d *Card) ReadBlock(block uint32, dst []byte) error {
 	}
 
 	// skip CRC (2byte)
-	hi, _ := d.bus.Transfer(byte(0xFF))
-	lo, _ := d.bus.Transfer(byte(0xFF))
+	hi, _ := d.bus.Transfer(0xFF)
+	lo, _ := d.bus.Transfer(0xFF)
 	d.lastCRC = uint16(hi)<<8 | uint16(lo)
 	return nil
 }
 
 // WriteBlock writes 512 bytes from dst to sdcard.
-func (d *Card) WriteBlock(block uint32, src []byte) error {
+func (d *SPICard) WriteBlock(block int64, src []byte) error {
 	if len(src) != 512 {
 		return errNeed512
+	} else if block >= d.numblocks {
+		return errOOB
 	}
 
 	// use address if not SDHC card
 	if d.kind != TypeSDHC {
 		block <<= 9
 	}
-	err := d.cmdEnsure0Status(CMD24_WRITE_BLOCK, block, 0xFF)
+	err := d.cmdEnsure0Status(CMD24_WRITE_BLOCK, uint32(block), 0xFF)
 	if err != nil {
 		return err
 	}
@@ -229,11 +248,11 @@ func (d *Card) WriteBlock(block uint32, src []byte) error {
 	}
 
 	// send dummy CRC (2 byte)
-	d.bus.Transfer(byte(0xFF))
-	d.bus.Transfer(byte(0xFF))
+	d.bus.Transfer(0xFF)
+	d.bus.Transfer(0xFF)
 
 	// Data Resp.
-	r, err := d.bus.Transfer(byte(0xFF))
+	r, err := d.bus.Transfer(0xFF)
 	if err != nil {
 		return err
 	}
@@ -251,12 +270,12 @@ func (d *Card) WriteBlock(block uint32, src []byte) error {
 }
 
 // CID returns a copy of the Card Identification Register value last read.
-func (d *Card) CID() CID { return d.cid }
+func (d *SPICard) CID() CID { return d.cid }
 
 // CSD returns a copy of the Card Specific Data Register value last read.
-func (d *Card) CSD() CSD { return d.csd }
+func (d *SPICard) CSD() CSD { return d.csd }
 
-func (d *Card) readCID() (CID, error) {
+func (d *SPICard) readCID() (CID, error) {
 	buf := d.buf[len(d.buf)-16:]
 	if err := d.readRegister(CMD10_SEND_CID, buf); err != nil {
 		return CID{}, err
@@ -264,7 +283,7 @@ func (d *Card) readCID() (CID, error) {
 	return DecodeCID(buf)
 }
 
-func (d *Card) readCSD() (CSD, error) {
+func (d *SPICard) readCSD() (CSD, error) {
 	buf := d.buf[len(d.buf)-16:]
 	if err := d.readRegister(CMD9_SEND_CSD, buf); err != nil {
 		return CSD{}, err
@@ -272,7 +291,7 @@ func (d *Card) readCSD() (CSD, error) {
 	return DecodeCSD(buf)
 }
 
-func (d *Card) readRegister(cmd uint8, dst []byte) error {
+func (d *SPICard) readRegister(cmd uint8, dst []byte) error {
 	err := d.cmdEnsure0Status(cmd, 0, 0xFF)
 	if err != nil {
 		return err
@@ -282,20 +301,20 @@ func (d *Card) readRegister(cmd uint8, dst []byte) error {
 	}
 	// transfer data
 	for i := uint16(0); i < 16; i++ {
-		r, err := d.bus.Transfer(byte(0xFF))
+		r, err := d.bus.Transfer(0xFF)
 		if err != nil {
 			return err
 		}
 		dst[i] = r
 	}
 	// skip CRC.
-	d.bus.Transfer(byte(0xFF))
-	d.bus.Transfer(byte(0xFF))
+	d.bus.Transfer(0xFF)
+	d.bus.Transfer(0xFF)
 	d.csEnable(false)
 	return nil
 }
 
-func (d *Card) appCmd(cmd byte, arg uint32) (response1, error) {
+func (d *SPICard) appCmd(cmd byte, arg uint32) (response1, error) {
 	status, err := d.cmd(CMD55_APP_CMD, 0, 0xFF)
 	if err != nil {
 		return status, err
@@ -303,7 +322,7 @@ func (d *Card) appCmd(cmd byte, arg uint32) (response1, error) {
 	return d.cmd(cmd, arg, 0xFF)
 }
 
-func (d *Card) cmdEnsure0Status(cmd byte, arg uint32, crc byte) error {
+func (d *SPICard) cmdEnsure0Status(cmd byte, arg uint32, crc byte) error {
 	status, err := d.cmd(cmd, arg, crc)
 	if err != nil {
 		return err
@@ -314,7 +333,17 @@ func (d *Card) cmdEnsure0Status(cmd byte, arg uint32, crc byte) error {
 	return nil
 }
 
-func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
+func putCmd(dst []byte, cmd byte, arg uint32) {
+	if len(dst) < 6 {
+		panic("bad buflength")
+	}
+	dst[0] = 0x40 | cmd
+	binary.BigEndian.PutUint32(dst[1:5], arg)
+	dst[5] = CRC7(dst[:5])<<1 | 1 // CRC and stop bit.
+}
+
+// 0100000000000000000000000000000000000000
+func (d *SPICard) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	d.csEnable(true)
 
 	if cmd != 12 {
@@ -322,9 +351,8 @@ func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	}
 
 	// create and send the command
-	buf := d.bufcmd[:]
-	buf[0] = 0x40 | cmd
-	binary.BigEndian.PutUint32(buf[1:5], arg)
+	buf := d.bufcmd[:6]
+	putCmd(buf, cmd, arg)
 	buf[5] = crc
 	err := d.bus.Tx(buf, nil)
 	if err != nil {
@@ -332,14 +360,13 @@ func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	}
 	if cmd == 12 {
 		// skip 1 byte
-		d.bus.Transfer(byte(0xFF))
+		d.bus.Transfer(0xFF)
 	}
 
 	// wait for the response (response[7] == 0)
-	d.buf[0] = 0xFF
-	dummy := d.buf[:1]
+	buf[0] = 0xFF
 	for i := 0; i < 0xFFFF; i++ {
-		d.bus.Tx(dummy, d.bufTok[:])
+		d.bus.Tx(buf[:1], d.bufTok[:])
 		response := response1(d.bufTok[0])
 		if (response & 0x80) == 0 {
 			return response, nil
@@ -349,15 +376,15 @@ func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	// TODO
 	//// timeout
 	d.csEnable(false)
-	d.bus.Transfer(byte(0xFF))
+	d.bus.Transfer(0xFF)
 
 	return 0xFF, nil // -1
 }
 
-func (d *Card) waitNotBusy(timeout time.Duration) error {
+func (d *SPICard) waitNotBusy(timeout time.Duration) error {
 	tm := d.timers[1].setTimeout(timeout)
 	for !tm.expired() {
-		r, err := d.bus.Transfer(byte(0xFF))
+		r, err := d.bus.Transfer(0xFF)
 		if err != nil {
 			return err
 		}
@@ -369,12 +396,12 @@ func (d *Card) waitNotBusy(timeout time.Duration) error {
 	return nil
 }
 
-func (d *Card) waitStartBlock() error {
+func (d *SPICard) waitStartBlock() error {
 	status := byte(0xFF)
 	tm := d.timers[0].setTimeout(300 * time.Millisecond)
 	for !tm.expired() {
 		var err error
-		status, err = d.bus.Transfer(byte(0xFF))
+		status, err = d.bus.Transfer(0xFF)
 		if err != nil {
 			d.csEnable(false)
 			return err
