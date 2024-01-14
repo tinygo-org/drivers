@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// For reference of CID/CSD structs see:
+// See https://github.com/arduino-libraries/SD/blob/1c56f58252553c7537f7baf62798cacc625aa543/src/utility/SdInfo.h#L110
+
 type CardKind uint8
 
 const (
@@ -18,43 +21,65 @@ const (
 )
 
 type CID struct {
-	ManufacturerID   uint8   // 0:1
-	OEMApplicationID uint16  // 1:3
-	prodName         [5]byte // 3:8
-	// productRevision n.m
-	productRev          byte   // 8:9
-	ProductSerialNumber uint32 // 9:13
-	// Manufacturing date bitfield:
-	//  - yearhi=0:4
-	//  - reserved=4:8
-	//  - month=8:12
-	//  - yearlo=12:16
-	date [2]byte // 13:15
+	data [16]byte
 }
 
-func DecodeCID(b []byte) (CID, error) {
+func DecodeCID(b []byte) (cid CID, _ error) {
 	if len(b) < 16 {
 		return CID{}, io.ErrShortBuffer
 	}
-	cid := CID{
-		ManufacturerID:      b[0],
-		OEMApplicationID:    binary.BigEndian.Uint16(b[1:3]),
-		prodName:            [5]byte{b[3], b[4], b[5], b[6], b[7]},
-		productRev:          b[8],
-		ProductSerialNumber: binary.BigEndian.Uint32(b[9:13]),
-		date:                [2]byte{b[13], b[14]},
+	copy(cid.data[:], b)
+	if !cid.IsValid() {
+		return cid, errBadCSDCID
 	}
-
 	return cid, nil
 }
 
-func (c *CID) ProductName() string {
-	return string(upToNull(c.prodName[:]))
+// RawCopy returns a copy of the raw CID data.
+func (c *CID) RawCopy() [16]byte { return c.data }
+
+// ManufacturerID is an 8-bit binary number that identifies the card manufacturer. The MID number is controlled, defined, and allocated to a SD Memory Card manufacturer by the SD-3C, LLC.
+func (c *CID) ManufacturerID() uint8 { return c.data[0] }
+
+// OEMApplicationID A 2-character ASCII string that identifies the card OEM and/or the card contents (when used as a
+// distribution media either on ROM or FLASH cards). The OID number is controlled, defined, and allocated
+// to a SD Memory Card manufacturer by the SD-3C, LLC
+func (c *CID) OEMApplicationID() uint16 {
+	return binary.BigEndian.Uint16(c.data[1:3])
 }
 
-func (c *CID) ProductRevision() (n, m uint8) {
-	return c.productRev >> 4, c.productRev & 0x0F
+// The product name is a string, 5-character ASCII string.
+func (c *CID) ProductName() string {
+	return string(upToNull(c.data[3:8]))
 }
+
+// ProductRevision is composed of two Binary Coded Decimal (BCD) digits, four bits each, representing
+// an "n.m" revision number. The "n" is the most significant nibble and "m" is the least significant nibble.
+// As an example, the PRV binary value field for product revision "6.2" will be: 0110 0010b
+func (c *CID) ProductRevision() (n, m uint8) {
+	rev := c.data[8]
+	return rev >> 4, rev & 0x0F
+}
+
+// The Serial Number is 32 bits of binary number.
+func (c *CID) ProductSerialNumber() uint32 {
+	return binary.BigEndian.Uint32(c.data[9:13])
+}
+
+// ManufacturingDate returns the manufacturing date of the card.
+func (c *CID) ManufacturingDate() (year uint16, month uint8) {
+	date := binary.BigEndian.Uint16(c.data[13:15])
+	return (date >> 4) + 2000, uint8(date & 0x0F)
+}
+
+// CRC7 returns the CRC7 checksum for this CID. May be invalid. Use [IsValid] to check validity of CRC7+Always1 fields.
+func (c *CID) CRC7() uint8 { return c.data[15] >> 1 }
+
+// Always1 checks the presence of the Always 1 bit. Should return true for valid CIDs.
+func (c *CID) Always1() bool { return c.data[15]&1 != 0 }
+
+// IsValid checks if the CRC and always1 fields are expected values.
+func (c *CID) IsValid() bool { return c.Always1() && CRC7(c.data[:15]) == c.CRC7() }
 
 // CSD is the Card Specific Data register, a 128-bit (16-byte) register that defines how
 // the SD card standard communicates with the memory field or register. This type is
@@ -77,6 +102,9 @@ func DecodeCSD(b []byte) (CSD, error) {
 	}
 	csd := CSD{}
 	copy(csd.data[:], b)
+	if !csd.IsValid() {
+		return csd, errBadCSDCID
+	}
 	return csd, nil
 }
 
@@ -129,13 +157,15 @@ func (c *CSD) AllowsWriteBlockMisalignment() bool { return c.data[6]&(1<<6) != 0
 func (c *CSD) AllowsReadBlockMisalignment() bool { return c.data[6]&(1<<5) != 0 }
 
 // CRC7 returns the CRC read for this CSD. May be invalid. Use [IsValid] to check validity of CRC7+Always1 fields.
-func (c *CSD) CRC7() uint8 { return c.data[15] & 0b111_1111 }
+func (c *CSD) CRC7() uint8 { return c.data[15] >> 1 }
+
+// Always1 checks the Always 1 bit. Should always evaluate to true for valid CSDs.
+func (c *CSD) Always1() bool { return c.data[15]&1 != 0 }
 
 // IsValid checks if the CRC and always1 fields are expected values.
 func (c *CSD) IsValid() bool {
 	// Compare last byte with CRC and also the always1 bit.
-	got := CRC7(c.data[:15])
-	return got|(1<<7) == c.data[15]
+	return c.Always1() && CRC7(c.data[:15]) == c.CRC7()
 }
 
 // ImplementsDSR defines if the configurable driver stage is integrated on the card.
@@ -470,7 +500,7 @@ func CRC7(data []byte) (crc uint8) {
 	for _, b := range data {
 		crc = crc7_table[crc^b]
 	}
-	return crc
+	return crc >> 1
 }
 
 var crc7_table = [256]byte{

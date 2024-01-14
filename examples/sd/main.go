@@ -41,7 +41,10 @@ func main() {
 	cid := sdcard.CID()
 	pname := cid.ProductName()
 	csd := sdcard.CSD()
-
+	if !cid.IsValid() {
+		copy := cid.RawCopy()
+		println("CID not valid: theirCRC=", cid.CRC7(), "ourCRC=", sd.CRC7(copy[:15]))
+	}
 	valid := csd.IsValid()
 	if !valid {
 		data := csd.RawCopy()

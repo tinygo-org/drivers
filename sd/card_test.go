@@ -35,27 +35,27 @@ func TestCRC7(t *testing.T) {
 		wantCRC uint8
 	}{
 		{ // See CRC7 Examples from section 4.5 of the SD Card Physical Layer Simplified Specification.
-			data:    []byte{cmdSendMask, 5: 0}, // CMD0, arg=0
+			data:    []byte{cmdSendMask, 4: 0}, // CMD0, arg=0
 			wantCRC: 0b1001010,
 		},
 		{
-			data:    []byte{cmdSendMask | 17, 5: 0}, // CMD17, arg=0
+			data:    []byte{cmdSendMask | 17, 4: 0}, // CMD17, arg=0
 			wantCRC: 0b0101010,
 		},
 		{
-			data:    []byte{17, 4: 0b1001, 5: 0}, // Response of CMD17
+			data:    []byte{17, 3: 0b1001, 4: 0}, // Response of CMD17
 			wantCRC: 0b0110011,
 		},
 		{ // CSD for a 8GB card.
 			data:    []byte{64, 14, 0, 50, 83, 89, 0, 0, 60, 1, 127, 128, 10, 64, 0},
-			wantCRC: 0b1100101,
+			wantCRC: 0b1110010,
 		},
 	}
 
 	for _, tt := range tests {
 		gotcrc := CRC7(tt.data[:])
 		if gotcrc != tt.wantCRC {
-			t.Errorf("got crc=%#b, want=%#b", gotcrc, tt.wantCRC)
+			t.Errorf("got crc=%#b, want=%#b for %#b", gotcrc, tt.wantCRC, tt.data)
 		}
 	}
 

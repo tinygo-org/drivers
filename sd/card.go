@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	errBadCSDCID        = errors.New("sd:bad CSD/CID in CRC or always1")
 	errNoSDCard         = errors.New("sd:no card")
 	errCardNotSupported = errors.New("sd:card not supported")
 	errCmd8             = errors.New("sd:cmd8")
