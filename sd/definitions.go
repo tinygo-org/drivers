@@ -468,6 +468,14 @@ const (
 	_R1_PARAMETER_ERROR      = 1 << 6
 )
 
+// Tokens that are sent by card during polling.
+// https://github.com/arduino-libraries/SD/blob/master/src/utility/SdInfo.h
+const (
+	tokSTART_BLOCK = 0xfe
+	tokSTOP_TRAN   = 0xfd
+	tokWRITE_MULT  = 0xfc
+)
+
 type response1 uint8
 
 func (r response1) IsIdle() bool          { return r&_R1_IDLE_STATE != 0 }

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -19,12 +18,14 @@ var (
 	errCmdOCR           = errors.New("sd:cmd_ocr")
 	errCmdBlkLen        = errors.New("sd:cmd_blklen")
 	errAcmdAppCond      = errors.New("sd:acmd_appOrCond")
-	errWaitStartBlock   = errors.New("sd:wait start block")
+	errWaitStartBlock   = errors.New("sd:did not find start block token")
 	errNeed512          = errors.New("sd:need 512 bytes for I/O")
 	errWrite            = errors.New("sd:write")
 	errWriteTimeout     = errors.New("sd:write timeout")
+	errBusyTimeout      = errors.New("sd:busy card timeout")
 	errOOB              = errors.New("sd:oob block access")
 	errNoblocks         = errors.New("sd:no readable blocks")
+	errCmdGeneric       = errors.New("sd:command error")
 )
 
 type digitalPinout func(b bool)
@@ -41,10 +42,11 @@ type SPICard struct {
 	lastCRC   uint16
 	timers    [2]timer
 	numblocks int64
+	timeout   time.Duration
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
-	return &SPICard{bus: spi, cs: cs}
+	return &SPICard{bus: spi, cs: cs, timeout: 300 * time.Millisecond}
 }
 
 func (c *SPICard) csEnable(b bool) { c.cs(!b) }
@@ -200,7 +202,7 @@ func (d *SPICard) ReadBlock(block int64, dst []byte) error {
 		block <<= 9
 	}
 
-	err := d.cmdEnsure0Status(cmdReadSingleBlock, uint32(block), 0)
+	err := d.cmdEnsure0Status(cmdReadSingleBlock, uint32(block), 0xff)
 	if err != nil {
 		return err
 	}
@@ -261,8 +263,7 @@ func (d *SPICard) WriteBlock(block int64, src []byte) error {
 		return errWrite
 	}
 
-	// wait no busy
-	err = d.waitNotBusy(600 * time.Millisecond)
+	err = d.waitNotBusy(2 * d.timeout)
 	if err != nil {
 		return errWriteTimeout
 	}
@@ -335,19 +336,23 @@ func (d *SPICard) cmdEnsure0Status(cmd command, arg uint32, crc byte) error {
 }
 
 func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1, error) {
-	if cmd >= 1<<6 {
+	const transmitterBit = 1 << 6
+	if cmd >= transmitterBit {
 		panic("invalid SD command")
 	}
 	d.csEnable(true)
 
-	if cmd != 12 {
-		d.waitNotBusy(300 * time.Millisecond)
+	if cmd != cmdStopTransmission {
+		err := d.waitNotBusy(d.timeout)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// create and send the command
 	buf := d.bufcmd[:6]
 	// Start bit is always zero; transmitter bit is one since we are Host.
-	const transmitterBit = 1 << 6
+
 	buf[0] = transmitterBit | byte(cmd)
 	binary.BigEndian.PutUint32(buf[1:5], arg)
 	if precalculatedCRC != 0 {
@@ -366,61 +371,50 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1
 		d.bus.Transfer(0xFF)
 	}
 
-	// wait for the response (response[7] == 0)
-	buf[0] = 0xFF
 	for i := 0; i < 0xFFFF; i++ {
-		d.bus.Tx(buf[:1], d.bufTok[:])
-		response := response1(d.bufTok[0])
+		tok, _ := d.bus.Transfer(0xff)
+		response := response1(tok)
 		if (response & 0x80) == 0 {
 			return response, nil
 		}
 	}
 
-	// TODO
-	//// timeout
 	d.csEnable(false)
 	d.bus.Transfer(0xFF)
-
-	return 0xFF, nil // -1
+	return 0xFF, errCmdGeneric
 }
 
 func (d *SPICard) waitNotBusy(timeout time.Duration) error {
-	tm := d.timers[1].setTimeout(timeout)
-	for !tm.expired() {
-		r, err := d.bus.Transfer(0xFF)
-		if err != nil {
-			return err
-		}
-		if r == 0xFF {
-			return nil
-		}
-		runtime.Gosched()
+	if d.waitToken(timeout, 0xff) {
+		return nil
 	}
-	return nil
+	return errBusyTimeout
 }
 
 func (d *SPICard) waitStartBlock() error {
-	status := byte(0xFF)
-	tm := d.timers[0].setTimeout(300 * time.Millisecond)
-	for !tm.expired() {
-		var err error
-		status, err = d.bus.Transfer(0xFF)
+	if d.waitToken(d.timeout, tokSTART_BLOCK) {
+		return nil
+	}
+	d.csEnable(false)
+	return errWaitStartBlock
+}
+
+// waitToken transmits over SPI waiting to read a given byte token. If argument tok
+// is 0xff then waitToken will wait for a token that does NOT match 0xff.
+func (d *SPICard) waitToken(timeout time.Duration, tok byte) bool {
+	tm := d.timers[1].setTimeout(timeout)
+	for {
+		received, err := d.bus.Transfer(0xFF)
 		if err != nil {
-			d.csEnable(false)
-			return err
+			return false
 		}
-		if status != 0xFF {
-			break
+		matchTok := received == tok
+		if matchTok || (!matchTok && tok == 0xff) {
+			return true
+		} else if tm.expired() {
+			return false
 		}
-		runtime.Gosched()
 	}
-
-	if status != 254 {
-		d.csEnable(false)
-		return errWaitStartBlock
-	}
-
-	return nil
 }
 
 type response1Err struct {
