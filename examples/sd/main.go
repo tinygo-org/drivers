@@ -36,7 +36,7 @@ func main() {
 
 	err = sdcard.Init()
 	if err != nil {
-		panic(err.Error())
+		panic("sd card init:" + err.Error())
 	}
 	cid := sdcard.CID()
 	pname := cid.ProductName()
@@ -61,7 +61,6 @@ func main() {
 
 	var buf [512]byte
 	for i := 0; i < 11; i += 1 {
-		time.Sleep(100 * time.Millisecond)
 		err = sdcard.ReadBlock(0, buf[:])
 		if err != nil {
 			println("err reading block", i, ":", err.Error())

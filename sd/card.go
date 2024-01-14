@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
-	"strconv"
+	"runtime"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -44,7 +44,8 @@ type SPICard struct {
 	numblocks int64
 	timeout   time.Duration
 	// relative card address.
-	rca uint32
+	rca    uint32
+	lastr1 r1
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
@@ -55,6 +56,7 @@ func (c *SPICard) csEnable(b bool) { c.cs(!b) }
 
 // LastReadCRC returns the CRC for the last ReadBlock operation.
 func (c *SPICard) LastReadCRC() uint16 { return c.lastCRC }
+func (c *SPICard) LastR1() r1          { return c.lastr1 }
 
 func (d *SPICard) Init() error {
 	dummy := d.buf[:]
@@ -184,7 +186,7 @@ func (d *SPICard) Init() error {
 		return errNoblocks
 	}
 	d.numblocks = int64(nb)
-
+	return nil
 	err = d.readRegister(cmdSendRelativeAddr, d.buf[:4])
 	if err != nil {
 		return err
@@ -386,12 +388,16 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1
 		d.bus.Transfer(0xFF)
 	}
 
-	for i := 0; i < 0xFFFF; i++ {
+	tm := d.timers[0].setTimeout(d.timeout)
+	for {
 		tok, _ := d.bus.Transfer(0xff)
 		response := response1(tok)
 		if (response & 0x80) == 0 {
 			return response, nil
+		} else if tm.expired() {
+			break
 		}
+		runtime.Gosched()
 	}
 
 	d.csEnable(false)
@@ -400,14 +406,14 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1
 }
 
 func (d *SPICard) waitNotBusy(timeout time.Duration) error {
-	if d.waitToken(timeout, 0xff) {
+	if _, ok := d.waitToken(timeout, 0xff); ok {
 		return nil
 	}
 	return errBusyTimeout
 }
 
 func (d *SPICard) waitStartBlock() error {
-	if d.waitToken(d.timeout, tokSTART_BLOCK) {
+	if _, ok := d.waitToken(d.timeout, tokSTART_BLOCK); ok {
 		return nil
 	}
 	d.csEnable(false)
@@ -416,73 +422,19 @@ func (d *SPICard) waitStartBlock() error {
 
 // waitToken transmits over SPI waiting to read a given byte token. If argument tok
 // is 0xff then waitToken will wait for a token that does NOT match 0xff.
-func (d *SPICard) waitToken(timeout time.Duration, tok byte) bool {
+func (d *SPICard) waitToken(timeout time.Duration, tok byte) (byte, bool) {
 	tm := d.timers[1].setTimeout(timeout)
 	for {
 		received, err := d.bus.Transfer(0xFF)
 		if err != nil {
-			return false
+			return received, false
 		}
 		matchTok := received == tok
 		if matchTok || (!matchTok && tok == 0xff) {
-			return true
+			return received, true
 		} else if tm.expired() {
-			return false
+			return received, false
 		}
-	}
-}
-
-type response1Err struct {
-	context string
-	status  response1
-}
-
-func (e response1Err) Error() string {
-	return e.status.Response()
-	if e.context != "" {
-		return "sd:" + e.context + " " + strconv.Itoa(int(e.status))
-	}
-	return "sd:status " + strconv.Itoa(int(e.status))
-}
-
-func (e response1) Response() string {
-	b := make([]byte, 0, 8)
-	return string(e.appendf(b))
-}
-
-func (r response1) appendf(b []byte) []byte {
-	b = append(b, '[')
-	if r.IsIdle() {
-		b = append(b, "idle,"...)
-	}
-	if r.EraseReset() {
-		b = append(b, "erase-rst,"...)
-	}
-	if r.EraseSeqError() {
-		b = append(b, "erase-seq,"...)
-	}
-	if r.CRCError() {
-		b = append(b, "crc-err,"...)
-	}
-	if r.AddressError() {
-		b = append(b, "addr-err,"...)
-	}
-	if r.ParamError() {
-		b = append(b, "param-err,"...)
-	}
-	if r.IllegalCmdError() {
-		b = append(b, "illegal-cmd,"...)
-	}
-	if len(b) > 1 {
-		b = b[:len(b)-1]
-	}
-	b = append(b, ']')
-	return b
-}
-
-func makeResponseError(status response1) error {
-	return response1Err{
-		status: status,
 	}
 }
 
