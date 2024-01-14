@@ -476,6 +476,106 @@ const (
 	tokWRITE_MULT  = 0xfc
 )
 
+type status uint32
+
+// First status bits.
+//
+//go:generate stringer -type=status -trimprefix=status -output=status_string.go
+const (
+	statusRsvd0 status = iota
+	statusRsvd1
+	statusRsvd2
+	statusAuthSeqError
+	statusRsvdSDIO
+	statusAppCmd
+	statusFXEvent
+	statusRsvd7
+	statusReadyForData
+)
+
+// Upper bound status bits.
+const (
+	statusEraseReset status = iota + 13
+	statusECCDisabled
+	statusWPEraseSkip
+	statusCSDOverwrite
+	_
+	_
+	statusGenericError
+	statusControllerError // internal card controller error
+	statusECCFailed
+	statusIllegalCommand
+	statusComCRCError // CRC check of previous command failed
+	statusLockUnlockFailed
+	statusCardIsLocked    // Signals that the card is locked by the host.
+	statusWPViolation     // Write protected violation
+	statusEraseParamError // invalid write block selection for erase
+	statusEraseSeqError   // error in erase sequence
+	statusBlockLenError   // tx block length not allowed
+	statusAddrError       // misaligned address
+	statusAddrOutOfRange  // address out of range
+)
+
+// r1 is the normal response to a command.
+type r1 struct {
+	data [48 / 8]byte // 48 bits of response.
+}
+
+func (r *r1) RawCopy() [6]byte { return r.data }
+func (r *r1) startbit() bool {
+	return r.data[0]&(1<<7) != 0
+}
+func (r *r1) txbit() bool {
+	return r.data[0]&(1<<6) != 0
+}
+func (r *r1) cmdidx() uint8 {
+	return r.data[0] & 0b11_1111
+}
+func (r *r1) cardstatus() status {
+	return status(binary.BigEndian.Uint32(r.data[1:5]))
+}
+func (r *r1) CRC7() uint8  { return r.data[5] >> 1 }
+func (r *r1) endbit() bool { return r.data[5]&1 != 0 }
+
+func (r *r1) IsValid() bool {
+	return r.endbit() && CRC7(r.data[:5]) == r.CRC7()
+}
+
+type r6 struct {
+	data [48 / 8]byte
+}
+
+func (r *r6) RawCopy() [6]byte { return r.data }
+func (r *r6) startbit() bool {
+	return r.data[0]&(1<<7) != 0
+}
+func (r *r6) txbit() bool {
+	return r.data[0]&(1<<6) != 0
+}
+func (r *r6) cmdidx() uint8 {
+	return r.data[0] & 0b11_1111
+}
+func (r *r6) rca() uint16 {
+	return binary.BigEndian.Uint16(r.data[1:3])
+}
+func (r *r6) cardstatus() status {
+	moveBit := func(b status, from, to uint) status {
+		return (b & (1 << from)) >> from << to
+	}
+	// See 4.9.5 R6 (Published RCA response) of the SD Simplified Specification.
+	s := status(binary.BigEndian.Uint16(r.data[1:5]))
+	s = moveBit(s, 13, 19)
+	s = moveBit(s, 14, 22)
+	s = moveBit(s, 15, 23)
+	return s
+}
+func (r *r6) CRC7() uint8  { return r.data[5] >> 1 }
+func (r *r6) endbit() bool { return r.data[5]&1 != 0 }
+
+func (r *r6) IsValid() bool {
+	return r.endbit() && CRC7(r.data[:5]) == r.CRC7()
+}
+
 type response1 uint8
 
 func (r response1) IsIdle() bool          { return r&_R1_IDLE_STATE != 0 }

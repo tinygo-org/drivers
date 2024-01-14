@@ -62,7 +62,7 @@ func main() {
 	var buf [512]byte
 	for i := 0; i < 11; i += 1 {
 		time.Sleep(100 * time.Millisecond)
-		err = sdcard.ReadBlock(int64(i), buf[:])
+		err = sdcard.ReadBlock(0, buf[:])
 		if err != nil {
 			println("err reading block", i, ":", err.Error())
 			continue

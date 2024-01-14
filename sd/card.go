@@ -43,6 +43,8 @@ type SPICard struct {
 	timers    [2]timer
 	numblocks int64
 	timeout   time.Duration
+	// relative card address.
+	rca uint32
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
@@ -182,6 +184,12 @@ func (d *SPICard) Init() error {
 		return errNoblocks
 	}
 	d.numblocks = int64(nb)
+
+	err = d.readRegister(cmdSendRelativeAddr, d.buf[:4])
+	if err != nil {
+		return err
+	}
+	d.rca = binary.BigEndian.Uint32(d.buf[:4])
 	return nil
 }
 
@@ -269,6 +277,13 @@ func (d *SPICard) WriteBlock(block int64, src []byte) error {
 	}
 
 	return nil
+}
+
+func (d *SPICard) ReadStatus() (response1, error) {
+	if err := d.readRegister(cmdSendStatus, d.buf[:4]); err != nil {
+		return 0, err
+	}
+	return response1(binary.BigEndian.Uint32(d.buf[:4])), nil
 }
 
 // CID returns a copy of the Card Identification Register value last read.
