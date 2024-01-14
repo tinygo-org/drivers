@@ -58,6 +58,8 @@ func (c *SPICard) csEnable(b bool) { c.cs(!b) }
 func (c *SPICard) LastReadCRC() uint16 { return c.lastCRC }
 func (c *SPICard) LastR1() r1          { return c.lastr1 }
 
+// Init initializes the SD card. This routine should be performed with a SPI clock
+// speed of around 100..400kHz. One may increase the clock speed after initialization.
 func (d *SPICard) Init() error {
 	dummy := d.buf[:]
 	for i := range dummy {

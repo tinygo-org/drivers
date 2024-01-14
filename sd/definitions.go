@@ -447,7 +447,7 @@ var log10table = [...]int64{
 	1000000,
 }
 
-// RateMegabits returns the transfer rate in megabits per second.
+// RateMegabits returns the transfer rate in kilobits per second.
 func (t TransferSpeed) RateKilobits() int64 {
 	return 100 * log10table[t&0b111]
 }

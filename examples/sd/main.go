@@ -17,18 +17,19 @@ const (
 
 var (
 	spibus = machine.SPI0
-)
-
-func main() {
-	time.Sleep(time.Second)
-	SPI_CS_PIN.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	err := spibus.Configure(machine.SPIConfig{
+	spicfg = machine.SPIConfig{
 		Frequency: 250000,
 		Mode:      0,
 		SCK:       SPI_SCK_PIN,
 		SDO:       SPI_TX_PIN,
 		SDI:       SPI_RX_PIN,
-	})
+	}
+)
+
+func main() {
+	time.Sleep(time.Second)
+	SPI_CS_PIN.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	err := spibus.Configure(spicfg)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -38,9 +39,14 @@ func main() {
 	if err != nil {
 		panic("sd card init:" + err.Error())
 	}
+	// After initialization it's safe to increase SPI clock speed.
+	csd := sdcard.CSD()
+	kbps := csd.TransferSpeed().RateKilobits()
+	spicfg.Frequency = uint32(kbps * 1000)
+	err = spibus.Configure(spicfg)
+
 	cid := sdcard.CID()
 	pname := cid.ProductName()
-	csd := sdcard.CSD()
 	if !cid.IsValid() {
 		copy := cid.RawCopy()
 		println("CID not valid: theirCRC=", cid.CRC7(), "ourCRC=", sd.CRC7(copy[:15]))
