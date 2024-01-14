@@ -35,6 +35,7 @@ type Card struct {
 	cid     CID
 	csd     CSD
 	lastCRC uint16
+	timers  [2]timer
 }
 
 func NewCard(spi drivers.SPI, cs digitalPinout) *Card {
@@ -62,7 +63,7 @@ func (d *Card) Init() error {
 
 	// CMD0: init card; sould return _R1_IDLE_STATE (allow 5 attempts)
 	ok := false
-	tm := setTimeout(0, 2*time.Second)
+	tm := d.timers[0].setTimeout(2 * time.Second)
 	for !tm.expired() {
 		// Wait up to 2 seconds to be the same as the Arduino
 		result, err := d.cmd(CMD0_GO_IDLE_STATE, 0, 0x95)
@@ -121,7 +122,7 @@ func (d *Card) Init() error {
 
 	// check for timeout
 	ok = false
-	tm = setTimeout(0, 2*time.Second)
+	tm = tm.setTimeout(2 * time.Second)
 	for !tm.expired() {
 		r1, err = d.appCmd(ACMD41_SD_APP_OP_COND, arg)
 		if err != nil {
@@ -325,8 +326,10 @@ func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 	buf[0] = 0x40 | cmd
 	binary.BigEndian.PutUint32(buf[1:5], arg)
 	buf[5] = crc
-	d.bus.Tx(buf, nil)
-
+	err := d.bus.Tx(buf, nil)
+	if err != nil {
+		return 0, err
+	}
 	if cmd == 12 {
 		// skip 1 byte
 		d.bus.Transfer(byte(0xFF))
@@ -352,7 +355,7 @@ func (d *Card) cmd(cmd byte, arg uint32, crc byte) (response1, error) {
 }
 
 func (d *Card) waitNotBusy(timeout time.Duration) error {
-	tm := setTimeout(1, timeout)
+	tm := d.timers[1].setTimeout(timeout)
 	for !tm.expired() {
 		r, err := d.bus.Transfer(byte(0xFF))
 		if err != nil {
@@ -368,8 +371,7 @@ func (d *Card) waitNotBusy(timeout time.Duration) error {
 
 func (d *Card) waitStartBlock() error {
 	status := byte(0xFF)
-
-	tm := setTimeout(0, 300*time.Millisecond)
+	tm := d.timers[0].setTimeout(300 * time.Millisecond)
 	for !tm.expired() {
 		var err error
 		status, err = d.bus.Transfer(byte(0xFF))
@@ -380,6 +382,7 @@ func (d *Card) waitStartBlock() error {
 		if status != 0xFF {
 			break
 		}
+		runtime.Gosched()
 	}
 
 	if status != 254 {
@@ -396,14 +399,65 @@ type response1Err struct {
 }
 
 func (e response1Err) Error() string {
+	return e.status.Response()
 	if e.context != "" {
 		return "sd:" + e.context + " " + strconv.Itoa(int(e.status))
 	}
 	return "sd:status " + strconv.Itoa(int(e.status))
 }
 
+func (e response1) Response() string {
+	b := make([]byte, 0, 8)
+	return string(e.appendf(b))
+}
+
+func (r response1) appendf(b []byte) []byte {
+	b = append(b, '[')
+	if r.IsIdle() {
+		b = append(b, "idle,"...)
+	}
+	if r.EraseReset() {
+		b = append(b, "erase-rst,"...)
+	}
+	if r.EraseSeqError() {
+		b = append(b, "erase-seq,"...)
+	}
+	if r.CRCError() {
+		b = append(b, "crc-err,"...)
+	}
+	if r.AddressError() {
+		b = append(b, "addr-err,"...)
+	}
+	if r.ParamError() {
+		b = append(b, "param-err,"...)
+	}
+	if r.IllegalCmdError() {
+		b = append(b, "illegal-cmd,"...)
+	}
+	if len(b) > 1 {
+		b = b[:len(b)-1]
+	}
+	b = append(b, ']')
+	return b
+}
+
 func makeResponseError(status response1) error {
 	return response1Err{
 		status: status,
 	}
+}
+
+var timeoutTimer [2]timer
+
+type timer struct {
+	deadline time.Time
+}
+
+func (t *timer) setTimeout(timeout time.Duration) *timer {
+	t.deadline = time.Now().Add(timeout)
+	return t
+}
+
+func (t timer) expired() bool {
+	return time.Since(t.deadline) >= 0
 }

@@ -38,9 +38,21 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	cid := sdcard.CID()
+	pname := cid.ProductName()
 	csd := sdcard.CSD()
-	fmt.Printf("cid=%+v\ncsd=%+v\ncsdfmt=\n%s\ndone!", sdcard.CID(), csd, csd.String())
 
+	valid := csd.IsValid()
+	if !valid {
+		data := csd.RawCopy()
+		crc := sd.CRC7(data[:15])
+		always1 := data[15]&(1<<7) != 0
+		println("CSD not valid got", crc, "want", data[15]&^(1<<7), "always1:", always1)
+	} else {
+		println("CSD valid!")
+	}
+	fmt.Printf("name=%s\ncsd=\n%s\n", pname, csd.String())
+	return
 	var buf [512]byte
 	for i := 1; i < 11; i += 1 {
 		time.Sleep(time.Millisecond)

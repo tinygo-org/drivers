@@ -27,19 +27,3 @@ func TestCRC(t *testing.T) {
 		}
 	}
 }
-
-func CRC16(buf []byte) (sum uint16) {
-	const poly uint16 = 0x1021 // Generator polynomial G(x) = x^16 + x^12 + x^5 + 1
-	var crc uint16 = 0x0000    // Initial value
-	for _, b := range buf {
-		crc ^= (uint16(b) << 8)  // Shift byte into MSB of crc
-		for i := 0; i < 8; i++ { // Process each bit
-			if crc&0x8000 != 0 {
-				crc = (crc << 1) ^ poly
-			} else {
-				crc <<= 1
-			}
-		}
-	}
-	return crc
-}
