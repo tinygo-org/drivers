@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
-	"runtime"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -43,13 +42,29 @@ type SPICard struct {
 	timers    [2]timer
 	numblocks int64
 	timeout   time.Duration
+	wait      time.Duration
 	// relative card address.
 	rca    uint32
 	lastr1 r1
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
-	return &SPICard{bus: spi, cs: cs, timeout: 300 * time.Millisecond}
+	const defaultTimeout = 300 * time.Millisecond
+	s := &SPICard{
+		bus: spi,
+		cs:  cs,
+	}
+	s.setTimeout(defaultTimeout)
+	return s
+}
+
+// setTimeout sets the timeout for all operations and the wait time between each yield during busy spins.
+func (c *SPICard) setTimeout(timeout time.Duration) {
+	if timeout <= 0 {
+		panic("timeout must be positive")
+	}
+	c.timeout = timeout
+	c.wait = timeout / 512
 }
 
 func (c *SPICard) csEnable(b bool) { c.cs(!b) }
@@ -61,7 +76,7 @@ func (c *SPICard) LastR1() r1          { return c.lastr1 }
 // Init initializes the SD card. This routine should be performed with a SPI clock
 // speed of around 100..400kHz. One may increase the clock speed after initialization.
 func (d *SPICard) Init() error {
-	dummy := d.buf[:]
+	dummy := d.buf[:512]
 	for i := range dummy {
 		dummy[i] = 0xFF
 	}
@@ -343,8 +358,8 @@ func (d *SPICard) appCmd(cmd appcommand, arg uint32) (response1, error) {
 	return d.cmd(command(cmd), arg, 0xFF)
 }
 
-func (d *SPICard) cmdEnsure0Status(cmd command, arg uint32, crc byte) error {
-	status, err := d.cmd(cmd, arg, crc)
+func (d *SPICard) cmdEnsure0Status(cmd command, arg uint32, precalcCRC byte) error {
+	status, err := d.cmd(cmd, arg, precalcCRC)
 	if err != nil {
 		return err
 	}
@@ -354,7 +369,7 @@ func (d *SPICard) cmdEnsure0Status(cmd command, arg uint32, crc byte) error {
 	return nil
 }
 
-func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1, error) {
+func (d *SPICard) cmd(cmd command, arg uint32, precalcCRC byte) (response1, error) {
 	const transmitterBit = 1 << 6
 	if cmd >= transmitterBit {
 		panic("invalid SD command")
@@ -374,8 +389,8 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1
 
 	buf[0] = transmitterBit | byte(cmd)
 	binary.BigEndian.PutUint32(buf[1:5], arg)
-	if precalculatedCRC != 0 {
-		buf[5] = precalculatedCRC
+	if precalcCRC != 0 {
+		buf[5] = precalcCRC
 	} else {
 		// CRC and end bit which is always 1.
 		buf[5] = crc7noshift(buf[:5]) | 1
@@ -399,13 +414,15 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalculatedCRC byte) (response1
 		} else if tm.expired() {
 			break
 		}
-		runtime.Gosched()
+		d.yield()
 	}
 
 	d.csEnable(false)
 	d.bus.Transfer(0xFF)
 	return 0xFF, errCmdGeneric
 }
+
+func (d *SPICard) yield() { time.Sleep(d.wait) }
 
 func (d *SPICard) waitNotBusy(timeout time.Duration) error {
 	if _, ok := d.waitToken(timeout, 0xff); ok {
@@ -437,6 +454,7 @@ func (d *SPICard) waitToken(timeout time.Duration, tok byte) (byte, bool) {
 		} else if tm.expired() {
 			return received, false
 		}
+		d.yield()
 	}
 }
 

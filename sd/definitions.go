@@ -88,14 +88,17 @@ type CSD struct {
 	data [16]byte
 }
 
+// CSDv1 is the Card Specific Data register for V1 devices. See [CSD] for more info.
 type CSDv1 struct {
 	CSD
 }
 
+// CSDv2 is the Card Specific Data register for V2 devices. See [CSD] for more info.
 type CSDv2 struct {
 	CSD
 }
 
+// DecodeCSD decodes the CSD from a 16-byte slice.
 func DecodeCSD(b []byte) (CSD, error) {
 	if len(b) < 16 {
 		return CSD{}, io.ErrShortBuffer
@@ -108,18 +111,22 @@ func DecodeCSD(b []byte) (CSD, error) {
 	return csd, nil
 }
 
-// CSDStructure returns the version of the CSD structure.
-func (c *CSD) CSDStructure() uint8 { return c.data[0] >> 6 }
+// csdStructure returns the version of the CSD structure.
+func (c *CSD) csdStructure() uint8 { return c.data[0] >> 6 }
 
+// Version returns the version of the CSD structure. Effectively returns 1+CSDStructure.
+func (c *CSD) Version() uint8 { return 1 + c.csdStructure() }
+
+// MustV1 returns the CSD as a CSDv1. Panics if the CSD is not version 1.0.
 func (c CSD) MustV1() CSDv1 {
-	if c.CSDStructure() != 0 {
+	if c.csdStructure() != 0 {
 		panic("CSD is not version 1.0")
 	}
 	return CSDv1{CSD: c}
 }
 
 func (c CSD) MustV2() CSDv2 {
-	if c.CSDStructure() != 1 {
+	if c.csdStructure() != 1 {
 		panic("CSD is not version 2.0")
 	}
 	return CSDv2{CSD: c}
@@ -215,7 +222,7 @@ func (c *CSD) IsCopy() bool { return c.data[14]&(1<<6) != 0 }
 func (c *CSD) FileFormatGroup() bool { return c.data[14]&(1<<7) != 0 }
 
 func (c *CSD) DeviceCapacity() (size uint64) {
-	switch c.CSDStructure() {
+	switch c.csdStructure() {
 	case 0:
 		v1 := c.MustV1()
 		size = uint64(v1.DeviceCapacity())
@@ -283,7 +290,7 @@ func (c *CSDv1) VddWriteCurrent() (min, max uint8) {
 }
 
 func (c *CSD) String() string {
-	version := c.CSDStructure() + 1
+	version := c.csdStructure() + 1
 	if version > 2 {
 		return "<unsupported CSD version>"
 	}
@@ -298,7 +305,7 @@ func (c *CSDv1) String() string { return c.CSD.String() }
 func (c *CSDv2) String() string { return c.CSD.String() }
 
 func (c *CSD) appendf(b []byte, delim byte) []byte {
-	b = appendnum(b, "Version", uint64(c.CSDStructure()+1), delim)
+	b = appendnum(b, "Version", uint64(c.Version()), delim)
 	b = appendnum(b, "Capacity(bytes)", c.DeviceCapacity(), delim)
 	b = appendnum(b, "TimeAccess_ns", uint64(c.TAAC().AccessTime()), delim)
 	b = appendnum(b, "NSAC", uint64(c.NSAC()), delim)
@@ -466,7 +473,6 @@ func b2u8(b bool) uint8 {
 // CRC16 computes the CRC16 checksum for a given payload using the CRC-16-CCITT polynomial.
 func CRC16(buf []byte) (crc uint16) {
 	const poly uint16 = 0x1021 // Generator polynomial G(x) = x^16 + x^12 + x^5 + 1
-
 	for _, b := range buf {
 		crc ^= (uint16(b) << 8)  // Shift byte into MSB of crc
 		for i := 0; i < 8; i++ { // Process each bit

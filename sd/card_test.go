@@ -60,17 +60,17 @@ func TestCRC7(t *testing.T) {
 	}
 
 	cmdTests := []struct {
-		cmd     byte
+		cmd     command
 		arg     uint32
 		wantCRC uint8
 	}{
 		{
-			cmd:     CMD0_GO_IDLE_STATE,
+			cmd:     cmdGoIdleState,
 			arg:     0,
 			wantCRC: 0x95,
 		},
 		{
-			cmd:     CMD8_SEND_IF_COND,
+			cmd:     cmdSendIfCond,
 			arg:     0x1AA,
 			wantCRC: 0x87,
 		},
@@ -83,4 +83,13 @@ func TestCRC7(t *testing.T) {
 			t.Errorf("got crc=%#x, want=%#x", gotcrc, test.wantCRC)
 		}
 	}
+}
+
+func putCmd(dst []byte, cmd command, arg uint32) {
+	dst[0] = byte(cmd) | (1 << 6)
+	dst[1] = byte(arg >> 24)
+	dst[2] = byte(arg >> 16)
+	dst[3] = byte(arg >> 8)
+	dst[4] = byte(arg)
+	dst[5] = crc7noshift(dst[:5]) | 1 // Stop bit added.
 }
