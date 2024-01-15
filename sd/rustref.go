@@ -29,13 +29,11 @@ func (d *SPICard) initRs() error {
 	const maxRetries = 32
 	retries := maxRetries
 	tm := d.timers[0].setTimeout(2 * time.Second)
-	println("cmdGoIdle")
 	for retries > 0 {
 		stat, err := d.card_command(cmdGoIdleState, 0) // CMD0.
 		if err != nil {
 			if isTimeout(err) {
 				retries--
-				println("cmdGoIdle timeout")
 				continue // Try again!
 			}
 			return err
@@ -51,7 +49,6 @@ func (d *SPICard) initRs() error {
 	if retries <= 0 {
 		return errNoSDCard
 	}
-	println("cmdGoIdle done; start cmdCRCON/OFF")
 	const enableCRC = true
 	if enableCRC {
 		stat, err := d.card_command(cmdCRCOnOff, 1) // CMD59.
@@ -62,7 +59,6 @@ func (d *SPICard) initRs() error {
 		}
 	}
 
-	println("cmdCRCON/OFF done; start cmdSendIfCond")
 	tm.setTimeout(time.Second)
 	for {
 		stat, err := d.card_command(cmdSendIfCond, 0x1AA) // CMD8.
@@ -90,7 +86,6 @@ func (d *SPICard) initRs() error {
 	if d.kind != TypeSD1 {
 		arg = 0x4000_0000
 	}
-	println("cmdSendIfCond done; start cmdAppCmd", arg)
 	tm.setTimeout(time.Second)
 	for !tm.expired() {
 		stat, err := d.card_acmd(acmdSD_APP_OP_COND, arg)
@@ -101,7 +96,6 @@ func (d *SPICard) initRs() error {
 		}
 		d.yield()
 	}
-	println("cmdAppCmd done; start cmdReadOCR")
 	err := d.updateCSDCID()
 	if err != nil {
 		return err
@@ -111,7 +105,6 @@ func (d *SPICard) initRs() error {
 		return nil // Done if not SD2.
 	}
 
-	println("discover high capacity")
 	// Discover if card is high capacity.
 	stat, err := d.card_command(cmdReadOCR, 0)
 	if err != nil {
