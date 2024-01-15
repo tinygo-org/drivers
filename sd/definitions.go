@@ -13,6 +13,10 @@ import (
 
 type CardKind uint8
 
+func isTimeout(err error) bool {
+	return err == errReadTimeout || err == errWriteTimeout || err == errBusyTimeout
+}
+
 const (
 	// card types
 	TypeSD1  CardKind = 1 // Standard capacity V1 SD card
@@ -150,7 +154,8 @@ func (c *CSD) CommandClasses() CommandClasses {
 }
 
 // ReadBlockLen returns the Max Read Data Block Length in bytes.
-func (c *CSD) ReadBlockLen() uint16 { return 1 << (c.data[5] & 0x0F) }
+func (c *CSD) ReadBlockLen() uint16     { return 1 << c.ReadBlockLenShift() }
+func (c *CSD) ReadBlockLenShift() uint8 { return c.data[5] & 0x0F }
 
 // AllowsReadBlockPartial should always return true. Indicates that
 func (c *CSD) AllowsReadBlockPartial() bool { return c.data[6]&(1<<7) != 0 }

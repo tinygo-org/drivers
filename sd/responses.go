@@ -15,6 +15,9 @@ const (
 	_R1_ERASE_SEQUENCE_ERROR = 1 << 4
 	_R1_ADDRESS_ERROR        = 1 << 5
 	_R1_PARAMETER_ERROR      = 1 << 6
+
+	_DATA_RES_MASK     = 0x1F
+	_DATA_RES_ACCEPTED = 0x05
 )
 
 type response1 uint8
@@ -80,6 +83,8 @@ func makeResponseError(status response1) error {
 		status: status,
 	}
 }
+
+// func (c *SPICard) lastR1() r1 { return c.lastr1 }
 
 // is part of specification but not used in every implementation out there...
 func (d *SPICard) readR1() (resp r1, err error) {

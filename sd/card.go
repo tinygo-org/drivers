@@ -9,40 +9,45 @@ import (
 	"tinygo.org/x/drivers"
 )
 
+// See rustref.go for the new implementation.
+
 var (
-	errBadCSDCID        = errors.New("sd:bad CSD/CID in CRC or always1")
-	errNoSDCard         = errors.New("sd:no card")
-	errCardNotSupported = errors.New("sd:card not supported")
-	errCmd8             = errors.New("sd:cmd8")
-	errCmdOCR           = errors.New("sd:cmd_ocr")
-	errCmdBlkLen        = errors.New("sd:cmd_blklen")
-	errAcmdAppCond      = errors.New("sd:acmd_appOrCond")
-	errWaitStartBlock   = errors.New("sd:did not find start block token")
-	errNeed512          = errors.New("sd:need 512 bytes for I/O")
-	errWrite            = errors.New("sd:write")
-	errWriteTimeout     = errors.New("sd:write timeout")
-	errBusyTimeout      = errors.New("sd:busy card timeout")
-	errOOB              = errors.New("sd:oob block access")
-	errNoblocks         = errors.New("sd:no readable blocks")
-	errCmdGeneric       = errors.New("sd:command error")
+	errBadCSDCID            = errors.New("sd:bad CSD/CID in CRC or always1")
+	errNoSDCard             = errors.New("sd:no card")
+	errCardNotSupported     = errors.New("sd:card not supported")
+	errCmd8                 = errors.New("sd:cmd8")
+	errCmdOCR               = errors.New("sd:cmd_ocr")
+	errCmdBlkLen            = errors.New("sd:cmd_blklen")
+	errAcmdAppCond          = errors.New("sd:acmd_appOrCond")
+	errWaitStartBlock       = errors.New("sd:did not find start block token")
+	errNeedBlockLenMultiple = errors.New("sd:need blocksize multiple for I/O")
+	errWrite                = errors.New("sd:write")
+	errWriteTimeout         = errors.New("sd:write timeout")
+	errReadTimeout          = errors.New("sd:read timeout")
+	errBusyTimeout          = errors.New("sd:busy card timeout")
+	errOOB                  = errors.New("sd:oob block access")
+	errNoblocks             = errors.New("sd:no readable blocks")
+	errCmdGeneric           = errors.New("sd:command error")
 )
 
 type digitalPinout func(b bool)
 
 type SPICard struct {
-	bus       drivers.SPI
-	cs        digitalPinout
-	bufcmd    [6]byte
-	buf       [512]byte
-	bufTok    [1]byte
-	kind      CardKind
-	cid       CID
-	csd       CSD
-	lastCRC   uint16
-	timers    [2]timer
-	numblocks int64
-	timeout   time.Duration
-	wait      time.Duration
+	bus     drivers.SPI
+	cs      digitalPinout
+	bufcmd  [6]byte
+	buf     [512]byte
+	bufTok  [1]byte
+	kind    CardKind
+	cid     CID
+	csd     CSD
+	lastCRC uint16
+	// shift to calculate blocksize, taken from CSD.
+	blockshift uint8
+	timers     [2]timer
+	numblocks  int64
+	timeout    time.Duration
+	wait       time.Duration
 	// relative card address.
 	rca    uint32
 	lastr1 r1
@@ -67,11 +72,12 @@ func (c *SPICard) setTimeout(timeout time.Duration) {
 	c.wait = timeout / 512
 }
 
-func (c *SPICard) csEnable(b bool) { c.cs(!b) }
+func (c *SPICard) csEnable(b bool) {
+	c.cs(!b)
+}
 
 // LastReadCRC returns the CRC for the last ReadBlock operation.
 func (c *SPICard) LastReadCRC() uint16 { return c.lastCRC }
-func (c *SPICard) LastR1() r1          { return c.lastr1 }
 
 // Init initializes the SD card. This routine should be performed with a SPI clock
 // speed of around 100..400kHz. One may increase the clock speed after initialization.
@@ -90,6 +96,7 @@ func (d *SPICard) Init() error {
 	d.bus.Tx(dummy[:], nil)
 
 	// CMD0: init card; sould return _R1_IDLE_STATE (allow 5 attempts)
+	println("first timer")
 	ok := false
 	tm := d.timers[0].setTimeout(2 * time.Second)
 	for !tm.expired() {
@@ -148,9 +155,11 @@ func (d *SPICard) Init() error {
 	}
 
 	// check for timeout
+	println("app cmd")
 	ok = false
 	tm = tm.setTimeout(2 * time.Second)
 	for !tm.expired() {
+		println("timer")
 		r1, err = d.appCmd(acmdSD_APP_OP_COND, arg)
 		if err != nil {
 			return err
@@ -162,7 +171,7 @@ func (d *SPICard) Init() error {
 	if r1 != 0 {
 		return makeResponseError(r1)
 	}
-
+	println("preensure")
 	// if SD2 read OCR register to check for SDHC card
 	if d.kind == TypeSD2 {
 		err := d.cmdEnsure0Status(cmdReadOCR, 0, 0xFF)
@@ -182,11 +191,16 @@ func (d *SPICard) Init() error {
 			d.bus.Transfer(0xFF)
 		}
 	}
+	println("ensure")
 	err = d.cmdEnsure0Status(cmdSetBlocklen, 0x0200, 0xff)
 	if err != nil {
 		return err
 	}
+	println("get to update csdid")
+	return d.updateCSDCID()
+}
 
+func (d *SPICard) updateCSDCID() (err error) {
 	// read CID
 	d.cid, err = d.readCID()
 	if err != nil {
@@ -196,113 +210,23 @@ func (d *SPICard) Init() error {
 	if err != nil {
 		return err
 	}
-	nb := d.csd.NumberOfBlocks()
-	if nb > math.MaxUint32 {
-		return errCardNotSupported
-	} else if nb == 0 {
+	blockshift := d.csd.ReadBlockLenShift()
+	blocklen := uint16(1) << blockshift
+	capacity := d.csd.DeviceCapacity()
+	if blocklen == 0 || capacity < uint64(blocklen) {
 		return errNoblocks
 	}
+	nb := capacity / uint64(blocklen)
+	if nb > math.MaxUint32 {
+		return errCardNotSupported
+	}
+	d.blockshift = blockshift
 	d.numblocks = int64(nb)
 	return nil
-	err = d.readRegister(cmdSendRelativeAddr, d.buf[:4])
-	if err != nil {
-		return err
-	}
-	d.rca = binary.BigEndian.Uint32(d.buf[:4])
-	return nil
 }
 
-func (d *SPICard) NumberOfBlocks() uint64 {
-	return uint64(d.numblocks)
-}
-
-// ReadBlock reads 512 bytes from sdcard into dst.
-func (d *SPICard) ReadBlock(block int64, dst []byte) error {
-	if len(dst) != 512 {
-		return errNeed512
-	} else if block >= d.numblocks {
-		return errOOB
-	}
-
-	// use address if not SDHC card
-	if d.kind != TypeSDHC {
-		block <<= 9
-	}
-
-	err := d.cmdEnsure0Status(cmdReadSingleBlock, uint32(block), 0xff)
-	if err != nil {
-		return err
-	}
-	defer d.csEnable(false)
-
-	if err := d.waitStartBlock(); err != nil {
-		return err
-	}
-	buf := d.buf[:]
-	err = d.bus.Tx(buf, dst)
-	if err != nil {
-		return err
-	}
-
-	// skip CRC (2byte)
-	hi, _ := d.bus.Transfer(0xFF)
-	lo, _ := d.bus.Transfer(0xFF)
-	d.lastCRC = uint16(hi)<<8 | uint16(lo)
-	return nil
-}
-
-// WriteBlock writes 512 bytes from dst to sdcard.
-func (d *SPICard) WriteBlock(block int64, src []byte) error {
-	if len(src) != 512 {
-		return errNeed512
-	} else if block >= d.numblocks {
-		return errOOB
-	}
-
-	// use address if not SDHC card
-	if d.kind != TypeSDHC {
-		block <<= 9
-	}
-	err := d.cmdEnsure0Status(cmdWriteBlock, uint32(block), 0xFF)
-	if err != nil {
-		return err
-	}
-	defer d.csEnable(false)
-	// wait 1 byte?
-	token := byte(0xFE)
-	d.bus.Transfer(token)
-
-	err = d.bus.Tx(src[:512], nil)
-	if err != nil {
-		return err
-	}
-
-	// send dummy CRC (2 byte)
-	d.bus.Transfer(0xFF)
-	d.bus.Transfer(0xFF)
-
-	// Data Resp.
-	r, err := d.bus.Transfer(0xFF)
-	if err != nil {
-		return err
-	}
-	if (r & 0x1F) != 0x05 {
-		return errWrite
-	}
-
-	err = d.waitNotBusy(2 * d.timeout)
-	if err != nil {
-		return errWriteTimeout
-	}
-
-	return nil
-}
-
-func (d *SPICard) ReadStatus() (response1, error) {
-	if err := d.readRegister(cmdSendStatus, d.buf[:4]); err != nil {
-		return 0, err
-	}
-	return response1(binary.BigEndian.Uint32(d.buf[:4])), nil
+func (d *SPICard) NumberOfBlocks() int64 {
+	return d.numblocks
 }
 
 // CID returns a copy of the Card Identification Register value last read.
@@ -400,23 +324,24 @@ func (d *SPICard) cmd(cmd command, arg uint32, precalcCRC byte) (response1, erro
 	if err != nil {
 		return 0, err
 	}
-	if cmd == 12 {
+	if cmd == cmdStopTransmission {
 		// skip 1 byte
 		d.bus.Transfer(0xFF)
 	}
 
-	tm := d.timers[0].setTimeout(d.timeout)
+	tm := d.timers[1].setTimeout(d.timeout)
 	for {
 		tok, _ := d.bus.Transfer(0xff)
 		response := response1(tok)
 		if (response & 0x80) == 0 {
+			// NOMINAL FUNCTION EXIT HERE
 			return response, nil
 		} else if tm.expired() {
 			break
 		}
 		d.yield()
 	}
-
+	println("============== BAD EXIT ================")
 	d.csEnable(false)
 	d.bus.Transfer(0xFF)
 	return 0xFF, errCmdGeneric
@@ -435,7 +360,6 @@ func (d *SPICard) waitStartBlock() error {
 	if _, ok := d.waitToken(d.timeout, tokSTART_BLOCK); ok {
 		return nil
 	}
-	d.csEnable(false)
 	return errWaitStartBlock
 }
 

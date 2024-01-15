@@ -34,7 +34,7 @@ func main() {
 		panic(err.Error())
 	}
 	sdcard := sd.NewSPICard(spibus, SPI_CS_PIN.Set)
-
+	println("start init")
 	err = sdcard.Init()
 	if err != nil {
 		panic("sd card init:" + err.Error())
@@ -46,28 +46,11 @@ func main() {
 	err = spibus.Configure(spicfg)
 
 	cid := sdcard.CID()
-	pname := cid.ProductName()
-	if !cid.IsValid() {
-		copy := cid.RawCopy()
-		println("CID not valid: theirCRC=", cid.CRC7(), "ourCRC=", sd.CRC7(copy[:15]))
-	}
-	valid := csd.IsValid()
-	if !valid {
-		data := csd.RawCopy()
-		crc := sd.CRC7(data[:15])
-		always1 := data[15]&(1<<7) != 0
-		fmt.Printf("ourCRC7=%#b theirCRC7=%#b for data %d\n", crc, csd.CRC7(), data[:15])
-		println("CSD not valid got", crc, "want", csd.CRC7(), "always1:", always1)
-		return
-	} else {
-		println("CSD valid!")
-	}
-
-	fmt.Printf("name=%s\ncsd=\n%s\n", pname, csd.String())
+	fmt.Printf("name=%s\ncsd=\n%s\n", cid.ProductName(), csd.String())
 
 	var buf [512]byte
 	for i := 0; i < 11; i += 1 {
-		err = sdcard.ReadBlock(0, buf[:])
+		err = sdcard.ReadBlocks(buf[:], 0)
 		if err != nil {
 			println("err reading block", i, ":", err.Error())
 			continue
