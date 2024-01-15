@@ -95,39 +95,6 @@ func (d *SPICard) CSD() CSD { return d.csd }
 
 func (d *SPICard) yield() { time.Sleep(d.wait) }
 
-func (d *SPICard) waitNotBusy(timeout time.Duration) error {
-	if _, ok := d.waitToken(timeout, 0xff); ok {
-		return nil
-	}
-	return errBusyTimeout
-}
-
-func (d *SPICard) waitStartBlock() error {
-	if _, ok := d.waitToken(d.timeout, tokSTART_BLOCK); ok {
-		return nil
-	}
-	return errWaitStartBlock
-}
-
-// waitToken transmits over SPI waiting to read a given byte token. If argument tok
-// is 0xff then waitToken will wait for a token that does NOT match 0xff.
-func (d *SPICard) waitToken(timeout time.Duration, tok byte) (byte, bool) {
-	tm := d.timers[1].setTimeout(timeout)
-	for {
-		received, err := d.bus.Transfer(0xFF)
-		if err != nil {
-			return received, false
-		}
-		matchTok := received == tok
-		if matchTok || (!matchTok && tok == 0xff) {
-			return received, true
-		} else if tm.expired() {
-			return received, false
-		}
-		d.yield()
-	}
-}
-
 var timeoutTimer [2]timer
 
 type timer struct {

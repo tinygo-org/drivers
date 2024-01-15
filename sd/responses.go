@@ -84,23 +84,6 @@ func makeResponseError(status response1) error {
 	}
 }
 
-// func (c *SPICard) lastR1() r1 { return c.lastr1 }
-
-// is part of specification but not used in every implementation out there...
-func (d *SPICard) readR1() (resp r1, err error) {
-	first, ok := d.waitToken(d.timeout, 0xff)
-	if !ok {
-		return resp, errBusyTimeout
-	}
-	err = d.bus.Tx(nil, d.buf[1:6])
-	if err != nil {
-		return resp, err
-	}
-	d.buf[0] = first
-	copy(resp.data[:], d.buf[:6])
-	return resp, nil
-}
-
 // Commands used to help generate this file:
 //   - stringer -type=state -trimprefix=state -output=state_string.go
 //   - stringer -type=status -trimprefix=status -output=status_string.go

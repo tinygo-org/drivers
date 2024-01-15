@@ -200,7 +200,7 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 	}
 	d.csEnable(true)
 	defer d.csEnable(false)
-
+	writeTimeout := 2 * d.timeout
 	if numblocks == 1 {
 		_, err = d.card_command(cmdWriteBlock, uint32(startBlockIdx))
 		if err != nil {
@@ -210,7 +210,7 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 		if err != nil {
 			return err
 		}
-		err = d.wait_not_busy()
+		err = d.wait_not_busy(writeTimeout)
 		if err != nil {
 			return err
 		}
@@ -238,7 +238,7 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 
 		for i := 0; i < numblocks; i++ {
 			offset := i * blocksize
-			err = d.waitNotBusy(d.timeout)
+			err = d.wait_not_busy(writeTimeout)
 			if err != nil {
 				return err
 			}
@@ -248,7 +248,7 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 			}
 		}
 		// Stop the multi write operation.
-		err = d.waitNotBusy(d.timeout)
+		err = d.wait_not_busy(writeTimeout)
 		if err != nil {
 			return err
 		}
@@ -310,7 +310,7 @@ func (d *SPICard) card_acmd(acmd appcommand, args uint32) (uint8, error) {
 
 func (d *SPICard) card_command(cmd command, args uint32) (uint8, error) {
 	const transmitterBit = 1 << 6
-	err := d.wait_not_busy()
+	err := d.wait_not_busy(d.timeout)
 	if err != nil {
 		return 0, err
 	}
@@ -364,8 +364,8 @@ func (d *SPICard) read_data(data []byte) (err error) {
 	return nil
 }
 
-func (s *SPICard) wait_not_busy() error {
-	tm := s.timers[1].setTimeout(s.timeout)
+func (s *SPICard) wait_not_busy(timeout time.Duration) error {
+	tm := s.timers[1].setTimeout(timeout)
 	for {
 		tok, err := s.receive()
 		if err != nil {
