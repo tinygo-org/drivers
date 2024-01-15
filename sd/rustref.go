@@ -20,18 +20,22 @@ func (d *SPICard) initRs() error {
 		d.send(0xff)
 	}
 	d.csEnable(false)
-
+	for i := 0; i < 512; i++ {
+		d.receive()
+	}
 	d.csEnable(true)
 	defer d.csEnable(false)
 	// Enter SPI mode
 	const maxRetries = 32
 	retries := maxRetries
 	tm := d.timers[0].setTimeout(2 * time.Second)
+	println("cmdGoIdle")
 	for retries > 0 {
-		stat, err := d.card_command(cmdGoIdleState, 0)
+		stat, err := d.card_command(cmdGoIdleState, 0) // CMD0.
 		if err != nil {
 			if isTimeout(err) {
 				retries--
+				println("cmdGoIdle timeout")
 				continue // Try again!
 			}
 			return err
@@ -47,9 +51,10 @@ func (d *SPICard) initRs() error {
 	if retries <= 0 {
 		return errNoSDCard
 	}
-	const enableCRC = false
+	println("cmdGoIdle done; start cmdCRCON/OFF")
+	const enableCRC = true
 	if enableCRC {
-		stat, err := d.card_command(cmdCRCOnOff, 1)
+		stat, err := d.card_command(cmdCRCOnOff, 1) // CMD59.
 		if err != nil {
 			return err
 		} else if stat != _R1_IDLE_STATE {
@@ -57,12 +62,13 @@ func (d *SPICard) initRs() error {
 		}
 	}
 
-	tm.setTimeout(d.timeout)
+	println("cmdCRCON/OFF done; start cmdSendIfCond")
+	tm.setTimeout(time.Second)
 	for {
-		stat, err := d.card_command(cmdSendIfCond, 0x1aa)
+		stat, err := d.card_command(cmdSendIfCond, 0x1AA) // CMD8.
 		if err != nil {
 			return err
-		} else if stat == _R1_IDLE_STATE || stat == _R1_ILLEGAL_COMMAND {
+		} else if stat == (_R1_ILLEGAL_COMMAND | _R1_IDLE_STATE) {
 			d.kind = TypeSD1
 			break
 		}
@@ -84,7 +90,9 @@ func (d *SPICard) initRs() error {
 	if d.kind != TypeSD1 {
 		arg = 0x4000_0000
 	}
-	for {
+	println("cmdSendIfCond done; start cmdAppCmd", arg)
+	tm.setTimeout(time.Second)
+	for !tm.expired() {
 		stat, err := d.card_acmd(acmdSD_APP_OP_COND, arg)
 		if err != nil {
 			return err
@@ -93,7 +101,7 @@ func (d *SPICard) initRs() error {
 		}
 		d.yield()
 	}
-
+	println("cmdAppCmd done; start cmdReadOCR")
 	err := d.updateCSDCID()
 	if err != nil {
 		return err
@@ -103,6 +111,7 @@ func (d *SPICard) initRs() error {
 		return nil // Done if not SD2.
 	}
 
+	println("discover high capacity")
 	// Discover if card is high capacity.
 	stat, err := d.card_command(cmdReadOCR, 0)
 	if err != nil {
@@ -120,6 +129,31 @@ func (d *SPICard) initRs() error {
 	d.receive()
 	d.receive()
 	d.receive()
+	return nil
+}
+
+func (d *SPICard) updateCSDCID() (err error) {
+	// read CID
+	d.cid, err = d.read_cid()
+	if err != nil {
+		return err
+	}
+	d.csd, err = d.read_csd()
+	if err != nil {
+		return err
+	}
+	blockshift := d.csd.ReadBlockLenShift()
+	blocklen := uint16(1) << blockshift
+	capacity := d.csd.DeviceCapacity()
+	if blocklen == 0 || capacity < uint64(blocklen) {
+		return errNoblocks
+	}
+	nb := capacity / uint64(blocklen)
+	if nb > math.MaxUint32 {
+		return errCardNotSupported
+	}
+	d.blockshift = blockshift
+	d.numblocks = int64(nb)
 	return nil
 }
 
@@ -247,6 +281,32 @@ func (d *SPICard) checkBounds(startBlockIdx int64, datalen int) (numblocks int, 
 	return numblocks, nil
 }
 
+func (d *SPICard) read_cid() (csd CID, err error) {
+	err = d.cmd_read(cmdSendCID, 0, d.buf[:16]) // CMD10.
+	if err != nil {
+		return csd, err
+	}
+	return DecodeCID(d.buf[:16])
+}
+
+func (d *SPICard) read_csd() (csd CSD, err error) {
+	err = d.cmd_read(cmdSendCSD, 0, d.buf[:16]) // CMD9.
+	if err != nil {
+		return csd, err
+	}
+	return DecodeCSD(d.buf[:16])
+}
+
+func (d *SPICard) cmd_read(cmd command, args uint32, buf []byte) error {
+	status, err := d.card_command(cmd, args)
+	if err != nil {
+		return err
+	} else if status != 0 {
+		return makeResponseError(response1(status))
+	}
+	return d.read_data(buf)
+}
+
 func (d *SPICard) card_acmd(acmd appcommand, args uint32) (uint8, error) {
 	_, err := d.card_command(cmdAppCmd, 0)
 	if err != nil {
@@ -312,7 +372,7 @@ func (d *SPICard) read_data(data []byte) (err error) {
 }
 
 func (s *SPICard) wait_not_busy() error {
-	tm := s.timers[0].setTimeout(s.timeout)
+	tm := s.timers[1].setTimeout(s.timeout)
 	for {
 		tok, err := s.receive()
 		if err != nil {
