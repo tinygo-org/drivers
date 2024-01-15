@@ -4,7 +4,7 @@
 //
 // nc -lk 8080
 
-//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal || challenger_rp2040
+//go:build ninafw || wioterminal || challenger_rp2040
 
 package main
 

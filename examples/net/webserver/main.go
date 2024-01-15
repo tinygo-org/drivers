@@ -6,7 +6,7 @@
 // Note: It may be necessary to increase the stack size when using "net/http".
 // Use the -stack-size=4KB command line option.
 
-//go:build pyportal || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal
+//go:build ninafw || wioterminal
 
 package main
 
