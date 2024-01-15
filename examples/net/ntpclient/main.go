@@ -3,7 +3,7 @@
 // It creates a UDP connection to request the current time and parse the
 // response from a NTP server.  The system time is set to NTP time.
 
-//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal || challenger_rp2040
+//go:build ninafw || wioterminal || challenger_rp2040
 
 package main
 
