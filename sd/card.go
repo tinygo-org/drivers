@@ -13,10 +13,6 @@ var (
 	errBadCSDCID            = errors.New("sd:bad CSD/CID in CRC or always1")
 	errNoSDCard             = errors.New("sd:no card")
 	errCardNotSupported     = errors.New("sd:card not supported")
-	errCmd8                 = errors.New("sd:cmd8")
-	errCmdOCR               = errors.New("sd:cmd_ocr")
-	errCmdBlkLen            = errors.New("sd:cmd_blklen")
-	errAcmdAppCond          = errors.New("sd:acmd_appOrCond")
 	errWaitStartBlock       = errors.New("sd:did not find start block token")
 	errNeedBlockLenMultiple = errors.New("sd:need blocksize multiple for I/O")
 	errWrite                = errors.New("sd:write")
@@ -25,28 +21,27 @@ var (
 	errBusyTimeout          = errors.New("sd:busy card timeout")
 	errOOB                  = errors.New("sd:oob block access")
 	errNoblocks             = errors.New("sd:no readable blocks")
-	errCmdGeneric           = errors.New("sd:command error")
 )
 
-type digitalPinout func(b bool)
+type digitalPinout = func(b bool)
 
 type SPICard struct {
-	bus     drivers.SPI
-	cs      digitalPinout
-	bufcmd  [6]byte
-	kind    CardKind
-	cid     CID
-	csd     CSD
-	lastCRC uint16
+	bus drivers.SPI
+	cs  digitalPinout
+
+	timers    [2]timer
+	numblocks int64
+	timeout   time.Duration
+	wait      time.Duration
+	// Card Identification Register.
+	cid CID
+	// Card Specific Register.
+	csd    CSD
+	bufcmd [6]byte
+	kind   CardKind
 	// shift to calculate blocksize, taken from CSD.
 	blockshift uint8
-	timers     [2]timer
-	numblocks  int64
-	timeout    time.Duration
-	wait       time.Duration
-	// relative card address.
-	rca    uint32
-	lastr1 r1
+	lastCRC    uint16
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
@@ -92,8 +87,6 @@ func (d *SPICard) CID() CID { return d.cid }
 func (d *SPICard) CSD() CSD { return d.csd }
 
 func (d *SPICard) yield() { time.Sleep(d.wait) }
-
-var timeoutTimer [2]timer
 
 type timer struct {
 	deadline time.Time
