@@ -18,10 +18,10 @@ var _ io.WriterAt = (*BlockDevice)(nil)
 type Card interface {
 	// WriteBlocks writes the given data to the card, starting at the given block index.
 	// The data must be a multiple of the block size.
-	WriteBlocks(data []byte, startBlockIdx int64) error
+	WriteBlocks(data []byte, startBlockIdx int64) (int, error)
 	// ReadBlocks reads the given number of blocks from the card, starting at the given block index.
 	// The dst buffer must be a multiple of the block size.
-	ReadBlocks(dst []byte, startBlockIdx int64) error
+	ReadBlocks(dst []byte, startBlockIdx int64) (int, error)
 	// EraseSectors erases sectors starting at startSectorIdx to startSectorIdx+numSectors.
 	EraseSectors(startSectorIdx, numSectors int64) error
 }
@@ -59,13 +59,12 @@ func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, errNegativeOffset
 	}
-	blockSize := len(bd.blockbuf)
+
 	blockIdx := bd.blk.idx(off)
 	blockOff := bd.blk.off(off)
 	if blockOff != 0 {
 		// Non-aligned first block case.
-		println("read", len(bd.blockbuf), "bytes from block", blockIdx)
-		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
+		if _, err = bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
 			return n, err
 		}
 		n += copy(p, bd.blockbuf[blockOff:])
@@ -73,22 +72,22 @@ func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 		blockIdx++
 	}
 
-	remaining := len(p) - n
-	if remaining >= blockSize {
+	fullBlocksToRead := bd.blk.idx(int64(len(p)))
+	if fullBlocksToRead > 0 {
 		// 1 or more full blocks case.
-		endOffset := remaining - int(bd.blk.off(int64(remaining)))
-		err = bd.card.ReadBlocks(p[:endOffset], blockIdx)
+		endOffset := fullBlocksToRead * bd.blk.size()
+		ngot, err := bd.card.ReadBlocks(p[:endOffset], blockIdx)
 		if err != nil {
-			return n, err
+			return n + ngot, err
 		}
 		p = p[endOffset:]
-		n += endOffset
-		blockIdx += int64(endOffset / blockSize)
+		n += ngot
+		blockIdx += fullBlocksToRead
 	}
 
 	if len(p) > 0 {
 		// Non-aligned last block case.
-		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
+		if _, err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
 			return n, err
 		}
 		n += copy(p, bd.blockbuf)
@@ -101,51 +100,66 @@ func (bd *BlockDevice) WriteAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, errNegativeOffset
 	}
-	blockSize := len(bd.blockbuf)
+
 	blockIdx := bd.blk.idx(off)
 	blockOff := bd.blk.off(off)
 	if blockOff != 0 {
 		// Non-aligned first block case.
-		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
+		if _, err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
 			return n, err
 		}
-		n += copy(bd.blockbuf[blockOff:], p)
-		if err := bd.card.WriteBlocks(bd.blockbuf, blockIdx); err != nil {
+		nexpect := copy(bd.blockbuf[blockOff:], p)
+		ngot, err := bd.card.WriteBlocks(bd.blockbuf, blockIdx)
+		if err != nil {
 			return n, err
+		} else if ngot != len(bd.blockbuf) {
+			return n, io.ErrShortWrite
 		}
-		p = p[n:]
+		n += nexpect
+		p = p[nexpect:]
 		blockIdx++
 	}
 
-	remaining := len(p) - n
-	if remaining >= blockSize {
+	fullBlocksToWrite := bd.blk.idx(int64(len(p)))
+	if fullBlocksToWrite > 0 {
 		// 1 or more full blocks case.
-		endOffset := remaining - int(bd.blk.off(int64(remaining)))
-		err = bd.card.WriteBlocks(p[:endOffset], blockIdx)
+		endOffset := fullBlocksToWrite * bd.blk.size()
+		ngot, err := bd.card.WriteBlocks(p[:endOffset], blockIdx)
+		n += ngot
 		if err != nil {
 			return n, err
+		} else if ngot != int(endOffset) {
+			return n, io.ErrShortWrite
 		}
-		p = p[endOffset:]
-		n += endOffset
-		blockIdx += int64(endOffset / blockSize)
+		p = p[ngot:]
+		blockIdx += fullBlocksToWrite
 	}
 
 	if len(p) > 0 {
 		// Non-aligned last block case.
-		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
+		if _, err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
 			return n, err
 		}
-		n += copy(bd.blockbuf, p)
-		if err := bd.card.WriteBlocks(bd.blockbuf, blockIdx); err != nil {
+		copy(bd.blockbuf, p)
+		ngot, err := bd.card.WriteBlocks(bd.blockbuf, blockIdx)
+		if err != nil {
 			return n, err
+		} else if ngot != len(bd.blockbuf) {
+			return n, io.ErrShortWrite
 		}
+		n += len(p)
 	}
 	return n, nil
 }
 
 // Size returns the number of bytes in this block device.
 func (bd *BlockDevice) Size() int64 {
-	return int64(len(bd.blockbuf)) * bd.numblocks
+	return bd.BlockSize() * bd.numblocks
+}
+
+// BlockSize returns the size of a block in bytes.
+func (bd *BlockDevice) BlockSize() int64 {
+	return bd.blk.size()
 }
 
 // EraseBlocks erases the given number of blocks. An implementation may
@@ -163,7 +177,7 @@ func (bd *BlockDevice) EraseBlockSize() int64 {
 	return bd.eraseBlockSize
 }
 
-// blkIdxer is a helper for calculating block indexes and offsets.
+// blkIdxer is a helper for calculating block indices and offsets.
 type blkIdxer struct {
 	blockshift int64
 	blockmask  int64

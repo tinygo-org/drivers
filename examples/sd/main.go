@@ -48,14 +48,65 @@ func main() {
 	cid := sdcard.CID()
 	fmt.Printf("name=%s\ncsd=\n%s\n", cid.ProductName(), csd.String())
 
-	var buf [512]byte
-	for i := 0; i < 11; i += 1 {
-		err = sdcard.ReadBlocks(buf[:], int64(i))
-		if err != nil {
-			println("err reading block", i, ":", err.Error())
-			continue
-		}
-		expectCRC := sd.CRC16(buf[:])
-		fmt.Printf("block %d theircrc=%#x ourcrc=%#x:\n\t%#x\n", i, sdcard.LastReadCRC(), expectCRC, buf[:])
+	const placeholderEraseSectorSize = 512
+	bd, err := sd.NewBlockDevice(sdcard, int(csd.ReadBlockLen()), csd.NumberOfBlocks(), placeholderEraseSectorSize)
+	if err != nil {
+		panic("block device creation:" + err.Error())
 	}
+	var mc MemChecker
+
+	ok, badBlkIdx, err := mc.MemCheck(bd, 2, 100)
+	if err != nil {
+		panic("memcheck:" + err.Error())
+	}
+	if !ok {
+		println("bad block", badBlkIdx)
+	} else {
+		println("memcheck ok")
+	}
+}
+
+type MemChecker struct {
+	rdBuf    []byte
+	storeBuf []byte
+	wrBuf    []byte
+}
+
+func (mc *MemChecker) MemCheck(bd *sd.BlockDevice, blockIdx, numBlocks int64) (memOK bool, badBlockIdx int64, err error) {
+	size := bd.BlockSize() * numBlocks
+	if len(mc.rdBuf) < int(size) {
+		mc.rdBuf = make([]byte, size)
+		mc.wrBuf = make([]byte, size)
+		mc.storeBuf = make([]byte, size)
+		for i := range mc.wrBuf {
+			mc.wrBuf[i] = byte(i)
+		}
+	}
+	// Start by storing the original block contents.
+	_, err = bd.ReadAt(mc.storeBuf, blockIdx)
+	if err != nil {
+		return false, blockIdx, err
+	}
+
+	// Write the test pattern.
+	_, err = bd.WriteAt(mc.wrBuf, blockIdx)
+	if err != nil {
+		return false, blockIdx, err
+	}
+	// Read back the test pattern.
+	_, err = bd.ReadAt(mc.rdBuf, blockIdx)
+	if err != nil {
+		return false, blockIdx, err
+	}
+	for j := 0; j < len(mc.rdBuf); j++ {
+		// Compare the read back data with the test pattern.
+		if mc.rdBuf[j] != mc.wrBuf[j] {
+			badBlock := blockIdx + int64(j)/bd.BlockSize()
+			return false, badBlock, nil
+		}
+		mc.rdBuf[j] = 0
+	}
+	// Leave the card in it's previous state.
+	_, err = bd.WriteAt(mc.storeBuf, blockIdx)
+	return true, -1, nil
 }
