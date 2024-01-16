@@ -34,8 +34,6 @@ type SPICard struct {
 	bus     drivers.SPI
 	cs      digitalPinout
 	bufcmd  [6]byte
-	buf     [512]byte
-	bufTok  [1]byte
 	kind    CardKind
 	cid     CID
 	csd     CSD

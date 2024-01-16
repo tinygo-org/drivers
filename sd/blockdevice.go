@@ -9,20 +9,22 @@ var (
 	errNegativeOffset = errors.New("sd: negative offset")
 )
 
+// Compile time guarantee of interface implementation.
+var _ Card = (*SPICard)(nil)
+
 type Card interface {
 	WriteBlocks(data []byte, startBlockIdx int64) error
 	ReadBlocks(dst []byte, startBlockIdx int64) error
-	EraseBlockSize() int64
 	EraseBlocks(start, len int64) error
 }
 
-func NewBlockDevice(card Card, blockSize int, numBlocks int64) *BlockDevice {
-	if card == nil || blockSize <= 0 {
-		panic("invalid arguments")
+func NewBlockDevice(card Card, blockSize int, numBlocks, eraseBlockSize int64) (*BlockDevice, error) {
+	if card == nil || blockSize <= 0 || eraseBlockSize <= 0 || numBlocks <= 0 {
+		return nil, errors.New("invalid argument(s)")
 	}
 	tz := bits.TrailingZeros(uint(blockSize))
 	if blockSize>>tz != 1 {
-		panic("blockSize must be a power of 2")
+		return nil, errors.New("blockSize must be a power of 2")
 	}
 	bd := &BlockDevice{
 		card:       card,
@@ -31,20 +33,21 @@ func NewBlockDevice(card Card, blockSize int, numBlocks int64) *BlockDevice {
 		blockmask:  (1 << tz) - 1,
 		numblocks:  numBlocks,
 	}
-	return bd
+	return bd, nil
 }
 
 // BlockDevice implements tinyfs.BlockDevice interface.
 type BlockDevice struct {
-	card       Card
-	blockbuf   []byte
-	blockshift int
-	blockmask  int64
-	numblocks  int64
+	card           Card
+	blockbuf       []byte
+	blockshift     int
+	blockmask      int64
+	numblocks      int64
+	eraseBlockSize int64
 }
 
 func (bd *BlockDevice) moduloBlockSize(n int64) int64 {
-	return n &^ bd.blockmask
+	return n & bd.blockmask
 }
 
 func (bd *BlockDevice) divideBlockSize(n int64) int64 {
@@ -146,5 +149,5 @@ func (bd *BlockDevice) EraseBlocks(start, len int64) error {
 }
 
 func (bd *BlockDevice) EraseBlockSize() int64 {
-	return bd.card.EraseBlockSize()
+	return bd.eraseBlockSize
 }

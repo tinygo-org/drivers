@@ -189,6 +189,10 @@ func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) error {
 	panic("unreachable numblocks<=0")
 }
 
+func (d *SPICard) EraseBlocks(startBlock, endBlock int64) error {
+	return errors.New("sd:erase not implemented")
+}
+
 // WriteBlocks writes to sdcard from a buffer multiple of 512 bytes from src starting at block `startBlockIdx`.
 func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 	numblocks, err := d.checkBounds(startBlockIdx, len(data))
@@ -274,20 +278,26 @@ func (d *SPICard) checkBounds(startBlockIdx int64, datalen int) (numblocks int, 
 	return numblocks, nil
 }
 
-func (d *SPICard) read_cid() (csd CID, err error) {
-	err = d.cmd_read(cmdSendCID, 0, d.buf[:16]) // CMD10.
+func (d *SPICard) read_cid() (cid CID, err error) {
+	err = d.cmd_read(cmdSendCID, 0, d.cid.data[:16]) // CMD10.
 	if err != nil {
-		return csd, err
+		return cid, err
 	}
-	return DecodeCID(d.buf[:16])
+	if !d.cid.IsValid() {
+		return cid, errBadCSDCID
+	}
+	return d.cid, nil
 }
 
 func (d *SPICard) read_csd() (csd CSD, err error) {
-	err = d.cmd_read(cmdSendCSD, 0, d.buf[:16]) // CMD9.
+	err = d.cmd_read(cmdSendCSD, 0, d.csd.data[:16]) // CMD9.
 	if err != nil {
 		return csd, err
 	}
-	return DecodeCSD(d.buf[:16])
+	if !d.csd.IsValid() {
+		return csd, errBadCSDCID
+	}
+	return d.csd, nil
 }
 
 func (d *SPICard) cmd_read(cmd command, args uint32, buf []byte) error {
@@ -322,6 +332,9 @@ func (d *SPICard) card_command(cmd command, args uint32) (uint8, error) {
 	buf[5] = crc7noshift(buf[:5]) | 1 // CRC and end bit which is always 1.
 
 	err = d.bus.Tx(buf, nil)
+	if err != nil {
+		return 0, err
+	}
 	if cmd == cmdStopTransmission {
 		d.receive() // skip stuff byte for stop read.
 	}
