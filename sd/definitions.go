@@ -154,7 +154,7 @@ func (c *CSD) CommandClasses() CommandClasses {
 }
 
 // ReadBlockLen returns the Max Read Data Block Length in bytes.
-func (c *CSD) ReadBlockLen() uint16     { return 1 << c.ReadBlockLenShift() }
+func (c *CSD) ReadBlockLen() int64      { return 1 << c.ReadBlockLenShift() }
 func (c *CSD) ReadBlockLenShift() uint8 { return c.data[5] & 0x0F }
 
 // AllowsReadBlockPartial should always return true. Indicates that
@@ -185,7 +185,14 @@ func (c *CSD) ImplementsDSR() bool { return c.data[6]&(1<<4) != 0 }
 
 // EraseSectorSizeInBlocks represents how much memory is erased in an erase
 // command in multiple of block size.
-func (c *CSD) EraseSectorSizeInBlocks() uint8 {
+func (c *CSDv1) EraseSectorSizeInBytes() int64 {
+	blklen := c.WriteBlockLen()
+	numblocks := c.SectorSize()
+	return int64(numblocks) * blklen
+}
+
+// SectorSize varies in meaning depending on the version.
+func (c *CSD) SectorSize() uint8 {
 	return 1 + ((c.data[10]&0b11_1111)<<1 | (c.data[11] >> 7))
 }
 
@@ -201,8 +208,8 @@ func (c *CSD) WriteProtectGroupSizeInSectors() uint8 {
 	return 1 + (c.data[11] & 0b111_1111)
 }
 
-// WriteBlockLength represents maximum write data block length in bytes.
-func (c *CSD) WriteBlockLength() uint16 {
+// WriteBlockLen represents maximum write data block length in bytes.
+func (c *CSD) WriteBlockLen() int64 {
 	return 1 << ((c.data[12]&0b11)<<2 | (c.data[13] >> 6))
 }
 
@@ -226,11 +233,11 @@ func (c *CSD) IsCopy() bool { return c.data[14]&(1<<6) != 0 }
 
 func (c *CSD) FileFormatGroup() bool { return c.data[14]&(1<<7) != 0 }
 
-func (c *CSD) DeviceCapacity() (size uint64) {
+func (c *CSD) DeviceCapacity() (size int64) {
 	switch c.csdStructure() {
 	case 0:
 		v1 := c.MustV1()
-		size = uint64(v1.DeviceCapacity())
+		size = int64(v1.DeviceCapacity())
 	case 1:
 		v2 := c.MustV2()
 		size = v2.DeviceCapacity()
@@ -239,20 +246,20 @@ func (c *CSD) DeviceCapacity() (size uint64) {
 }
 
 // NumberOfBlocks returns amount of readable blocks in the device given by Capacity/ReadBlockLength.
-func (c *CSD) NumberOfBlocks() (numBlocks uint64) {
+func (c *CSD) NumberOfBlocks() (numBlocks int64) {
 	rblocks := c.ReadBlockLen()
 	if rblocks == 0 {
 		return 0
 	}
-	return c.DeviceCapacity() / uint64(rblocks)
+	return c.DeviceCapacity() / int64(rblocks)
 }
 
 // After byte 5 CSDv1 and CSDv2  differ in structure at some fields.
 
 // DeviceCapacity returns the device capacity in bytes.
-func (c *CSDv2) DeviceCapacity() uint64 {
+func (c *CSDv2) DeviceCapacity() int64 {
 	csize := c.csize()
-	return uint64(csize) * 512_000
+	return int64(csize) * 512_000
 }
 
 func (c *CSDv2) csize() uint32 {
@@ -311,7 +318,7 @@ func (c *CSDv2) String() string { return c.CSD.String() }
 
 func (c *CSD) appendf(b []byte, delim byte) []byte {
 	b = appendnum(b, "Version", uint64(c.Version()), delim)
-	b = appendnum(b, "Capacity(bytes)", c.DeviceCapacity(), delim)
+	b = appendnum(b, "Capacity(bytes)", uint64(c.DeviceCapacity()), delim)
 	b = appendnum(b, "TimeAccess_ns", uint64(c.TAAC().AccessTime()), delim)
 	b = appendnum(b, "NSAC", uint64(c.NSAC()), delim)
 	b = appendnum(b, "Tx_kb/s", uint64(c.TransferSpeed().RateKilobits()), delim)
@@ -322,7 +329,7 @@ func (c *CSD) appendf(b []byte, delim byte) []byte {
 	b = appendbit(b, "AllowReadBlockMisalignment", c.AllowsReadBlockMisalignment(), delim)
 	b = appendbit(b, "ImplementsDSR", c.ImplementsDSR(), delim)
 	b = appendnum(b, "WProtectNumSectors", uint64(c.WriteProtectGroupSizeInSectors()), delim)
-	b = appendnum(b, "WriteBlockLen", uint64(c.WriteBlockLength()), delim)
+	b = appendnum(b, "WriteBlockLen", uint64(c.WriteBlockLen()), delim)
 	b = appendbit(b, "WGrpEnable", c.WriteGroupEnabled(), delim)
 	b = appendbit(b, "WPartialAllow", c.AllowsWritePartial(), delim)
 	b = append(b, "FileFmt:"...)

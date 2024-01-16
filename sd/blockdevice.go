@@ -2,6 +2,7 @@ package sd
 
 import (
 	"errors"
+	"io"
 	"math/bits"
 )
 
@@ -11,6 +12,8 @@ var (
 
 // Compile time guarantee of interface implementation.
 var _ Card = (*SPICard)(nil)
+var _ io.ReaderAt = (*BlockDevice)(nil)
+var _ io.WriterAt = (*BlockDevice)(nil)
 
 type Card interface {
 	// WriteBlocks writes the given data to the card, starting at the given block index.
@@ -19,8 +22,8 @@ type Card interface {
 	// ReadBlocks reads the given number of blocks from the card, starting at the given block index.
 	// The dst buffer must be a multiple of the block size.
 	ReadBlocks(dst []byte, startBlockIdx int64) error
-	// EraseBlocks erases
-	EraseSectors(startBlockIdx, numBlocks int64) error
+	// EraseSectors erases sectors starting at startSectorIdx to startSectorIdx+numSectors.
+	EraseSectors(startSectorIdx, numSectors int64) error
 }
 
 // NewBlockDevice creates a new BlockDevice from a Card.
@@ -28,15 +31,14 @@ func NewBlockDevice(card Card, blockSize int, numBlocks, eraseBlockSizeInBytes i
 	if card == nil || blockSize <= 0 || eraseBlockSizeInBytes <= 0 || numBlocks <= 0 {
 		return nil, errors.New("invalid argument(s)")
 	}
-	tz := bits.TrailingZeros(uint(blockSize))
-	if blockSize>>tz != 1 {
-		return nil, errors.New("blockSize must be a power of 2")
+	blk, err := makeBlockIndexer(blockSize)
+	if err != nil {
+		return nil, err
 	}
 	bd := &BlockDevice{
 		card:           card,
 		blockbuf:       make([]byte, blockSize),
-		blockshift:     tz,
-		blockmask:      (1 << tz) - 1,
+		blk:            blk,
 		numblocks:      int64(numBlocks),
 		eraseBlockSize: eraseBlockSizeInBytes,
 	}
@@ -47,18 +49,9 @@ func NewBlockDevice(card Card, blockSize int, numBlocks, eraseBlockSizeInBytes i
 type BlockDevice struct {
 	card           Card
 	blockbuf       []byte
-	blockshift     int
-	blockmask      int64
+	blk            blkIdxer
 	numblocks      int64
 	eraseBlockSize int64
-}
-
-func (bd *BlockDevice) moduloBlockSize(n int64) int64 {
-	return n & bd.blockmask
-}
-
-func (bd *BlockDevice) divideBlockSize(n int64) int64 {
-	return n >> bd.blockshift
 }
 
 // ReadAt implements [io.ReadAt] interface for an SD card.
@@ -67,10 +60,11 @@ func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, errNegativeOffset
 	}
 	blockSize := len(bd.blockbuf)
-	blockIdx := bd.divideBlockSize(off)
-	blockOff := bd.moduloBlockSize(off)
+	blockIdx := bd.blk.idx(off)
+	blockOff := bd.blk.off(off)
 	if blockOff != 0 {
 		// Non-aligned first block case.
+		println("read", len(bd.blockbuf), "bytes from block", blockIdx)
 		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
 			return n, err
 		}
@@ -82,7 +76,7 @@ func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 	remaining := len(p) - n
 	if remaining >= blockSize {
 		// 1 or more full blocks case.
-		endOffset := remaining - int(bd.moduloBlockSize(int64(remaining)))
+		endOffset := remaining - int(bd.blk.off(int64(remaining)))
 		err = bd.card.ReadBlocks(p[:endOffset], blockIdx)
 		if err != nil {
 			return n, err
@@ -108,8 +102,8 @@ func (bd *BlockDevice) WriteAt(p []byte, off int64) (n int, err error) {
 		return 0, errNegativeOffset
 	}
 	blockSize := len(bd.blockbuf)
-	blockIdx := bd.divideBlockSize(off)
-	blockOff := bd.moduloBlockSize(off)
+	blockIdx := bd.blk.idx(off)
+	blockOff := bd.blk.off(off)
 	if blockOff != 0 {
 		// Non-aligned first block case.
 		if err := bd.card.ReadBlocks(bd.blockbuf, blockIdx); err != nil {
@@ -126,7 +120,7 @@ func (bd *BlockDevice) WriteAt(p []byte, off int64) (n int, err error) {
 	remaining := len(p) - n
 	if remaining >= blockSize {
 		// 1 or more full blocks case.
-		endOffset := remaining - int(bd.moduloBlockSize(int64(remaining)))
+		endOffset := remaining - int(bd.blk.off(int64(remaining)))
 		err = bd.card.WriteBlocks(p[:endOffset], blockIdx)
 		if err != nil {
 			return n, err
@@ -168,3 +162,52 @@ func (bd *BlockDevice) EraseBlocks(startEraseBlockIdx, len int64) error {
 func (bd *BlockDevice) EraseBlockSize() int64 {
 	return bd.eraseBlockSize
 }
+
+// blkIdxer is a helper for calculating block indexes and offsets.
+type blkIdxer struct {
+	blockshift int64
+	blockmask  int64
+}
+
+func makeBlockIndexer(blockSize int) (blkIdxer, error) {
+	if blockSize <= 0 {
+		return blkIdxer{}, errNoblocks
+	}
+	tz := bits.TrailingZeros(uint(blockSize))
+	if blockSize>>tz != 1 {
+		return blkIdxer{}, errors.New("blockSize must be a power of 2")
+	}
+	blk := blkIdxer{
+		blockshift: int64(tz),
+		blockmask:  (1 << tz) - 1,
+	}
+	return blk, nil
+}
+
+// size returns the size of a block in bytes.
+func (blk *blkIdxer) size() int64 {
+	return 1 << blk.blockshift
+}
+
+// off gets the offset of the byte at byteIdx from the start of its block.
+//
+//go:inline
+func (blk *blkIdxer) off(byteIdx int64) int64 {
+	return blk._moduloBlockSize(byteIdx)
+}
+
+// idx gets the block index that contains the byte at byteIdx.
+//
+//go:inline
+func (blk *blkIdxer) idx(byteIdx int64) int64 {
+	return blk._divideBlockSize(byteIdx)
+}
+
+// modulo and divide are defined in terms of bit operations for speed since
+// blockSize is a power of 2.
+
+//go:inline
+func (blk *blkIdxer) _moduloBlockSize(n int64) int64 { return n & blk.blockmask }
+
+//go:inline
+func (blk *blkIdxer) _divideBlockSize(n int64) int64 { return n >> blk.blockshift }

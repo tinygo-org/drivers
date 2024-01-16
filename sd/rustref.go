@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"math/bits"
 	"time"
 )
 
@@ -135,18 +134,11 @@ func (d *SPICard) updateCSDCID() (err error) {
 	if err != nil {
 		return err
 	}
-	blockshift := d.csd.ReadBlockLenShift()
-	blocklen := uint16(1) << blockshift
-	capacity := d.csd.DeviceCapacity()
-	if blocklen == 0 || capacity < uint64(blocklen) {
-		return errNoblocks
+	blklen := d.csd.ReadBlockLen()
+	d.blk, err = makeBlockIndexer(int(blklen))
+	if err != nil {
+		return err
 	}
-	nb := capacity / uint64(blocklen)
-	if nb > math.MaxUint32 {
-		return errCardNotSupported
-	}
-	d.blockshift = blockshift
-	d.numblocks = int64(nb)
 	return nil
 }
 
@@ -160,17 +152,17 @@ func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) error {
 		startBlockIdx <<= 9 // Multiply by 512 for non high capacity SD cards.
 	}
 	d.csEnable(true)
-	defer d.csEnable(false)
+	defer d.endTx()
 
 	if numblocks == 1 {
-		_, err = d.card_command(cmdReadSingleBlock, uint32(startBlockIdx))
+		_, err := d.card_command(cmdReadSingleBlock, uint32(startBlockIdx))
 		if err != nil {
 			return err
 		}
 		return d.read_data(dst)
 
 	} else if numblocks > 1 {
-		blocksize := 1 << d.blockshift
+		blocksize := int(d.blk.size())
 		_, err = d.card_command(cmdReadMultipleBlock, uint32(startBlockIdx))
 		if err != nil {
 			return err
@@ -183,10 +175,14 @@ func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) error {
 				return err
 			}
 		}
-		_, err = d.card_command(cmdStopTransmission, 0)
-		return err
+		return nil
 	}
 	panic("unreachable numblocks<=0")
+}
+
+func (d *SPICard) endTx() {
+	d.card_command(cmdStopTransmission, 0)
+	d.csEnable(false)
 }
 
 func (d *SPICard) EraseSectors(startSector, numberSectors int64) error {
@@ -203,7 +199,8 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 		startBlockIdx <<= 9 // Multiply by 512 for non high capacity SD cards.
 	}
 	d.csEnable(true)
-	defer d.csEnable(false)
+	defer d.endTx()
+
 	writeTimeout := 2 * d.timeout
 	if numblocks == 1 {
 		_, err = d.card_command(cmdWriteBlock, uint32(startBlockIdx))
@@ -234,7 +231,7 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 
 	} else if numblocks > 1 {
 		// Start multi block write.
-		blocksize := 1 << d.blockshift
+		blocksize := 1 << d.blk.size()
 		_, err = d.card_command(cmdWriteMultipleBlock, uint32(startBlockIdx))
 		if err != nil {
 			return err
@@ -262,16 +259,15 @@ func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) error {
 }
 
 func (d *SPICard) checkBounds(startBlockIdx int64, datalen int) (numblocks int, err error) {
-	if startBlockIdx >= d.numblocks {
+	if startBlockIdx >= d.NumberOfBlocks() {
 		return 0, errOOB
 	} else if startBlockIdx > math.MaxUint32 {
 		return 0, errCardNotSupported
 	}
-	tz := bits.TrailingZeros(uint(datalen))
-	if tz < int(d.blockshift) {
+	if d.blk.off(int64(datalen)) > 0 {
 		return 0, errNeedBlockLenMultiple
 	}
-	numblocks = datalen >> d.blockshift
+	numblocks = int(d.blk.idx(int64(datalen)))
 	if numblocks == 0 {
 		return 0, io.ErrShortBuffer
 	}
@@ -353,7 +349,8 @@ func (d *SPICard) card_command(cmd command, args uint32) (uint8, error) {
 
 func (d *SPICard) read_data(data []byte) (err error) {
 	var status uint8
-	for {
+	tm := d.timers[1].setTimeout(d.timeout)
+	for !tm.expired() {
 		status, err = d.receive()
 		if err != nil {
 			return err

@@ -29,19 +29,18 @@ type SPICard struct {
 	bus drivers.SPI
 	cs  digitalPinout
 
-	timers    [2]timer
-	numblocks int64
-	timeout   time.Duration
-	wait      time.Duration
+	timers  [2]timer
+	timeout time.Duration
+	wait    time.Duration
 	// Card Identification Register.
 	cid CID
 	// Card Specific Register.
 	csd    CSD
 	bufcmd [6]byte
 	kind   CardKind
-	// shift to calculate blocksize, taken from CSD.
-	blockshift uint8
-	lastCRC    uint16
+	// block indexing helper based on block size.
+	blk     blkIdxer
+	lastCRC uint16
 }
 
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
@@ -77,7 +76,7 @@ func (d *SPICard) Init() error {
 }
 
 func (d *SPICard) NumberOfBlocks() int64 {
-	return d.numblocks
+	return d.csd.NumberOfBlocks()
 }
 
 // CID returns a copy of the Card Identification Register value last read.
