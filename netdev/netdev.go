@@ -39,6 +39,7 @@ var (
 	ErrNoMoreSockets        = errors.New("No more sockets")
 	ErrClosingSocket        = errors.New("Error closing socket")
 	ErrNotSupported         = errors.New("Not supported")
+	ErrInvalidSocketFd      = errors.New("Invalid socket fd")
 )
 
 // Duplicate of non-exported net.errTimeout
