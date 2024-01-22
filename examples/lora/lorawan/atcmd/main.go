@@ -32,6 +32,8 @@ var (
 	defaultTimeout uint32 = 1000
 )
 
+var reg string
+
 func main() {
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 
@@ -45,7 +47,16 @@ func main() {
 	otaa = &lorawan.Otaa{}
 	lorawan.UseRadio(radio)
 
-	lorawan.UseRegionSettings(region.EU868())
+	switch reg {
+	case "AU915":
+		lorawan.UseRegionSettings(region.AU915())
+	case "EU868":
+		lorawan.UseRegionSettings(region.EU868())
+	case "US915":
+		lorawan.UseRegionSettings(region.US915())
+	default:
+		lorawan.UseRegionSettings(region.EU868())
+	}
 
 	for {
 		if uart.Buffered() > 0 {

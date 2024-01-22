@@ -1,99 +1,1477 @@
-// Package wifinina implements TCP wireless communication over SPI
-// with an attached separate ESP32 board using the Arduino WiFiNINA protocol.
+// Package wifinina implements TCP wireless communication over SPI with an
+// attached separate ESP32 SoC using the Arduino WiFiNINA protocol.
 //
-// In order to use this driver, the ESP32 must be flashed with specific firmware from Arduino.
-// For more information: https://github.com/arduino/nina-fw
+// In order to use this driver, the ESP32 must be flashed with specific
+// firmware from Arduino.  For more information:
+// https://github.com/arduino/nina-fw
+//
+// 12/2022    sfeldma@gmail.com    Heavily modified to use netdev interface
+
 package wifinina // import "tinygo.org/x/drivers/wifinina"
 
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"fmt" // used only in debug printouts and is optimized out when debugging is disabled
-	"strconv"
-	"strings"
+	"fmt"
+	"io"
+	"machine"
+	"math/bits"
+	"net"
+	"net/netip"
 	"sync"
 	"time"
 
-	"machine"
-
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/net"
+	"tinygo.org/x/drivers/netdev"
+	"tinygo.org/x/drivers/netlink"
+)
+
+var _debug debug = debugBasic
+
+//var _debug debug = debugBasic | debugNetdev
+//var _debug debug = debugBasic | debugNetdev | debugCmd
+//var _debug debug = debugBasic | debugNetdev | debugCmd | debugDetail
+
+var (
+	version    = "0.0.1"
+	driverName = "Tinygo ESP32 Wifi network device driver (WiFiNINA)"
 )
 
 const (
-	MaxSockets  = 4
-	MaxNetworks = 10
-	MaxAttempts = 10
+	maxNetworks = 10
 
-	MaxLengthSSID   = 32
-	MaxLengthWPAKey = 63
-	MaxLengthWEPKey = 13
+	statusNoShield       connectionStatus = 255
+	statusIdle           connectionStatus = 0
+	statusNoSSIDAvail    connectionStatus = 1
+	statusScanCompleted  connectionStatus = 2
+	statusConnected      connectionStatus = 3
+	statusConnectFailed  connectionStatus = 4
+	statusConnectionLost connectionStatus = 5
+	statusDisconnected   connectionStatus = 6
 
-	LengthMacAddress = 6
-	LengthIPV4       = 4
+	encTypeTKIP encryptionType = 2
+	encTypeCCMP encryptionType = 4
+	encTypeWEP  encryptionType = 5
+	encTypeNone encryptionType = 7
+	encTypeAuto encryptionType = 8
 
-	WlFailure = -1
-	WlSuccess = 1
-)
+	tcpStateClosed      = 0
+	tcpStateListen      = 1
+	tcpStateSynSent     = 2
+	tcpStateSynRcvd     = 3
+	tcpStateEstablished = 4
+	tcpStateFinWait1    = 5
+	tcpStateFinWait2    = 6
+	tcpStateCloseWait   = 7
+	tcpStateClosing     = 8
+	tcpStateLastACK     = 9
+	tcpStateTimeWait    = 10
 
-const (
-	FlagCmd   = 0
-	FlagReply = 1 << 7
-	FlagData  = 0x40
+	flagCmd   = 0
+	flagReply = 1 << 7
+	flagData  = 0x40
 
-	NinaCmdPos      = 1
-	NinaParamLenPos = 2
+	cmdStart = 0xE0
+	cmdEnd   = 0xEE
+	cmdErr   = 0xEF
 
 	dummyData = 0xFF
+
+	cmdSetNet            = 0x10
+	cmdSetPassphrase     = 0x11
+	cmdSetKey            = 0x12
+	cmdSetIPConfig       = 0x14
+	cmdSetDNSConfig      = 0x15
+	cmdSetHostname       = 0x16
+	cmdSetPowerMode      = 0x17
+	cmdSetAPNet          = 0x18
+	cmdSetAPPassphrase   = 0x19
+	cmdSetDebug          = 0x1A
+	cmdGetTemperature    = 0x1B
+	cmdGetReasonCode     = 0x1F
+	cmdGetConnStatus     = 0x20
+	cmdGetIPAddr         = 0x21
+	cmdGetMACAddr        = 0x22
+	cmdGetCurrSSID       = 0x23
+	cmdGetCurrBSSID      = 0x24
+	cmdGetCurrRSSI       = 0x25
+	cmdGetCurrEncrType   = 0x26
+	cmdScanNetworks      = 0x27
+	cmdStartServerTCP    = 0x28
+	cmdGetStateTCP       = 0x29
+	cmdDataSentTCP       = 0x2A
+	cmdAvailDataTCP      = 0x2B
+	cmdGetDataTCP        = 0x2C
+	cmdStartClientTCP    = 0x2D
+	cmdStopClientTCP     = 0x2E
+	cmdGetClientStateTCP = 0x2F
+	cmdDisconnect        = 0x30
+	cmdGetIdxRSSI        = 0x32
+	cmdGetIdxEncrType    = 0x33
+	cmdReqHostByName     = 0x34
+	cmdGetHostByName     = 0x35
+	cmdStartScanNetworks = 0x36
+	cmdGetFwVersion      = 0x37
+	cmdSendDataUDP       = 0x39
+	cmdGetRemoteData     = 0x3A
+	cmdGetTime           = 0x3B
+	cmdGetIdxBSSID       = 0x3C
+	cmdGetIdxChannel     = 0x3D
+	cmdPing              = 0x3E
+	cmdGetSocket         = 0x3F
+
+	// All commands with DATA_FLAG 0x4x send a 16bit Len
+	cmdSendDataTCP   = 0x44
+	cmdGetDatabufTCP = 0x45
+	cmdInsertDataBuf = 0x46
+
+	// Regular format commands
+	cmdSetPinMode      = 0x50
+	cmdSetDigitalWrite = 0x51
+	cmdSetAnalogWrite  = 0x52
+
+	errTimeoutChipReady  hwerr = 0x01
+	errTimeoutChipSelect hwerr = 0x02
+	errCheckStartCmd     hwerr = 0x03
+	errWaitRsp           hwerr = 0x04
+	errUnexpectedLength  hwerr = 0xE0
+	errNoParamsReturned  hwerr = 0xE1
+	errIncorrectSentinel hwerr = 0xE2
+	errCmdErrorReceived  hwerr = 0xEF
+	errNotImplemented    hwerr = 0xF0
+	errUnknownHost       hwerr = 0xF1
+	errSocketAlreadySet  hwerr = 0xF2
+	errConnectionTimeout hwerr = 0xF3
+	errNoData            hwerr = 0xF4
+	errDataNotWritten    hwerr = 0xF5
+	errCheckDataError    hwerr = 0xF6
+	errBufferTooSmall    hwerr = 0xF7
+	errNoSocketAvail     hwerr = 0xFF
+
+	noSocketAvail sock = 0xFF
 )
 
 const (
-	ProtoModeTCP = iota
-	ProtoModeUDP
-	ProtoModeTLS
-	ProtoModeMul
+	protoModeTCP = iota
+	protoModeUDP
+	protoModeTLS
+	protoModeMul
 )
 
-type IPAddress string // TODO: does WiFiNINA support ipv6???
+type connectionStatus uint8
+type encryptionType uint8
+type sock uint8
+type hwerr uint8
 
-func (addr IPAddress) String() string {
-	if len(addr) < 4 {
-		return ""
+type socket struct {
+	protocol int
+	laddr    netip.AddrPort // Set in Bind()
+	raddr    netip.AddrPort // Set in Connect()
+	inuse    bool
+}
+
+type Config struct {
+	// SPI config
+	Spi  drivers.SPI
+	Freq uint32
+	Sdo  machine.Pin
+	Sdi  machine.Pin
+	Sck  machine.Pin
+
+	// Device config
+	Cs     machine.Pin
+	Ack    machine.Pin
+	Gpio0  machine.Pin
+	Resetn machine.Pin
+	// ResetIsHigh controls if the RESET signal to the processor should be
+	// High or Low (the default). Set this to true for boards such as the
+	// Arduino MKR 1010, where the reset signal needs to go high instead of
+	// low.
+	ResetIsHigh bool
+}
+
+type wifinina struct {
+	cfg      *Config
+	notifyCb func(netlink.Event)
+	mu       sync.Mutex
+
+	spi    drivers.SPI
+	cs     machine.Pin
+	ack    machine.Pin
+	gpio0  machine.Pin
+	resetn machine.Pin
+
+	buf   [64]byte
+	ssids [maxNetworks]string
+
+	params *netlink.ConnectParams
+
+	netConnected bool
+	driverShown  bool
+	deviceShown  bool
+	spiSetup     bool
+
+	killWatchdog chan bool
+	fault        error
+
+	sockets map[sock]*socket // keyed by sock as returned by getSocket()
+}
+
+func newSocket(protocol int) *socket {
+	return &socket{protocol: protocol, inuse: true}
+}
+
+func New(cfg *Config) *wifinina {
+	w := wifinina{
+		cfg:          cfg,
+		sockets:      make(map[sock]*socket),
+		killWatchdog: make(chan bool),
+		cs:           cfg.Cs,
+		ack:          cfg.Ack,
+		gpio0:        cfg.Gpio0,
+		resetn:       cfg.Resetn,
 	}
-	return strconv.Itoa(int(addr[0])) + "." + strconv.Itoa(int(addr[1])) + "." + strconv.Itoa(int(addr[2])) + "." + strconv.Itoa(int(addr[3]))
+
+	return &w
 }
 
-func ParseIPv4(s string) (IPAddress, error) {
-	v := strings.Split(s, ".")
-	v0, _ := strconv.Atoi(v[0])
-	v1, _ := strconv.Atoi(v[1])
-	v2, _ := strconv.Atoi(v[2])
-	v3, _ := strconv.Atoi(v[3])
-	return IPAddress([]byte{byte(v0), byte(v1), byte(v2), byte(v3)}), nil
+func (err hwerr) Error() string {
+	return "[wifinina] error: 0x" + hex.EncodeToString([]byte{uint8(err)})
 }
 
-func (addr IPAddress) AsUint32() uint32 {
-	if len(addr) < 4 {
-		return 0
+func (w *wifinina) reason() string {
+	reason := w.getReasonCode()
+	switch reason {
+	case 0:
+		return "unknown failure"
+	case 201:
+		return "no AP found"
+	case 202:
+		return "auth failed"
 	}
-	b := []byte(string(addr))
-	return binary.BigEndian.Uint32(b[0:4])
+	return fmt.Sprintf("%d", reason)
 }
 
-type MACAddress uint64
+func (w *wifinina) connectToAP() error {
 
-func (addr MACAddress) String() string {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(addr))
-	encoded := hex.EncodeToString(b)
-	result := ""
-	for i := 2; i < 8; i++ {
-		result += encoded[i*2 : i*2+2]
-		if i < 7 {
-			result += ":"
+	timeout := w.params.ConnectTimeout
+	if timeout == 0 {
+		timeout = netlink.DefaultConnectTimeout
+	}
+
+	if len(w.params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("Connecting to Wifi SSID '%s'...", w.params.Ssid)
+	}
+
+	start := time.Now()
+
+	// Start the connection process
+	w.setPassphrase(w.params.Ssid, w.params.Passphrase)
+
+	// Check if we connected
+	for {
+		status := w.getConnectionStatus()
+		switch status {
+		case statusConnected:
+			if debugging(debugBasic) {
+				fmt.Printf("CONNECTED\r\n")
+			}
+			if w.notifyCb != nil {
+				w.notifyCb(netlink.EventNetUp)
+			}
+			return nil
+		case statusConnectFailed:
+			if debugging(debugBasic) {
+				fmt.Printf("FAILED (%s)\r\n", w.reason())
+			}
+			return netlink.ErrConnectFailed
+		}
+		if time.Since(start) > timeout {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("FAILED (timed out)\r\n")
+	}
+
+	return netlink.ErrConnectTimeout
+}
+
+func (w *wifinina) netDisconnect() {
+	w.disconnect()
+}
+
+func (w *wifinina) showDriver() {
+	if w.driverShown {
+		return
+	}
+	if debugging(debugBasic) {
+		fmt.Printf("\r\n")
+		fmt.Printf("%s\r\n\r\n", driverName)
+		fmt.Printf("Driver version           : %s\r\n", version)
+	}
+	w.driverShown = true
+}
+
+func (w *wifinina) setupSPI() {
+	if w.spiSetup {
+		return
+	}
+	spi := machine.NINA_SPI
+	spi.Configure(machine.SPIConfig{
+		Frequency: w.cfg.Freq,
+		SDO:       w.cfg.Sdo,
+		SDI:       w.cfg.Sdi,
+		SCK:       w.cfg.Sck,
+	})
+	w.spi = spi
+	w.spiSetup = true
+}
+
+func (w *wifinina) start() {
+
+	pinUseDevice(w)
+
+	w.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	w.ack.Configure(machine.PinConfig{Mode: machine.PinInput})
+	w.resetn.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	w.gpio0.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
+	w.gpio0.High()
+	w.cs.High()
+	w.resetn.Set(w.cfg.ResetIsHigh)
+	time.Sleep(10 * time.Millisecond)
+	w.resetn.Set(!w.cfg.ResetIsHigh)
+	time.Sleep(750 * time.Millisecond)
+
+	w.gpio0.Low()
+	w.gpio0.Configure(machine.PinConfig{Mode: machine.PinInput})
+}
+
+func (w *wifinina) stop() {
+	w.resetn.Low()
+	w.cs.Configure(machine.PinConfig{Mode: machine.PinInput})
+}
+
+func (w *wifinina) showDevice() {
+	if w.deviceShown {
+		return
+	}
+	if debugging(debugBasic) {
+		fmt.Printf("ESP32 firmware version   : %s\r\n", w.getFwVersion())
+		mac := w.getMACAddr()
+		fmt.Printf("MAC address              : %s\r\n", mac.String())
+		fmt.Printf("\r\n")
+	}
+	w.deviceShown = true
+}
+
+func (w *wifinina) showIP() {
+	if debugging(debugBasic) {
+		ip, subnet, gateway := w.getIP()
+		fmt.Printf("\r\n")
+		fmt.Printf("DHCP-assigned IP         : %s\r\n", ip)
+		fmt.Printf("DHCP-assigned subnet     : %s\r\n", subnet)
+		fmt.Printf("DHCP-assigned gateway    : %s\r\n", gateway)
+		fmt.Printf("\r\n")
+	}
+}
+
+func (w *wifinina) networkDown() bool {
+	return w.getConnectionStatus() != statusConnected
+}
+
+func (w *wifinina) watchdog() {
+	ticker := time.NewTicker(w.params.WatchdogTimeout)
+	for {
+		select {
+		case <-w.killWatchdog:
+			return
+		case <-ticker.C:
+			w.mu.Lock()
+			if w.fault != nil {
+				if debugging(debugBasic) {
+					fmt.Printf("Watchdog: FAULT: %s\r\n", w.fault)
+				}
+				w.netDisconnect()
+				w.netConnect(true)
+				w.fault = nil
+			} else if w.networkDown() {
+				if debugging(debugBasic) {
+					fmt.Printf("Watchdog: Wifi NOT CONNECTED, trying again...\r\n")
+				}
+				if w.notifyCb != nil {
+					w.notifyCb(netlink.EventNetDown)
+				}
+				w.netConnect(false)
+			}
+			w.mu.Unlock()
 		}
 	}
-	return result
+}
+
+func (w *wifinina) netConnect(reset bool) error {
+	if reset {
+		w.start()
+	}
+	w.showDevice()
+
+	for i := 0; w.params.Retries == 0 || i < w.params.Retries; i++ {
+		if err := w.connectToAP(); err != nil {
+			switch err {
+			case netlink.ErrConnectTimeout, netlink.ErrConnectFailed:
+				continue
+			}
+			return err
+		}
+		break
+	}
+
+	if w.networkDown() {
+		return netlink.ErrConnectFailed
+	}
+
+	w.showIP()
+	return nil
+}
+
+func (w *wifinina) NetConnect(params *netlink.ConnectParams) error {
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.netConnected {
+		return netlink.ErrConnected
+	}
+
+	w.params = params
+
+	w.showDriver()
+	w.setupSPI()
+
+	if err := w.netConnect(true); err != nil {
+		return err
+	}
+
+	w.netConnected = true
+
+	if w.params.WatchdogTimeout != 0 {
+		go w.watchdog()
+	}
+
+	return nil
+}
+
+func (w *wifinina) NetDisconnect() {
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if !w.netConnected {
+		return
+	}
+
+	if w.params.WatchdogTimeout != 0 {
+		w.killWatchdog <- true
+	}
+
+	w.netDisconnect()
+	w.stop()
+
+	w.netConnected = false
+
+	if debugging(debugBasic) {
+		fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", w.params.Ssid)
+	}
+
+	if w.notifyCb != nil {
+		w.notifyCb(netlink.EventNetDown)
+	}
+}
+
+func (w *wifinina) NetNotify(cb func(netlink.Event)) {
+	w.notifyCb = cb
+}
+
+func (w *wifinina) GetHostByName(name string) (netip.Addr, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[GetHostByName] name: %s\r\n", name)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	ip := w.getHostByName(name)
+	if ip == "" {
+		return netip.Addr{}, netdev.ErrHostUnknown
+	}
+
+	addr, ok := netip.AddrFromSlice([]byte(ip))
+	if !ok {
+		return netip.Addr{}, netdev.ErrMalAddr
+	}
+
+	return addr, nil
+}
+
+func (w *wifinina) GetHardwareAddr() (net.HardwareAddr, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[GetHardwareAddr]\r\n")
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return w.getMACAddr(), nil
+}
+
+func (w *wifinina) Addr() (netip.Addr, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[GetIPAddr]\r\n")
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	ip, _, _ := w.getIP()
+
+	return ip, nil
+}
+
+// See man socket(2) for standard Berkely sockets for Socket, Bind, etc.
+// The driver strives to meet the function and semantics of socket(2).
+
+func (w *wifinina) Socket(domain int, stype int, protocol int) (int, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Socket] domain: %d, type: %d, protocol: %d\r\n",
+			domain, stype, protocol)
+	}
+
+	switch domain {
+	case netdev.AF_INET:
+	default:
+		return -1, netdev.ErrFamilyNotSupported
+	}
+
+	switch {
+	case protocol == netdev.IPPROTO_TCP && stype == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_TLS && stype == netdev.SOCK_STREAM:
+	case protocol == netdev.IPPROTO_UDP && stype == netdev.SOCK_DGRAM:
+	default:
+		return -1, netdev.ErrProtocolNotSupported
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	sock := w.getSocket()
+	if sock == noSocketAvail {
+		return -1, netdev.ErrNoMoreSockets
+	}
+
+	socket := newSocket(protocol)
+	w.sockets[sock] = socket
+
+	return int(sock), nil
+}
+
+func (w *wifinina) Bind(sockfd int, ip netip.AddrPort) error {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Bind] sockfd: %d, addr: %s\r\n", sockfd, ip)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	switch socket.protocol {
+	case netdev.IPPROTO_TCP:
+	case netdev.IPPROTO_TLS:
+	case netdev.IPPROTO_UDP:
+		w.startServer(sock, ip.Port(), protoModeUDP)
+	}
+
+	socket.laddr = ip
+
+	return nil
+}
+
+func toUint32(ip [4]byte) uint32 {
+	return uint32(ip[0])<<24 |
+		uint32(ip[1])<<16 |
+		uint32(ip[2])<<8 |
+		uint32(ip[3])
+}
+
+func (w *wifinina) Connect(sockfd int, host string, ip netip.AddrPort) error {
+
+	if debugging(debugNetdev) {
+		if host == "" {
+			fmt.Printf("[Connect] sockfd: %d, addr: %s\r\n", sockfd, ip)
+		} else {
+			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, ip.Port())
+		}
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	// Start the connection
+	switch socket.protocol {
+	case netdev.IPPROTO_TCP:
+		w.startClient(sock, "", toUint32(ip.Addr().As4()), ip.Port(), protoModeTCP)
+	case netdev.IPPROTO_TLS:
+		w.startClient(sock, host, 0, ip.Port(), protoModeTLS)
+	case netdev.IPPROTO_UDP:
+		// See start in sendUDP()
+		socket.raddr = ip
+		return nil
+	}
+
+	if w.getClientState(sock) == tcpStateEstablished {
+		return nil
+	}
+
+	if host == "" {
+		return fmt.Errorf("Connect to %s failed", ip)
+	} else {
+		return fmt.Errorf("Connect to %s:%d failed", host, ip.Port())
+	}
+}
+
+func (w *wifinina) Listen(sockfd int, backlog int) error {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Listen] sockfd: %d\r\n", sockfd)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	switch socket.protocol {
+	case netdev.IPPROTO_TCP:
+		w.startServer(sock, socket.laddr.Port(), protoModeTCP)
+	case netdev.IPPROTO_UDP:
+	default:
+		return netdev.ErrProtocolNotSupported
+	}
+
+	return nil
+}
+
+func (w *wifinina) Accept(sockfd int) (int, netip.AddrPort, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Accept] sockfd: %d\r\n", sockfd)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var client sock
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	switch socket.protocol {
+	case netdev.IPPROTO_TCP:
+	default:
+		return -1, netip.AddrPort{}, netdev.ErrProtocolNotSupported
+	}
+
+	for {
+		// Accept() will be sleeping most of the time, checking for a
+		// new clients every 1/10 sec.
+		w.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		w.mu.Lock()
+
+		// Check if we've faulted
+		if w.fault != nil {
+			return -1, netip.AddrPort{}, w.fault
+		}
+
+		// TODO: BUG: Currently, a sock that is 100% busy will always be
+		// TODO: returned by w.accept(sock), starving other socks
+		// TODO: from begin serviced.  Need to figure out how to
+		// TODO: service socks fairly (round-robin?) so no one sock
+		// TODO: can dominate.
+
+		// Check if a client has data
+		client = w.accept(sock)
+		if client == noSocketAvail {
+			// None ready
+			continue
+		}
+
+		raddr := w.getRemoteData(client)
+
+		// If we've already seen this socket, we can reuse
+		// the socket and return it.  But, only if the socket
+		// is closed.  If it's not closed, we'll just come back
+		// later to reuse it.
+
+		clientSocket, ok := w.sockets[client]
+		if ok {
+			// Wait for client to Close
+			if clientSocket.inuse {
+				continue
+			}
+			// Reuse client socket
+			return int(client), raddr, nil
+		}
+
+		// Create new socket for client and return fd
+		w.sockets[client] = newSocket(socket.protocol)
+		return int(client), raddr, nil
+	}
+}
+
+func (w *wifinina) sockDown(sock sock) bool {
+	var socket = w.sockets[sock]
+	if socket.protocol == netdev.IPPROTO_UDP {
+		return false
+	}
+	return w.getClientState(sock) != tcpStateEstablished
+}
+
+func (w *wifinina) sendTCP(sock sock, buf []byte, deadline time.Time) (int, error) {
+
+	var timeoutDataSent = 25
+
+	// Send it
+	n := int(w.sendData(sock, buf))
+	if n == 0 {
+		return -1, io.EOF
+	}
+
+	// Check if data was sent
+	for i := 0; i < timeoutDataSent; i++ {
+		sent := w.checkDataSent(sock)
+		if sent {
+			return n, nil
+		}
+
+		// Check if we've timed out
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, netdev.ErrTimeout
+			}
+		}
+
+		// Check if socket went down
+		if w.sockDown(sock) {
+			return -1, io.EOF
+		}
+
+		// Check if we've faulted
+		if w.fault != nil {
+			return -1, w.fault
+		}
+
+		// Unlock while we sleep, so others can make progress
+		w.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		w.mu.Lock()
+	}
+
+	return -1, netdev.ErrTimeout
+}
+
+func (w *wifinina) sendUDP(sock sock, raddr netip.AddrPort, buf []byte, deadline time.Time) (int, error) {
+
+	// Start a client for each send
+	w.startClient(sock, "", toUint32(raddr.Addr().As4()), raddr.Port(), protoModeUDP)
+
+	// Queue it
+	ok := w.insertDataBuf(sock, buf)
+	if !ok {
+		return -1, fmt.Errorf("Insert UDP data failed, len(buf)=%d", len(buf))
+	}
+
+	// Send it
+	ok = w.sendUDPData(sock)
+	if !ok {
+		return -1, fmt.Errorf("Send UDP data failed, len(buf)=%d", len(buf))
+	}
+
+	return len(buf), nil
+}
+
+func (w *wifinina) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	// Check if we've timed out
+	if !deadline.IsZero() {
+		if time.Now().After(deadline) {
+			return -1, netdev.ErrTimeout
+		}
+	}
+
+	switch socket.protocol {
+	case netdev.IPPROTO_TCP, netdev.IPPROTO_TLS:
+		return w.sendTCP(sock, buf, deadline)
+	case netdev.IPPROTO_UDP:
+		return w.sendUDP(sock, socket.raddr, buf, deadline)
+	}
+
+	return -1, netdev.ErrProtocolNotSupported
+}
+
+func (w *wifinina) Send(sockfd int, buf []byte, flags int,
+	deadline time.Time) (int, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Send] sockfd: %d, len(buf): %d, flags: %d\r\n",
+			sockfd, len(buf), flags)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Break large bufs into chunks so we don't overrun the hw queue
+
+	chunkSize := 1436
+	for i := 0; i < len(buf); i += chunkSize {
+		end := i + chunkSize
+		if end > len(buf) {
+			end = len(buf)
+		}
+		_, err := w.sendChunk(sockfd, buf[i:end], deadline)
+		if err != nil {
+			return -1, err
+		}
+	}
+
+	return len(buf), nil
+}
+
+func (w *wifinina) Recv(sockfd int, buf []byte, flags int,
+	deadline time.Time) (int, error) {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Recv] sockfd: %d, len(buf): %d, flags: %d\r\n",
+			sockfd, len(buf), flags)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var sock = sock(sockfd)
+
+	// Limit max read size to chunk large read requests
+	var max = len(buf)
+	if max > 1436 {
+		max = 1436
+	}
+
+	for {
+		// Check if we've timed out
+		if !deadline.IsZero() {
+			if time.Now().After(deadline) {
+				return -1, netdev.ErrTimeout
+			}
+		}
+
+		// Receive into buf, if any data available.  It's ok if no data
+		// is available, we'll just sleep a bit and recheck.  Recv()
+		// doesn't return unless there is data, even a single byte, or
+		// on error such as timeout or EOF.
+
+		n := int(w.getDataBuf(sock, buf[:max]))
+		if n > 0 {
+			if debugging(debugNetdev) {
+				fmt.Printf("[<--Recv] sockfd: %d, n: %d\r\n",
+					sock, n)
+			}
+			return n, nil
+		}
+
+		// Check if socket went down
+		if w.sockDown(sock) {
+			// Get any last bytes
+			n = int(w.getDataBuf(sock, buf[:max]))
+			if debugging(debugNetdev) {
+				fmt.Printf("[<--Recv] sockfd: %d, n: %d, EOF\r\n",
+					sock, n)
+			}
+			if n > 0 {
+				return n, io.EOF
+			}
+			return -1, io.EOF
+		}
+
+		// Check if we've faulted
+		if w.fault != nil {
+			return -1, w.fault
+		}
+
+		// Unlock while we sleep, so others can make progress
+		w.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		w.mu.Lock()
+	}
+}
+
+func (w *wifinina) Close(sockfd int) error {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var sock = sock(sockfd)
+	var socket = w.sockets[sock]
+
+	if !socket.inuse {
+		return nil
+	}
+
+	w.stopClient(sock)
+
+	if socket.protocol == netdev.IPPROTO_UDP {
+		socket.inuse = false
+		return nil
+	}
+
+	start := time.Now()
+	for time.Since(start) < 5*time.Second {
+
+		if w.getClientState(sock) == tcpStateClosed {
+			socket.inuse = false
+			return nil
+		}
+
+		w.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		w.mu.Lock()
+	}
+
+	return netdev.ErrClosingSocket
+}
+
+func (w *wifinina) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
+
+	if debugging(debugNetdev) {
+		fmt.Printf("[SetSockOpt] sockfd: %d\r\n", sockfd)
+	}
+
+	return netdev.ErrNotSupported
+}
+
+func (w *wifinina) startClient(sock sock, hostname string, addr uint32, port uint16, mode uint8) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdStartClientTCP] sock: %d, hostname: \"%s\", addr: % 02X, port: %d, mode: %d\r\n",
+			sock, hostname, addr, port, mode)
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+
+	if len(hostname) > 0 {
+		w.sendCmd(cmdStartClientTCP, 5)
+		w.sendParamStr(hostname, false)
+	} else {
+		w.sendCmd(cmdStartClientTCP, 4)
+	}
+
+	w.sendParam32(addr, false)
+	w.sendParam16(port, false)
+	w.sendParam8(uint8(sock), false)
+	w.sendParam8(mode, true)
+
+	if len(hostname) > 0 {
+		w.padTo4(17 + len(hostname))
+	}
+
+	w.spiChipDeselect()
+	w.waitRspCmd1(cmdStartClientTCP)
+}
+
+func (w *wifinina) getSocket() sock {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetSocket]\r\n")
+	}
+	return sock(w.getUint8(w.req0(cmdGetSocket)))
+}
+
+func (w *wifinina) getClientState(sock sock) uint8 {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetClientStateTCP] sock: %d\r\n", sock)
+	}
+	return w.getUint8(w.reqUint8(cmdGetClientStateTCP, uint8(sock)))
+}
+
+func (w *wifinina) sendData(sock sock, buf []byte) uint16 {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdSendDataTCP] sock: %d, len(buf): %d\r\n",
+			sock, len(buf))
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.sendCmd(cmdSendDataTCP, 2)
+	l += w.sendParamBuf([]byte{uint8(sock)}, false)
+	l += w.sendParamBuf(buf, true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	sent := w.getUint16(w.waitRspCmd1(cmdSendDataTCP))
+	return bits.RotateLeft16(sent, 8)
+}
+
+func (w *wifinina) checkDataSent(sock sock) bool {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdDataSentTCP] sock: %d\r\n", sock)
+	}
+	sent := w.getUint8(w.reqUint8(cmdDataSentTCP, uint8(sock)))
+	return sent > 0
+}
+
+func (w *wifinina) getDataBuf(sock sock, buf []byte) uint16 {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetDatabufTCP] sock: %d, len(buf): %d\r\n",
+			sock, len(buf))
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	p := uint16(len(buf))
+	l := w.sendCmd(cmdGetDatabufTCP, 2)
+	l += w.sendParamBuf([]byte{uint8(sock)}, false)
+	l += w.sendParamBuf([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}, true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	n := w.waitRspBuf16(cmdGetDatabufTCP, buf)
+	w.spiChipDeselect()
+
+	if n > 0 {
+		if debugging(debugCmd) {
+			fmt.Printf("    [<--cmdGetDatabufTCP] sock: %d, got n: %d\r\n",
+				sock, n)
+		}
+	}
+
+	return n
+}
+
+func (w *wifinina) stopClient(sock sock) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdStopClientTCP] sock: %d\r\n", sock)
+	}
+	w.getUint8(w.reqUint8(cmdStopClientTCP, uint8(sock)))
+}
+
+func (w *wifinina) startServer(sock sock, port uint16, mode uint8) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdStartServerTCP] sock: %d, port: %d, mode: %d\r\n",
+			sock, port, mode)
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.sendCmd(cmdStartServerTCP, 3)
+	l += w.sendParam16(port, false)
+	l += w.sendParam8(uint8(sock), false)
+	l += w.sendParam8(mode, true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	w.waitRspCmd1(cmdStartServerTCP)
+}
+
+func (w *wifinina) accept(s sock) sock {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdAvailDataTCP] sock: %d\r\n", s)
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.sendCmd(cmdAvailDataTCP, 1)
+	l += w.sendParam8(uint8(s), true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	newsock16 := w.getUint16(w.waitRspCmd1(cmdAvailDataTCP))
+	newsock := sock(uint8(bits.RotateLeft16(newsock16, 8)))
+
+	if newsock != noSocketAvail {
+		if debugging(debugCmd) {
+			fmt.Printf("    [cmdAvailDataTCP-->] sock: %d, got sock: %d\r\n",
+				s, newsock)
+		}
+	}
+
+	return newsock
+}
+
+func (w *wifinina) getRemoteData(s sock) netip.AddrPort {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetRemoteData] sock: %d\r\n", s)
+	}
+
+	sl := make([]string, 2)
+	l := w.reqRspStr1(cmdGetRemoteData, uint8(s), sl)
+	if l != 2 {
+		w.faultf("getRemoteData wanted l=2, got l=%d", l)
+		return netip.AddrPort{}
+	}
+	ip, _ := netip.AddrFromSlice([]byte(sl[0])[:4])
+	port := binary.BigEndian.Uint16([]byte(sl[1]))
+	return netip.AddrPortFrom(ip, port)
+}
+
+// insertDataBuf adds data to the buffer used for sending UDP data
+func (w *wifinina) insertDataBuf(sock sock, buf []byte) bool {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdInsertDataBuf] sock: %d, len(buf): %d\r\n",
+			sock, len(buf))
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.sendCmd(cmdInsertDataBuf, 2)
+	l += w.sendParamBuf([]byte{uint8(sock)}, false)
+	l += w.sendParamBuf(buf, true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	n := w.getUint8(w.waitRspCmd1(cmdInsertDataBuf))
+	return n == 1
+}
+
+// sendUDPData sends the data previously added to the UDP buffer
+func (w *wifinina) sendUDPData(sock sock) bool {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdSendDataUDP] sock: %d\r\n", sock)
+	}
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.sendCmd(cmdSendDataUDP, 1)
+	l += w.sendParam8(uint8(sock), true)
+	w.addPadding(l)
+	w.spiChipDeselect()
+
+	n := w.getUint8(w.waitRspCmd1(cmdSendDataUDP))
+	return n == 1
+}
+
+func (w *wifinina) disconnect() {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdDisconnect]\r\n")
+	}
+	w.req1(cmdDisconnect)
+}
+
+func (w *wifinina) getFwVersion() string {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetFwVersion]\r\n")
+	}
+	return w.getString(w.req0(cmdGetFwVersion))
+}
+
+func (w *wifinina) getConnectionStatus() connectionStatus {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetConnStatus]\r\n")
+	}
+	status := w.getUint8(w.req0(cmdGetConnStatus))
+	return connectionStatus(status)
+}
+
+func (w *wifinina) getCurrentencryptionType() encryptionType {
+	enctype := w.getUint8(w.req1(cmdGetCurrEncrType))
+	return encryptionType(enctype)
+}
+
+func (w *wifinina) getCurrentBSSID() net.HardwareAddr {
+	return w.getMACAddress(w.req1(cmdGetCurrBSSID))
+}
+
+func (w *wifinina) getCurrentRSSI() int32 {
+	return w.getInt32(w.req1(cmdGetCurrRSSI))
+}
+
+func (w *wifinina) getCurrentSSID() string {
+	return w.getString(w.req1(cmdGetCurrSSID))
+}
+
+func (w *wifinina) getMACAddr() net.HardwareAddr {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetMACAddr]\r\n")
+	}
+	return w.getMACAddress(w.req1(cmdGetMACAddr))
+}
+
+func (w *wifinina) faultf(f string, args ...any) {
+	// Only record the first fault
+	if w.fault == nil {
+		w.fault = fmt.Errorf(f, args...)
+	}
+}
+
+func (w *wifinina) getIP() (ip, subnet, gateway netip.Addr) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetIPAddr]\r\n")
+	}
+	sl := make([]string, 3)
+	l := w.reqRspStr1(cmdGetIPAddr, dummyData, sl)
+	if l != 3 {
+		w.faultf("getIP wanted l=3, got l=%d", l)
+		return
+	}
+	ip, _ = netip.AddrFromSlice([]byte(sl[0])[:4])
+	subnet, _ = netip.AddrFromSlice([]byte(sl[1])[:4])
+	gateway, _ = netip.AddrFromSlice([]byte(sl[2])[:4])
+	return
+}
+
+func (w *wifinina) getHostByName(name string) string {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdGetHostByName]\r\n")
+	}
+	ok := w.getUint8(w.reqStr(cmdReqHostByName, name))
+	if ok != 1 {
+		return ""
+	}
+	return w.getString(w.req0(cmdGetHostByName))
+}
+
+func (w *wifinina) getNetworkBSSID(idx int) net.HardwareAddr {
+	if idx < 0 || idx >= maxNetworks {
+		return net.HardwareAddr{}
+	}
+	return w.getMACAddress(w.reqUint8(cmdGetIdxBSSID, uint8(idx)))
+}
+
+func (w *wifinina) getNetworkChannel(idx int) uint8 {
+	if idx < 0 || idx >= maxNetworks {
+		return 0
+	}
+	return w.getUint8(w.reqUint8(cmdGetIdxChannel, uint8(idx)))
+}
+
+func (w *wifinina) getNetworkEncrType(idx int) encryptionType {
+	if idx < 0 || idx >= maxNetworks {
+		return 0
+	}
+	enctype := w.getUint8(w.reqUint8(cmdGetIdxEncrType, uint8(idx)))
+	return encryptionType(enctype)
+}
+
+func (w *wifinina) getNetworkRSSI(idx int) int32 {
+	if idx < 0 || idx >= maxNetworks {
+		return 0
+	}
+	return w.getInt32(w.reqUint8(cmdGetIdxRSSI, uint8(idx)))
+}
+
+func (w *wifinina) getNetworkSSID(idx int) string {
+	if idx < 0 || idx >= maxNetworks {
+		return ""
+	}
+	return w.ssids[idx]
+}
+
+func (w *wifinina) getReasonCode() uint8 {
+	return w.getUint8(w.req0(cmdGetReasonCode))
+}
+
+// getTime is the time as a Unix timestamp
+func (w *wifinina) getTime() uint32 {
+	return w.getUint32(w.req0(cmdGetTime))
+}
+
+func (w *wifinina) getTemperature() float32 {
+	return w.getFloat32(w.req0(cmdGetTemperature))
+}
+
+func (w *wifinina) setDebug(on bool) {
+	var v uint8
+	if on {
+		v = 1
+	}
+	w.reqUint8(cmdSetDebug, v)
+}
+
+func (w *wifinina) setNetwork(ssid string) {
+	w.reqStr(cmdSetNet, ssid)
+}
+
+func (w *wifinina) setPassphrase(ssid string, passphrase string) {
+
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdSetPassphrase] ssid: %s, passphrase: ******\r\n",
+			ssid)
+	}
+
+	// Dont' show passphrase in debug output
+	saveDebug := _debug
+	_debug = _debug & ^debugDetail
+	w.reqStr2(cmdSetPassphrase, ssid, passphrase)
+	_debug = saveDebug
+}
+
+func (w *wifinina) setKey(ssid string, index uint8, key string) {
+
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmdSetKey, 3)
+	w.sendParamStr(ssid, false)
+	w.sendParam8(index, false)
+	w.sendParamStr(key, true)
+	w.padTo4(8 + len(ssid) + len(key))
+	w.spiChipDeselect()
+
+	w.waitRspCmd1(cmdSetKey)
+}
+
+func (w *wifinina) setNetworkForAP(ssid string) {
+	w.reqStr(cmdSetAPNet, ssid)
+}
+
+func (w *wifinina) setPassphraseForAP(ssid string, passphrase string) {
+	w.reqStr2(cmdSetAPPassphrase, ssid, passphrase)
+}
+
+func (w *wifinina) setDNS(which uint8, dns1 uint32, dns2 uint32) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmdSetDNSConfig, 3)
+	w.sendParam8(which, false)
+	w.sendParam32(dns1, false)
+	w.sendParam32(dns2, true)
+	//pad??
+	w.spiChipDeselect()
+
+	w.waitRspCmd1(cmdSetDNSConfig)
+}
+
+func (w *wifinina) setHostname(hostname string) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmdSetHostname, 3)
+	w.sendParamStr(hostname, true)
+	w.padTo4(5 + len(hostname))
+	w.spiChipDeselect()
+
+	w.waitRspCmd1(cmdSetHostname)
+}
+
+func (w *wifinina) setPowerMode(mode uint8) {
+	w.reqUint8(cmdSetPowerMode, mode)
+}
+
+func (w *wifinina) scanNetworks() uint8 {
+	return w.reqRspStr0(cmdScanNetworks, w.ssids[:])
+}
+
+func (w *wifinina) startScanNetworks() uint8 {
+	return w.getUint8(w.req0(cmdStartScanNetworks))
+}
+
+func (w *wifinina) PinMode(pin uint8, mode uint8) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdSetPinMode] pin: %d, mode: %d\r\n", pin, mode)
+	}
+	w.req2Uint8(cmdSetPinMode, pin, mode)
+}
+
+func (w *wifinina) DigitalWrite(pin uint8, value uint8) {
+	if debugging(debugCmd) {
+		fmt.Printf("    [cmdSetDigitialWrite] pin: %d, value: %d\r\n", pin, value)
+	}
+	w.req2Uint8(cmdSetDigitalWrite, pin, value)
+}
+
+func (w *wifinina) AnalogWrite(pin uint8, value uint8) {
+	w.req2Uint8(cmdSetAnalogWrite, pin, value)
+}
+
+func (w *wifinina) getString(l uint8) string {
+	return string(w.buf[0:l])
+}
+
+func (w *wifinina) getUint8(l uint8) uint8 {
+	if l == 1 {
+		return w.buf[0]
+	}
+	w.faultf("expected length 1, was actually %d", l)
+	return 0
+}
+
+func (w *wifinina) getUint16(l uint8) uint16 {
+	if l == 2 {
+		return binary.BigEndian.Uint16(w.buf[0:2])
+	}
+	w.faultf("expected length 2, was actually %d", l)
+	return 0
+}
+
+func (w *wifinina) getUint32(l uint8) uint32 {
+	if l == 4 {
+		return binary.BigEndian.Uint32(w.buf[0:4])
+	}
+	w.faultf("expected length 4, was actually %d", l)
+	return 0
+}
+
+func (w *wifinina) getInt32(l uint8) int32 {
+	return int32(w.getUint32(l))
+}
+
+func (w *wifinina) getFloat32(l uint8) float32 {
+	return float32(w.getUint32(l))
+}
+
+func (w *wifinina) getMACAddress(l uint8) net.HardwareAddr {
+	if l == 6 {
+		mac := w.buf[0:6]
+		// Reverse the bytes
+		for i, j := 0, len(mac)-1; i < j; i, j = i+1, j-1 {
+			mac[i], mac[j] = mac[j], mac[i]
+		}
+		return mac
+	}
+	w.faultf("expected length 6, was actually %d", l)
+	return net.HardwareAddr{}
+}
+
+func (w *wifinina) transfer(b byte) byte {
+	v, err := w.spi.Transfer(b)
+	if err != nil {
+		w.faultf("SPI.Transfer")
+		return 0
+	}
+	return v
 }
 
 // Cmd Struct Message */
@@ -102,993 +1480,445 @@ func (addr MACAddress) String() string {
 // |___________|______|______|_________|___________|________|____|_________|
 // |   8 bit   | 1bit | 7bit |  8bit   |   8bit    | nbytes | .. |   8bit  |
 // |___________|______|______|_________|___________|________|____|_________|
-type command struct {
-	cmd       uint8
-	reply     bool
-	params    []int
-	paramData []byte
-}
-
-type Device struct {
-	SPI   drivers.SPI
-	CS    machine.Pin
-	ACK   machine.Pin
-	GPIO0 machine.Pin
-	RESET machine.Pin
-
-	buf   [64]byte
-	ssids [10]string
-
-	sock    uint8
-	readBuf readBuffer
-
-	proto uint8
-	ip    uint32
-	port  uint16
-	mu    sync.Mutex
-
-	// ResetIsHigh controls if the RESET signal to the processor
-	// should be High or Low (the default). Set this to true
-	// before calling Configure() for boards such as the Arduino MKR 1010,
-	// where the reset signal needs to go high instead of low.
-	ResetIsHigh bool
-}
-
-// New returns a new Wifinina device.
-func New(bus drivers.SPI, csPin, ackPin, gpio0Pin, resetPin machine.Pin) *Device {
-	return &Device{
-		SPI:   bus,
-		CS:    csPin,
-		ACK:   ackPin,
-		GPIO0: gpio0Pin,
-		RESET: resetPin,
-	}
-}
-
-// Configure sets the needed pin settings and performs a reset
-// of the WiFi device.
-func (d *Device) Configure() {
-	net.UseDriver(d)
-	pinUseDevice(d)
-
-	d.CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.ACK.Configure(machine.PinConfig{Mode: machine.PinInput})
-	d.RESET.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
-	d.GPIO0.High()
-	d.CS.High()
-
-	d.RESET.Set(d.ResetIsHigh)
-	time.Sleep(10 * time.Millisecond)
-
-	d.RESET.Set(!d.ResetIsHigh)
-	time.Sleep(750 * time.Millisecond)
-
-	d.GPIO0.Low()
-	d.GPIO0.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-}
-
-// ----------- client methods (should this be a separate struct?) ------------
-
-func (d *Device) StartClient(hostname string, addr uint32, port uint16, sock uint8, mode uint8) error {
-	if _debug {
-		fmt.Printf("[StartClient] hostname: %s addr: %02X, port: %d, sock: %d\r\n", hostname, addr, port, sock)
-	}
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return err
-	}
-
-	if len(hostname) > 0 {
-		d.sendCmd(CmdStartClientTCP, 5)
-		d.sendParamStr(hostname, false)
-	} else {
-		d.sendCmd(CmdStartClientTCP, 4)
-	}
-	d.sendParam32(addr, false)
-	d.sendParam16(port, false)
-	d.sendParam8(sock, false)
-	d.sendParam8(mode, true)
-
-	if len(hostname) > 0 {
-		d.padTo4(17 + len(hostname))
-	}
-
-	d.spiChipDeselect()
-
-	_, err := d.waitRspCmd1(CmdStartClientTCP)
-	return err
-}
-
-func (d *Device) GetSocket() (uint8, error) {
-	return d.getUint8(d.req0(CmdGetSocket))
-}
-
-func (d *Device) GetClientState(sock uint8) (uint8, error) {
-	return d.getUint8(d.reqUint8(CmdGetClientStateTCP, sock))
-}
-
-func (d *Device) SendData(buf []byte, sock uint8) (uint16, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return 0, err
-	}
-	l := d.sendCmd(CmdSendDataTCP, 2)
-	l += d.sendParamBuf([]byte{sock}, false)
-	l += d.sendParamBuf(buf, true)
-	d.addPadding(l)
-	d.spiChipDeselect()
-	return d.getUint16(d.waitRspCmd1(CmdSendDataTCP))
-}
-
-func (d *Device) CheckDataSent(sock uint8) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	var lastErr error
-	for timeout := 0; timeout < 10; timeout++ {
-		sent, err := d.getUint8(d.reqUint8(CmdDataSentTCP, sock))
-		if err != nil {
-			lastErr = err
-		}
-		if sent > 0 {
-			return true, nil
-		}
-		time.Sleep(100 * time.Microsecond)
-	}
-	return false, lastErr
-}
-
-func (d *Device) GetDataBuf(sock uint8, buf []byte) (int, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return 0, err
-	}
-	p := uint16(len(buf))
-	l := d.sendCmd(CmdGetDatabufTCP, 2)
-	l += d.sendParamBuf([]byte{sock}, false)
-	l += d.sendParamBuf([]byte{uint8(p & 0x00FF), uint8((p) >> 8)}, true)
-	d.addPadding(l)
-	d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return 0, err
-	}
-	n, err := d.waitRspBuf16(CmdGetDatabufTCP, buf)
-	d.spiChipDeselect()
-	return int(n), err
-}
-
-func (d *Device) StopClient(sock uint8) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if _debug {
-		println("[StopClient] called StopClient()\r")
-	}
-	_, err := d.getUint8(d.reqUint8(CmdStopClientTCP, sock))
-	return err
-}
-
-func (d *Device) StartServer(port uint16, sock uint8, mode uint8) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return err
-	}
-	l := d.sendCmd(CmdStartServerTCP, 3)
-	l += d.sendParam16(port, false)
-	l += d.sendParam8(sock, false)
-	l += d.sendParam8(mode, true)
-	d.addPadding(l)
-	d.spiChipDeselect()
-	_, err := d.waitRspCmd1(CmdStartClientTCP)
-	return err
-}
-
-// InsertDataBuf adds data to the buffer used for sending UDP data
-func (d *Device) InsertDataBuf(buf []byte, sock uint8) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return false, err
-	}
-	l := d.sendCmd(CmdInsertDataBuf, 2)
-	l += d.sendParamBuf([]byte{sock}, false)
-	l += d.sendParamBuf(buf, true)
-	d.addPadding(l)
-	d.spiChipDeselect()
-	n, err := d.getUint8(d.waitRspCmd1(CmdInsertDataBuf))
-	return n == 1, err
-}
-
-// SendUDPData sends the data previously added to the UDP buffer
-func (d *Device) SendUDPData(sock uint8) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if err := d.waitForChipSelect(); err != nil {
-		d.spiChipDeselect()
-		return false, err
-	}
-	l := d.sendCmd(CmdSendDataUDP, 1)
-	l += d.sendParam8(sock, true)
-	d.addPadding(l)
-	d.spiChipDeselect()
-	n, err := d.getUint8(d.waitRspCmd1(CmdSendDataUDP))
-	return n == 1, err
-}
-
-// ---------- /client methods (should this be a separate struct?) ------------
-
-/*
-	static bool startServer(uint16_t port, uint8_t sock);
-	static uint8_t getServerState(uint8_t sock);
-	static bool getData(uint8_t connId, uint8_t *data, bool peek, bool* connClose);
-	static int getDataBuf(uint8_t connId, uint8_t *buf, uint16_t bufSize);
-	static bool sendData(uint8_t sock, const uint8_t *data, uint16_t len);
-	static bool sendDataUdp(uint8_t sock, const char* host, uint16_t port, const uint8_t *data, uint16_t len);
-	static uint16_t availData(uint8_t connId);
-
-
-	static bool ping(const char *host);
-	static void reset();
-
-	static void getRemoteIpAddress(IPAddress& ip);
-	static uint16_t getRemotePort();
-*/
-
-func (d *Device) Disconnect() error {
-	_, err := d.req1(CmdDisconnect)
-	return err
-}
-
-func (d *Device) GetFwVersion() (string, error) {
-	return d.getString(d.req0(CmdGetFwVersion))
-}
-
-func (d *Device) GetConnectionStatus() (ConnectionStatus, error) {
-	status, err := d.getUint8(d.req0(CmdGetConnStatus))
-	return ConnectionStatus(status), err
-}
-
-func (d *Device) GetCurrentEncryptionType() (EncryptionType, error) {
-	enctype, err := d.getUint8(d.req1(CmdGetCurrEncrType))
-	return EncryptionType(enctype), err
-}
-
-func (d *Device) GetCurrentBSSID() (MACAddress, error) {
-	return d.getMACAddress(d.req1(CmdGetCurrBSSID))
-}
-
-func (d *Device) GetCurrentRSSI() (int32, error) {
-	return d.getInt32(d.req1(CmdGetCurrRSSI))
-}
-
-func (d *Device) GetCurrentSSID() (string, error) {
-	return d.getString(d.req1(CmdGetCurrSSID))
-}
-
-func (d *Device) GetMACAddress() (MACAddress, error) {
-	return d.getMACAddress(d.req1(CmdGetMACAddr))
-}
-
-func (d *Device) GetIP() (ip, subnet, gateway IPAddress, err error) {
-	sl := make([]string, 3)
-	if l, err := d.reqRspStr1(CmdGetIPAddr, dummyData, sl); err != nil {
-		return "", "", "", err
-	} else if l != 3 {
-		return "", "", "", ErrUnexpectedLength
-	}
-	return IPAddress(sl[0]), IPAddress(sl[1]), IPAddress(sl[2]), err
-}
-
-func (d *Device) GetHostByName(hostname string) (IPAddress, error) {
-	ok, err := d.getUint8(d.reqStr(CmdReqHostByName, hostname))
-	if err != nil {
-		return "", err
-	}
-	if ok != 1 {
-		return "", ErrUnknownHost
-	}
-	ip, err := d.getString(d.req0(CmdGetHostByName))
-	return IPAddress(ip), err
-}
-
-func (d *Device) GetNetworkBSSID(idx int) (MACAddress, error) {
-	if idx < 0 || idx >= MaxNetworks {
-		return 0, nil
-	}
-	return d.getMACAddress(d.reqUint8(CmdGetIdxBSSID, uint8(idx)))
-}
-
-func (d *Device) GetNetworkChannel(idx int) (uint8, error) {
-	if idx < 0 || idx >= MaxNetworks {
-		return 0, nil
-	}
-	return d.getUint8(d.reqUint8(CmdGetIdxChannel, uint8(idx)))
-}
-
-func (d *Device) GetNetworkEncrType(idx int) (EncryptionType, error) {
-	if idx < 0 || idx >= MaxNetworks {
-		return 0, nil
-	}
-	enctype, err := d.getUint8(d.reqUint8(CmdGetIdxEncrType, uint8(idx)))
-	return EncryptionType(enctype), err
-}
-
-func (d *Device) GetNetworkRSSI(idx int) (int32, error) {
-	if idx < 0 || idx >= MaxNetworks {
-		return 0, nil
-	}
-	return d.getInt32(d.reqUint8(CmdGetIdxRSSI, uint8(idx)))
-}
-
-func (d *Device) GetNetworkSSID(idx int) string {
-	if idx < 0 || idx >= MaxNetworks {
-		return ""
-	}
-	return d.ssids[idx]
-}
-
-func (d *Device) GetReasonCode() (uint8, error) {
-	return d.getUint8(d.req0(CmdGetReasonCode))
-}
-
-// GetTime is the time as a Unix timestamp
-func (d *Device) GetTime() (uint32, error) {
-	return d.getUint32(d.req0(CmdGetTime))
-}
-
-func (d *Device) GetTemperature() (float32, error) {
-	return d.getFloat32(d.req0(CmdGetTemperature))
-}
-
-func (d *Device) Ping(ip IPAddress, ttl uint8) int16 {
-	return 0
-}
-
-func (d *Device) SetDebug(on bool) error {
-	var v uint8
-	if on {
-		v = 1
-	}
-	_, err := d.reqUint8(CmdSetDebug, v)
-	return err
-}
-
-func (d *Device) SetNetwork(ssid string) error {
-	_, err := d.reqStr(CmdSetNet, ssid)
-	return err
-}
-
-func (d *Device) SetPassphrase(ssid string, passphrase string) error {
-	_, err := d.reqStr2(CmdSetPassphrase, ssid, passphrase)
-	return err
-}
-
-func (d *Device) SetKey(ssid string, index uint8, key string) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-
-	d.sendCmd(CmdSetKey, 3)
-	d.sendParamStr(ssid, false)
-	d.sendParam8(index, false)
-	d.sendParamStr(key, true)
-
-	d.padTo4(8 + len(ssid) + len(key))
-
-	_, err := d.waitRspCmd1(CmdSetKey)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *Device) SetNetworkForAP(ssid string) error {
-	_, err := d.reqStr(CmdSetAPNet, ssid)
-	return err
-}
-
-func (d *Device) SetPassphraseForAP(ssid string, passphrase string) error {
-	_, err := d.reqStr2(CmdSetAPPassphrase, ssid, passphrase)
-	return err
-}
-
-func (d *Device) SetIP(which uint8, ip uint32, gw uint32, subnet uint32) error {
-	return ErrNotImplemented
-}
-
-func (d *Device) SetDNS(which uint8, dns1 uint32, dns2 uint32) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-
-	d.sendCmd(CmdSetDNSConfig, 3)
-	d.sendParam8(which, false)
-	d.sendParam32(dns1, false)
-	d.sendParam32(dns2, true)
-
-	_, err := d.waitRspCmd1(CmdSetDNSConfig)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *Device) SetHostname(hostname string) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-
-	d.sendCmd(CmdSetHostname, 3)
-	d.sendParamStr(hostname, true)
-
-	d.padTo4(5 + len(hostname))
-
-	_, err := d.waitRspCmd1(CmdSetHostname)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (d *Device) SetPowerMode(mode uint8) error {
-	_, err := d.reqUint8(CmdSetPowerMode, mode)
-	return err
-}
-
-func (d *Device) ScanNetworks() (uint8, error) {
-	return d.reqRspStr0(CmdScanNetworks, d.ssids[:])
-}
-
-func (d *Device) StartScanNetworks() (uint8, error) {
-	return d.getUint8(d.req0(CmdStartScanNetworks))
-}
-
-func (d *Device) PinMode(pin uint8, mode uint8) error {
-	_, err := d.req2Uint8(CmdSetPinMode, pin, mode)
-	return err
-}
-
-func (d *Device) DigitalWrite(pin uint8, value uint8) error {
-	_, err := d.req2Uint8(CmdSetDigitalWrite, pin, value)
-	return err
-}
-
-func (d *Device) AnalogWrite(pin uint8, value uint8) error {
-	_, err := d.req2Uint8(CmdSetAnalogWrite, pin, value)
-	return err
-}
-
-// ------------- End of public device interface ----------------------------
-
-func (d *Device) getString(l uint8, err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-	return string(d.buf[0:l]), err
-}
-
-func (d *Device) getUint8(l uint8, err error) (uint8, error) {
-	if err != nil {
-		return 0, err
-	}
-	if l != 1 {
-		if _debug {
-			println("expected length 1, was actually", l, "\r")
-		}
-		return 0, ErrUnexpectedLength
-	}
-	return d.buf[0], err
-}
-
-func (d *Device) getUint16(l uint8, err error) (uint16, error) {
-	if err != nil {
-		return 0, err
-	}
-	if l != 2 {
-		if _debug {
-			println("expected length 2, was actually", l, "\r")
-		}
-		return 0, ErrUnexpectedLength
-	}
-	return binary.BigEndian.Uint16(d.buf[0:2]), err
-}
-
-func (d *Device) getUint32(l uint8, err error) (uint32, error) {
-	if err != nil {
-		return 0, err
-	}
-	if l != 4 {
-		return 0, ErrUnexpectedLength
-	}
-	return binary.LittleEndian.Uint32(d.buf[0:4]), err
-}
-
-func (d *Device) getInt32(l uint8, err error) (int32, error) {
-	i, err := d.getUint32(l, err)
-	return int32(i), err
-}
-
-func (d *Device) getFloat32(l uint8, err error) (float32, error) {
-	i, err := d.getUint32(l, err)
-	return float32(i), err
-}
-
-func (d *Device) getMACAddress(l uint8, err error) (MACAddress, error) {
-	if err != nil {
-		return 0, err
-	}
-	if l != 6 {
-		return 0, ErrUnexpectedLength
-	}
-	return MACAddress(binary.LittleEndian.Uint64(d.buf[0:8]) & 0xFFFFFFFFFFFF), err
-}
 
 // req0 sends a command to the device with no request parameters
-func (d *Device) req0(cmd CommandType) (l uint8, err error) {
-	if err := d.sendCmd0(cmd); err != nil {
-		return 0, err
-	}
-	return d.waitRspCmd1(cmd)
+func (w *wifinina) req0(cmd uint8) uint8 {
+	w.sendCmd0(cmd)
+	return w.waitRspCmd1(cmd)
 }
 
 // req1 sends a command to the device with a single dummy parameters of 0xFF
-func (d *Device) req1(cmd CommandType) (l uint8, err error) {
-	return d.reqUint8(cmd, dummyData)
+func (w *wifinina) req1(cmd uint8) uint8 {
+	return w.reqUint8(cmd, dummyData)
 }
 
 // reqUint8 sends a command to the device with a single uint8 parameter
-func (d *Device) reqUint8(cmd CommandType, data uint8) (l uint8, err error) {
-	if err := d.sendCmdPadded1(cmd, data); err != nil {
-		return 0, err
-	}
-	return d.waitRspCmd1(cmd)
+func (w *wifinina) reqUint8(cmd uint8, data uint8) uint8 {
+	w.sendCmdPadded1(cmd, data)
+	return w.waitRspCmd1(cmd)
 }
 
 // req2Uint8 sends a command to the device with two uint8 parameters
-func (d *Device) req2Uint8(cmd CommandType, p1, p2 uint8) (l uint8, err error) {
-	if err := d.sendCmdPadded2(cmd, p1, p2); err != nil {
-		return 0, err
-	}
-	return d.waitRspCmd1(cmd)
+func (w *wifinina) req2Uint8(cmd, p1, p2 uint8) uint8 {
+	w.sendCmdPadded2(cmd, p1, p2)
+	return w.waitRspCmd1(cmd)
 }
 
 // reqStr sends a command to the device with a single string parameter
-func (d *Device) reqStr(cmd CommandType, p1 string) (uint8, error) {
-	if err := d.sendCmdStr(cmd, p1); err != nil {
-		return 0, err
-	}
-	return d.waitRspCmd1(cmd)
+func (w *wifinina) reqStr(cmd uint8, p1 string) uint8 {
+	w.sendCmdStr(cmd, p1)
+	return w.waitRspCmd1(cmd)
 }
 
-// reqStr sends a command to the device with 2 string parameters
-func (d *Device) reqStr2(cmd CommandType, p1 string, p2 string) (uint8, error) {
-	if err := d.sendCmdStr2(cmd, p1, p2); err != nil {
-		return 0, err
-	}
-	return d.waitRspCmd1(cmd)
+// reqStr2 sends a command to the device with 2 string parameters
+func (w *wifinina) reqStr2(cmd uint8, p1 string, p2 string) {
+	w.sendCmdStr2(cmd, p1, p2)
+	w.waitRspCmd1(cmd)
 }
 
 // reqStrRsp0 sends a command passing a string slice for the response
-func (d *Device) reqRspStr0(cmd CommandType, sl []string) (l uint8, err error) {
-	if err := d.sendCmd0(cmd); err != nil {
-		return 0, err
-	}
-	defer d.spiChipDeselect()
-	if err = d.waitForChipSelect(); err != nil {
-		return
-	}
-	return d.waitRspStr(cmd, sl)
+func (w *wifinina) reqRspStr0(cmd uint8, sl []string) (l uint8) {
+	w.sendCmd0(cmd)
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l = w.waitRspStr(cmd, sl)
+	w.spiChipDeselect()
+	return
 }
 
 // reqStrRsp1 sends a command with a uint8 param and a string slice for the response
-func (d *Device) reqRspStr1(cmd CommandType, data uint8, sl []string) (uint8, error) {
-	if err := d.sendCmdPadded1(cmd, data); err != nil {
-		return 0, err
-	}
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return 0, err
-	}
-	return d.waitRspStr(cmd, sl)
+func (w *wifinina) reqRspStr1(cmd uint8, data uint8, sl []string) uint8 {
+	w.sendCmdPadded1(cmd, data)
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.waitRspStr(cmd, sl)
+	w.spiChipDeselect()
+	return l
 }
 
-func (d *Device) sendCmd0(cmd CommandType) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-	d.sendCmd(cmd, 0)
-	return nil
+func (w *wifinina) sendCmd0(cmd uint8) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmd, 0)
+	w.spiChipDeselect()
 }
 
-func (d *Device) sendCmdPadded1(cmd CommandType, data uint8) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-	d.sendCmd(cmd, 1)
-	d.sendParam8(data, true)
-	d.SPI.Transfer(dummyData)
-	d.SPI.Transfer(dummyData)
-	return nil
+func (w *wifinina) sendCmdPadded1(cmd uint8, data uint8) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmd, 1)
+	w.sendParam8(data, true)
+	w.transfer(dummyData)
+	w.transfer(dummyData)
+	w.spiChipDeselect()
+	return
 }
 
-func (d *Device) sendCmdPadded2(cmd CommandType, data1, data2 uint8) error {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 1)
-	l += d.sendParam8(data1, false)
-	l += d.sendParam8(data2, true)
-	d.SPI.Transfer(dummyData)
-	return nil
+func (w *wifinina) sendCmdPadded2(cmd, data1, data2 uint8) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmd, 1)
+	w.sendParam8(data1, false)
+	w.sendParam8(data2, true)
+	w.transfer(dummyData)
+	w.spiChipDeselect()
 }
 
-func (d *Device) sendCmdStr(cmd CommandType, p1 string) (err error) {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-	l := d.sendCmd(cmd, 1)
-	l += d.sendParamStr(p1, true)
-	d.padTo4(5 + len(p1))
-	return nil
+func (w *wifinina) sendCmdStr(cmd uint8, p1 string) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmd, 1)
+	w.sendParamStr(p1, true)
+	w.padTo4(5 + len(p1))
+	w.spiChipDeselect()
 }
 
-func (d *Device) sendCmdStr2(cmd CommandType, p1 string, p2 string) (err error) {
-	defer d.spiChipDeselect()
-	if err := d.waitForChipSelect(); err != nil {
-		return err
-	}
-	d.sendCmd(cmd, 2)
-	d.sendParamStr(p1, false)
-	d.sendParamStr(p2, true)
-	d.padTo4(6 + len(p1) + len(p2))
-	return nil
+func (w *wifinina) sendCmdStr2(cmd uint8, p1 string, p2 string) {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	w.sendCmd(cmd, 2)
+	w.sendParamStr(p1, false)
+	w.sendParamStr(p2, true)
+	w.padTo4(6 + len(p1) + len(p2))
+	w.spiChipDeselect()
 }
 
-func (d *Device) waitRspCmd1(cmd CommandType) (l uint8, err error) {
-	defer d.spiChipDeselect()
-	if err = d.waitForChipSelect(); err != nil {
-		return
-	}
-	return d.waitRspCmd(cmd, 1)
+func (w *wifinina) waitRspCmd1(cmd uint8) uint8 {
+	w.waitForChipReady()
+	w.spiChipSelect()
+	l := w.waitRspCmd(cmd, 1)
+	w.spiChipDeselect()
+	return l
 }
 
-func (d *Device) sendCmd(cmd CommandType, numParam uint8) (l int) {
-	if _debug {
-		fmt.Printf(
-			"sendCmd: %s %s(%02X) %02X",
-			CmdStart, cmd, uint8(cmd) & ^(uint8(FlagReply)), numParam)
+func (w *wifinina) sendCmd(cmd uint8, numParam uint8) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendCmd: %02X %02X %02X",
+			cmdStart, cmd & ^(uint8(flagReply)), numParam)
 	}
+
 	l = 3
-	d.SPI.Transfer(byte(CmdStart))
-	d.SPI.Transfer(uint8(cmd) & ^(uint8(FlagReply)))
-	d.SPI.Transfer(numParam)
+	w.transfer(cmdStart)
+	w.transfer(cmd & ^(uint8(flagReply)))
+	w.transfer(numParam)
 	if numParam == 0 {
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
-		if _debug {
-			fmt.Printf(" %s", CmdEnd)
+		if debugging(debugDetail) {
+			fmt.Printf(" %02X", cmdEnd)
 		}
 	}
-	if _debug {
+
+	if debugging(debugDetail) {
 		fmt.Printf(" (%d)\r\n", l)
 	}
 	return
 }
 
-func (d *Device) sendParamLen16(p uint16) (l int) {
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
-	if _debug {
-		fmt.Printf(" %02X %02X", uint8(p>>8), uint8(p&0xFF))
+func (w *wifinina) sendParamLen16(p uint16) (l int) {
+	w.transfer(uint8(p >> 8))
+	w.transfer(uint8(p & 0xFF))
+	if debugging(debugDetail) {
+		fmt.Printf("        %02X %02X", uint8(p>>8), uint8(p&0xFF))
 	}
 	return 2
 }
 
-func (d *Device) sendParamBuf(p []byte, isLastParam bool) (l int) {
-	if _debug {
-		println("sendParamBuf:")
+func (w *wifinina) sendParamBuf(p []byte, isLastParam bool) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendParamBuf:")
 	}
-	l += d.sendParamLen16(uint16(len(p)))
+	l += w.sendParamLen16(uint16(len(p)))
 	for _, b := range p {
-		if _debug {
+		if debugging(debugDetail) {
 			fmt.Printf(" %02X", b)
 		}
-		d.SPI.Transfer(b)
+		w.transfer(b)
 		l += 1
 	}
 	if isLastParam {
-		if _debug {
-			fmt.Printf(" %s", CmdEnd)
+		if debugging(debugDetail) {
+			fmt.Printf(" %02X", cmdEnd)
 		}
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
 	}
-	if _debug {
+	if debugging(debugDetail) {
 		fmt.Printf(" (%d) \r\n", l)
 	}
 	return
 }
 
-func (d *Device) sendParamStr(p string, isLastParam bool) (l int) {
+func (w *wifinina) sendParamStr(p string, isLastParam bool) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendParamStr: p: %s, lastParam: %t\r\n", p, isLastParam)
+	}
 	l = len(p)
-	d.SPI.Transfer(uint8(l))
+	w.transfer(uint8(l))
 	if l > 0 {
-		d.SPI.Tx([]byte(p), nil)
+		w.spi.Tx([]byte(p), nil)
 	}
 	if isLastParam {
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
 	}
 	return
 }
 
-func (d *Device) sendParam8(p uint8, isLastParam bool) (l int) {
-	if _debug {
-		println("sendParam8:", p, "lastParam:", isLastParam, "\r")
+func (w *wifinina) sendParam8(p uint8, isLastParam bool) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendParam8: p: %d, lastParam: %t\r\n", p, isLastParam)
 	}
 	l = 2
-	d.SPI.Transfer(1)
-	d.SPI.Transfer(p)
+	w.transfer(1)
+	w.transfer(p)
 	if isLastParam {
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
 	}
 	return
 }
 
-func (d *Device) sendParam16(p uint16, isLastParam bool) (l int) {
+func (w *wifinina) sendParam16(p uint16, isLastParam bool) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendParam16: p: %d, lastParam: %t\r\n", p, isLastParam)
+	}
 	l = 3
-	d.SPI.Transfer(2)
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
+	w.transfer(2)
+	w.transfer(uint8(p >> 8))
+	w.transfer(uint8(p & 0xFF))
 	if isLastParam {
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
 	}
 	return
 }
 
-func (d *Device) sendParam32(p uint32, isLastParam bool) (l int) {
+func (w *wifinina) sendParam32(p uint32, isLastParam bool) (l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        sendParam32: p: %d, lastParam: %t\r\n", p, isLastParam)
+	}
 	l = 5
-	d.SPI.Transfer(4)
-	d.SPI.Transfer(uint8(p >> 24))
-	d.SPI.Transfer(uint8(p >> 16))
-	d.SPI.Transfer(uint8(p >> 8))
-	d.SPI.Transfer(uint8(p & 0xFF))
+	w.transfer(4)
+	w.transfer(uint8(p >> 24))
+	w.transfer(uint8(p >> 16))
+	w.transfer(uint8(p >> 8))
+	w.transfer(uint8(p & 0xFF))
 	if isLastParam {
-		d.SPI.Transfer(byte(CmdEnd))
+		w.transfer(cmdEnd)
 		l += 1
 	}
 	return
 }
 
-func (d *Device) checkStartCmd() (bool, error) {
-	check, err := d.waitSpiChar(byte(CmdStart))
-	if err != nil {
-		return false, err
+func (w *wifinina) waitForChipReady() {
+	if debugging(debugDetail) {
+		fmt.Printf("        waitForChipReady\r\n")
 	}
-	if !check {
-		return false, ErrCheckStartCmd
-	}
-	return true, nil
-}
 
-func (d *Device) waitForChipSelect() (err error) {
-	if err = d.waitForChipReady(); err == nil {
-		err = d.spiChipSelect()
-	}
-	return
-}
-
-func (d *Device) waitForChipReady() error {
-	if _debug {
-		println("waitForChipReady()\r")
-	}
-	start := time.Now()
-	for time.Since(start) < 10*time.Second {
-		if !d.ACK.Get() {
-			return nil
-		}
+	for i := 0; w.ack.Get(); i++ {
 		time.Sleep(1 * time.Millisecond)
+		if i == 10000 {
+			w.faultf("hung in waitForChipReady")
+			return
+		}
 	}
-	return ErrTimeoutChipReady
 }
 
-func (d *Device) spiChipSelect() error {
-	if _debug {
-		println("spiChipSelect()\r")
+func (w *wifinina) spiChipSelect() {
+	if debugging(debugDetail) {
+		fmt.Printf("        spiChipSelect\r\n")
 	}
-	d.CS.Low()
+	w.cs.Low()
 	start := time.Now()
-	for time.Since(start) < 5*time.Millisecond {
-		if d.ACK.Get() {
-			return nil
+	for time.Since(start) < 10*time.Millisecond {
+		if w.ack.Get() {
+			return
 		}
 		time.Sleep(100 * time.Microsecond)
 	}
-	return ErrTimeoutChipSelect
+	w.faultf("hung in spiChipSelect")
 }
 
-func (d *Device) spiChipDeselect() {
-	if _debug {
-		println("spiChipDeselect\r")
+func (w *wifinina) spiChipDeselect() {
+	if debugging(debugDetail) {
+		fmt.Printf("        spiChipDeselect\r\n")
 	}
-	d.CS.High()
+	w.cs.High()
 }
 
-func (d *Device) waitSpiChar(wait byte) (bool, error) {
-	var timeout = 1000
+func (w *wifinina) waitSpiChar(desired byte) {
+
+	if debugging(debugDetail) {
+		fmt.Printf("        waitSpiChar: desired: %02X\r\n", desired)
+	}
+
 	var read byte
-	for first := true; first || (timeout > 0 && read != wait); timeout-- {
-		first = false
-		d.readParam(&read)
-		if read == byte(CmdErr) {
-			return false, ErrCmdErrorReceived
+
+	for i := 0; i < 10; i++ {
+		w.readParam(&read)
+		switch read {
+		case cmdErr:
+			w.faultf("cmdErr received, waiting for %d", desired)
+			return
+		case desired:
+			return
 		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	if _debug && read != wait {
-		fmt.Printf("read: %02X, wait: %02X\r\n", read, wait)
-	}
-	return read == wait, nil
+
+	w.faultf("timeout waiting for SPI char %02X\r\n", desired)
 }
 
-func (d *Device) waitRspCmd(cmd CommandType, np uint8) (l uint8, err error) {
-	if _debug {
-		println("waitRspCmd")
+func (w *wifinina) waitRspCmd(cmd uint8, np uint8) (l uint8) {
+
+	if debugging(debugDetail) {
+		fmt.Printf("        waitRspCmd: cmd: %02X, np: %d\r\n", cmd, np)
 	}
-	var check bool
+
 	var data byte
-	if check, err = d.checkStartCmd(); !check {
+
+	w.waitSpiChar(cmdStart)
+
+	if !w.readAndCheckByte(cmd|flagReply, &data) {
+		w.faultf("expected cmd %02X, read %02X", cmd, data)
 		return
 	}
-	if check = d.readAndCheckByte(byte(cmd)|FlagReply, &data); !check {
-		return
-	}
-	if check = d.readAndCheckByte(np, &data); check {
-		d.readParam(&l)
+
+	if w.readAndCheckByte(np, &data) {
+		w.readParam(&l)
 		for i := uint8(0); i < l; i++ {
-			d.readParam(&d.buf[i])
+			w.readParam(&w.buf[i])
+		}
+		if !w.readAndCheckByte(cmdEnd, &data) {
+			w.faultf("expected cmdEnd, read %02X", data)
 		}
 	}
-	if !d.readAndCheckByte(byte(CmdEnd), &data) {
-		err = ErrIncorrectSentinel
-	}
+
 	return
 }
 
-func (d *Device) waitRspBuf16(cmd CommandType, buf []byte) (l uint16, err error) {
-	if _debug {
-		println("waitRspBuf16")
+func (w *wifinina) waitRspBuf16(cmd uint8, buf []byte) (l uint16) {
+
+	if debugging(debugDetail) {
+		fmt.Printf("        waitRspBuf16: cmd: %02X, len(buf): %d\r\n", cmd, len(buf))
 	}
-	var check bool
+
 	var data byte
-	if check, err = d.checkStartCmd(); !check {
+
+	w.waitSpiChar(cmdStart)
+
+	if !w.readAndCheckByte(cmd|flagReply, &data) {
+		w.faultf("expected cmd %02X, read %02X", cmd, data)
 		return
 	}
-	if check = d.readAndCheckByte(byte(cmd)|FlagReply, &data); !check {
-		return
-	}
-	if check = d.readAndCheckByte(1, &data); check {
-		l, _ = d.readParamLen16()
+
+	if w.readAndCheckByte(1, &data) {
+		l = w.readParamLen16()
 		for i := uint16(0); i < l; i++ {
-			d.readParam(&buf[i])
+			w.readParam(&buf[i])
+		}
+		if !w.readAndCheckByte(cmdEnd, &data) {
+			w.faultf("expected cmdEnd, read %02X", data)
 		}
 	}
-	if !d.readAndCheckByte(byte(CmdEnd), &data) {
-		err = ErrIncorrectSentinel
-	}
+
 	return
 }
 
-func (d *Device) waitRspStr(cmd CommandType, sl []string) (numRead uint8, err error) {
-	if _debug {
-		println("waitRspStr")
+func (w *wifinina) waitRspStr(cmd uint8, sl []string) (numRead uint8) {
+
+	if debugging(debugDetail) {
+		fmt.Printf("        waitRspStr: cmd: %02X, len(sl): %d\r\n", cmd, len(sl))
 	}
-	var check bool
+
 	var data byte
-	if check, err = d.checkStartCmd(); !check {
+
+	w.waitSpiChar(cmdStart)
+
+	if !w.readAndCheckByte(cmd|flagReply, &data) {
+		w.faultf("expected cmd %02X, read %02X", cmd, data)
 		return
 	}
-	if check = d.readAndCheckByte(byte(cmd)|FlagReply, &data); !check {
-		return
-	}
-	numRead, _ = d.SPI.Transfer(dummyData)
+
+	numRead = w.transfer(dummyData)
 	if numRead == 0 {
-		return 0, ErrNoParamsReturned
+		w.faultf("waitRspStr numRead == 0")
+		return
 	}
+
 	maxNumRead := uint8(len(sl))
 	for j, l := uint8(0), uint8(0); j < numRead; j++ {
-		d.readParam(&l)
+		w.readParam(&l)
 		for i := uint8(0); i < l; i++ {
-			d.readParam(&d.buf[i])
+			w.readParam(&w.buf[i])
 		}
 		if j < maxNumRead {
-			sl[j] = string(d.buf[0:l])
-			if _debug {
-				fmt.Printf("str %d (%d) - %08X\r\n", j, l, []byte(sl[j]))
+			sl[j] = string(w.buf[0:l])
+			if debugging(debugDetail) {
+				fmt.Printf("            str: %d (%d) - %08X\r\n", j, l, []byte(sl[j]))
 			}
 		}
 	}
+
 	for j := numRead; j < maxNumRead; j++ {
-		if _debug {
-			println("str", j, "\"\"\r")
+		if debugging(debugDetail) {
+			fmt.Printf("            str: ", j, "\"\"\r")
 		}
 		sl[j] = ""
 	}
-	if !d.readAndCheckByte(byte(CmdEnd), &data) {
-		err = ErrIncorrectSentinel
+
+	if !w.readAndCheckByte(cmdEnd, &data) {
+		w.faultf("expected cmdEnd, read %02X", data)
+		return
 	}
+
 	if numRead > maxNumRead {
 		numRead = maxNumRead
 	}
 	return
 }
 
-func (d *Device) readAndCheckByte(check byte, read *byte) bool {
-	d.readParam(read)
-	return (*read == check)
+func (w *wifinina) readAndCheckByte(check byte, read *byte) bool {
+	w.readParam(read)
+	return *read == check
 }
 
 // readParamLen16 reads 2 bytes from the SPI bus (MSB first), returning uint16
-func (d *Device) readParamLen16() (v uint16, err error) {
-	if b, err := d.SPI.Transfer(0xFF); err == nil {
-		v |= uint16(b) << 8
-		if b, err = d.SPI.Transfer(0xFF); err == nil {
-			v |= uint16(b)
-		}
-	}
+func (w *wifinina) readParamLen16() (v uint16) {
+	b := w.transfer(0xFF)
+	v = uint16(b) << 8
+	b = w.transfer(0xFF)
+	v |= uint16(b)
 	return
 }
 
-func (d *Device) readParam(b *byte) (err error) {
-	*b, err = d.SPI.Transfer(0xFF)
-	return
+func (w *wifinina) readParam(b *byte) {
+	*b = w.transfer(0xFF)
 }
 
-func (d *Device) addPadding(l int) {
-	if _debug {
-		println("addPadding", l, "\r")
+func (w *wifinina) addPadding(l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        addPadding: l: %d\r\n", l)
 	}
 	for i := (4 - (l % 4)) & 3; i > 0; i-- {
-		if _debug {
-			println("padding\r")
+		if debugging(debugDetail) {
+			fmt.Printf("            padding\r\n")
 		}
-		d.SPI.Transfer(dummyData)
+		w.transfer(dummyData)
 	}
 }
 
-func (d *Device) padTo4(l int) {
-	if _debug {
-		println("padTo4", l, "\r")
+func (w *wifinina) padTo4(l int) {
+	if debugging(debugDetail) {
+		fmt.Printf("        padTo4: l: %d\r\n", l)
 	}
 
 	for l%4 != 0 {
-		d.SPI.Transfer(dummyData)
+		if debugging(debugDetail) {
+			fmt.Printf("            padding\r\n")
+		}
+		w.transfer(dummyData)
 		l++
 	}
 }

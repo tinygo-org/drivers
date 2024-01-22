@@ -60,7 +60,7 @@ func (d Device) WriteByte(c byte) error {
 
 	switch machine.CPUFrequency() {
 	case 16e6: // 16MHz
-		C.ws2812_writeByte16(C.char(c), (*uint8)(unsafe.Pointer(port)), maskSet, maskClear)
+		C.ws2812_writeByte16(C.char(c), (*C.uint8_t)(unsafe.Pointer(port)), C.uint8_t(maskSet), C.uint8_t(maskClear))
 		interrupt.Restore(mask)
 		return nil
 	default:

@@ -51,7 +51,7 @@ func (d *Device) ConnectTCPSocket(addr, port string) error {
 // ConnectUDPSocket creates a new UDP connection for the ESP8266/ESP32.
 func (d *Device) ConnectUDPSocket(addr, sendport, listenport string) error {
 	protocol := "UDP"
-	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",2"
+	val := "\"" + protocol + "\",\"" + addr + "\"," + sendport + "," + listenport + ",0"
 	err := d.Set(TCPConnect, val)
 	if err != nil {
 		return err

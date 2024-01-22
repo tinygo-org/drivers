@@ -1114,7 +1114,7 @@ func (d Device) writeByte160(c byte) {
 	portClear, maskClear := d.Pin.PortMaskClear()
 
 	mask := interrupt.Disable()
-	C.ws2812_writeByte160(C.char(c), (*uint32)(unsafe.Pointer(portSet)), (*uint32)(unsafe.Pointer(portClear)), maskSet, maskClear)
+	C.ws2812_writeByte160(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
 
 	interrupt.Restore(mask)
 }
@@ -1124,7 +1124,7 @@ func (d Device) writeByte320(c byte) {
 	portClear, maskClear := d.Pin.PortMaskClear()
 
 	mask := interrupt.Disable()
-	C.ws2812_writeByte320(C.char(c), (*uint32)(unsafe.Pointer(portSet)), (*uint32)(unsafe.Pointer(portClear)), maskSet, maskClear)
+	C.ws2812_writeByte320(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
 
 	interrupt.Restore(mask)
 }

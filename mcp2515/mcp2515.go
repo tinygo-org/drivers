@@ -236,16 +236,83 @@ func (d *Device) getMode() (byte, error) {
 }
 
 func (d *Device) configRate(speed, clock byte) error {
-	// TODO: add another baudrate
 	var cfg1, cfg2, cfg3 byte
 	set := true
 	switch clock {
 	case Clock16MHz:
 		switch speed {
+		case CAN5kBps:
+			cfg1 = mcp16mHz5kBpsCfg1
+			cfg2 = mcp16mHz5kBpsCfg2
+			cfg3 = mcp16mHz5kBpsCfg3
+		case CAN10kBps:
+			cfg1 = mcp16mHz10kBpsCfg1
+			cfg2 = mcp16mHz10kBpsCfg2
+			cfg3 = mcp16mHz10kBpsCfg3
+		case CAN20kBps:
+			cfg1 = mcp16mHz20kBpsCfg1
+			cfg2 = mcp16mHz20kBpsCfg2
+			cfg3 = mcp16mHz20kBpsCfg3
+		case CAN25kBps:
+			cfg1 = mcp16mHz25kBpsCfg1
+			cfg2 = mcp16mHz25kBpsCfg2
+			cfg3 = mcp16mHz25kBpsCfg3
+		case CAN31k25Bps:
+			cfg1 = mcp16mHz31k25BpsCfg1
+			cfg2 = mcp16mHz31k25BpsCfg2
+			cfg3 = mcp16mHz31k25BpsCfg3
+		case CAN33kBps:
+			cfg1 = mcp16mHz33kBpsCfg1
+			cfg2 = mcp16mHz33kBpsCfg2
+			cfg3 = mcp16mHz33kBpsCfg3
+		case CAN40kBps:
+			cfg1 = mcp16mHz40kBpsCfg1
+			cfg2 = mcp16mHz40kBpsCfg2
+			cfg3 = mcp16mHz40kBpsCfg3
+		case CAN47kBps:
+			cfg1 = mcp16mHz47kBpsCfg1
+			cfg2 = mcp16mHz47kBpsCfg2
+			cfg3 = mcp16mHz47kBpsCfg3
+		case CAN50kBps:
+			cfg1 = mcp16mHz50kBpsCfg1
+			cfg2 = mcp16mHz50kBpsCfg2
+			cfg3 = mcp16mHz50kBpsCfg3
+		case CAN80kBps:
+			cfg1 = mcp16mHz80kBpsCfg1
+			cfg2 = mcp16mHz80kBpsCfg2
+			cfg3 = mcp16mHz80kBpsCfg3
+		case CAN83k3Bps:
+			cfg1 = mcp16mHz83k3BpsCfg1
+			cfg2 = mcp16mHz83k3BpsCfg2
+			cfg3 = mcp16mHz83k3BpsCfg3
+		case CAN95kBps:
+			cfg1 = mcp16mHz95kBpsCfg1
+			cfg2 = mcp16mHz95kBpsCfg2
+			cfg3 = mcp16mHz95kBpsCfg3
+		case CAN100kBps:
+			cfg1 = mcp16mHz100kBpsCfg1
+			cfg2 = mcp16mHz100kBpsCfg2
+			cfg3 = mcp16mHz100kBpsCfg3
+		case CAN125kBps:
+			cfg1 = mcp16mHz125kBpsCfg1
+			cfg2 = mcp16mHz125kBpsCfg2
+			cfg3 = mcp16mHz125kBpsCfg3
+		case CAN200kBps:
+			cfg1 = mcp16mHz200kBpsCfg1
+			cfg2 = mcp16mHz200kBpsCfg2
+			cfg3 = mcp16mHz200kBpsCfg3
+		case CAN250kBps:
+			cfg1 = mcp16mHz250kBpsCfg1
+			cfg2 = mcp16mHz250kBpsCfg2
+			cfg3 = mcp16mHz250kBpsCfg3
 		case CAN500kBps:
 			cfg1 = mcp16mHz500kBpsCfg1
 			cfg2 = mcp16mHz500kBpsCfg2
 			cfg3 = mcp16mHz500kBpsCfg3
+		case CAN666kBps:
+			cfg1 = mcp16mHz666kBpsCfg1
+			cfg2 = mcp16mHz666kBpsCfg2
+			cfg3 = mcp16mHz666kBpsCfg3
 		case CAN1000kBps:
 			cfg1 = mcp16mHz1000kBpsCfg1
 			cfg2 = mcp16mHz1000kBpsCfg2
@@ -255,6 +322,50 @@ func (d *Device) configRate(speed, clock byte) error {
 		}
 	case Clock8MHz:
 		switch speed {
+		case CAN5kBps:
+			cfg1 = mcp8mHz5kBpsCfg1
+			cfg2 = mcp8mHz5kBpsCfg2
+			cfg3 = mcp8mHz5kBpsCfg3
+		case CAN10kBps:
+			cfg1 = mcp8mHz10kBpsCfg1
+			cfg2 = mcp8mHz10kBpsCfg2
+			cfg3 = mcp8mHz10kBpsCfg3
+		case CAN20kBps:
+			cfg1 = mcp8mHz20kBpsCfg1
+			cfg2 = mcp8mHz20kBpsCfg2
+			cfg3 = mcp8mHz20kBpsCfg3
+		case CAN31k25Bps:
+			cfg1 = mcp8mHz31k25BpsCfg1
+			cfg2 = mcp8mHz31k25BpsCfg2
+			cfg3 = mcp8mHz31k25BpsCfg3
+		case CAN40kBps:
+			cfg1 = mcp8mHz40kBpsCfg1
+			cfg2 = mcp8mHz40kBpsCfg2
+			cfg3 = mcp8mHz40kBpsCfg3
+		case CAN50kBps:
+			cfg1 = mcp8mHz50kBpsCfg1
+			cfg2 = mcp8mHz50kBpsCfg2
+			cfg3 = mcp8mHz50kBpsCfg3
+		case CAN80kBps:
+			cfg1 = mcp8mHz80kBpsCfg1
+			cfg2 = mcp8mHz80kBpsCfg2
+			cfg3 = mcp8mHz80kBpsCfg3
+		case CAN100kBps:
+			cfg1 = mcp8mHz100kBpsCfg1
+			cfg2 = mcp8mHz100kBpsCfg2
+			cfg3 = mcp8mHz100kBpsCfg3
+		case CAN125kBps:
+			cfg1 = mcp8mHz125kBpsCfg1
+			cfg2 = mcp8mHz125kBpsCfg2
+			cfg3 = mcp8mHz125kBpsCfg3
+		case CAN200kBps:
+			cfg1 = mcp8mHz200kBpsCfg1
+			cfg2 = mcp8mHz200kBpsCfg2
+			cfg3 = mcp8mHz200kBpsCfg3
+		case CAN250kBps:
+			cfg1 = mcp8mHz250kBpsCfg1
+			cfg2 = mcp8mHz250kBpsCfg2
+			cfg3 = mcp8mHz250kBpsCfg3
 		case CAN500kBps:
 			cfg1 = mcp8mHz500kBpsCfg1
 			cfg2 = mcp8mHz500kBpsCfg2

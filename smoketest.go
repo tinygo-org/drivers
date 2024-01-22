@@ -96,6 +96,7 @@ func runSmokeTest(filename string) error {
 		flagSet := flag.NewFlagSet(fields[0], flag.ContinueOnError)
 		_ = flagSet.String("size", "", "")
 		_ = flagSet.String("o", "", "")
+		_ = flagSet.String("stack-size", "", "")
 		targetFlag := flagSet.String("target", "", "")
 		err = flagSet.Parse(fields[2:])
 		if err != nil {
@@ -133,7 +134,7 @@ func runSmokeTest(filename string) error {
 		result := <-job.resultChan
 		os.Stdout.Write(job.output.Bytes())
 		if result != nil {
-			return err
+			return result
 		}
 	}
 

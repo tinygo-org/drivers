@@ -1,3 +1,0 @@
-WiFiNINA protocol
-=================
-

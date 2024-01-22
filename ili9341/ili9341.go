@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/pixel"
 )
 
 type Config struct {
@@ -30,6 +31,9 @@ type Device struct {
 	rst machine.Pin
 	rd  machine.Pin
 }
+
+// Image buffer type used in the ili9341.
+type Image = pixel.Image[pixel.RGB565BE]
 
 var cmdBuf [6]byte
 
@@ -173,6 +177,8 @@ func (d *Device) EnableTEOutput(on bool) {
 }
 
 // DrawRGBBitmap copies an RGB bitmap to the internal buffer at given coordinates
+//
+// Deprecated: use DrawBitmap instead.
 func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
@@ -187,6 +193,8 @@ func (d *Device) DrawRGBBitmap(x, y int16, data []uint16, w, h int16) error {
 }
 
 // DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
+//
+// Deprecated: use DrawBitmap instead.
 func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
@@ -198,6 +206,13 @@ func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	d.driver.write8sl(data)
 	d.endWrite()
 	return nil
+}
+
+// DrawBitmap copies the bitmap to the internal buffer on the screen at the
+// given coordinates. It returns once the image data has been sent completely.
+func (d *Device) DrawBitmap(x, y int16, bitmap Image) error {
+	width, height := bitmap.Size()
+	return d.DrawRGBBitmap8(x, y, bitmap.RawBuffer(), int16(width), int16(height))
 }
 
 // FillRectangle fills a rectangle at given coordinates with a color

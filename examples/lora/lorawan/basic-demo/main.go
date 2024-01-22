@@ -12,7 +12,10 @@ import (
 	"tinygo.org/x/drivers/lora/lorawan/region"
 )
 
-var debug string
+var (
+	reg   string
+	debug string
+)
 
 const (
 	LORAWAN_JOIN_TIMEOUT_SEC    = 180
@@ -67,8 +70,16 @@ func main() {
 
 	// Connect the lorawan with the Lora Radio device.
 	lorawan.UseRadio(radio)
-
-	lorawan.UseRegionSettings(region.EU868())
+	switch reg {
+	case "AU915":
+		lorawan.UseRegionSettings(region.AU915())
+	case "EU868":
+		lorawan.UseRegionSettings(region.EU868())
+	case "US915":
+		lorawan.UseRegionSettings(region.US915())
+	default:
+		lorawan.UseRegionSettings(region.EU868())
+	}
 
 	// Configure AppEUI, DevEUI, APPKey, and public/private Lorawan Network
 	setLorawanKeys()

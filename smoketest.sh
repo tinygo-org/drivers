@@ -5,6 +5,7 @@
 # get an md5sum).
 
 
+tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/adafruit4650
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adt7410/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adxl345/main.go
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/amg88xx
@@ -23,9 +24,6 @@ tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/
 tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/time/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/ds3231/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/easystepper/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/espconsole/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/esphub/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/espat/espstation/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/flash/console/spi
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/flash/console/qspi
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/gc9a01/main.go
@@ -60,7 +58,9 @@ tinygo build -size short -o ./build/test.hex -target=p1am-100 ./examples/p1am/ma
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/pca9685/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setbuffer/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setpixel/main.go
+tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/seesaw
 tinygo build -size short -o ./build/test.hex -target=arduino ./examples/servo
+tinygo build -size short -o ./build/test.hex -target=pico     ./examples/sgp30
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/shifter/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht3x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht4x/main.go
@@ -80,10 +80,6 @@ tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl6
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd4in2/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/ntpclient/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/udpstation/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/tcpclient/main.go
-tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/wifinina/webclient/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
 tinygo build -size short -o ./build/test.bin -target=m5stamp-c3          ./examples/ws2812
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples/is31fl3731/main.go
@@ -112,9 +108,6 @@ tinygo build -size short -o ./build/test.hex -target=pico ./examples/qmi8658c/ma
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/ina260/main.go
 tinygo build -size short -o ./build/test.hex -target=nucleo-l432kc ./examples/aht20/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/console/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webclient/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/webserver/
-tinygo build -size short -o ./build/test.hex -target=wioterminal ./examples/rtl8720dn/mqttsub/
 tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/i2csoft/adt7410/
 tinygo build -size short -o ./build/test.elf -target=wioterminal ./examples/axp192/m5stack-core2-blinky/
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/xpt2046/main.go
@@ -136,3 +129,18 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ndir/ma
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ndir/main_ndir.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu9150/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/pca9548a/main.go
+tinygo build -size short -o ./build/test.hex -target=macropad-rp2040 ./examples/sh1106/macropad_spi
+# network examples (espat)
+tinygo build -size short -o ./build/test.hex -target=challenger-rp2040 ./examples/net/ntpclient/
+# network examples (wifinina)
+tinygo build -size short -o ./build/test.hex -target=pyportal -stack-size 8kb ./examples/net/http-get/
+tinygo build -size short -o ./build/test.hex -target=arduino-nano33 -stack-size 8kb ./examples/net/tcpclient/
+tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/websocket/dial/
+tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift -stack-size 8kb ./examples/net/socket/
+tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic/
+tinygo build -size short -o ./build/test.hex -target=arduino-mkrwifi1010 -stack-size 8kb ./examples/net/tlsclient/
+tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/mqttclient/natiu/
+# network examples (rtl8720dn)
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webclient/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webserver/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/mqttclient/paho/
