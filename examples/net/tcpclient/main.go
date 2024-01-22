@@ -5,7 +5,7 @@
 //
 // nc -lk 8080
 
-//go:build ninafw || wioterminal || challenger_rp2040 || pico
+//go:build ninafw || wioterminal || challenger_rp2040
 
 package main
 
