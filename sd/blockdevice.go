@@ -27,8 +27,8 @@ type Card interface {
 }
 
 // NewBlockDevice creates a new BlockDevice from a Card.
-func NewBlockDevice(card Card, blockSize int, numBlocks, eraseBlockSizeInBytes int64) (*BlockDevice, error) {
-	if card == nil || blockSize <= 0 || eraseBlockSizeInBytes <= 0 || numBlocks <= 0 {
+func NewBlockDevice(card Card, blockSize int, numBlocks int64) (*BlockDevice, error) {
+	if card == nil || blockSize <= 0 || numBlocks <= 0 {
 		return nil, errors.New("invalid argument(s)")
 	}
 	blk, err := makeBlockIndexer(blockSize)
@@ -36,22 +36,20 @@ func NewBlockDevice(card Card, blockSize int, numBlocks, eraseBlockSizeInBytes i
 		return nil, err
 	}
 	bd := &BlockDevice{
-		card:           card,
-		blockbuf:       make([]byte, blockSize),
-		blk:            blk,
-		numblocks:      int64(numBlocks),
-		eraseBlockSize: eraseBlockSizeInBytes,
+		card:      card,
+		blockbuf:  make([]byte, blockSize),
+		blk:       blk,
+		numblocks: int64(numBlocks),
 	}
 	return bd, nil
 }
 
 // BlockDevice implements tinyfs.BlockDevice interface for an [sd.Card] type.
 type BlockDevice struct {
-	card           Card
-	blockbuf       []byte
-	blk            blkIdxer
-	numblocks      int64
-	eraseBlockSize int64
+	card      Card
+	blockbuf  []byte
+	blk       blkIdxer
+	numblocks int64
 }
 
 // ReadAt implements [io.ReadAt] interface for an SD card.
@@ -168,13 +166,6 @@ func (bd *BlockDevice) BlockSize() int64 {
 // EraseBlockSize to map addresses to blocks.
 func (bd *BlockDevice) EraseBlocks(startEraseBlockIdx, len int64) error {
 	return bd.card.EraseBlocks(startEraseBlockIdx, len)
-}
-
-// EraseBlockSize returns the smallest erasable area on this particular chip
-// in bytes. This is used for the block size in EraseBlocks.
-// It must be a power of two, and may be as small as 1. A typical size is 4096.
-func (bd *BlockDevice) EraseBlockSize() int64 {
-	return bd.eraseBlockSize
 }
 
 // blkIdxer is a helper for calculating block indices and offsets.
