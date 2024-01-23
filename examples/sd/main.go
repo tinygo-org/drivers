@@ -48,8 +48,7 @@ func main() {
 	cid := sdcard.CID()
 	fmt.Printf("name=%s\ncsd=\n%s\n", cid.ProductName(), csd.String())
 
-	const placeholderEraseSectorSize = 512
-	bd, err := sd.NewBlockDevice(sdcard, int(csd.ReadBlockLen()), csd.NumberOfBlocks(), placeholderEraseSectorSize)
+	bd, err := sd.NewBlockDevice(sdcard, csd.ReadBlockLen(), csd.NumberOfBlocks())
 	if err != nil {
 		panic("block device creation:" + err.Error())
 	}

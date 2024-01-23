@@ -154,7 +154,7 @@ func (c *CSD) CommandClasses() CommandClasses {
 }
 
 // ReadBlockLen returns the Max Read Data Block Length in bytes.
-func (c *CSD) ReadBlockLen() int64      { return 1 << c.ReadBlockLenShift() }
+func (c *CSD) ReadBlockLen() int        { return 1 << c.ReadBlockLenShift() }
 func (c *CSD) ReadBlockLenShift() uint8 { return c.data[5] & 0x0F }
 
 // AllowsReadBlockPartial should always return true. Indicates that
