@@ -47,25 +47,19 @@ var (
 	server string = "10.0.0.100:8080"
 )
 
-// Boa Constrictor, a poem by Shel Silverstein
-var poem = `Oh, I'm being eaten
-By a boa constrictor,
-A boa constrictor,
-A boa constrictor,
-I'm being eaten by a boa constrictor,
-And I don't like it--one bit.
-Well, what do you know?
-It's nibblin' my toe.
-Oh, gee,
-It's up to my knee.
-Oh my,
-It's up to my thigh.
-Oh, fiddle,
-It's up to my middle.
-Oh, heck,
-It's up to my neck.
-Oh, dread,
-It's upmmmmmmmmmmffffffffff . . .`
+// The Snake, AI-generated poem
+var poem = `In the swamp's green, murky depths,
+A serpent slithers, silent, wreathed.
+Its eyes gleam yellow, cold, and bright,
+As it stalks its prey with all its might.
+A frog leaps high, a tasty treat,
+The snake strikes fast, its fangs meet.
+The frog's last croak is all that's heard,
+As the snake swallows it, whole and curbed.
+Digested, the snake rests content,
+In the swamp's embrace, its coils unbent.
+A silent hunter, deadly, sleek,
+The snake reigns supreme, its prey its peak.`
 
 func segment(in chan []byte, out chan []byte) {
 	var buf [512]byte
