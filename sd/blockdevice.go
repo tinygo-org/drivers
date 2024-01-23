@@ -22,8 +22,8 @@ type Card interface {
 	// ReadBlocks reads the given number of blocks from the card, starting at the given block index.
 	// The dst buffer must be a multiple of the block size.
 	ReadBlocks(dst []byte, startBlockIdx int64) (int, error)
-	// EraseSectors erases sectors starting at startSectorIdx to startSectorIdx+numSectors.
-	EraseSectors(startSectorIdx, numSectors int64) error
+	// EraseBlocks erases blocks starting at startBlockIdx to startBlockIdx+numBlocks.
+	EraseBlocks(startBlock, numBlocks int64) error
 }
 
 // NewBlockDevice creates a new BlockDevice from a Card.
@@ -167,7 +167,7 @@ func (bd *BlockDevice) BlockSize() int64 {
 // supports this. The start and len parameters are in block numbers, use
 // EraseBlockSize to map addresses to blocks.
 func (bd *BlockDevice) EraseBlocks(startEraseBlockIdx, len int64) error {
-	return bd.card.EraseSectors(startEraseBlockIdx, len)
+	return bd.card.EraseBlocks(startEraseBlockIdx, len)
 }
 
 // EraseBlockSize returns the smallest erasable area on this particular chip

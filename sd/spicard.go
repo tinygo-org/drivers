@@ -267,7 +267,7 @@ func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) (int, error) {
 	panic("unreachable numblocks<=0")
 }
 
-func (d *SPICard) EraseSectors(startSector, numberSectors int64) error {
+func (d *SPICard) EraseBlocks(startBlock, numberOfBlocks int64) error {
 	return errors.New("sd:erase not implemented")
 }
 
