@@ -15,8 +15,8 @@ import (
 type Config struct {
 	Width        int16 // Width is the display resolution
 	Height       int16
-	LogicalWidth int16    // LogicalWidth must be a multiple of 8 and same size or bigger than Width
-	Rotation     Rotation // Rotation is clock-wise
+	LogicalWidth int16 // LogicalWidth must be a multiple of 8 and same size or bigger than Width
+	Rotation     drivers.Rotation
 }
 
 type Device struct {
@@ -30,10 +30,11 @@ type Device struct {
 	height       int16
 	buffer       []uint8
 	bufferLength uint32
-	rotation     Rotation
+	rotation     drivers.Rotation
 }
 
-type Rotation uint8
+// Deprecated: use drivers.Rotation instead.
+type Rotation = drivers.Rotation
 
 // Look up table for full updates
 var lutFullUpdate = [30]uint8{
@@ -130,6 +131,17 @@ func (d *Device) DeepSleep() {
 	d.WaitUntilIdle()
 }
 
+// Set the sleep mode of the panel. The display will still show its contents,
+// but will go into a lower-power state.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		d.DeepSleep()
+	} else {
+		d.Reset()
+	}
+	return nil
+}
+
 // SendCommand sends a command to the display
 func (d *Device) SendCommand(command uint8) {
 	d.sendDataCommand(true, command)
@@ -167,18 +179,22 @@ func (d *Device) SetLUT(fullUpdate bool) {
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
-// The display have 2 colors: black and white
-// We use RGBA(0,0,0, 255) as white (transparent)
-// Anything else as black
+// The display have 2 colors: black and white. We use a very simple cutoff to
+// determine whether a pixel is black or white (darker colors are black, lighter
+// colors are white).
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	x, y = d.xy(x, y)
 	if x < 0 || x >= d.logicalWidth || y < 0 || y >= d.height {
 		return
 	}
 	byteIndex := (x + y*d.logicalWidth) / 8
-	if c.R == 0 && c.G == 0 && c.B == 0 { // TRANSPARENT / WHITE
+	// Very simle black/white split.
+	// This isn't very accurate (especially for sRGB colors) but is close enough
+	// to the truth that it probably doesn't matter much - especially on an
+	// e-paper display.
+	if int(c.R)+int(c.G)+int(c.B) > 128*3 { // light, convert to white
 		d.buffer[byteIndex] |= 0x80 >> uint8(x%8)
-	} else { // WHITE / EMPTY
+	} else { // dark, convert to black
 		d.buffer[byteIndex] &^= 0x80 >> uint8(x%8)
 	}
 }
@@ -209,13 +225,13 @@ func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error 
 	if x < 0 || y < 0 || x >= d.logicalWidth || y >= d.height || width < 0 || height < 0 {
 		return errors.New("wrong rectangle")
 	}
-	if d.rotation == ROTATION_90 {
+	if d.rotation == drivers.Rotation90 {
 		width, height = height, width
 		x -= width
-	} else if d.rotation == ROTATION_180 {
+	} else if d.rotation == drivers.Rotation180 {
 		x -= width - 1
 		y -= height - 1
-	} else if d.rotation == ROTATION_270 {
+	} else if d.rotation == drivers.Rotation270 {
 		width, height = height, width
 		y -= height
 	}
@@ -301,27 +317,33 @@ func (d *Device) ClearBuffer() {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
-	if d.rotation == ROTATION_90 || d.rotation == ROTATION_270 {
+	if d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270 {
 		return d.height, d.logicalWidth
 	}
 	return d.logicalWidth, d.height
 }
 
-// SetRotation changes the rotation (clock-wise) of the device
-func (d *Device) SetRotation(rotation Rotation) {
+// Rotation returns the current rotation of the device.
+func (d *Device) Rotation() drivers.Rotation {
+	return d.rotation
+}
+
+// SetRotation changes the rotation of the device.
+func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	d.rotation = rotation
+	return nil
 }
 
 // xy chages the coordinates according to the rotation
 func (d *Device) xy(x, y int16) (int16, int16) {
 	switch d.rotation {
-	case NO_ROTATION:
+	case drivers.Rotation0:
 		return x, y
-	case ROTATION_90:
+	case drivers.Rotation90:
 		return d.width - y - 1, x
-	case ROTATION_180:
+	case drivers.Rotation180:
 		return d.width - x - 1, d.height - y - 1
-	case ROTATION_270:
+	case drivers.Rotation270:
 		return y, d.height - x - 1
 	}
 	return x, y

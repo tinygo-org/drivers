@@ -23,20 +23,20 @@ Builds/flashes atcmd console application with simulator instead of actual LoRa r
 tinygo flash -target pico ./examples/lora/lorawan/atcmd/
 ```
 
-## PyBadge with LoRa Featherwing 
+## PyBadge with LoRa Featherwing for EU868 region
 
 Builds/flashes atcmd console application on PyBadge using LoRa Featherwing (RFM95/SX1276).
 
 ```
-tinygo flash -target pybadge -tags featherwing ./examples/lora/lorawan/atcmd/
+tinygo flash -target pybadge -tags featherwing -ldflags="-X main.reg=EU868" ./examples/lora/lorawan/atcmd/
 ```
 
-## LoRa-E5 
+## LoRa-E5 for US915 region
 
 Builds/flashes atcmd console application on Lora-E5 using onboard SX126x.
 
 ```
-tinygo flash -target lorae5 ./examples/lora/lorawan/atcmd/
+tinygo flash -target lorae5 -ldflags="-X main.reg=US915" ./examples/lora/lorawan/atcmd/
 ```
 
 ## Joining a Public Lorawan Network

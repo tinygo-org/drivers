@@ -14,6 +14,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/pixel"
 )
 
 // Rotation controls the rotation used by the display.
@@ -24,6 +25,13 @@ type Rotation = drivers.Rotation
 // The color format used on the display, like RGB565, RGB666, and RGB444.
 type ColorFormat uint8
 
+// Pixel formats supported by the st7789 driver.
+type Color interface {
+	pixel.RGB444BE | pixel.RGB565BE
+
+	pixel.BaseColor
+}
+
 // FrameRate controls the frame rate used by the display.
 type FrameRate uint8
 
@@ -32,7 +40,11 @@ var (
 )
 
 // Device wraps an SPI connection.
-type Device struct {
+type Device = DeviceOf[pixel.RGB565BE]
+
+// DeviceOf is a generic version of Device. It supports multiple different pixel
+// formats.
+type DeviceOf[T Color] struct {
 	bus             drivers.SPI
 	dcPin           machine.Pin
 	resetPin        machine.Pin
@@ -47,6 +59,7 @@ type Device struct {
 	rotation        drivers.Rotation
 	frameRate       FrameRate
 	batchLength     int32
+	batchData       pixel.Image[T] // "image" with (width, height) of (batchLength, 1)
 	isBGR           bool
 	vSyncLines      int16
 	cmdBuf          [1]byte
@@ -71,11 +84,17 @@ type Config struct {
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
 func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
+}
+
+// NewOf creates a new ST7789 connection with a particular pixel format. The SPI
+// wire must already be configured.
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{
+	return DeviceOf[T]{
 		bus:      bus,
 		dcPin:    dcPin,
 		resetPin: resetPin,
@@ -85,7 +104,7 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
 }
 
 // Configure initializes the display with default configuration
-func (d *Device) Configure(cfg Config) {
+func (d *DeviceOf[T]) Configure(cfg Config) {
 	if cfg.Width != 0 {
 		d.width = cfg.Width
 	} else {
@@ -137,7 +156,14 @@ func (d *Device) Configure(cfg Config) {
 	d.sendCommand(SLPOUT, nil) // Exit sleep mode
 
 	// Memory initialization
-	d.setColorFormat(ColorRGB565) // Set color mode to 16-bit color
+	var zeroColor T
+	switch any(zeroColor).(type) {
+	case pixel.RGB444BE:
+		d.setColorFormat(ColorRGB444) // 12 bits per pixel
+	default:
+		// Use default RGB565 color format.
+		d.setColorFormat(ColorRGB565) // 16 bits per pixel
+	}
 	time.Sleep(10 * time.Millisecond)
 
 	d.setRotation(d.rotation) // Memory orientation
@@ -189,7 +215,7 @@ func (d *Device) Configure(cfg Config) {
 // Send a command with data to the display. It does not change the chip select
 // pin (it must be low when calling). The DC pin is left high after return,
 // meaning that data can be sent right away.
-func (d *Device) sendCommand(command uint8, data []byte) error {
+func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 	d.cmdBuf[0] = command
 	d.dcPin.Low()
 	err := d.bus.Tx(d.cmdBuf[:1], nil)
@@ -202,7 +228,7 @@ func (d *Device) sendCommand(command uint8, data []byte) error {
 
 // startWrite must be called at the beginning of all exported methods to set the
 // chip select pin low.
-func (d *Device) startWrite() {
+func (d *DeviceOf[T]) startWrite() {
 	if d.csPin != machine.NoPin {
 		d.csPin.Low()
 	}
@@ -210,14 +236,23 @@ func (d *Device) startWrite() {
 
 // endWrite must be called at the end of all exported methods to set the chip
 // select pin high.
-func (d *Device) endWrite() {
+func (d *DeviceOf[T]) endWrite() {
 	if d.csPin != machine.NoPin {
 		d.csPin.High()
 	}
 }
 
+// getBuffer returns the image buffer, that's always d.batchLength wide and 1
+// pixel high. It can be used as a temporary buffer to transmit image data.
+func (d *DeviceOf[T]) getBuffer() pixel.Image[T] {
+	if d.batchData.Len() == 0 {
+		d.batchData = pixel.NewImage[T](int(d.batchLength), 1)
+	}
+	return d.batchData
+}
+
 // Sync waits for the display to hit the next VSYNC pause
-func (d *Device) Sync() {
+func (d *DeviceOf[T]) Sync() {
 	d.SyncToScanLine(0)
 }
 
@@ -232,7 +267,7 @@ func (d *Device) Sync() {
 // NOTE: Use GetHighestScanLine and GetLowestScanLine to obtain the highest
 // and lowest useful values. Values are affected by front and back porch
 // vsync settings (derived from VSyncLines configuration option).
-func (d *Device) SyncToScanLine(scanline uint16) {
+func (d *DeviceOf[T]) SyncToScanLine(scanline uint16) {
 	scan := d.GetScanLine()
 
 	// Sometimes GetScanLine returns erroneous 0 on first call after draw, so double check
@@ -262,7 +297,7 @@ func (d *Device) SyncToScanLine(scanline uint16) {
 }
 
 // GetScanLine reads the current scanline value from the display
-func (d *Device) GetScanLine() uint16 {
+func (d *DeviceOf[T]) GetScanLine() uint16 {
 	d.startWrite()
 	data := []uint8{0x00, 0x00}
 	d.dcPin.Low()
@@ -277,24 +312,24 @@ func (d *Device) GetScanLine() uint16 {
 }
 
 // GetHighestScanLine calculates the last scanline id in the frame before VSYNC pause
-func (d *Device) GetHighestScanLine() uint16 {
+func (d *DeviceOf[T]) GetHighestScanLine() uint16 {
 	// Last scanline id appears to be backporch/2 + 320/2
 	return uint16(math.Ceil(float64(d.vSyncLines)/2)/2) + 160
 }
 
 // GetLowestScanLine calculate the first scanline id to appear after VSYNC pause
-func (d *Device) GetLowestScanLine() uint16 {
+func (d *DeviceOf[T]) GetLowestScanLine() uint16 {
 	// First scanline id appears to be backporch/2 + 1
 	return uint16(math.Ceil(float64(d.vSyncLines)/2)/2) + 1
 }
 
 // Display does nothing, there's no buffer as it might be too big for some boards
-func (d *Device) Display() error {
+func (d *DeviceOf[T]) Display() error {
 	return nil
 }
 
 // SetPixel sets a pixel in the screen
-func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
+func (d *DeviceOf[T]) SetPixel(x int16, y int16, c color.RGBA) {
 	if x < 0 || y < 0 ||
 		(((d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180) && (x >= d.width || y >= d.height)) ||
 			((d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270) && (x >= d.height || y >= d.width))) {
@@ -304,7 +339,7 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 }
 
 // setWindow prepares the screen to be modified at a given rectangle
-func (d *Device) setWindow(x, y, w, h int16) {
+func (d *DeviceOf[T]) setWindow(x, y, w, h int16) {
 	x += d.columnOffset
 	y += d.rowOffset
 	copy(d.buf[:4], []uint8{uint8(x >> 8), uint8(x), uint8((x + w - 1) >> 8), uint8(x + w - 1)})
@@ -315,45 +350,41 @@ func (d *Device) setWindow(x, y, w, h int16) {
 }
 
 // FillRectangle fills a rectangle at a given coordinates with a color
-func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
+func (d *DeviceOf[T]) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 	d.startWrite()
 	err := d.fillRectangle(x, y, width, height, c)
 	d.endWrite()
 	return err
 }
 
-func (d *Device) fillRectangle(x, y, width, height int16, c color.RGBA) error {
+func (d *DeviceOf[T]) fillRectangle(x, y, width, height int16, c color.RGBA) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
 		x >= k || (x+width) > k || y >= i || (y+height) > i {
 		return errors.New("rectangle coordinates outside display area")
 	}
 	d.setWindow(x, y, width, height)
-	c565 := RGBATo565(c)
-	c1 := uint8(c565 >> 8)
-	c2 := uint8(c565)
 
-	data := make([]uint8, d.batchLength*2)
-	for i := int32(0); i < d.batchLength; i++ {
-		data[i*2] = c1
-		data[i*2+1] = c2
-	}
-	j := int32(width) * int32(height)
+	image := d.getBuffer()
+	image.FillSolidColor(pixel.NewColor[T](c.R, c.G, c.B))
+	j := int(width) * int(height)
 	for j > 0 {
 		// The DC pin is already set to data in the setWindow call, so we can
 		// just write bytes on the SPI bus.
-		if j >= d.batchLength {
-			d.bus.Tx(data, nil)
+		if j >= image.Len() {
+			d.bus.Tx(image.RawBuffer(), nil)
 		} else {
-			d.bus.Tx(data[:j*2], nil)
+			d.bus.Tx(image.Rescale(j, 1).RawBuffer(), nil)
 		}
-		j -= d.batchLength
+		j -= image.Len()
 	}
 	return nil
 }
 
 // DrawRGBBitmap8 copies an RGB bitmap to the internal buffer at given coordinates
-func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
+//
+// Deprecated: use DrawBitmap instead.
+func (d *DeviceOf[T]) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	k, i := d.Size()
 	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
 		x >= k || (x+w) > k || y >= i || (y+h) > i {
@@ -366,8 +397,15 @@ func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
 	return nil
 }
 
+// DrawBitmap copies the bitmap to the internal buffer on the screen at the
+// given coordinates. It returns once the image data has been sent completely.
+func (d *DeviceOf[T]) DrawBitmap(x, y int16, bitmap pixel.Image[T]) error {
+	width, height := bitmap.Size()
+	return d.DrawRGBBitmap8(x, y, bitmap.RawBuffer(), int16(width), int16(height))
+}
+
 // FillRectangleWithBuffer fills buffer with a rectangle at a given coordinates.
-func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
+func (d *DeviceOf[T]) FillRectangleWithBuffer(x, y, width, height int16, buffer []color.RGBA) error {
 	i, j := d.Size()
 	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
 		x >= i || (x+width) > i || y >= j || (y+height) > j {
@@ -379,35 +417,32 @@ func (d *Device) FillRectangleWithBuffer(x, y, width, height int16, buffer []col
 	d.startWrite()
 	d.setWindow(x, y, width, height)
 
-	k := int32(width) * int32(height)
-	data := make([]uint8, d.batchLength*2)
-	offset := int32(0)
+	k := int(width) * int(height)
+	image := d.getBuffer()
+	offset := 0
 	for k > 0 {
-		for i := int32(0); i < d.batchLength; i++ {
-			if offset+i < int32(len(buffer)) {
-				c565 := RGBATo565(buffer[offset+i])
-				c1 := uint8(c565 >> 8)
-				c2 := uint8(c565)
-				data[i*2] = c1
-				data[i*2+1] = c2
+		for i := 0; i < image.Len(); i++ {
+			if offset+i < len(buffer) {
+				c := buffer[offset+i]
+				image.Set(i, 0, pixel.NewColor[T](c.R, c.G, c.B))
 			}
 		}
 		// The DC pin is already set to data in the setWindow call, so we don't
 		// have to set it here.
-		if k >= d.batchLength {
-			d.bus.Tx(data, nil)
+		if k >= image.Len() {
+			d.bus.Tx(image.RawBuffer(), nil)
 		} else {
-			d.bus.Tx(data[:k*2], nil)
+			d.bus.Tx(image.Rescale(k, 1).RawBuffer(), nil)
 		}
-		k -= d.batchLength
-		offset += d.batchLength
+		k -= image.Len()
+		offset += image.Len()
 	}
 	d.endWrite()
 	return nil
 }
 
 // DrawFastVLine draws a vertical line faster than using SetPixel
-func (d *Device) DrawFastVLine(x, y0, y1 int16, c color.RGBA) {
+func (d *DeviceOf[T]) DrawFastVLine(x, y0, y1 int16, c color.RGBA) {
 	if y0 > y1 {
 		y0, y1 = y1, y0
 	}
@@ -415,7 +450,7 @@ func (d *Device) DrawFastVLine(x, y0, y1 int16, c color.RGBA) {
 }
 
 // DrawFastHLine draws a horizontal line faster than using SetPixel
-func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
+func (d *DeviceOf[T]) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
 	if x0 > x1 {
 		x0, x1 = x1, x0
 	}
@@ -423,13 +458,13 @@ func (d *Device) DrawFastHLine(x0, x1, y int16, c color.RGBA) {
 }
 
 // FillScreen fills the screen with a given color
-func (d *Device) FillScreen(c color.RGBA) {
+func (d *DeviceOf[T]) FillScreen(c color.RGBA) {
 	d.startWrite()
 	d.fillScreen(c)
 	d.endWrite()
 }
 
-func (d *Device) fillScreen(c color.RGBA) {
+func (d *DeviceOf[T]) fillScreen(c color.RGBA) {
 	if d.rotation == NO_ROTATION || d.rotation == ROTATION_180 {
 		d.fillRectangle(0, 0, d.width, d.height, c)
 	} else {
@@ -441,13 +476,13 @@ func (d *Device) fillScreen(c color.RGBA) {
 // The default is RGB565, setting it to any other value will break functions
 // like SetPixel, FillRectangle, etc. Instead, you can write color data in the
 // specified color format using DrawRGBBitmap8.
-func (d *Device) SetColorFormat(format ColorFormat) {
+func (d *DeviceOf[T]) SetColorFormat(format ColorFormat) {
 	d.startWrite()
 	d.setColorFormat(format)
 	d.endWrite()
 }
 
-func (d *Device) setColorFormat(format ColorFormat) {
+func (d *DeviceOf[T]) setColorFormat(format ColorFormat) {
 	// Lower 4 bits set the color format used in SPI.
 	// Upper 4 bits set the color format used in the direct RGB interface.
 	// The RGB interface is not currently supported, so it is left at a
@@ -457,12 +492,12 @@ func (d *Device) setColorFormat(format ColorFormat) {
 }
 
 // Rotation returns the current rotation of the device.
-func (d *Device) Rotation() drivers.Rotation {
+func (d *DeviceOf[T]) Rotation() drivers.Rotation {
 	return d.rotation
 }
 
 // SetRotation changes the rotation of the device (clock-wise)
-func (d *Device) SetRotation(rotation Rotation) error {
+func (d *DeviceOf[T]) SetRotation(rotation Rotation) error {
 	d.rotation = rotation
 	d.startWrite()
 	err := d.setRotation(rotation)
@@ -470,7 +505,7 @@ func (d *Device) SetRotation(rotation Rotation) error {
 	return err
 }
 
-func (d *Device) setRotation(rotation Rotation) error {
+func (d *DeviceOf[T]) setRotation(rotation Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 4 {
 	case drivers.Rotation0:
@@ -496,7 +531,7 @@ func (d *Device) setRotation(rotation Rotation) error {
 }
 
 // Size returns the current size of the display.
-func (d *Device) Size() (w, h int16) {
+func (d *DeviceOf[T]) Size() (w, h int16) {
 	if d.rotation == drivers.Rotation0 || d.rotation == drivers.Rotation180 {
 		return d.width, d.height
 	}
@@ -504,7 +539,7 @@ func (d *Device) Size() (w, h int16) {
 }
 
 // EnableBacklight enables or disables the backlight
-func (d *Device) EnableBacklight(enable bool) {
+func (d *DeviceOf[T]) EnableBacklight(enable bool) {
 	if enable {
 		d.blPin.High()
 	} else {
@@ -515,7 +550,7 @@ func (d *Device) EnableBacklight(enable bool) {
 // Set the sleep mode for this LCD panel. When sleeping, the panel uses a lot
 // less power. The LCD won't display an image anymore, but the memory contents
 // will be kept.
-func (d *Device) Sleep(sleepEnabled bool) error {
+func (d *DeviceOf[T]) Sleep(sleepEnabled bool) error {
 	if sleepEnabled {
 		d.startWrite()
 		d.sendCommand(SLPIN, nil)
@@ -537,7 +572,7 @@ func (d *Device) Sleep(sleepEnabled bool) error {
 }
 
 // InvertColors inverts the colors of the screen
-func (d *Device) InvertColors(invert bool) {
+func (d *DeviceOf[T]) InvertColors(invert bool) {
 	d.startWrite()
 	if invert {
 		d.sendCommand(INVON, nil)
@@ -548,12 +583,12 @@ func (d *Device) InvertColors(invert bool) {
 }
 
 // IsBGR changes the color mode (RGB/BGR)
-func (d *Device) IsBGR(bgr bool) {
+func (d *DeviceOf[T]) IsBGR(bgr bool) {
 	d.isBGR = bgr
 }
 
 // SetScrollArea sets an area to scroll with fixed top and bottom parts of the display.
-func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
+func (d *DeviceOf[T]) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 	if d.height < 320 {
 		// The screen doesn't use the full 320 pixel height.
 		// Enlarge the bottom fixed area to fill the 320 pixel height, so that
@@ -577,7 +612,7 @@ func (d *Device) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 }
 
 // SetScroll sets the vertical scroll address of the display.
-func (d *Device) SetScroll(line int16) {
+func (d *DeviceOf[T]) SetScroll(line int16) {
 	if d.rotation == drivers.Rotation180 {
 		// The screen is rotated by 180°, so we have to invert the scroll line
 		// (taking care of the RowOffset).
@@ -591,16 +626,8 @@ func (d *Device) SetScroll(line int16) {
 }
 
 // StopScroll returns the display to its normal state.
-func (d *Device) StopScroll() {
+func (d *DeviceOf[T]) StopScroll() {
 	d.startWrite()
 	d.sendCommand(NORON, nil)
 	d.endWrite()
-}
-
-// RGBATo565 converts a color.RGBA to uint16 used in the display
-func RGBATo565(c color.RGBA) uint16 {
-	r, g, b, _ := c.RGBA()
-	return uint16((r & 0xF800) +
-		((g & 0xFC00) >> 5) +
-		((b & 0xF800) >> 11))
 }

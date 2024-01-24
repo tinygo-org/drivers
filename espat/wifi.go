@@ -44,10 +44,7 @@ func (d *Device) ConnectToAP(ssid, pwd string, ws int) error {
 	d.Set(ConnectAP, val)
 
 	_, err := d.Response(ws * 1000)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // DisconnectFromAP disconnects the ESP8266/ESP32 from the current access point.

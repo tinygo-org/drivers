@@ -30,11 +30,11 @@ const (
 var (
 	ActiveRadio    lora.Radio
 	Retries        = 15
-	regionSettings region.RegionSettings
+	regionSettings region.Settings
 )
 
 // UseRegionSettings sets current Lorawan Regional parameters
-func UseRegionSettings(rs region.RegionSettings) {
+func UseRegionSettings(rs region.Settings) {
 	regionSettings = rs
 }
 
@@ -52,13 +52,13 @@ func SetPublicNetwork(enabled bool) {
 }
 
 // ApplyChannelConfig sets current Lora modulation according to current regional settings
-func applyChannelConfig(ch *region.Channel) {
-	ActiveRadio.SetFrequency(ch.Frequency)
-	ActiveRadio.SetBandwidth(ch.Bandwidth)
-	ActiveRadio.SetCodingRate(ch.CodingRate)
-	ActiveRadio.SetSpreadingFactor(ch.SpreadingFactor)
-	ActiveRadio.SetPreambleLength(ch.PreambleLength)
-	ActiveRadio.SetTxPower(ch.TxPowerDBm)
+func applyChannelConfig(ch region.Channel) {
+	ActiveRadio.SetFrequency(ch.Frequency())
+	ActiveRadio.SetBandwidth(ch.Bandwidth())
+	ActiveRadio.SetCodingRate(ch.CodingRate())
+	ActiveRadio.SetSpreadingFactor(ch.SpreadingFactor())
+	ActiveRadio.SetPreambleLength(ch.PreambleLength())
+	ActiveRadio.SetTxPower(ch.TxPowerDBm())
 	// Lorawan defaults to explicit headers
 	ActiveRadio.SetHeaderType(lora.HeaderExplicit)
 	ActiveRadio.SetCrc(true)
@@ -84,24 +84,30 @@ func Join(otaa *Otaa, session *Session) error {
 		return err
 	}
 
-	// Prepare radio for Join Tx
-	applyChannelConfig(regionSettings.JoinRequestChannel())
-	ActiveRadio.SetIqMode(lora.IQStandard)
-	ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
-	if err != nil {
-		return err
-	}
+	for {
+		joinRequestChannel := regionSettings.JoinRequestChannel()
+		joinAcceptChannel := regionSettings.JoinAcceptChannel()
 
-	// Wait for JoinAccept
-	applyChannelConfig(regionSettings.JoinAcceptChannel())
-	ActiveRadio.SetIqMode(lora.IQInverted)
-	resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
-	if err != nil {
-		return err
-	}
+		// Prepare radio for Join Tx
+		applyChannelConfig(joinRequestChannel)
+		ActiveRadio.SetIqMode(lora.IQStandard)
+		ActiveRadio.Tx(payload, LORA_TX_TIMEOUT)
+		if err != nil {
+			return err
+		}
 
-	if resp == nil {
-		return ErrNoJoinAcceptReceived
+		// Wait for JoinAccept
+		if joinAcceptChannel.Frequency() != 0 {
+			applyChannelConfig(joinAcceptChannel)
+		}
+		ActiveRadio.SetIqMode(lora.IQInverted)
+		resp, err = ActiveRadio.Rx(LORA_RX_TIMEOUT)
+		if err == nil && resp != nil {
+			break
+		}
+		if !joinAcceptChannel.Next() {
+			return ErrNoJoinAcceptReceived
+		}
 	}
 
 	err = otaa.DecodeJoinAccept(resp, session)

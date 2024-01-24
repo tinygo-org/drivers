@@ -14,13 +14,34 @@ var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
 
 // Device wraps a pin object for an easy driver interface.
 type Device struct {
-	Pin machine.Pin
+	Pin            machine.Pin
+	writeColorFunc func(Device, []color.RGBA) error
 }
 
-// New returns a new WS2812 driver. It does not touch the pin object: you have
-// to configure it as an output pin before calling New.
+// deprecated, use NewWS2812 or NewSK6812 depending on which device you want.
+// calls NewWS2812() to avoid breaking everyone's existing code.
 func New(pin machine.Pin) Device {
-	return Device{pin}
+	return NewWS2812(pin)
+}
+
+// New returns a new WS2812(RGB) driver.
+// It does not touch the pin object: you have
+// to configure it as an output pin before calling New.
+func NewWS2812(pin machine.Pin) Device {
+	return Device{
+		Pin:            pin,
+		writeColorFunc: writeColorsRGB,
+	}
+}
+
+// New returns a new SK6812(RGBA) driver.
+// It does not touch the pin object: you have
+// to configure it as an output pin before calling New.
+func NewSK6812(pin machine.Pin) Device {
+	return Device{
+		Pin:            pin,
+		writeColorFunc: writeColorsRGBA,
+	}
 }
 
 // Write the raw bitstring out using the WS2812 protocol.
@@ -32,12 +53,26 @@ func (d Device) Write(buf []byte) (n int, err error) {
 }
 
 // Write the given color slice out using the WS2812 protocol.
-// Colors are sent out in the usual GRB format.
-func (d Device) WriteColors(buf []color.RGBA) error {
+// Colors are sent out in the usual GRB(A) format.
+func (d Device) WriteColors(buf []color.RGBA) (err error) {
+	return d.writeColorFunc(d, buf)
+}
+
+func writeColorsRGB(d Device, buf []color.RGBA) (err error) {
 	for _, color := range buf {
-		d.WriteByte(color.G) // green
-		d.WriteByte(color.R) // red
-		d.WriteByte(color.B) // blue
+		d.WriteByte(color.G)       // green
+		d.WriteByte(color.R)       // red
+		err = d.WriteByte(color.B) // blue
 	}
-	return nil
+	return
+}
+
+func writeColorsRGBA(d Device, buf []color.RGBA) (err error) {
+	for _, color := range buf {
+		d.WriteByte(color.G)       // green
+		d.WriteByte(color.R)       // red
+		d.WriteByte(color.B)       // blue
+		err = d.WriteByte(color.A) // alpha
+	}
+	return
 }

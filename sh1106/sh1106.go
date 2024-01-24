@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an SPI connection.
@@ -51,7 +52,7 @@ type Buser interface {
 
 type VccMode uint8
 
-// NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
+// NewI2C creates a new SH1106 connection. The I2C wire must already be configured.
 func NewI2C(bus drivers.I2C) Device {
 	return Device{
 		bus: &I2CBus{
@@ -61,7 +62,7 @@ func NewI2C(bus drivers.I2C) Device {
 	}
 }
 
-// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
+// NewSPI creates a new SH1106 connection. The SPI wire must already be configured.
 func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -283,9 +284,9 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 // tx sends data to the display (I2CBus implementation)
 func (b *I2CBus) tx(data []byte, isCommand bool) {
 	if isCommand {
-		b.wire.WriteRegister(uint8(b.Address), 0x00, data)
+		legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
 	} else {
-		b.wire.WriteRegister(uint8(b.Address), 0x40, data)
+		legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
 	}
 }
 
