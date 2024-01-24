@@ -50,7 +50,7 @@ func (d *Device) GetPort() byte {
 			return i
 		}
 	}
-	return 99
+	return InvalidPort
 }
 
 // SetPortState set the states of all the ports at the same time, this could cause some issues if
