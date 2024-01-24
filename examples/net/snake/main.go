@@ -36,6 +36,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log"
 	"net"
@@ -43,23 +44,12 @@ import (
 	"time"
 )
 
+//go:embed main.go
+var code string
+
 var (
 	server string = "10.0.0.100:8080"
 )
-
-// The Snake, AI-generated poem
-var poem = `In the swamp's green, murky depths,
-A serpent slithers, silent, wreathed.
-Its eyes gleam yellow, cold, and bright,
-As it stalks its prey with all its might.
-A frog leaps high, a tasty treat,
-The snake strikes fast, its fangs meet.
-The frog's last croak is all that's heard,
-As the snake swallows it, whole and curbed.
-Digested, the snake rests content,
-In the swamp's embrace, its coils unbent.
-A silent hunter, deadly, sleek,
-The snake reigns supreme, its prey its peak.`
 
 func segment(in chan []byte, out chan []byte) {
 	var buf [512]byte
@@ -89,8 +79,11 @@ func segment(in chan []byte, out chan []byte) {
 
 func feedit(head chan []byte) {
 	for i := 0; i < 100; i++ {
-		head <- []byte(fmt.Sprintf("\n---%d---", i))
-		for _, line := range strings.Split(poem, "\n") {
+		head <- []byte(fmt.Sprintf("\n---%d---\n", i))
+		for _, line := range strings.Split(code, "\n") {
+			if len(line) == 0 {
+				line = " "
+			}
 			head <- []byte(line)
 		}
 	}
