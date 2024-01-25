@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/netlink"
 )
@@ -27,7 +28,6 @@ var _debug debug = debugBasic
 //var _debug debug = debugBasic | debugNetdev | debugRpc
 
 var (
-	version    = "0.0.1"
 	driverName = "Realtek rtl8720dn Wifi network device driver (rtl8720dn)"
 )
 
@@ -142,7 +142,7 @@ func (r *rtl8720dn) showDriver() {
 	if debugging(debugBasic) {
 		fmt.Printf("\r\n")
 		fmt.Printf("%s\r\n\r\n", driverName)
-		fmt.Printf("Driver version           : %s\r\n", version)
+		fmt.Printf("Driver version           : %s\r\n", drivers.Version)
 	}
 	r.driverShown = true
 }

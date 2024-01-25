@@ -33,7 +33,6 @@ var _debug debug = debugBasic
 //var _debug debug = debugBasic | debugNetdev | debugCmd | debugDetail
 
 var (
-	version    = "0.0.1"
 	driverName = "Tinygo ESP32 Wifi network device driver (WiFiNINA)"
 )
 
@@ -311,7 +310,7 @@ func (w *wifinina) showDriver() {
 	if debugging(debugBasic) {
 		fmt.Printf("\r\n")
 		fmt.Printf("%s\r\n\r\n", driverName)
-		fmt.Printf("Driver version           : %s\r\n", version)
+		fmt.Printf("Driver version           : %s\r\n", drivers.Version)
 	}
 	w.driverShown = true
 }
