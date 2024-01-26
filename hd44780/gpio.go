@@ -2,8 +2,17 @@ package hd44780
 
 import (
 	"errors"
+	"time"
 
 	"machine"
+)
+
+type WriteByteType int
+
+const (
+	FullByte   WriteByteType = 3
+	HighNibble WriteByteType = 2
+	LowNibble  WriteByteType = 1
 )
 
 type GPIO struct {
@@ -12,7 +21,7 @@ type GPIO struct {
 	rw       machine.Pin
 	rs       machine.Pin
 
-	write func(data byte)
+	write func(data byte, wt WriteByteType)
 	read  func() byte
 }
 
@@ -48,6 +57,10 @@ func newGPIO(dataPins []machine.Pin, en, rs, rw machine.Pin, mode byte) Device {
 	}
 }
 
+func (g *GPIO) WriteHighNibble(data byte) {
+	g.write(data, HighNibble)
+}
+
 // SetCommandMode sets command/instruction mode
 func (g *GPIO) SetCommandMode(set bool) {
 	if set {
@@ -68,26 +81,36 @@ func (g *GPIO) Write(data []byte) (n int, err error) {
 		g.rw.Low()
 	}
 	for _, d := range data {
-		g.write(d)
+		g.write(d, FullByte)
 		n++
 	}
 	return n, nil
 }
 
-func (g *GPIO) write8BitMode(data byte) {
-	g.en.High()
+func (g *GPIO) write8BitMode(data byte, _ WriteByteType) {
 	g.setPins(data)
-	g.en.Low()
+	g.pulseEnable()
 }
 
-func (g *GPIO) write4BitMode(data byte) {
-	g.en.High()
-	g.setPins(data >> 4)
-	g.en.Low()
+func (g *GPIO) write4BitMode(data byte, wt WriteByteType) {
+	if wt&HighNibble != 0 {
+		g.setPins(data >> 4)
+		g.pulseEnable()
+	}
 
-	g.en.High()
-	g.setPins(data)
+	if wt&LowNibble != 0 {
+		g.setPins(data)
+		g.pulseEnable()
+	}
+}
+
+func (g *GPIO) pulseEnable() {
 	g.en.Low()
+	time.Sleep(time.Microsecond)
+	g.en.High()
+	time.Sleep(time.Microsecond)
+	g.en.Low()
+	time.Sleep(100 * time.Microsecond)
 }
 
 // Read reads len(data) bytes from display RAM to data starting from RAM address counter position
