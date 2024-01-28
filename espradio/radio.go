@@ -14,6 +14,7 @@ import "C"
 import (
 	"runtime/interrupt"
 	"time"
+	"unsafe"
 )
 
 type LogLevel uint8
@@ -60,6 +61,14 @@ func Enable(config Config) error {
 	return nil
 }
 
+func millisecondsToTicks(ms uint32) uint32 {
+	return ms * (ticksPerSecond / 1000)
+}
+
+func ticksToMilliseconds(ticks uint32) uint32 {
+	return ticks / (ticksPerSecond / 1000)
+}
+
 //export espradio_panic
 func espradio_panic(msg *C.char) {
 	panic("espradio: " + C.GoString(msg))
@@ -68,4 +77,57 @@ func espradio_panic(msg *C.char) {
 //export espradio_log_timestamp
 func espradio_log_timestamp() uint32 {
 	return uint32(time.Now().UnixMilli())
+}
+
+//export espradio_run_task
+func espradio_run_task(task_func, param unsafe.Pointer)
+
+//export espradio_task_create_pinned_to_core
+func espradio_task_create_pinned_to_core(task_func unsafe.Pointer, name *C.char, stack_depth uint32, param unsafe.Pointer, prio uint32, task_handle *unsafe.Pointer, core_id uint32) int32 {
+	ch := make(chan struct{}, 1)
+	go func() {
+		*task_handle = tinygo_task_current()
+		close(ch)
+		espradio_run_task(task_func, unsafe.Pointer(task_handle))
+	}()
+	<-ch
+	return 1
+}
+
+//export espradio_task_delete
+func espradio_task_delete(task_handle unsafe.Pointer) {
+	println("espradio TODO: delete task", task_handle)
+}
+
+//export tinygo_task_current
+func tinygo_task_current() unsafe.Pointer
+
+//export espradio_task_get_current_task
+func espradio_task_get_current_task() unsafe.Pointer {
+	return tinygo_task_current()
+}
+
+//export espradio_task_delay
+func espradio_task_delay(ticks uint32) {
+	const ticksPerMillisecond = ticksPerSecond / 1000
+	// Round milliseconds up.
+	ms := (ticks + ticksPerMillisecond - 1) / ticksPerMillisecond
+	time.Sleep(time.Duration(ms) * time.Millisecond)
+}
+
+//export espradio_task_ms_to_tick
+func espradio_task_ms_to_tick(ms uint32) int32 {
+	return int32(millisecondsToTicks(ms))
+}
+
+//export espradio_wifi_int_disable
+func espradio_wifi_int_disable(wifi_int_mux unsafe.Pointer) uint32 {
+	// This is portENTER_CRITICAL (or portENTER_CRITICAL_ISR).
+	return uint32(interrupt.Disable())
+}
+
+//export espradio_wifi_int_restore
+func espradio_wifi_int_restore(wifi_int_mux unsafe.Pointer, tmp uint32) {
+	// This is portEXIT_CRITICAL (or portEXIT_CRITICAL_ISR).
+	interrupt.Restore(interrupt.State(tmp))
 }

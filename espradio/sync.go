@@ -2,9 +2,15 @@ package espradio
 
 // Various functions related to locks, mutexes, semaphores, and queues.
 
+/*
+#include "include.h"
+*/
+import "C"
+
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -57,25 +63,101 @@ func espradio_mutex_unlock(cmut unsafe.Pointer) int32 {
 	return 1
 }
 
-var semaphores [1]uint32
+type semaphore chan struct{}
+
+var semaphores [2]semaphore
 var semaphoreIndex uint32
+var wifiSemaphore semaphore
 
 //export espradio_semphr_create
 func espradio_semphr_create(max, init uint32) unsafe.Pointer {
 	newIndex := atomic.AddUint32(&semaphoreIndex, 1)
 	sem := &semaphores[newIndex-1]
+	ch := make(semaphore, max)
+	for i := uint32(0); i < init; i++ {
+		ch <- struct{}{}
+	}
+	*sem = ch
 	return unsafe.Pointer(sem)
+}
+
+//export espradio_semphr_take
+func espradio_semphr_take(semphr unsafe.Pointer, block_time_tick uint32) int32 {
+	sem := (*semaphore)(semphr)
+	if block_time_tick != C.OSI_FUNCS_TIME_BLOCKING {
+		panic("espradio: todo: semphr_take with timeout")
+	}
+	<-*sem
+	return 1
+}
+
+//export espradio_semphr_give
+func espradio_semphr_give(semphr unsafe.Pointer) int32 {
+	// Note: we might need to return 0 when sending isn't possible (e.g. using a
+	// non-blocking send). According to the documentation of xSemaphoreGive:
+	//
+	// > pdTRUE if the semaphore was released. pdFALSE if an error occurred.
+	// > Semaphores are implemented using queues. An error can occur if there is
+	// > no space on the queue to post a message - indicating that the semaphore
+	// > was not first obtained correctly.
+	sem := (*semaphore)(semphr)
+	*sem <- struct{}{}
+	return 1
+}
+
+//export espradio_semphr_delete
+func espradio_semphr_delete(semphr unsafe.Pointer) {
+	sem := (*semaphore)(semphr)
+	close(*sem)
+}
+
+//export espradio_wifi_thread_semphr_get
+func espradio_wifi_thread_semphr_get() unsafe.Pointer {
+	if wifiSemaphore == nil {
+		wifiSemaphore = make(semaphore, 1)
+	}
+	return unsafe.Pointer(&wifiSemaphore)
 }
 
 type queueElementType [8]byte
 
-// TODO: I think the return type results in undefined behavior (but it's still a
-// pointer so I hope LLVM won't use that fact).
-//
 //export espradio_wifi_create_queue
 func espradio_wifi_create_queue(queue_len, item_size int) chan queueElementType {
-	if item_size > len(queueElementType{}) {
-		panic("espradio: queue item_size too large")
+	if item_size != len(queueElementType{}) {
+		panic("espradio: unexpected queue item_size")
 	}
 	return make(chan queueElementType, item_size)
+}
+
+//export espradio_wifi_delete_queue
+func espradio_wifi_delete_queue(queue chan queueElementType) {
+	// We can't really delete a channel, but we can close it.
+	close(queue)
+}
+
+//export espradio_queue_recv
+func espradio_queue_recv(queue chan queueElementType, item unsafe.Pointer, block_time_tick uint32) int32 {
+	// This is xQueueReceive.
+	if block_time_tick != C.OSI_FUNCS_TIME_BLOCKING {
+		panic("espradio: todo: queue_recv with timeout")
+	}
+	*(*[8]byte)(item) = <-queue
+	return 1
+}
+
+//export espradio_queue_send
+func espradio_queue_send(queue chan queueElementType, item unsafe.Pointer, block_time_tick uint32) int32 {
+	// This is xQueueSend.
+	if block_time_tick != C.OSI_FUNCS_TIME_BLOCKING {
+		duration := time.Duration(ticksToMilliseconds(block_time_tick)) * time.Millisecond
+		// TODO: reuse the timer to avoid allocating a new timer on each queue send
+		select {
+		case <-time.After(duration):
+			return 0
+		case queue <- *(*[8]byte)(item):
+			return 1
+		}
+	}
+	queue <- *(*[8]byte)(item)
+	return 1
 }

@@ -6,10 +6,6 @@
 // Documentation for these functions:
 // https://github.com/esp-rs/esp-wifi/blob/main/esp-wifi/src/wifi/os_adapter.rs
 
-// Fake task handle. Used for espradio_task_get_current_task.
-// TODO: get the real task handle somehow.
-static uint8_t current_task = 1;
-
 __attribute__((noreturn))
 void espradio_panic(char *s);
 
@@ -45,13 +41,9 @@ void *espradio_spin_lock_create(void);
 
 void espradio_spin_lock_delete(void *lock);
 
-static uint32_t espradio_wifi_int_disable(void *wifi_int_mux) {
-    espradio_panic("todo: _wifi_int_disable");
-}
+uint32_t espradio_wifi_int_disable(void *wifi_int_mux);
 
-static void espradio_wifi_int_restore(void *wifi_int_mux, uint32_t tmp) {
-    espradio_panic("todo: _wifi_int_restore");
-}
+void espradio_wifi_int_restore(void *wifi_int_mux, uint32_t tmp);
 
 static void espradio_task_yield_from_isr(void) {
     espradio_panic("todo: _task_yield_from_isr");
@@ -59,21 +51,13 @@ static void espradio_task_yield_from_isr(void) {
 
 void *espradio_semphr_create(uint32_t max, uint32_t init);
 
-static void espradio_semphr_delete(void *semphr) {
-    espradio_panic("todo: _semphr_delete");
-}
+void espradio_semphr_delete(void *semphr);
 
-static int32_t espradio_semphr_take(void *semphr, uint32_t block_time_tick) {
-    espradio_panic("todo: _semphr_take");
-}
+int32_t espradio_semphr_take(void *semphr, uint32_t block_time_tick);
 
-static int32_t espradio_semphr_give(void *semphr) {
-    espradio_panic("todo: _semphr_give");
-}
+int32_t espradio_semphr_give(void *semphr);
 
-static void *espradio_wifi_thread_semphr_get(void) {
-    espradio_panic("todo: _wifi_thread_semphr_get");
-}
+void *espradio_wifi_thread_semphr_get(void);
 
 static void *espradio_mutex_create(void) {
     espradio_panic("todo: _mutex_create");
@@ -97,9 +81,7 @@ static void espradio_queue_delete(void *queue) {
     espradio_panic("todo: _queue_delete");
 }
 
-static int32_t espradio_queue_send(void *queue, void *item, uint32_t block_time_tick) {
-    espradio_panic("todo: _queue_send");
-}
+int32_t espradio_queue_send(void *queue, void *item, uint32_t block_time_tick);
 
 static int32_t espradio_queue_send_from_isr(void *queue, void *item, void *hptw) {
     espradio_panic("todo: _queue_send_from_isr");
@@ -113,9 +95,7 @@ static int32_t espradio_queue_send_to_front(void *queue, void *item, uint32_t bl
     espradio_panic("todo: _queue_send_to_front");
 }
 
-static int32_t espradio_queue_recv(void *queue, void *item, uint32_t block_time_tick) {
-    espradio_panic("todo: _queue_recv");
-}
+int32_t espradio_queue_recv(void *queue, void *item, uint32_t block_time_tick);
 
 static uint32_t espradio_queue_msg_waiting(void *queue) {
     espradio_panic("todo: _queue_msg_waiting");
@@ -141,30 +121,24 @@ static uint32_t espradio_event_group_wait_bits(void *event, uint32_t bits_to_wai
     espradio_panic("todo: _event_group_wait_bits");
 }
 
-static int32_t espradio_task_create_pinned_to_core(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle, uint32_t core_id) {
-    espradio_panic("todo: _task_create_pinned_to_core");
+void espradio_run_task(void *task_func, void *task_handle) {
+    void (*fn)(void *task_handle) = task_func;
+    fn(task_handle);
 }
+
+int32_t espradio_task_create_pinned_to_core(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle, uint32_t core_id);
 
 static int32_t espradio_task_create(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio, void *task_handle) {
     espradio_panic("todo: _task_create");
 }
 
-static void espradio_task_delete(void *task_handle) {
-    espradio_panic("todo: _task_delete");
-}
+void espradio_task_delete(void *task_handle);
 
-static void espradio_task_delay(uint32_t tick) {
-    espradio_panic("todo: _task_delay");
-}
+void espradio_task_delay(uint32_t tick);
 
-static int32_t espradio_task_ms_to_tick(uint32_t ms) {
-    espradio_panic("todo: _task_ms_to_tick");
-}
+int32_t espradio_task_ms_to_tick(uint32_t ms);
 
-static void *espradio_task_get_current_task(void) {
-    int task_num = current_task;
-    return (void*)task_num;
-}
+void *espradio_task_get_current_task(void);
 
 static int32_t espradio_task_get_max_priority(void) {
     return 255; // arbitrary number
@@ -373,14 +347,12 @@ static void * espradio_wifi_calloc(size_t n, size_t size) {
 }
 
 static void * espradio_wifi_zalloc(size_t size) {
-    espradio_panic("todo: _wifi_zalloc");
+    return calloc(1, size);
 }
 
 void * espradio_wifi_create_queue(int queue_len, int item_size);
 
-static void espradio_wifi_delete_queue(void * queue) {
-    espradio_panic("todo: _wifi_delete_queue");
-}
+void espradio_wifi_delete_queue(void * queue);
 
 static int espradio_coex_init(void) {
     espradio_panic("todo: _coex_init");
