@@ -92,7 +92,7 @@ func (d *Device) Restart() {
 // it in µg (micro-gravity). When one of the axes is pointing straight to Earth
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
-func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
+func (d *Device) ReadAcceleration() (x int16, y int16, z int16, err error) {
 	rx, ry, rz := d.ReadRawAcceleration()
 
 	x = d.dataFormat.convertToIS(rx)
@@ -104,7 +104,7 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 
 // ReadRawAcceleration reads the sensor values and returns the raw x, y and z axis
 // from the adxl345.
-func (d *Device) ReadRawAcceleration() (x int32, y int32, z int32) {
+func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
 	data := []byte{0, 0, 0, 0, 0, 0}
 	legacy.ReadRegister(d.bus, uint8(d.Address), REG_DATAX0, data)
 
@@ -140,7 +140,7 @@ func (d *Device) SetRange(sensorRange Range) bool {
 }
 
 // convertToIS adjusts the raw values from the adxl345 with the range configuration
-func (d *dataFormat) convertToIS(rawValue int32) int32 {
+func (d *dataFormat) convertToIS(rawValue int16) int16 {
 	switch d.sensorRange {
 	case RANGE_2G:
 		return rawValue * 4 // rawValue * 2 * 1000 / 512
@@ -190,6 +190,6 @@ func (b *bwRate) toByte() (bits uint8) {
 }
 
 // readInt converts two bytes to int16
-func readIntLE(msb byte, lsb byte) int32 {
-	return int32(uint16(msb) | uint16(lsb)<<8)
+func readIntLE(msb byte, lsb byte) int16 {
+	return int16(uint16(msb) | uint16(lsb)<<8)
 }
