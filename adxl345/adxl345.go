@@ -92,12 +92,12 @@ func (d *Device) Restart() {
 // it in µg (micro-gravity). When one of the axes is pointing straight to Earth
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
-func (d *Device) ReadAcceleration() (x int16, y int16, z int16, err error) {
+func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	rx, ry, rz := d.ReadRawAcceleration()
 
-	x = d.dataFormat.convertToIS(rx)
-	y = d.dataFormat.convertToIS(ry)
-	z = d.dataFormat.convertToIS(rz)
+	x = int32(d.dataFormat.convertToIS(rx))
+	y = int32(d.dataFormat.convertToIS(ry))
+	z = int32(d.dataFormat.convertToIS(rz))
 
 	return
 }
