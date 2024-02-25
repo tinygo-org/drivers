@@ -12,30 +12,15 @@ import (
 //go:linkname UseStack net.useNetdev
 func UseStack(stack Stack)
 
-// GethostByName() errors
+// Socket errors.
 var (
-	ErrHostUnknown = errors.New("host unknown")
-	ErrMalAddr     = errors.New("malformed address")
-)
-
-// Socket errors
-var (
-	ErrFamilyNotSupported   = errors.New("address family not supported")
 	ErrProtocolNotSupported = errors.New("socket protocol/type not supported")
-	ErrStartingDHCPClient   = errors.New("error starting DHPC client")
-	ErrNoMoreSockets        = errors.New("no more sockets")
-	ErrClosingSocket        = errors.New("error closing socket")
 )
 
+// Wifi errors.
 var (
-	ErrConnected         = errors.New("already connected")
-	ErrConnectFailed     = errors.New("connect failed")
-	ErrConnectTimeout    = errors.New("connect timed out")
-	ErrMissingSSID       = errors.New("missing WiFi SSID")
-	ErrAuthFailure       = errors.New("wifi authentication failure")
-	ErrAuthTypeNoGood    = errors.New("wifi authorization type not supported")
-	ErrConnectModeNoGood = errors.New("connect mode not supported")
-	ErrNotSupported      = errors.New("not supported")
+	ErrAuthFailure     = errors.New("wifi authentication failure")
+	ErrAuthUnsupported = errors.New("wifi authorization type not supported")
 )
 
 const (
@@ -152,7 +137,7 @@ type WifiParams struct {
 	CountryCode string
 }
 
-type Event int
+type Event uint8
 
 // Network events
 const (
@@ -162,7 +147,7 @@ const (
 	EventNetDown
 )
 
-type ConnectMode int
+type ConnectMode uint8
 
 // Connect modes
 const (
@@ -170,7 +155,7 @@ const (
 	ConnectModeAP         // Connect as Wifi Access Point
 )
 
-type AuthType int
+type AuthType uint8
 
 // Wifi authorization types.  Used when setting up an access point, or
 // connecting to an access point
@@ -186,7 +171,7 @@ type WifiAutoconnectParams struct {
 
 	// Retries is how many attempts to connect before returning with a
 	// "Connect failed" error.  Zero means infinite retries.
-	Retries int // Probably should be implemented as a function
+	// Retries int // Probably should be implemented as a function
 
 	// Timeout duration for each connection attempt.  The default zero
 	// value means 10sec.
@@ -200,22 +185,23 @@ type WifiAutoconnectParams struct {
 
 func StartWifiAutoconnect(dev InterfaceWifi, cfg WifiAutoconnectParams) error {
 	if dev == nil {
-		return ErrConnectModeNoGood
+		return errors.New("nil device")
 	}
 	go func() {
 		// Wifi autoconnect algorithm in one place,
 		// no need to implement for every single netdever.
 	RECONNECT:
-		for i := 0; i < cfg.Retries; i++ {
+		for i := 0; i < 4; i++ {
 			err := dev.NetConnect(cfg.WifiParams)
 			if err != nil {
 				time.Sleep(cfg.ConnectTimeout)
 				goto RECONNECT
 			}
+			// Once connected reset the retry counter.
+			i = 0
 			for cfg.WatchdogTimeout != 0 {
 				time.Sleep(cfg.WatchdogTimeout)
 				if dev.NetFlags()&net.FlagRunning == 0 {
-					i = 0
 					goto RECONNECT
 				}
 			}
