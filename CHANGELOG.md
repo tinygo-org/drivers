@@ -1,3 +1,86 @@
+0.27.0
+---
+- **core**
+    - prepare for CGo changes in TinyGo
+
+- **new devices**
+    - **adafruit4650**
+        - support for Adafruit 4650 feather OLED
+    - **net**
+        - new networking support based on tinygo net package
+    - **pixel**
+        - add package for efficiently working with raw pixel buffers
+    - **rotary**
+        - Adding driver for rotary encoder support
+    - **seesaw**
+        - Adding support for Adafruit Seesaw platform
+    - **sgp30**
+        - add SGP30 air quality sensor
+    - **sk6812**
+        - added support for SK6812 to WS2812 device (#610)
+
+- **enhancements**
+    - **epd2in13**
+        - add Sleep method like other displays
+        - unify rotation configuration with other displays
+        - use better black/white approximation
+    - **ili9341**
+        - add DrawBitmap method
+    - **lora/lorawan**
+        - LoRa WAN US915 Support
+        - LoRa WAN add setter functions
+        - refactor shared functionality for channels/regions
+    - **mcp2515**
+        - Add more line speeds to mcp2515.go (#626)
+    - **rtl8720dn**
+        - use drivers package version as the driver version
+    - **ssd1306**
+        - improvements needed for Thumby SPI display
+    - **st7735**
+        - make the display generic over RGB565 and RGB444
+    - **st7789**
+        - add DrawBitmap method
+        - make the display generic over RGB565 and RGB444
+    - **wifinina**
+        - add ResetIsHigh cfg switch for MKR 1010 (copied from #561)
+        - maintenence. Also see PR #4085 in the main TinyGo repo
+        - use drivers package version as the driver version
+
+- **bugfixes**
+    - **adxl345**
+        - Use int16 for ADXL345 readings (#656)
+    - **at24cx**
+        - fixed the description of the device struct
+    - **rtl8720dn**
+        - allow connecting to open wifi access points
+        - fix check for bad Wifi connect
+    - **sh1106**
+        - fix I2C interface and add smoketest
+        - fixed the description of the device struct
+    - **wifinina**
+        - add 'unknown failure' reason code for AP connect
+        - fix concurrency issues with multiple sockets
+        - fix wifinina UDP send
+ 
+- **examples**
+    - **ds3231**
+        - fix the description in the example
+    - **lorawan**
+        - add missing functions for simulated interface
+        - modify atcmd and basic demo to support choosing any one of the supported regions at compile time by using ldflags
+    - **net**
+        - all networking examples now using netdev and netlink.
+
+- **build**
+    - **all**
+        - fix broken testrunner
+        - migrated legacy I2C
+        - add natiu package for tests
+    - **smoketest**
+        - add stack-size param for net tests.
+        - allow stack-size flag as it is needed for net examples
+
+
 0.26.0
 ---
 - **core**
