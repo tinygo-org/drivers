@@ -36,7 +36,6 @@ func main() {
 	err := runSmokeTest(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		usage()
 		os.Exit(1)
 	}
 }
@@ -51,7 +50,7 @@ func runSmokeTest(filename string) error {
 
 	// Start a number of goroutine workers.
 	jobChan := make(chan *Job, len(lines))
-	for i := 0; i < runtime.NumCPU(); i++ {
+	for i := 0; i < runtime.NumCPU()-1; i++ {
 		go worker(jobChan)
 	}
 
