@@ -1,4 +1,4 @@
-//go:build tinygo && (rp2040 || stm32 || k210 || esp32c3 || nrf || (avr && (atmega328p || atmega328pb)))
+//go:build tinygo && (rp2040 || stm32 || k210 || esp32c3 || nrf || sam || (avr && (atmega328p || atmega328pb)))
 
 // Implementation based on:
 // https://gist.github.com/aykevl/3fc1683ed77bb0a9c07559dfe857304a
