@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	df "github.com/0b1-k/DFPlayerMini"
 	"go.bug.st/serial"
+	df "tinygo.org/x/drivers/dfplayermini"
 )
 
 const (

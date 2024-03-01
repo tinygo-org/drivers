@@ -5,7 +5,7 @@ import (
 	"machine"
 	"time"
 
-	df "github.com/0b1-k/DFPlayerMini"
+	df "tinygo.org/x/drivers/dfplayermini"
 )
 
 const (
