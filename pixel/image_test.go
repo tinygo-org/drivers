@@ -62,3 +62,35 @@ func TestImageRGB444BE(t *testing.T) {
 		}
 	}
 }
+
+func TestImageMonochrome(t *testing.T) {
+	image := pixel.NewImage[pixel.Monochrome](5, 3)
+	if width, height := image.Size(); width != 5 && height != 3 {
+		t.Errorf("image.Size(): expected 5, 3 but got %d, %d", width, height)
+	}
+	for _, expected := range []color.RGBA{
+		{R: 0xff, G: 0xff, B: 0xff},
+		{G: 0xff},
+		{R: 0xff, G: 0xff},
+		{G: 0xff, B: 0xff},
+		{R: 0x00},
+		{G: 0x00, A: 0xff},
+		{B: 0x00, A: 0xff},
+	} {
+		encoded := pixel.NewColor[pixel.Monochrome](expected.R, expected.G, expected.B)
+		image.Set(4, 2, encoded)
+		actual := image.Get(4, 2).RGBA()
+		switch {
+		case expected.R == 0 && expected.G == 0 && expected.B == 0:
+			// should be false eg black
+			if actual.R != 0 || actual.G != 0 || actual.B != 0 {
+				t.Errorf("failed to roundtrip color: expected %v but got %v", expected, actual)
+			}
+		case int(expected.R)+int(expected.G)+int(expected.B) > 128*3:
+			// should be true eg white
+			if actual.R == 0 || actual.G == 0 || actual.B == 0 {
+				t.Errorf("failed to roundtrip color: expected %v but got %v", expected, actual)
+			}
+		}
+	}
+}

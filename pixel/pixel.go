@@ -14,9 +14,9 @@ import (
 
 // Pixel with a particular color, matching the underlying hardware of a
 // particular display. Each pixel is at least 1 byte in size.
-// The color format is sRGB (or close to it) in all cases.
+// The color format is sRGB (or close to it) in all cases except for 1-bit.
 type Color interface {
-	RGB888 | RGB565BE | RGB555 | RGB444BE
+	RGB888 | RGB565BE | RGB555 | RGB444BE | Monochrome
 
 	BaseColor
 }
@@ -50,6 +50,8 @@ func NewColor[T Color](r, g, b uint8) T {
 		return any(NewRGB555(r, g, b)).(T)
 	case RGB444BE:
 		return any(NewRGB444BE(r, g, b)).(T)
+	case Monochrome:
+		return any(NewMonochrome(r, g, b)).(T)
 	default:
 		panic("unknown color format")
 	}
@@ -200,6 +202,35 @@ func (c RGB444BE) RGBA() color.RGBA {
 	color.G |= color.G >> 4
 	color.B |= color.B >> 4
 	return color
+}
+
+type Monochrome bool
+
+func NewMonochrome(r, g, b uint8) Monochrome {
+	// Very simple black/white split.
+	// This isn't very accurate (especially for sRGB colors) but is close enough.
+	if int(r)+int(g)+int(b) > 128*3 { // light, convert to white
+		return Monochrome(true)
+	}
+	// dark, convert to black
+	return Monochrome(false)
+}
+
+func (c Monochrome) BitsPerPixel() int {
+	return 1
+}
+
+func (c Monochrome) RGBA() color.RGBA {
+	value := uint8(0)
+	if c {
+		value = 255
+	}
+	return color.RGBA{
+		R: value,
+		G: value,
+		B: value,
+		A: 255,
+	}
 }
 
 // Gamma brightness lookup table:
