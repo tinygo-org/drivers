@@ -18,7 +18,7 @@
 
     5. Folder 'mp3': '0001.mp3','0002.mp3','0003.mp3','0004.mp3','0005.mp3','0006.mp3','0007.mp3','0008.mp3','0009.mp3','0010.mp3'
 
-    Note: the track numbering scheme **matters** and dictates which playback functions can be used. Please read the chip's datasheet under /Docs for more information on file and folder naming conventions.
+    Note: the track numbering scheme **matters** and dictates which playback functions can be used. Please read the chip's datasheet under /docs for more information on file and folder naming conventions.
 
 
 ## Hardware setup requirements:
@@ -34,7 +34,7 @@ The MP3 player is controlled over a serial interface and as such, it can be conn
 The tests are designed to make use of the MP3 player's DAC stereo output through the HW-104 amplifier. Feel free to disable the DAC output in the tests if you use a single speaker using the MP3 player's built-in amplifier instead.
 Please refer to the datasheet for wiring details.
 
-![Test setup](./Docs/testsetup.jpg "Test setup using a USB to UART serial adapter and a HW-104 amplifier")
+![Test setup](./docs/testsetup.jpg "Test setup using a USB to UART serial adapter and a HW-104 amplifier")
 
 ## Running the tests:
 
@@ -66,16 +66,16 @@ ok  	github.com/0b1-k/DFPlayerMini	116.675s
 
 Note: playback time per track is limited to 20 seconds in each test to ensure that each test completes before for the 30 second default timeout.
 
-You will also find a complete usage example in the */example* folder. The example scans the SD card for numerical folders containing any tracks to playback. Each track is then played sequentially within each folder, after which the example exits.
+You will also find a complete usage examples in the */examples* folder. The player example scans the SD card for numerical folders containing any tracks to playback. Each track is then played sequentially within each folder, after which the example exits.
 
 The example expects the same hardware setup and SD card content as the previous tests.
 
 Note: in the example's output, there are two error messages indicating that a track was not found. These messages are expected due to the tracks numbering scheme used within folder '10', which requires using a *large folder* playback function.
 
 ```
-$ cd ./example
+$ cd ./examples/dfplayermini/player
 $ go build
-$ ./example
+$ ./player
 SD card numerical folders: 03, containing 22 tracks
 SD card track #0008 finished playing
 SD card track #0007 finished playing
