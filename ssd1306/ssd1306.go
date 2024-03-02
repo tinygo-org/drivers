@@ -11,12 +11,24 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/pixel"
 )
+
+// Pixel formats supported by the ssd1306 driver.
+type Color interface {
+	pixel.MonochromeVertical
+
+	pixel.BaseColor
+}
 
 type ResetValue [2]byte
 
 // Device wraps I2C or SPI connection.
-type Device struct {
+type Device = DeviceOf[pixel.MonochromeVertical]
+
+// DeviceOf is a generic version of Device, which supports different pixel
+// formats.
+type DeviceOf[T Color] struct {
 	bus        Buser
 	buffer     []byte
 	width      int16
@@ -73,12 +85,16 @@ func NewI2C(bus drivers.I2C) Device {
 	}
 }
 
-// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
 func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
+	return NewSPIOf[pixel.MonochromeVertical](bus, dcPin, resetPin, csPin)
+}
+
+// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
+func NewSPIOf[T Color](bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) DeviceOf[T] {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{
+	return DeviceOf[T]{
 		bus: &SPIBus{
 			wire:     bus,
 			dcPin:    dcPin,
@@ -89,7 +105,7 @@ func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
 }
 
 // Configure initializes the display with default configuration
-func (d *Device) Configure(cfg Config) {
+func (d *DeviceOf[T]) Configure(cfg Config) {
 	var zeroReset ResetValue
 	if cfg.Width != 0 {
 		d.width = cfg.Width
@@ -187,21 +203,31 @@ func (d *Device) Configure(cfg Config) {
 	d.Command(DISPLAYON)
 }
 
+// Rotation returns the current rotation of the device.
+func (d *DeviceOf[T]) Rotation() drivers.Rotation {
+	return drivers.Rotation0
+}
+
+// SetRotation changes the rotation of the device (clock-wise)
+func (d *DeviceOf[T]) SetRotation(rotation drivers.Rotation) error {
+	return nil
+}
+
 // ClearBuffer clears the image buffer
-func (d *Device) ClearBuffer() {
+func (d *DeviceOf[T]) ClearBuffer() {
 	for i := int16(0); i < d.bufferSize; i++ {
 		d.buffer[i] = 0
 	}
 }
 
 // ClearDisplay clears the image buffer and clear the display
-func (d *Device) ClearDisplay() {
+func (d *DeviceOf[T]) ClearDisplay() {
 	d.ClearBuffer()
 	d.Display()
 }
 
 // Display sends the whole buffer to the screen
-func (d *Device) Display() error {
+func (d *DeviceOf[T]) Display() error {
 	// Reset the screen to 0x0
 	// This works fine with I2C
 	// In the 128x64 (SPI) screen resetting to 0x0 after 128 times corrupt the buffer
@@ -221,7 +247,7 @@ func (d *Device) Display() error {
 // SetPixel enables or disables a pixel in the buffer
 // color.RGBA{0, 0, 0, 255} is consider transparent, anything else
 // with enable a pixel on the screen
-func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
+func (d *DeviceOf[T]) SetPixel(x int16, y int16, c color.RGBA) {
 	if x < 0 || x >= d.width || y < 0 || y >= d.height {
 		return
 	}
@@ -234,7 +260,7 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 }
 
 // GetPixel returns if the specified pixel is on (true) or off (false)
-func (d *Device) GetPixel(x int16, y int16) bool {
+func (d *DeviceOf[T]) GetPixel(x int16, y int16) bool {
 	if x < 0 || x >= d.width || y < 0 || y >= d.height {
 		return false
 	}
@@ -242,8 +268,39 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 	return (d.buffer[byteIndex] >> uint8(y%8) & 0x1) == 1
 }
 
+var errOutOfBounds = errors.New("out of bounds")
+
+// DrawBitmap copies the bitmap to the internal buffer on the screen at the
+// given coordinates. It returns once the image data has been sent completely.
+func (d *DeviceOf[T]) DrawBitmap(x, y int16, bitmap pixel.Image[T]) error {
+	w, h := bitmap.Size()
+
+	k, i := d.Size()
+	if x < 0 || y < 0 || w <= 0 || h <= 0 ||
+		x >= k || (x+int16(w)) > k || y >= i || (y+int16(h)) > i {
+		return errOutOfBounds
+	}
+
+	// set area to draw
+	d.Command(COLUMNADDR)
+	d.Command(d.resetCol[0] + uint8(x))
+	d.Command(d.resetCol[0] + uint8(x) + uint8(w) - 1)
+
+	// TODO: handle when the bitmap is not aligned to 8 vertical pixels
+	d.Command(PAGEADDR)
+	d.Command((d.resetPage[0] + uint8(y)) / 8)
+	d.Command((d.resetPage[0] + uint8(y) + uint8(h)) / 8)
+
+	d.Tx(bitmap.RawBuffer(), false)
+	return nil
+}
+
+func (d *DeviceOf[T]) Sleep(sleepEnabled bool) error {
+	return nil // nothing to do here
+}
+
 // SetBuffer changes the whole buffer at once
-func (d *Device) SetBuffer(buffer []byte) error {
+func (d *DeviceOf[T]) SetBuffer(buffer []byte) error {
 	if int16(len(buffer)) != d.bufferSize {
 		//return ErrBuffer
 		return errors.New("wrong size buffer")
@@ -255,12 +312,12 @@ func (d *Device) SetBuffer(buffer []byte) error {
 }
 
 // GetBuffer returns the whole buffer
-func (d *Device) GetBuffer() []byte {
+func (d *DeviceOf[T]) GetBuffer() []byte {
 	return d.buffer
 }
 
 // Command sends a command to the display
-func (d *Device) Command(command uint8) {
+func (d *DeviceOf[T]) Command(command uint8) {
 	d.bus.tx([]byte{command}, true)
 }
 
@@ -296,7 +353,7 @@ func (b *SPIBus) configure() error {
 }
 
 // Tx sends data to the display
-func (d *Device) Tx(data []byte, isCommand bool) error {
+func (d *DeviceOf[T]) Tx(data []byte, isCommand bool) error {
 	return d.bus.tx(data, isCommand)
 }
 
@@ -335,6 +392,6 @@ func (b *SPIBus) tx(data []byte, isCommand bool) error {
 }
 
 // Size returns the current size of the display.
-func (d *Device) Size() (w, h int16) {
+func (d *DeviceOf[T]) Size() (w, h int16) {
 	return d.width, d.height
 }
