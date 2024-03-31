@@ -47,6 +47,9 @@ const (
 	statusConnectFailed  connectionStatus = 4
 	statusConnectionLost connectionStatus = 5
 	statusDisconnected   connectionStatus = 6
+	statusAPListening    connectionStatus = 7
+	statusAPConnected    connectionStatus = 8
+	statusAPFailed       connectionStatus = 9
 
 	encTypeTKIP encryptionType = 2
 	encTypeCCMP encryptionType = 4
@@ -299,6 +302,61 @@ func (w *wifinina) connectToAP() error {
 	return netlink.ErrConnectTimeout
 }
 
+func (w *wifinina) startAP() error {
+	timeout := w.params.ConnectTimeout
+	if timeout == 0 {
+		timeout = netlink.DefaultConnectTimeout
+	}
+
+	if len(w.params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("Starting Wifi AP as SSID '%s'...", w.params.Ssid)
+	}
+
+	start := time.Now()
+
+	// Start the connection process
+	switch {
+	case w.params.Passphrase != "":
+		w.setPassphraseForAP(w.params.Ssid, w.params.Passphrase)
+	default:
+		w.setNetworkForAP(w.params.Ssid)
+	}
+
+	// Check if we are listening
+	for {
+		status := w.getConnectionStatus()
+		switch status {
+		case statusAPListening:
+			if debugging(debugBasic) {
+				fmt.Printf("LISTENING\r\n")
+			}
+			if w.notifyCb != nil {
+				w.notifyCb(netlink.EventNetUp)
+			}
+			return nil
+		case statusAPFailed:
+			if debugging(debugBasic) {
+				fmt.Printf("FAILED (%s)\r\n", w.reason())
+			}
+			return netlink.ErrConnectFailed
+		}
+		if time.Since(start) > timeout {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("FAILED (timed out)\r\n")
+	}
+
+	return netlink.ErrConnectTimeout
+}
+
 func (w *wifinina) netDisconnect() {
 	w.disconnect()
 }
@@ -380,7 +438,12 @@ func (w *wifinina) showIP() {
 }
 
 func (w *wifinina) networkDown() bool {
-	return w.getConnectionStatus() != statusConnected
+	switch w.getConnectionStatus() {
+	case statusConnected, statusAPListening, statusAPConnected:
+		return false
+	default:
+		return true
+	}
 }
 
 func (w *wifinina) watchdog() {
@@ -418,15 +481,28 @@ func (w *wifinina) netConnect(reset bool) error {
 	}
 	w.showDevice()
 
+retry:
 	for i := 0; w.params.Retries == 0 || i < w.params.Retries; i++ {
-		if err := w.connectToAP(); err != nil {
-			switch err {
-			case netlink.ErrConnectTimeout, netlink.ErrConnectFailed:
-				continue
+		switch w.params.ConnectMode {
+		case netlink.ConnectModeAP:
+			if err := w.startAP(); err != nil {
+				switch err {
+				case netlink.ErrConnectTimeout, netlink.ErrConnectFailed:
+					continue
+				}
+				return err
 			}
-			return err
+			break retry
+		default:
+			if err := w.connectToAP(); err != nil {
+				switch err {
+				case netlink.ErrConnectTimeout, netlink.ErrConnectFailed:
+					continue
+				}
+				return err
+			}
+			break retry
 		}
-		break
 	}
 
 	if w.networkDown() {
