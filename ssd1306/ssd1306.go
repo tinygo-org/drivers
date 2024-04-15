@@ -11,6 +11,12 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/pixel"
+)
+
+var (
+	errBufferSize = errors.New("invalid size buffer")
+	errOutOfRange = errors.New("out of screen range")
 )
 
 type ResetValue [2]byte
@@ -245,8 +251,7 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 // SetBuffer changes the whole buffer at once
 func (d *Device) SetBuffer(buffer []byte) error {
 	if int16(len(buffer)) != d.bufferSize {
-		//return ErrBuffer
-		return errors.New("wrong size buffer")
+		return errBufferSize
 	}
 	for i := int16(0); i < d.bufferSize; i++ {
 		d.buffer[i] = buffer[i]
@@ -337,4 +342,20 @@ func (b *SPIBus) tx(data []byte, isCommand bool) error {
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
 	return d.width, d.height
+}
+
+// DrawBitmap copies the bitmap to the screen at the given coordinates.
+func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) error {
+	width, height := bitmap.Size()
+	if x < 0 || x+int16(width) > d.width || y < 0 || y+int16(height) > d.height {
+		return errOutOfRange
+	}
+
+	for i := 0; i < width; i++ {
+		for j := 0; j < height; j++ {
+			d.SetPixel(x+int16(i), y+int16(j), bitmap.Get(i, j).RGBA())
+		}
+	}
+
+	return nil
 }
