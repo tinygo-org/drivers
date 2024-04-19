@@ -80,7 +80,8 @@ func (d *Device) Read() []byte {
 func (d *Device) ReadTouchPoint() touch.Point {
 	d.Read()
 	z := 0xFFFFF
-	if d.buf[0] == 0 {
+	switch d.buf[0] {
+	case 0, 255:
 		z = 0
 	}
 
