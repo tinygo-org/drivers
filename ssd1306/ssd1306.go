@@ -371,3 +371,15 @@ func (d *Device) Rotation() drivers.Rotation {
 func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	return errNotImplemented
 }
+
+// Set the sleep mode for this display. When sleeping, the panel uses a lot
+// less power. The display won't show an image anymore, but the memory contents
+// should be kept.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		d.Command(DISPLAYOFF)
+	} else {
+		d.Command(DISPLAYON)
+	}
+	return nil
+}
