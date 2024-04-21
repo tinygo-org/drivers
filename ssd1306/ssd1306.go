@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	errBufferSize = errors.New("invalid size buffer")
-	errOutOfRange = errors.New("out of screen range")
+	errBufferSize     = errors.New("invalid size buffer")
+	errOutOfRange     = errors.New("out of screen range")
+	errNotImplemented = errors.New("not implemented")
 )
 
 type ResetValue [2]byte
@@ -358,4 +359,15 @@ func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) er
 	}
 
 	return nil
+}
+
+// Rotation returns the currently configured rotation.
+func (d *Device) Rotation() drivers.Rotation {
+	return drivers.Rotation0
+}
+
+// SetRotation changes the rotation of the device (clock-wise).
+// Would have to be implemented in software for this device.
+func (d *Device) SetRotation(rotation drivers.Rotation) error {
+	return errNotImplemented
 }
