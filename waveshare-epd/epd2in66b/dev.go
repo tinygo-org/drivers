@@ -12,17 +12,17 @@ import (
 )
 
 const (
-	width  = 152
-	height = 296
+	displayWidth  = 152
+	displayHeight = 296
 
 	// using numerical values to enable generic tinygo compilation
-	rstPin  = 12
 	dcPin   = 8
 	csPin   = 9
+	rstPin  = 12
 	busyPin = 13
 )
 
-const Baudrate = 4 * machine.MHz
+const Baudrate = 4_000_000 // 4 MHz
 
 type Config struct {
 	ResetPin      machine.Pin
@@ -38,9 +38,6 @@ type Device struct {
 	rst  machine.Pin
 	busy machine.Pin
 
-	width  int16
-	height int16
-
 	blackBuffer []byte
 	redBuffer   []byte
 }
@@ -48,22 +45,16 @@ type Device struct {
 // New allocates a new device. The SPI for the built-in header to be used is picos machine.SPI1 at 4 MHz baudrate.
 // The bus is expected to be configured and ready for use.
 func New(bus drivers.SPI) Device {
-	pixelCount := width * height
-	if pixelCount%8 != 0 {
-		// defend against copy & pasta foot-guns
-		panic("pixel count expected to be a multiple of 8")
-	}
+	pixelCount := displayWidth * displayHeight
 
 	bufLen := pixelCount / 8
 
 	return Device{
-		bus:    bus,
-		cs:     csPin,
-		dc:     dcPin,
-		rst:    rstPin,
-		busy:   busyPin,
-		height: height,
-		width:  width,
+		bus:  bus,
+		cs:   csPin,
+		dc:   dcPin,
+		rst:  rstPin,
+		busy: busyPin,
 
 		blackBuffer: make([]byte, bufLen),
 		redBuffer:   make([]byte, bufLen),
@@ -103,7 +94,7 @@ func (d *Device) Configure(c Config) error {
 }
 
 func (d *Device) Size() (x, y int16) {
-	return d.width, d.height
+	return displayWidth, displayHeight
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
@@ -113,30 +104,30 @@ func (d *Device) Size() (x, y int16) {
 // - red = RGBA(1-255,0,0,1-255)
 // - Anything else as black
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
-	if x < 0 || x >= d.width || y < 0 || y >= d.height {
+	if x < 0 || x >= displayWidth || y < 0 || y >= displayHeight {
 		return
 	}
 
-	bytePos, bitPos := pos(x, y, d.width)
+	bytePos, bitPos := pos(x, y, displayWidth)
 
 	if c.R == 0xff && c.G == 0xff && c.B == 0xff && c.A > 0 { // white
-		set(d.blackBuffer, bytePos, bitPos, true)
-		set(d.redBuffer, bytePos, bitPos, false)
+		set(d.blackBuffer, bytePos, bitPos)
+		unset(d.redBuffer, bytePos, bitPos)
 	} else if c.R != 0 && c.G == 0 && c.B == 0 && c.A > 0 { // red-ish
-		set(d.blackBuffer, bytePos, bitPos, true)
-		set(d.redBuffer, bytePos, bitPos, true)
+		set(d.blackBuffer, bytePos, bitPos)
+		set(d.redBuffer, bytePos, bitPos)
 	} else { // black or other
-		set(d.blackBuffer, bytePos, bitPos, false)
-		set(d.redBuffer, bytePos, bitPos, false)
+		unset(d.blackBuffer, bytePos, bitPos)
+		unset(d.redBuffer, bytePos, bitPos)
 	}
 }
 
-func set(buf []byte, bytePos, bitPos int, v bool) {
-	if v {
-		buf[bytePos] |= 0x1 << bitPos
-	} else {
-		buf[bytePos] &^= 0x1 << bitPos
-	}
+func set(buf []byte, bytePos, bitPos int) {
+	buf[bytePos] |= 0x1 << bitPos
+}
+
+func unset(buf []byte, bytePos, bitPos int) {
+	buf[bytePos] &^= 0x1 << bitPos
 }
 
 func pos(x, y, stride int16) (bytePos int, bitPos int) {
@@ -204,7 +195,7 @@ func (d *Device) Reset() error {
 		return err
 	}
 
-	if err := d.setWindow(0, d.width-1, 0, d.height-1); err != nil {
+	if err := d.setWindow(0, displayWidth-1, 0, displayHeight-1); err != nil {
 		return err
 	}
 

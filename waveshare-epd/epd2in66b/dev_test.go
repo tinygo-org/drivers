@@ -51,7 +51,7 @@ func toImage(dev *Device) *image.RGBA {
 	for x := 0; x < int(xMax); x++ {
 		for y := 0; y < int(yMax); y++ {
 
-			bytePos, bitPos := pos(int16(x), int16(y), dev.width)
+			bytePos, bitPos := pos(int16(x), int16(y), displayWidth)
 
 			if isSet(dev.redBuffer, bytePos, bitPos) {
 				container.Set(x, y, red)
