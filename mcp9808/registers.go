@@ -6,18 +6,36 @@ package mcp9808
 
 // Constants/addresses used for I2C.
 const (
-	MCP9808_DEFAULT_ADDRESS        = 0x18
-	MCP9808_MANUFACTURER_ID        = 0x54 // Value
-	MCP9808_REG_CONFIGURATION      = 0x01
-	MCP9808_REG_UPPER_TEMP         = 0x02
-	MCP9808_REG_LOWER_TEMP         = 0x03
-	MCP9808_REG_CRITICAL_TEMP      = 0x04
-	MCP9808_REG__TEMP              = 0x05
-	MCP9808_REG_MANUFACTURER_ID    = 0x06
-	MCP9808_REG_DEVICE_ID          = 0x07
-	MCP9808_REG_RESOLUTION         = 0x08
-	MCP9808_RESOLUTION_HALF_C      = 0x0
-	MCP9808_RESOLUTION_QUARTER_C   = 0x1
-	MCP9808_RESOLUTION_EIGHTH_C    = 0x2
-	MCP9808_RESOLUTION_SIXTEENTH_C = 0x3
+	MCP9808_DEVICE_ID = 0x0400
+	MCP9808_MANUF_ID  = 0x0054
+
+	MCP9808_I2CADDR_DEFAULT = 0x18 //I2C address
+	MCP9808_REG_CONFIG      = 0x01 //MCP9808 config register
+
+	MCP9808_REG_CONFIG_SHUTDOWN   = 0x0100 //shutdown config
+	MCP9808_REG_CONFIG_CRITLOCKED = 0x0080 //critical trip lock
+	MCP9808_REG_CONFIG_WINLOCKED  = 0x0040 //alarm window lock
+	MCP9808_REG_CONFIG_INTCLR     = 0x0020 //interrupt clear
+	MCP9808_REG_CONFIG_ALERTSTAT  = 0x0010 //alert output status
+	MCP9808_REG_CONFIG_ALERTCTRL  = 0x0008 //alert output control
+	MCP9808_REG_CONFIG_ALERTSEL   = 0x0004 //alert output select
+	MCP9808_REG_CONFIG_ALERTPOL   = 0x0002 //alert output polarity
+	MCP9808_REG_CONFIG_ALERTMODE  = 0x0001 //alert output mode
+
+	MCP9808_REG_UPPER_TEMP   = 0x02 //upper alert boundary
+	MCP9808_REG_LOWER_TEMP   = 0x03 //lower alert boundery
+	MCP9808_REG_CRIT_TEMP    = 0x04 //critical temperature
+	MCP9808_REG_AMBIENT_TEMP = 0x05 //ambient temperature
+	MCP9808_REG_MANUF_ID     = 0x06 //manufacture ID
+	MCP9808_REG_DEVICE_ID    = 0x07 //device ID
+	MCP9808_REG_RESOLUTION   = 0x08 //resolution
+)
+
+type resolution uint8
+
+const (
+	Maximum resolution = iota
+	Low
+	Medium
+	High
 )

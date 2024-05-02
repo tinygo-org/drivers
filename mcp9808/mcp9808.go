@@ -5,65 +5,47 @@
 package mcp9808
 
 import (
+	"encoding/binary"
 	"math"
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 )
 
-type resolution uint8
-
-const (
-	Maximum resolution = iota
-	Low
-	Medium
-	High
-)
-
-type opts struct {
-	Addr int
-	Res  resolution
-}
-
-var DefaultOpts = opts{
-	Addr: MCP9808_DEFAULT_ADDRESS,
-	Res:  Maximum,
-}
-
 type Device struct {
 	bus     drivers.I2C
+	buf     []byte
 	Address uint16
 }
 
-func New(bus drivers.I2C, address uint16) Device {
-	return Device{bus, address}
+func New(bus drivers.I2C) Device {
+	return Device{bus, make([]byte, 3), MCP9808_I2CADDR_DEFAULT}
 }
 
 func (d *Device) Connected() bool {
-	data := []byte{0}
-	d.ReadRegister(MCP9808_REG_DEVICE_ID, data)
-	return data[0] == MCP9808_DEVICE_ID
+	d.Read(MCP9808_REG_DEVICE_ID, d.buf)
+	return binary.BigEndian.Uint16(d.buf[:1]) == MCP9808_DEVICE_ID
 }
 
 func (d *Device) Temperature() (float64, error) {
-	d.buf[0] = MCP9808_REG__TEMP
-	if _, err := dev.i2cDevice.Write(dev.buf[:1]); err != nil {
+	d.buf[0] = MCP9808_REG_AMBIENT_TEMP
+	if err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[:1])); err != nil {
 		return 0, err
 	}
-	if _, err := dev.i2cDevice.Read(dev.buf[1:]); err != nil {
+	if err := d.Read(d.buf[0], d.buf[1:]); err != nil {
 		return 0, err
 	}
 
-	return dev.tempConv(), nil
+	return d.tempConv(), nil
 }
 
 func (d *Device) tempConv() float64 {
-	dev.buf[1] = dev.buf[1] & 0x1F
-	if dev.buf[1]&0x10 == 0x10 {
-		dev.buf[1] = dev.buf[1] & 0x0F
-		return (float64(dev.buf[1])*16 + float64(dev.buf[2])/16.0) - 256
+	d.buf[1] = d.buf[1] & 0x1F
+	if d.buf[1]&0x10 == 0x10 {
+		d.buf[1] = d.buf[1] & 0x0F
+		return (float64(d.buf[1])*16 + float64(d.buf[2])/16.0) - 256
 	}
-	return float64(dev.buf[1])*16 + float64(dev.buf[2])/16.0
+	return float64(d.buf[1])*16 + float64(d.buf[2])/16.0
 }
 
 func (d *Device) limitTemperatures(temp int, tAddress byte) error {
@@ -87,11 +69,11 @@ func (d *Device) limitTemperatures(temp int, tAddress byte) error {
 }
 
 func (d *Device) getTemperature(address byte) (float64, error) {
-	dev.buf[0] = address
-	if _, err := dev.i2cDevice.Write(dev.buf[:1]); err != nil {
+	d.buf[0] = address
+	if _, err := d.i2cDevice.Write(d.buf[:1]); err != nil {
 		return 0, err
 	}
-	if _, err := d.i2cDevice.Read(dev.buf[1:]); err != nil {
+	if _, err := d.i2cDevice.Read(d.buf[1:]); err != nil {
 		return 0, err
 	}
 
@@ -144,34 +126,13 @@ func (d *Device) setRWBits(bitCount int, register byte, startBit int, value int)
 	return nil
 }
 
-/* func main() {
-	r := raspi.NewAdaptor()
-	bus := i2c.NewBus(r)
-	sensor, err := NewMCP9808(bus, _MCP9808_DEFAULT_ADDRESS)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for {
-		temp, err := sensor.Temperature()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("Temperature: %.2f°C\n", temp)
-
-		time.Sleep(1 * time.Second)
-	}
-} */
-
 // Convenience method to read the register and avoid repetition.
-func (d *Device) ReadRegister(reg uint8, buf []byte) error {
+func (d *Device) Read(reg uint8, buf []byte) error {
 	return legacy.ReadRegister(d.bus, uint8(d.Address), reg, buf)
 }
 
 // Convenience method to write the register and avoid repetition.
-func (d *Device) WriteRegister(reg uint8, v uint16) error {
+func (d *Device) Write(reg uint8, v uint16) error {
 	data := []byte{byte(v)}
 	err := legacy.WriteRegister(d.bus, uint8(d.Address), reg, data)
 	return err
