@@ -14,12 +14,6 @@ import (
 const (
 	displayWidth  = 152
 	displayHeight = 296
-
-	// using numerical values to enable generic tinygo compilation
-	dcPin   = 8
-	csPin   = 9
-	rstPin  = 12
-	busyPin = 13
 )
 
 const Baudrate = 4_000_000 // 4 MHz
@@ -42,7 +36,7 @@ type Device struct {
 	redBuffer   []byte
 }
 
-// New allocates a new device. The SPI for the built-in header to be used is picos machine.SPI1 at 4 MHz baudrate.
+// New allocates a new device.
 // The bus is expected to be configured and ready for use.
 func New(bus drivers.SPI) Device {
 	pixelCount := displayWidth * displayHeight
@@ -50,40 +44,18 @@ func New(bus drivers.SPI) Device {
 	bufLen := pixelCount / 8
 
 	return Device{
-		bus:  bus,
-		cs:   csPin,
-		dc:   dcPin,
-		rst:  rstPin,
-		busy: busyPin,
-
+		bus:         bus,
 		blackBuffer: make([]byte, bufLen),
 		redBuffer:   make([]byte, bufLen),
 	}
 }
 
-// Configure configures the device and its pins. The 'zero' config will fall back to the defaults.
-//
-// Default pins are:
-//
-//	Data       = GP8
-//	ChipSelect = GP9
-//	Reset      = GP12
-//	Busy       = GP13
+// Configure configures the device and its pins.
 func (d *Device) Configure(c Config) error {
-	if c.ChipSelectPin > 0 {
-		d.cs = c.ChipSelectPin
-	}
-	if c.DataPin > 0 {
-		d.dc = c.DataPin
-	}
-
-	if c.ResetPin > 0 {
-		d.rst = c.ResetPin
-	}
-
-	if c.BusyPin > 0 {
-		d.busy = c.BusyPin
-	}
+	d.cs = c.ChipSelectPin
+	d.dc = c.DataPin
+	d.rst = c.ResetPin
+	d.busy = c.BusyPin
 
 	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})

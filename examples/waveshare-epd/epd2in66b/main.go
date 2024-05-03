@@ -27,8 +27,18 @@ func main() {
 
 	println("started")
 
+	// in case you have a Pico module, you can directly use
+	// dev, err := epd2in66b.NewPicoModule()
+
 	display := epd2in66b.New(machine.SPI1)
-	err := display.Configure(epd2in66b.Config{})
+
+	cfg := epd2in66b.Config{
+		DataPin:       machine.GP8,
+		ChipSelectPin: machine.GP9,
+		ResetPin:      machine.GP12,
+		BusyPin:       machine.GP13,
+	}
+	err := display.Configure(cfg)
 	if err != nil {
 		panic(err)
 	}
