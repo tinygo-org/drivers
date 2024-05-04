@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	noe  machine.Pin
+	neo  machine.Pin
 	leds [10]color.RGBA
 )
 
