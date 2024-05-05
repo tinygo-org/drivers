@@ -21,34 +21,26 @@ func New(bus drivers.I2C) Device {
 }
 
 func (d *Device) Connected() bool {
-	data1 := make([]byte, 2)
-	data2 := make([]byte, 2)
-	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_DEVICE_ID, data1)
-	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_MANUF_ID, data2)
-	return binary.BigEndian.Uint16(data1) == MCP9808_DEVICE_ID && binary.BigEndian.Uint16(data2) == MCP9808_MANUF_ID
+	data := make([]byte, 2)
+	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_DEVICE_ID, data)
+	return binary.BigEndian.Uint16(data) == MCP9808_DEVICE_ID
+}
+
+func (d *Device) Temperature() (float64, error) {
+	data := make([]byte, 2)
+	if err := legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_AMBIENT_TEMP, data); err != nil {
+		return 0, err
+	}
+	raw := binary.BigEndian.Uint16(data)
+	raw &= 0x1FFF
+	if raw&0x1000 == 0x1000 {
+		raw &= 0x0FFF
+		return -float64(raw) * 0.0625, nil // °C per bit
+	}
+	return float64(raw) * 0.0625, nil // °C per bit
 }
 
 /*
-func (d *Device) Temperature() (float64, error) {
-	d.buf[0] = MCP9808_REG_AMBIENT_TEMP
-	if err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[:1])); err != nil {
-		return 0, err
-	}
-	if err := d.Read(d.buf[0], d.buf[1:]); err != nil {
-		return 0, err
-	}
-
-	return d.tempConv(), nil
-}
-
-func (d *Device) tempConv() float64 {
-	d.buf[1] = d.buf[1] & 0x1F
-	if d.buf[1]&0x10 == 0x10 {
-		d.buf[1] = d.buf[1] & 0x0F
-		return (float64(d.buf[1])*16 + float64(d.buf[2])/16.0) - 256
-	}
-	return float64(d.buf[1])*16 + float64(d.buf[2])/16.0
-}
 
 func (d *Device) limitTemperatures(temp int, tAddress byte) error {
 	var negative bool

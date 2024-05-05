@@ -29,10 +29,15 @@ func main() {
 		if !sensor.Connected() {
 			println("not connected!")
 			return
-		} else {
-			println("connected")
 		}
-		println("hello")
+
+		temp, err := sensor.Temperature()
+		if err != nil {
+			println("temp read error")
+			println(err.Error())
+		} else {
+			println(temp)
+		}
 		time.Sleep(time.Millisecond * 1000)
 	}
 }
