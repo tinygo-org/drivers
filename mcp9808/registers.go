@@ -2,7 +2,7 @@
 //
 // Datasheet: https://cdn-shop.adafruit.com/datasheets/MCP9808.pdf
 // Module: https://www.adafruit.com/product/1782
-package mcp9808
+package main
 
 // Constants/addresses used for I2C.
 const (

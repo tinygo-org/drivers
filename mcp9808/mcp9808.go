@@ -2,7 +2,7 @@
 //
 // Datasheet: https://cdn-shop.adafruit.com/datasheets/MCP9808.pdf
 // Module: https://www.adafruit.com/product/1782
-package mcp9808
+package main
 
 import (
 	"encoding/binary"
@@ -64,16 +64,16 @@ func (d *Device) limitTemperatures(temp int, tAddress byte) error {
 
 	d.buf[2] = byte((temp & 0x0F) << 4)
 
-	_, err := d.i2cDevice.Write(d.buf)
+	err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[1:]))
 	return err
 }
 
 func (d *Device) getTemperature(address byte) (float64, error) {
 	d.buf[0] = address
-	if _, err := d.i2cDevice.Write(d.buf[:1]); err != nil {
+	if err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[:1])); err != nil {
 		return 0, err
 	}
-	if _, err := d.i2cDevice.Read(d.buf[1:]); err != nil {
+	if err := d.Read(d.buf[0], d.buf[1:]); err != nil {
 		return 0, err
 	}
 
@@ -101,14 +101,14 @@ func (d *Device) SetLowerTemperature(temp int) error {
 }
 
 func (d *Device) CriticalTemperature() (float64, error) {
-	return d.getTemperature(MCP9808_REG_CRITICAL_TEMP)
+	return d.getTemperature(MCP9808_REG_CRIT_TEMP)
 }
 
 func (d *Device) SetCriticalTemperature(temp int) error {
-	return d.limitTemperatures(temp, MCP9808_REG_CRITICAL_TEMP)
+	return d.limitTemperatures(temp, MCP9808_REG_CRIT_TEMP)
 }
 
-func (d *Device) Resolution() resolution {
+/* func (d *Device) Resolution() resolution {
 	return d.getRWBits(2, MCP9808_REG_RESOLUTION, 0)
 }
 
@@ -124,7 +124,7 @@ func (d *Device) getRWBits(bitCount int, register byte, startBit int) int {
 func (d *Device) setRWBits(bitCount int, register byte, startBit int, value int) error {
 	// Implement the setRWBits functionality
 	return nil
-}
+} */
 
 // Convenience method to read the register and avoid repetition.
 func (d *Device) Read(reg uint8, buf []byte) error {
