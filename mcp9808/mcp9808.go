@@ -2,11 +2,10 @@
 //
 // Datasheet: https://cdn-shop.adafruit.com/datasheets/MCP9808.pdf
 // Module: https://www.adafruit.com/product/1782
-package main
+package mcp9808
 
 import (
 	"encoding/binary"
-	"math"
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
@@ -14,19 +13,22 @@ import (
 
 type Device struct {
 	bus     drivers.I2C
-	buf     []byte
 	Address uint16
 }
 
 func New(bus drivers.I2C) Device {
-	return Device{bus, make([]byte, 3), MCP9808_I2CADDR_DEFAULT}
+	return Device{bus, MCP9808_I2CADDR_DEFAULT}
 }
 
 func (d *Device) Connected() bool {
-	d.Read(MCP9808_REG_DEVICE_ID, d.buf)
-	return binary.BigEndian.Uint16(d.buf[:1]) == MCP9808_DEVICE_ID
+	data1 := make([]byte, 2)
+	data2 := make([]byte, 2)
+	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_DEVICE_ID, data1)
+	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_MANUF_ID, data2)
+	return binary.BigEndian.Uint16(data1) == MCP9808_DEVICE_ID && binary.BigEndian.Uint16(data2) == MCP9808_MANUF_ID
 }
 
+/*
 func (d *Device) Temperature() (float64, error) {
 	d.buf[0] = MCP9808_REG_AMBIENT_TEMP
 	if err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[:1])); err != nil {
@@ -106,7 +108,7 @@ func (d *Device) CriticalTemperature() (float64, error) {
 
 func (d *Device) SetCriticalTemperature(temp int) error {
 	return d.limitTemperatures(temp, MCP9808_REG_CRIT_TEMP)
-}
+} */
 
 /* func (d *Device) Resolution() resolution {
 	return d.getRWBits(2, MCP9808_REG_RESOLUTION, 0)
@@ -125,15 +127,3 @@ func (d *Device) setRWBits(bitCount int, register byte, startBit int, value int)
 	// Implement the setRWBits functionality
 	return nil
 } */
-
-// Convenience method to read the register and avoid repetition.
-func (d *Device) Read(reg uint8, buf []byte) error {
-	return legacy.ReadRegister(d.bus, uint8(d.Address), reg, buf)
-}
-
-// Convenience method to write the register and avoid repetition.
-func (d *Device) Write(reg uint8, v uint16) error {
-	data := []byte{byte(v)}
-	err := legacy.WriteRegister(d.bus, uint8(d.Address), reg, data)
-	return err
-}
