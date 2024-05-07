@@ -1,5 +1,7 @@
 package uc8151
 
+import "tinygo.org/x/drivers"
+
 // Registers
 const (
 	// Display resolution
@@ -141,10 +143,11 @@ const (
 	HZ_100 = 0b00111010
 	HZ_200 = 0b00111001
 
-	NO_ROTATION  Rotation = 0
-	ROTATION_90  Rotation = 1 // 90 degrees clock-wise rotation
-	ROTATION_180 Rotation = 2
-	ROTATION_270 Rotation = 3
+	// deprecated constants, just here for backward compatibility.
+	NO_ROTATION  = drivers.Rotation0
+	ROTATION_90  = drivers.Rotation90
+	ROTATION_180 = drivers.Rotation180
+	ROTATION_270 = drivers.Rotation270
 
 	DEFAULT Speed = 0
 	MEDIUM  Speed = 1
