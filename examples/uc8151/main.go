@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"machine"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/uc8151"
 )
 
@@ -21,7 +22,7 @@ func main() {
 
 	display = uc8151.New(machine.SPI0, machine.EPD_CS_PIN, machine.EPD_DC_PIN, machine.EPD_RESET_PIN, machine.EPD_BUSY_PIN)
 	display.Configure(uc8151.Config{
-		Rotation: uc8151.ROTATION_270,
+		Rotation: drivers.Rotation270,
 		Speed:    uc8151.MEDIUM,
 		Blocking: true,
 	})
