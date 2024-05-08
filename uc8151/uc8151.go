@@ -11,13 +11,18 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/pixel"
+)
+
+var (
+	errOutOfRange = errors.New("out of screen range")
 )
 
 type Config struct {
 	Width    int16
 	Height   int16
-	Rotation Rotation // Rotation is clock-wise
-	Speed    Speed    // Value from DEFAULT, MEDIUM, FAST, TURBO
+	Rotation drivers.Rotation // Rotation is clock-wise
+	Speed    Speed            // Value from DEFAULT, MEDIUM, FAST, TURBO
 	Blocking bool
 }
 
@@ -31,12 +36,11 @@ type Device struct {
 	height       int16
 	buffer       []uint8
 	bufferLength uint32
-	rotation     Rotation
+	rotation     drivers.Rotation
 	speed        Speed
 	blocking     bool
 }
 
-type Rotation uint8
 type Speed uint8
 
 // New returns a new epd2in13x driver. Pass in a fully configured SPI bus.
@@ -135,6 +139,11 @@ func (d *Device) PowerOff() {
 	d.SendCommand(POF)
 }
 
+// PowerOn power on the device
+func (d *Device) PowerOn() {
+	d.SendCommand(PON)
+}
+
 // SendCommand sends a command to the display
 func (d *Device) SendCommand(command uint8) {
 	d.sendDataCommand(true, command)
@@ -175,6 +184,22 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	}
 }
 
+// DrawBitmap copies the bitmap to the screen at the given coordinates.
+func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) error {
+	width, height := bitmap.Size()
+	if x < 0 || x+int16(width) > d.width || y < 0 || y+int16(height) > d.height {
+		return errOutOfRange
+	}
+
+	for i := 0; i < width; i++ {
+		for j := 0; j < height; j++ {
+			d.SetPixel(x+int16(i), y+int16(j), bitmap.Get(i, j).RGBA())
+		}
+	}
+
+	return nil
+}
+
 // Display sends the buffer to the screen.
 func (d *Device) Display() error {
 	if d.blocking {
@@ -208,13 +233,14 @@ func (d *Device) DisplayRect(x int16, y int16, width int16, height int16) error 
 	if x < 0 || y < 0 || x >= d.width || y >= d.height || width < 0 || height < 0 {
 		return errors.New("wrong rectangle")
 	}
-	if d.rotation == ROTATION_90 {
+	switch d.rotation {
+	case drivers.Rotation0:
 		width, height = height, width
 		x -= width
-	} else if d.rotation == ROTATION_180 {
+	case drivers.Rotation90:
 		x -= width - 1
 		y -= height - 1
-	} else if d.rotation == ROTATION_270 {
+	case drivers.Rotation180:
 		width, height = height, width
 		y -= height
 	}
@@ -287,15 +313,32 @@ func (d *Device) ClearBuffer() {
 
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
-	if d.rotation == ROTATION_90 || d.rotation == ROTATION_270 {
+	if d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270 {
 		return d.height, d.width
 	}
 	return d.width, d.height
 }
 
+// Rotation returns the currently configured rotation.
+func (d *Device) Rotation() drivers.Rotation {
+	return d.rotation
+}
+
 // SetRotation changes the rotation (clock-wise) of the device
-func (d *Device) SetRotation(rotation Rotation) {
+func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	d.rotation = rotation
+	return nil
+}
+
+// Set the sleep mode for this display.
+func (d *Device) Sleep(sleepEnabled bool) error {
+	if sleepEnabled {
+		d.PowerOff()
+		return nil
+	}
+
+	d.PowerOn()
+	return nil
 }
 
 // SetBlocking changes the blocking flag of the device
@@ -303,16 +346,16 @@ func (d *Device) SetBlocking(blocking bool) {
 	d.blocking = blocking
 }
 
-// xy chages the coordinates according to the rotation
+// xy changes the coordinates according to the rotation
 func (d *Device) xy(x, y int16) (int16, int16) {
 	switch d.rotation {
-	case NO_ROTATION:
+	case drivers.Rotation0:
 		return x, y
-	case ROTATION_90:
+	case drivers.Rotation90:
 		return d.width - y - 1, x
-	case ROTATION_180:
+	case drivers.Rotation180:
 		return d.width - x - 1, d.height - y - 1
-	case ROTATION_270:
+	case drivers.Rotation270:
 		return y, d.height - x - 1
 	}
 	return x, y
