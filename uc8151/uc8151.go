@@ -122,7 +122,6 @@ func (d *Device) Configure(cfg Config) {
 
 	d.SendCommand(POF)
 	d.WaitUntilIdle()
-
 }
 
 // Reset resets the device
@@ -146,29 +145,23 @@ func (d *Device) PowerOn() {
 
 // SendCommand sends a command to the display
 func (d *Device) SendCommand(command uint8) {
-	d.sendDataCommand(true, command)
+	d.dc.Low()
+	d.cs.Low()
+	d.bus.Transfer(command)
+	d.cs.High()
 }
 
 // SendData sends a data byte to the display
-func (d *Device) SendData(data uint8) {
-	d.sendDataCommand(false, data)
-}
-
-// sendDataCommand sends image data or a command to the screen
-func (d *Device) sendDataCommand(isCommand bool, data uint8) {
-	if isCommand {
-		d.dc.Low()
-	} else {
-		d.dc.High()
-	}
+func (d *Device) SendData(data ...uint8) {
+	d.dc.High()
 	d.cs.Low()
-	d.bus.Transfer(data)
+	d.bus.Tx(data, nil)
 	d.cs.High()
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
 // The display have 2 colors: black and white
-// We use RGBA(0,0,0, 255) as white (transparent)
+// We use RGBA(0, 0, 0) as white (transparent)
 // Anything else as black
 func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 	x, y = d.xy(x, y)
@@ -177,22 +170,23 @@ func (d *Device) SetPixel(x int16, y int16, c color.RGBA) {
 		return
 	}
 	byteIndex := x/8 + y*(d.width/8)
-	if c.R == 0 && c.G == 0 && c.B == 0 { // TRANSPARENT / WHITE
-		d.buffer[byteIndex] &^= 0x80 >> uint8(x%8)
-	} else { // WHITE / EMPTY
+	if c.R != 0 || c.G != 0 || c.B != 0 {
 		d.buffer[byteIndex] |= 0x80 >> uint8(x%8)
+	} else {
+		d.buffer[byteIndex] &^= 0x80 >> uint8(x%8)
 	}
 }
 
 // DrawBitmap copies the bitmap to the screen at the given coordinates.
 func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) error {
-	width, height := bitmap.Size()
-	if x < 0 || x+int16(width) > d.width || y < 0 || y+int16(height) > d.height {
+	dw, dh := d.Size()
+	bw, bh := bitmap.Size()
+	if x < 0 || x+int16(bw) > dw || y < 0 || y+int16(bh) > dh {
 		return errOutOfRange
 	}
 
-	for i := 0; i < width; i++ {
-		for j := 0; j < height; j++ {
+	for i := 0; i < bw; i++ {
+		for j := 0; j < bh; j++ {
 			d.SetPixel(x+int16(i), y+int16(j), bitmap.Get(i, j).RGBA())
 		}
 	}
@@ -205,12 +199,11 @@ func (d *Device) Display() error {
 	if d.blocking {
 		d.WaitUntilIdle()
 	}
-	d.SendCommand(PON)
+	d.PowerOn()
+
 	d.SendCommand(PTOU)
 	d.SendCommand(DTM2)
-	for i := uint32(0); i < d.bufferLength; i++ {
-		d.SendData(d.buffer[i])
-	}
+	d.SendData(d.buffer...)
 
 	d.SendCommand(DSP)
 	d.SendCommand(DRF)
@@ -218,6 +211,7 @@ func (d *Device) Display() error {
 		d.WaitUntilIdle()
 		d.PowerOff()
 	}
+
 	return nil
 }
 
@@ -295,7 +289,7 @@ func (d *Device) ClearDisplay() {
 // WaitUntilIdle waits until the display is ready
 func (d *Device) WaitUntilIdle() {
 	for !d.busy.Get() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
