@@ -150,7 +150,9 @@ const (
 	ROTATION_270 = drivers.Rotation270
 
 	DEFAULT Speed = 0
-	MEDIUM  Speed = 1
-	FAST    Speed = 2
-	TURBO   Speed = 3
+	SLOW    Speed = 1
+	MEDIUM  Speed = 2
+	FAST    Speed = 3
+	FASTER  Speed = 4
+	TURBO   Speed = 5
 )
