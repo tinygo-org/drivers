@@ -10,34 +10,39 @@ import (
 
 func main() {
 
+	//tinygo monitor
 	time.Sleep(time.Millisecond * 5000)
 
-	err := machine.I2C0.Configure(machine.I2CConfig{
+	//Configure I2C (in this case, I2C0 on RPI Pico), and wire the module accordingly
+	machine.I2C0.Configure(machine.I2CConfig{
 		SCL: machine.GP1,
 		SDA: machine.GP0,
 	})
 
-	if err != nil {
-		fmt.Println("i2c error")
-		fmt.Println(err.Error())
-	}
-
+	//Create sensor
 	sensor := mcp9808.New(machine.I2C0)
-	fmt.Println("Device sensor created")
-
-	for {
-		if !sensor.Connected() {
-			println("not connected!")
-			return
-		}
-
-		temp, err := sensor.Temperature()
-		if err != nil {
-			println("temp read error")
-			println(err.Error())
-		} else {
-			println(temp)
-		}
-		time.Sleep(time.Millisecond * 1000)
+	if !sensor.Connected() {
+		println("MCP9808 not found")
+		return
+	} else {
+		println("MCP9808 found")
 	}
+
+	time.Sleep(time.Millisecond * 1000)
+
+	//Set resolution
+	sensor.SetResolution(mcp9808.Maximum)
+
+	time.Sleep(time.Millisecond * 1000)
+
+	//Read temp.
+	temp, err := sensor.ReadTemperature()
+	if err != nil {
+		println("MCP9808 error reading temperature")
+		println(err.Error())
+		return
+	} else {
+		fmt.Printf("Temperature: %.2f \n", temp)
+	}
+	return
 }

@@ -2,13 +2,14 @@
 //
 // Datasheet: https://cdn-shop.adafruit.com/datasheets/MCP9808.pdf
 // Module: https://www.adafruit.com/product/1782
+// Only implemented: temperature reading, resolution read & set
 package mcp9808
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Device struct {
@@ -22,100 +23,76 @@ func New(bus drivers.I2C) Device {
 
 func (d *Device) Connected() bool {
 	data := make([]byte, 2)
-	legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_DEVICE_ID, data)
+	d.Read(MCP9808_REG_DEVICE_ID, &data)
 	return binary.BigEndian.Uint16(data) == MCP9808_DEVICE_ID
 }
 
-func (d *Device) Temperature() (float64, error) {
+func (d *Device) ReadTemperature() (float64, error) {
 	data := make([]byte, 2)
-	if err := legacy.ReadRegister(d.bus, uint8(d.Address), MCP9808_REG_AMBIENT_TEMP, data); err != nil {
-		return 0, err
-	}
-	raw := binary.BigEndian.Uint16(data)
-	raw &= 0x1FFF
-	if raw&0x1000 == 0x1000 {
-		raw &= 0x0FFF
-		return -float64(raw) * 0.0625, nil // °C per bit
-	}
-	return float64(raw) * 0.0625, nil // °C per bit
-}
-
-/*
-
-func (d *Device) limitTemperatures(temp int, tAddress byte) error {
-	var negative bool
-	if temp < 0 {
-		negative = true
-		temp = int(math.Abs(float64(temp)))
-	}
-
-	d.buf[0] = tAddress
-
-	d.buf[1] = byte(temp >> 4)
-	if negative {
-		d.buf[1] |= 0x10
-	}
-
-	d.buf[2] = byte((temp & 0x0F) << 4)
-
-	err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[1:]))
-	return err
-}
-
-func (d *Device) getTemperature(address byte) (float64, error) {
-	d.buf[0] = address
-	if err := d.Write(d.buf[0], binary.BigEndian.Uint16(d.buf[:1])); err != nil {
-		return 0, err
-	}
-	if err := d.Read(d.buf[0], d.buf[1:]); err != nil {
+	var temp float64
+	if err := d.Read(MCP9808_REG_AMBIENT_TEMP, &data); err != nil {
 		return 0, err
 	}
 
-	return d.tempConv(), nil
+	data[0] = data[0] & 0x1F
+	if data[0]&0x10 == 0x10 {
+		data[0] = data[0] & 0x0F
+		temp = float64(data[0])*16 + float64(data[1])/16.0 - 256
+	}
+	temp = float64(data[0])*16 + float64(data[1])/16.0
+	return temp, nil
 }
 
-func (d *Device) setTemperature(temp int, address byte) error {
-	return d.limitTemperatures(temp, address)
-}
+func (d *Device) ReadResolution() (resolution, error) {
+	data := make([]byte, 2)
+	err := d.Read(MCP9808_REG_RESOLUTION, &data)
+	if err != nil {
+		return 0, err
+	}
+	switch data[0] {
+	case 0:
+		return Low, nil
+	case 1:
+		return Medium, nil
+	case 2:
+		return High, nil
+	case 3:
+		return Maximum, nil
 
-func (d *Device) UpperTemperature() (float64, error) {
-	return d.getTemperature(MCP9808_REG_UPPER_TEMP)
-}
-
-func (d *Device) SetUpperTemperature(temp int) error {
-	return d.limitTemperatures(temp, MCP9808_REG_UPPER_TEMP)
-}
-
-func (d *Device) LowerTemperature() (float64, error) {
-	return d.getTemperature(MCP9808_REG_LOWER_TEMP)
-}
-
-func (d *Device) SetLowerTemperature(temp int) error {
-	return d.limitTemperatures(temp, MCP9808_REG_LOWER_TEMP)
-}
-
-func (d *Device) CriticalTemperature() (float64, error) {
-	return d.getTemperature(MCP9808_REG_CRIT_TEMP)
-}
-
-func (d *Device) SetCriticalTemperature(temp int) error {
-	return d.limitTemperatures(temp, MCP9808_REG_CRIT_TEMP)
-} */
-
-/* func (d *Device) Resolution() resolution {
-	return d.getRWBits(2, MCP9808_REG_RESOLUTION, 0)
+	default:
+		return 0, errors.New("unknown resolution")
+	}
 }
 
 func (d *Device) SetResolution(r resolution) error {
-	return d.setRWBits(2, MCP9808_REG_RESOLUTION, 0, r)
-}
-
-func (d *Device) getRWBits(bitCount int, register byte, startBit int) int {
-	// Implement the getRWBits functionality
-	return 0
-}
-
-func (d *Device) setRWBits(bitCount int, register byte, startBit int, value int) error {
-	// Implement the setRWBits functionality
+	switch r {
+	case Low:
+		if err := d.Write(MCP9808_REG_RESOLUTION, []byte{0x00}); err != nil {
+			return err
+		}
+	case Medium:
+		if err := d.Write(MCP9808_REG_RESOLUTION, []byte{0x01}); err != nil {
+			return err
+		}
+	case High:
+		if err := d.Write(MCP9808_REG_RESOLUTION, []byte{0x02}); err != nil {
+			return err
+		}
+	case Maximum:
+		if err := d.Write(MCP9808_REG_RESOLUTION, []byte{0x03}); err != nil {
+			return err
+		}
+	default:
+		return nil
+	}
 	return nil
-} */
+}
+
+func (d *Device) Write(register byte, data []byte) error {
+	buf := append([]byte{register}, data...)
+	return d.bus.Tx(d.Address, buf, nil)
+}
+
+func (d *Device) Read(register byte, data *[]byte) error {
+	return d.bus.Tx(d.Address, []byte{register}, *data)
+}
