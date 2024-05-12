@@ -2,6 +2,8 @@ module tinygo.org/x/drivers
 
 go 1.18
 
+replace tinygo.org/x/drivers/mcp9808 => /home/kasterby/Documents/drivers/mcp9808
+
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/frankban/quicktest v1.10.2
