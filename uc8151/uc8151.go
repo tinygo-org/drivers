@@ -201,6 +201,31 @@ func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) er
 	return nil
 }
 
+// DrawBuffer copies the buffer directly to the screen at the given coordinates (no rotation taken into account). X coordinate and width need to be a multiple of 8.
+func (d *Device) DrawBuffer(x, y, width, height int16, buffer []uint8) error {
+	h, w := d.Size()
+	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
+		x >= w || (x+width) > w || y >= h || (y+height) > h {
+		return errors.New("rectangle coordinates outside display area")
+	}
+	width = width / 8
+	k := int32(width) * int32(height)
+	l := int32(len(buffer))
+	if k != l {
+		return errors.New("buffer length does not match with rectangle size")
+	}
+	x = x / 8
+	w = w / 8
+
+	for i := x; i < (x + width); i++ {
+		for j := y; j < (y + height); j++ {
+			d.buffer[i+j*w] = buffer[(i-x)+(j-y)*width]
+		}
+	}
+
+	return nil
+}
+
 // Display sends the buffer to the screen.
 func (d *Device) Display() error {
 	if d.blocking {
