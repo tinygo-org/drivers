@@ -133,9 +133,7 @@ func (d *Device) Display() error {
 		return err
 	}
 
-	err := d.turnOnDisplay()
-
-	return err
+	return d.turnOnDisplay()
 }
 
 func (d *Device) ClearBuffer() {
@@ -224,10 +222,7 @@ func (d *Device) setWindow(xstart, xend, ystart, yend int16) error {
 	yendLo := byte(yend)
 	yendHi := byte(yend>>8) & 0x1
 
-	if err := d.sendCommandSequence([]byte{0x45, ystartLo, ystartHi, yendLo, yendHi}); err != nil {
-		return err
-	}
-	return nil
+	return d.sendCommandSequence([]byte{0x45, ystartLo, ystartHi, yendLo, yendHi})
 }
 
 func (d *Device) WaitUntilIdle() {
