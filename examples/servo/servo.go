@@ -25,19 +25,25 @@ func main() {
 		return
 	}
 
-	println("setting to 0°")
-	s.SetMicroseconds(1000)
-	time.Sleep(3 * time.Second)
-
-	println("setting to 45°")
-	s.SetMicroseconds(1500)
-	time.Sleep(3 * time.Second)
-
-	println("setting to 90°")
-	s.SetMicroseconds(2000)
-	time.Sleep(3 * time.Second)
-
 	for {
-		time.Sleep(time.Second)
+		println("setting to 0°")
+		s.SetAngle(0)
+		time.Sleep(3 * time.Second)
+
+		println("setting to 45°")
+		s.SetAngle(45)
+		time.Sleep(3 * time.Second)
+
+		println("setting to 90°")
+		s.SetAngle(90)
+		time.Sleep(3 * time.Second)
+
+		println("setting to 135°")
+		s.SetAngle(135)
+		time.Sleep(3 * time.Second)
+
+		println("setting to 180°")
+		s.SetAngle(180)
+		time.Sleep(3 * time.Second)
 	}
 }
