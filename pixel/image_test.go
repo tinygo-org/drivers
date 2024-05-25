@@ -1,7 +1,9 @@
 package pixel_test
 
 import (
+	goimage "image"
 	"image/color"
+	"math/rand"
 	"testing"
 
 	"tinygo.org/x/drivers/pixel"
@@ -92,5 +94,71 @@ func TestImageMonochrome(t *testing.T) {
 				t.Errorf("failed to roundtrip color: expected %v but got %v", expected, actual)
 			}
 		}
+	}
+}
+
+// Test pixel formats by filling them with noise and checking whether they
+// contain the same data afterwards.
+func TestImageNoise(t *testing.T) {
+	t.Run("RGB888", func(t *testing.T) {
+		testImageNoise[pixel.RGB888](t)
+	})
+	t.Run("RGB565BE", func(t *testing.T) {
+		testImageNoise[pixel.RGB565BE](t)
+	})
+	t.Run("RGB555", func(t *testing.T) {
+		testImageNoise[pixel.RGB555](t)
+	})
+	t.Run("RGB444BE", func(t *testing.T) {
+		testImageNoise[pixel.RGB444BE](t)
+	})
+	t.Run("Monochrome", func(t *testing.T) {
+		testImageNoise[pixel.Monochrome](t)
+	})
+}
+
+func testImageNoise[T pixel.Color](t *testing.T) {
+	// Create an image of a random width/height for extra testing.
+	width := rand.Int()%100 + 10
+	height := rand.Int()%100 + 10
+	t.Log("image size:", width, height)
+
+	// Create two images: the to-be-tested image object and a reference image.
+	img := pixel.NewImage[T](width, height)
+	ref := goimage.NewRGBA(goimage.Rect(0, 0, width, height))
+
+	// Fill the two images with noise.
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			// Set a random color in both images.
+			c := pixel.NewColor[T](uint8(rand.Uint32()), uint8(rand.Uint32()), uint8(rand.Uint32()))
+			img.Set(x, y, c)
+			ref.Set(x, y, c.RGBA())
+		}
+	}
+
+	// Compare the two images. They should match.
+	mismatch := 0
+	firstX := 0
+	firstY := 0
+	var firstExpected, firstActual color.RGBA
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			c := img.Get(x, y).RGBA()
+			r2, g2, b2, _ := ref.At(x, y).RGBA()
+			c2 := color.RGBA{R: uint8(r2 >> 8), G: uint8(g2 >> 8), B: uint8(b2 >> 8), A: 255}
+			if c != c2 {
+				mismatch++
+				if mismatch == 1 {
+					firstX = x
+					firstY = y
+					firstExpected = c
+					firstActual = c2
+				}
+			}
+		}
+	}
+	if mismatch != 0 {
+		t.Errorf("mismatch found: %d pixels are different (first diff at (%d, %d), expected %v, actual %v)", mismatch, firstX, firstY, firstExpected, firstActual)
 	}
 }
