@@ -104,9 +104,9 @@ func (img Image[T]) setPixel(index int, c T) {
 	switch {
 	case zeroColor.BitsPerPixel() == 1:
 		// Monochrome.
-		x := int16(index) % img.width
-		y := int16(index) / img.width
-		offset := x + (y/8)*img.width
+		x := index % int(img.width)
+		y := index / int(img.width)
+		offset := x + (y/8)*int(img.width)
 		ptr := (*byte)(unsafe.Add(img.data, offset))
 		if c != zeroColor {
 			*((*byte)(ptr)) |= 1 << uint8(y%8)
