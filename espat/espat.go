@@ -122,7 +122,7 @@ func (d *Device) NetDisconnect() {
 }
 
 func (d *Device) NetNotify(cb func(netlink.Event)) {
-	// Not supported
+    fmt.Printf("\r\n%s\r\n", netlink.ErrNotSupported)
 }
 
 func (d *Device) GetHostByName(name string) (netip.Addr, error) {
