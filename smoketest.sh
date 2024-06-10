@@ -80,6 +80,7 @@ tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl6
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd4in2/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/waveshare-epd/epd2in66b/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
 tinygo build -size short -o ./build/test.bin -target=m5stamp-c3          ./examples/ws2812
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples/is31fl3731/main.go
