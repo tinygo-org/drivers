@@ -122,7 +122,7 @@ func (d *Device) NetDisconnect() {
 }
 
 func (d *Device) NetNotify(cb func(netlink.Event)) {
-	// Not supported
+	fmt.Printf("\r\n%s\r\n", netlink.ErrNotSupported)
 }
 
 func (d *Device) GetHostByName(name string) (netip.Addr, error) {
@@ -473,7 +473,6 @@ func (d *Device) parseIPD(end int) error {
 	}
 
 	// load up the socket data
-	//d.data = append(d.data, d.response[e+1:end]...)
 	d.data = append(d.data, d.response[e+1:e+1+v]...)
 	return nil
 }
