@@ -1,3 +1,45 @@
+0.28.0
+---
+- **new devices**
+    - **epd2in66b**
+        - Waveshare 2.66inch E-Paper Display Module (B) for Raspberry Pi Pico (#673)
+    - **mcp9808**
+        - Add driver for MCP9808 i2c temperature sensor (#676)
+
+- **enhancements**
+    - **encoders**
+        - add atsamd21, atsamd51, atsame5x
+    - **pixel**
+        - add support for Monochrome types such as the SSD1306 display
+    - **rtl8720dn**
+        - implement ConnectModeAP
+    - **servo**
+        - add function SetAngle() to simplify API for most common use case
+    - **ssd1306**
+        - add DrawBitmap() function to complete Displayer interface
+        - add rotation functions for Displayer interface
+        - add Sleep() function for Displayer interface
+    - **uc8151**
+        - improvements to speed and also add flicker-free mode based on @antirez code example
+        - update to support all functions needed by tinygl and board package Displayer interface
+    - **wifinina**
+        - implement ConnectModeAP
+
+- **bugfixes**
+    - **ft6336**
+        - ignore bogus touch events
+    - **pixel**
+        - fix Image[Monochrome].Set for larger images
+    - **uc8151**
+        - correct DrawBitmap() also refactor SendCommand() and SendData() for clarity
+    - **ws2812**
+        - Fix typo and move initialization of neo to init()
+
+- **examples**
+    - **ws2812**
+        - Simplify examples/ws2812
+
+
 0.27.0
 ---
 - **core**
