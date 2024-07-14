@@ -5,9 +5,14 @@
 package dht20
 
 import (
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
+)
+
+var (
+	errUpdateCalledTooSoon = errors.New("Update() called within 80ms is invalid")
 )
 
 // Device wraps an I2C connection to a DHT20 device.
@@ -63,31 +68,35 @@ func (d *Device) initRegisters() {
 }
 
 // Update reads data from the sensor and updates the temperature and humidity values.
+// Note that the values obtained by this function are from the previous call to Update.
+// If you want to use the most recent values, shorten the interval at which Update is called.
 func (d *Device) Update(which drivers.Measurement) error {
 	// Check if 80ms have passed since the last access
-	if d.prevAccessTime.Add(80 * time.Millisecond).Before(time.Now()) {
-		// Check the status word Bit[7]
-		d.data[0] = 0x71
-		d.bus.Tx(d.Address, d.data[:1], d.data[:1])
-		if (d.data[0] & 0x80) == 0 {
-			// Read 7 bytes of data from the sensor
-			d.bus.Tx(d.Address, nil, d.data[:7])
-			rawHumidity := uint32(d.data[1])<<12 | uint32(d.data[2])<<4 | uint32(d.data[3])>>4
-			rawTemperature := uint32(d.data[3]&0x0F)<<16 | uint32(d.data[4])<<8 | uint32(d.data[5])
+	if time.Since(d.prevAccessTime) < 80*time.Millisecond {
+		return errUpdateCalledTooSoon
+	}
 
-			// Convert raw values to human-readable values
-			d.humidity = float32(rawHumidity) / 1048576.0 * 100
-			d.temperature = float32(rawTemperature)/1048576.0*200 - 50
+	// Check the status word Bit[7]
+	d.data[0] = 0x71
+	d.bus.Tx(d.Address, d.data[:1], d.data[:1])
+	if (d.data[0] & 0x80) == 0 {
+		// Read 7 bytes of data from the sensor
+		d.bus.Tx(d.Address, nil, d.data[:7])
+		rawHumidity := uint32(d.data[1])<<12 | uint32(d.data[2])<<4 | uint32(d.data[3])>>4
+		rawTemperature := uint32(d.data[3]&0x0F)<<16 | uint32(d.data[4])<<8 | uint32(d.data[5])
 
-			// Trigger the next measurement
-			d.data[0] = 0xAC
-			d.data[1] = 0x33
-			d.data[2] = 0x00
-			d.bus.Tx(d.Address, d.data[:3], nil)
+		// Convert raw values to human-readable values
+		d.humidity = float32(rawHumidity) / 1048576.0 * 100
+		d.temperature = float32(rawTemperature)/1048576.0*200 - 50
 
-			// Update the previous access time to the current time
-			d.prevAccessTime = time.Now()
-		}
+		// Trigger the next measurement
+		d.data[0] = 0xAC
+		d.data[1] = 0x33
+		d.data[2] = 0x00
+		d.bus.Tx(d.Address, d.data[:3], nil)
+
+		// Update the previous access time to the current time
+		d.prevAccessTime = time.Now()
 	}
 	return nil
 }
