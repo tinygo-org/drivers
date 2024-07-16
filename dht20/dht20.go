@@ -71,6 +71,10 @@ func (d *Device) initRegisters() {
 // Note that the values obtained by this function are from the previous call to Update.
 // If you want to use the most recent values, shorten the interval at which Update is called.
 func (d *Device) Update(which drivers.Measurement) error {
+	if which&drivers.Temperature == 0 && which&drivers.Humidity == 0 {
+		return nil
+	}
+
 	// Check if 80ms have passed since the last access
 	if time.Since(d.prevAccessTime) < 80*time.Millisecond {
 		return errUpdateCalledTooSoon
