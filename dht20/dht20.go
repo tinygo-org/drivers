@@ -37,34 +37,53 @@ func New(bus drivers.I2C) Device {
 }
 
 // Configure sets up the device for communication and initializes the registers if needed.
-func (d *Device) Configure() {
+func (d *Device) Configure() error {
 	// Get the status word
 	d.data[0] = 0x71
-	d.bus.Tx(d.Address, d.data[:1], d.data[:1])
+	err := d.bus.Tx(d.Address, d.data[:1], d.data[:1])
+	if err != nil {
+		return err
+	}
+
 	if d.data[0] != 0x18 {
 		// Initialize registers
-		d.initRegisters()
+		err := d.initRegisters()
+		if err != nil {
+			return err
+		}
 	}
 	// Set the previous access time to the current time
 	d.prevAccessTime = time.Now()
+	return nil
 }
 
 // initRegisters initializes the registers 0x1B, 0x1C, and 0x1E to 0x00.
-func (d *Device) initRegisters() {
+func (d *Device) initRegisters() error {
 	// Initialize register 0x1B
 	d.data[0] = 0x1B
 	d.data[1] = 0x00
-	d.bus.Tx(d.Address, d.data[:2], nil)
+	err := d.bus.Tx(d.Address, d.data[:2], nil)
+	if err != nil {
+		return err
+	}
 
 	// Initialize register 0x1C
 	d.data[0] = 0x1C
 	d.data[1] = 0x00
-	d.bus.Tx(d.Address, d.data[:2], nil)
+	err = d.bus.Tx(d.Address, d.data[:2], nil)
+	if err != nil {
+		return err
+	}
 
 	// Initialize register 0x1E
 	d.data[0] = 0x1E
 	d.data[1] = 0x00
-	d.bus.Tx(d.Address, d.data[:2], nil)
+	err = d.bus.Tx(d.Address, d.data[:2], nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update reads data from the sensor and updates the temperature and humidity values.
@@ -82,10 +101,16 @@ func (d *Device) Update(which drivers.Measurement) error {
 
 	// Check the status word Bit[7]
 	d.data[0] = 0x71
-	d.bus.Tx(d.Address, d.data[:1], d.data[:1])
+	err := d.bus.Tx(d.Address, d.data[:1], d.data[:1])
+	if err != nil {
+		return err
+	}
 	if (d.data[0] & 0x80) == 0 {
 		// Read 7 bytes of data from the sensor
-		d.bus.Tx(d.Address, nil, d.data[:7])
+		err := d.bus.Tx(d.Address, nil, d.data[:7])
+		if err != nil {
+			return err
+		}
 		rawHumidity := uint32(d.data[1])<<12 | uint32(d.data[2])<<4 | uint32(d.data[3])>>4
 		rawTemperature := uint32(d.data[3]&0x0F)<<16 | uint32(d.data[4])<<8 | uint32(d.data[5])
 
@@ -97,7 +122,10 @@ func (d *Device) Update(which drivers.Measurement) error {
 		d.data[0] = 0xAC
 		d.data[1] = 0x33
 		d.data[2] = 0x00
-		d.bus.Tx(d.Address, d.data[:3], nil)
+		err = d.bus.Tx(d.Address, d.data[:3], nil)
+		if err != nil {
+			return err
+		}
 
 		// Update the previous access time to the current time
 		d.prevAccessTime = time.Now()
