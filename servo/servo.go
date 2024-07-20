@@ -103,7 +103,6 @@ func (s Servo) SetAngle(angle int) error {
 	return nil
 }
 
-
 // SetAngleWithMicroseconds sets the angle of the servo in degrees. The angle should be between
 // 0 and 180, where 0 is the minimum angle and 180 is the maximum angle.
 // The high duration can be customized
@@ -116,7 +115,3 @@ func (s Servo) SetAngleWithMicroseconds(angle int, lowMicroseconds, highMicrosec
 	s.SetMicroseconds(int16(microseconds))
 	return nil
 }
-
-
-
-
