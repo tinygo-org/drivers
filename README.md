@@ -16,7 +16,7 @@ go get tinygo.org/x/drivers
 
 ## How to use
 
-Here is an example in TinyGo that uses the BMP180 digital barometer:
+Here is an example in TinyGo that uses the BMP180 digital barometer.  This example should work on any board that supports I2C:
 
 ```go
 package main
@@ -51,6 +51,28 @@ func main() {
         time.Sleep(2 * time.Second)
     }
 }
+```
+
+## Examples Using GPIO or SPI 
+
+If compiling these examples directly you are likely to need to make minor changes to the defined variables to map the pins for the board you are using.  For example, this block in main.go:
+
+```golang
+var (
+        spi   = machine.SPI0
+        csPin = machine.D5
+)
+```
+
+It might not be obvious, but you need to change these to match how you wired your specific board.  Constants are [defined for each supported microcontroller](https://tinygo.org/docs/reference/microcontrollers/).  
+
+For example, to change the definitions for use on a Raspberry Pi Pico using typical wiring, you might need to do this:
+
+```golang
+var (
+        spi   = machine.SPI0
+        csPin = machine.GP17
+)
 ```
 
 ## Contributing
