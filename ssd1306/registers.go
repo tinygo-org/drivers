@@ -1,5 +1,7 @@
 package ssd1306
 
+import "tinygo.org/x/drivers"
+
 // Registers
 const (
 	Address        = 0x3D
@@ -39,6 +41,6 @@ const (
 	EXTERNALVCC  VccMode = 0x1
 	SWITCHCAPVCC VccMode = 0x2
 
-	NO_FLIP = false
-	FLIP    = true
+	NO_ROTATION  = drivers.Rotation0
+	ROTATION_180 = drivers.Rotation180
 )
