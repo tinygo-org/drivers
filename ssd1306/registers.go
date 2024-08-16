@@ -38,4 +38,7 @@ const (
 
 	EXTERNALVCC  VccMode = 0x1
 	SWITCHCAPVCC VccMode = 0x2
+
+	NO_FLIP = false
+	FLIP    = true
 )

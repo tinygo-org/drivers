@@ -33,6 +33,7 @@ type Device struct {
 	canReset   bool
 	resetCol   ResetValue
 	resetPage  ResetValue
+	isFlip     bool
 }
 
 // Config is the configuration for the display
@@ -48,6 +49,7 @@ type Config struct {
 	// If you're using a different size, you might need to set these values manually.
 	ResetCol  ResetValue
 	ResetPage ResetValue
+	IsFlip    bool
 }
 
 type I2CBus struct {
@@ -149,8 +151,8 @@ func (d *Device) Configure(cfg Config) {
 	}
 	d.Command(MEMORYMODE)
 	d.Command(0x00)
-	d.Command(SEGREMAP | 0x1)
-	d.Command(COMSCANDEC)
+
+	d.SetFlip(cfg.IsFlip)
 
 	if (d.width == 128 && d.height == 64) || (d.width == 64 && d.height == 48) { // 128x64 or 64x48
 		d.Command(SETCOMPINS)
@@ -382,4 +384,23 @@ func (d *Device) Sleep(sleepEnabled bool) error {
 		d.Command(DISPLAYON)
 	}
 	return nil
+}
+
+// GetFlip retrieves the current state of the display's flip orientation.
+// Returns a boolean value indicating whether the display is flipped or not.
+func (d *Device) GetFlip() bool {
+	return d.isFlip
+}
+
+// SetFlip sets the flip orientation of the display.
+// It uses commands SEGREMAP and COMSCANINC to achieve this.
+func (d *Device) SetFlip(flip bool) {
+	d.isFlip = flip
+	if d.isFlip {
+		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.Command(COMSCANDEC)     // Reverse vertical mapping
+	} else {
+		d.Command(SEGREMAP)   // Normal horizontal mapping
+		d.Command(COMSCANINC) // Normal vertical mapping
+	}
 }
