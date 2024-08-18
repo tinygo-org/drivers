@@ -15,9 +15,8 @@ import (
 )
 
 var (
-	errBufferSize     = errors.New("invalid size buffer")
-	errOutOfRange     = errors.New("out of screen range")
-	errNotImplemented = errors.New("not implemented")
+	errBufferSize = errors.New("invalid size buffer")
+	errOutOfRange = errors.New("out of screen range")
 )
 
 type ResetValue [2]byte
@@ -33,6 +32,7 @@ type Device struct {
 	canReset   bool
 	resetCol   ResetValue
 	resetPage  ResetValue
+	rotation   drivers.Rotation
 }
 
 // Config is the configuration for the display
@@ -48,6 +48,7 @@ type Config struct {
 	// If you're using a different size, you might need to set these values manually.
 	ResetCol  ResetValue
 	ResetPage ResetValue
+	Rotation  drivers.Rotation
 }
 
 type I2CBus struct {
@@ -149,8 +150,8 @@ func (d *Device) Configure(cfg Config) {
 	}
 	d.Command(MEMORYMODE)
 	d.Command(0x00)
-	d.Command(SEGREMAP | 0x1)
-	d.Command(COMSCANDEC)
+
+	d.SetRotation(cfg.Rotation)
 
 	if (d.width == 128 && d.height == 64) || (d.width == 64 && d.height == 48) { // 128x64 or 64x48
 		d.Command(SETCOMPINS)
@@ -363,13 +364,25 @@ func (d *Device) DrawBitmap(x, y int16, bitmap pixel.Image[pixel.Monochrome]) er
 
 // Rotation returns the currently configured rotation.
 func (d *Device) Rotation() drivers.Rotation {
-	return drivers.Rotation0
+	return d.rotation
 }
 
 // SetRotation changes the rotation of the device (clock-wise).
-// Would have to be implemented in software for this device.
 func (d *Device) SetRotation(rotation drivers.Rotation) error {
-	return errNotImplemented
+	d.rotation = rotation
+	switch d.rotation {
+	case drivers.Rotation0:
+		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.Command(COMSCANDEC)     // Reverse vertical mapping
+	case drivers.Rotation180:
+		d.Command(SEGREMAP)   // Normal horizontal mapping
+		d.Command(COMSCANINC) // Normal vertical mapping
+	// nothing to do
+	default:
+		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.Command(COMSCANDEC)     // Reverse vertical mapping
+	}
+	return nil
 }
 
 // Set the sleep mode for this display. When sleeping, the panel uses a lot
