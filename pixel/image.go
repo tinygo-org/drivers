@@ -71,6 +71,54 @@ func (img Image[T]) LimitHeight(height int) Image[T] {
 	}
 }
 
+// Split the buffer into two buffers that can be used independently.
+// The top half is split just like LimitHeight. The bottom half is made out of
+// the remaining buffer area and can be zero. The topHeight parameter must not
+// be larger than the height of the buffer.
+//
+// Always check the height of the bottom half: it may be zero due to alignment
+// issues.
+func (img Image[T]) Split(topHeight int) (top, bottom Image[T]) {
+	if topHeight < 0 || topHeight > int(img.height) {
+		panic("Image.Split: out of bounds")
+	}
+
+	// The top half of the buffer, the same as LimitHeight.
+	top = Image[T]{
+		width:  img.width,
+		height: int16(topHeight),
+		data:   img.data,
+	}
+
+	// Calculate the bottom half of the buffer.
+	// This is a bit more complicated since it's possible that the bottom half
+	// can't have all the other bytes: the top half pixels might cross a byte
+	// boundary (for example with RGB444). So instead we calculate the size of
+	// the buffer we have, the size of the buffer that the top half will use
+	// (which is rounded up to a byte boundary), and then calculate the
+	// remaining bytes at the bottom.
+	// In practice, I expect it's unlikely that the top half will cross a byte
+	// boundary since a typical split buffer will have a width that's a nice
+	// round number, but it's possible so we have to avoid this edge case.
+	var zeroColor T
+	dataBytes := (int(img.width)*int(img.height)*zeroColor.BitsPerPixel() + 7) / 8
+	topDataBytes := (int(img.width)*int(topHeight)*zeroColor.BitsPerPixel() + 7) / 8
+	bottomDataBytes := dataBytes - topDataBytes
+	if bottomDataBytes < 0 {
+		// No buffer remaining (not sure whether this is possible in practice
+		// but guarding just in case).
+		bottomDataBytes = 0
+	}
+	bottomHeight := (bottomDataBytes * 8 / zeroColor.BitsPerPixel()) / int(img.width)
+	bottom = Image[T]{
+		width:  img.width,
+		height: int16(bottomHeight),
+		data:   unsafe.Add(img.data, topDataBytes),
+	}
+
+	return
+}
+
 // Len returns the number of pixels in this image buffer.
 func (img Image[T]) Len() int {
 	return int(img.width) * int(img.height)

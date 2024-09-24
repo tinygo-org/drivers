@@ -45,7 +45,7 @@ type Device = DeviceOf[pixel.RGB565BE]
 // DeviceOf is a generic version of Device. It supports multiple different pixel
 // formats.
 type DeviceOf[T Color] struct {
-	bus             drivers.SPI
+	bus             drivers.AsyncSPI
 	dcPin           machine.Pin
 	resetPin        machine.Pin
 	csPin           machine.Pin
@@ -83,13 +83,13 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.AsyncSPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
+func NewOf[T Color](bus drivers.AsyncSPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -402,6 +402,51 @@ func (d *DeviceOf[T]) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error
 func (d *DeviceOf[T]) DrawBitmap(x, y int16, bitmap pixel.Image[T]) error {
 	width, height := bitmap.Size()
 	return d.DrawRGBBitmap8(x, y, bitmap.RawBuffer(), int16(width), int16(height))
+}
+
+// IsAsync returns whether the underlying SPI bus supports async operations.
+func (d *DeviceOf[T]) IsAsync() bool {
+	return d.bus.IsAsync()
+}
+
+// StartDrawBitmap starts sending the given bitmap to the screen.
+// After calling StartDrawBitmap, you can only call Wait() or another
+// StartDrawBitmap. Calling any other method may result in incorrect behavior.
+// The bitmap passed to StartDrawBitmap may not be written to until Wait() has
+// been called.
+func (d *DeviceOf[T]) StartDrawBitmap(x, y int16, bitmap pixel.Image[T]) error {
+	// Check that the provided buffer is drawn entirely inside the image.
+	width, height := bitmap.Size()
+	displayWidth, displayHeight := d.Size()
+	if uint(int(x)+width) > uint(int(displayWidth)) || uint(int(y)+height) > uint(int(displayHeight)) {
+		return errOutOfBounds
+	}
+	if width <= 0 || height <= 0 {
+		return nil // no bitmap to send
+	}
+
+	// Wait until the previous buffer has been fully sent.
+	err := d.bus.Wait()
+	if err != nil {
+		return err
+	}
+
+	// Send the next buffer.
+	d.startWrite()
+	d.setWindow(x, y, int16(width), int16(height))
+	d.bus.StartTx(bitmap.RawBuffer(), nil)
+	return nil
+}
+
+// Wait until all previous transfers have completed. After this call, the bitmap
+// passed to StartDrawBitmap can be reused.
+func (d *DeviceOf[T]) Wait() error {
+	err := d.bus.Wait()
+	if err != nil {
+		return err
+	}
+	d.endWrite()
+	return nil
 }
 
 // FillRectangleWithBuffer fills buffer with a rectangle at a given coordinates.
