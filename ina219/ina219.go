@@ -71,7 +71,7 @@ func (d *Device) Trigger() (err error) {
 // Measurements reads the bus voltage, shunt voltage, current, and power
 // from the device.
 func (d *Device) Measurements() (
-	busVoltage int32,
+	busVoltage int16,
 	shuntVoltage int16,
 	current float32,
 	power float32,
@@ -106,7 +106,7 @@ func (d *Device) Measurements() (
 // or if the conversion is not ready yet. In a continuous mode
 // there should always be a measurement available after the
 // device is ready. See above notes on Trigger.
-func (d *Device) BusVoltage() (voltage int32, err error) {
+func (d *Device) BusVoltage() (voltage int16, err error) {
 	val, err := d.ReadRegister(RegBusVoltage)
 	if err != nil {
 		return
@@ -119,12 +119,12 @@ func (d *Device) BusVoltage() (voltage int32, err error) {
 	}
 
 	// The conversion is not ready yet.
-	if val&(1<<1) != 0 {
+	if ModeTriggered(d.config.Mode) && val&(1<<1) != 0 {
 		err = ErrNotReady{}
 		return
 	}
 
-	voltage = (int32(val) >> 3) * 4
+	voltage = (int16(val) >> 3) * 4
 	return
 }
 
