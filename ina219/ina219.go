@@ -45,10 +45,22 @@ func (d *Device) Configure() (err error) {
 		return
 	}
 
-	err = d.WriteRegister(
+	if err = d.WriteRegister(
 		RegCalibration,
 		d.config.Calibration.RegisterValue(),
-	)
+	); err != nil {
+		return
+	}
+
+	var readConfig Config
+	// make sure the configuration is read back correctly
+	if readConfig, err = d.ReadConfig(); err != nil {
+		return
+	} else if readConfig.RegisterValue() != d.config.RegisterValue() {
+		err = ErrConfigMismatch{}
+	} else if readConfig.Calibration.RegisterValue() != d.config.Calibration.RegisterValue() {
+		err = ErrConfigMismatch{}
+	}
 
 	return
 }
