@@ -20,7 +20,7 @@ func main() {
 		}
 
 		println("Bus Voltage:", busVoltage, "V")
-		println("Shunt Voltage:", shuntVoltage, "V")
+		println("Shunt Voltage:", shuntVoltage/100, "mV")
 		println("Current:", current, "mA")
 		println("Power:", power, "mW")
 

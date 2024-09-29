@@ -140,7 +140,7 @@ func (d *Device) BusVoltage() (voltage int16, err error) {
 	return
 }
 
-// ShuntVoltage reads the "shunt" voltage in 100ths of a volt.
+// ShuntVoltage reads the "shunt" voltage in 100ths of a millivolt.
 func (d *Device) ShuntVoltage() (voltage int16, err error) {
 	return d.ReadRegister(RegShuntVoltage)
 }
