@@ -19,7 +19,7 @@ type OneWireDevice interface {
 	Write(uint8)
 	Read() uint8
 	Select([]uint8) error
-	Сrc8([]uint8, int) uint8
+	Сrc8([]uint8) uint8
 }
 
 // Device wraps a connection to an 1-Wire devices.
@@ -69,7 +69,7 @@ func (d Device) ReadTemperatureRaw(romid []uint8) ([]uint8, error) {
 	for i := 0; i < 9; i++ {
 		spb[i] = d.owd.Read()
 	}
-	if d.owd.Сrc8(spb, 8) != spb[8] {
+	if d.owd.Сrc8(spb) != 0 {
 		return nil, errReadTemperature
 	}
 	return spb[:2:2], nil
