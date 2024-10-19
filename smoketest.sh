@@ -73,6 +73,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/st7789/
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/thermistor/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-bluefruit ./examples/tone
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/tm1637/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/touch/capacitive
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/fourwire/main.go
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/pyportal_touchpaint/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl53l1x/main.go
