@@ -100,6 +100,7 @@ tinygo build -size short -o ./build/test.hex -target=hifive1b ./examples/ssd1351
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis2mdl/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/max72xx/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/dht/main.go
+tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/dht20/main.go
 # tinygo build -size short -o ./build/test.hex -target=arduino ./examples/keypad4x4/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/pcf8523/
 tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/alarm/
