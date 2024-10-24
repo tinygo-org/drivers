@@ -109,6 +109,7 @@ tinygo build -size short -o ./build/test.hex -target=xiao ./examples/pcf8563/tim
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/qmi8658c/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/pcf8591/
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/ina260/main.go
+tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/ina219/main.go
 tinygo build -size short -o ./build/test.hex -target=nucleo-l432kc ./examples/aht20/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/sdcard/console/
 tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/i2csoft/adt7410/
