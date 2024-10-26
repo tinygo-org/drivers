@@ -396,3 +396,31 @@ func (d *Device) Sleep(sleepEnabled bool) error {
 	}
 	return nil
 }
+
+// FillRectangle fills a rectangle at a given coordinates with a color
+func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
+	dw, dh := d.Size()
+
+	if x < 0 || y < 0 || width <= 0 || height <= 0 ||
+		x >= d.width || (x+width) > dw || y >= dh || (y+height) > dh {
+		return errOutOfRange
+	}
+
+	if x+width == dw && y+height == dh && c.R == 0 && c.G == 0 && c.B == 0 {
+		d.ClearDisplay()
+		return nil
+	}
+
+	for i := x; i < x+width; i++ {
+		for j := y; j < y+height; j++ {
+			d.SetPixel(i, j, c)
+		}
+	}
+
+	return nil
+}
+
+// SetScroll sets the vertical scrolling for the display, which is a NOP for this display.
+func (d *Device) SetScroll(line int16) {
+	return
+}
