@@ -183,20 +183,28 @@ func TestImageFromBytesMonochrome(t *testing.T) {
 // contain the same data afterwards.
 func TestImageNoise(t *testing.T) {
 	t.Run("RGB888", func(t *testing.T) {
-		testImageNoise[pixel.RGB888](t)
+		testImageNoiseN[pixel.RGB888](t)
 	})
 	t.Run("RGB565BE", func(t *testing.T) {
-		testImageNoise[pixel.RGB565BE](t)
+		testImageNoiseN[pixel.RGB565BE](t)
 	})
 	t.Run("RGB555", func(t *testing.T) {
-		testImageNoise[pixel.RGB555](t)
+		testImageNoiseN[pixel.RGB555](t)
 	})
 	t.Run("RGB444BE", func(t *testing.T) {
-		testImageNoise[pixel.RGB444BE](t)
+		testImageNoiseN[pixel.RGB444BE](t)
 	})
 	t.Run("Monochrome", func(t *testing.T) {
-		testImageNoise[pixel.Monochrome](t)
+		testImageNoiseN[pixel.Monochrome](t)
 	})
+}
+
+// Run the testImageNoise multiple times, because a single test might not catch
+// all bugs (since the test uses random data).
+func testImageNoiseN[T pixel.Color](t *testing.T) {
+	for i := 0; i < 10; i++ {
+		testImageNoise[T](t)
+	}
 }
 
 func testImageNoise[T pixel.Color](t *testing.T) {
