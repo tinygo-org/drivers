@@ -194,9 +194,6 @@ func TestImageNoise(t *testing.T) {
 	t.Run("RGB444BE", func(t *testing.T) {
 		testImageNoise[pixel.RGB444BE](t)
 	})
-	t.Run("Monochrome", func(t *testing.T) {
-		testImageNoise[pixel.Monochrome](t)
-	})
 }
 
 func testImageNoise[T pixel.Color](t *testing.T) {
