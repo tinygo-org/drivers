@@ -43,40 +43,6 @@ func NewImage[T Color](width, height int) Image[T] {
 	}
 }
 
-// NewImageFromBytes creates a new image of the given size using an existing data slice of bytes.
-func NewImageFromBytes[T Color](width, height int, buf []byte) Image[T] {
-	if width < 0 || height < 0 || int(int16(width)) != width || int(int16(height)) != height {
-		// The width/height are stored as 16-bit integers and should never be
-		// negative.
-		panic("NewImageFromBytes: width/height out of bounds")
-	}
-	var zeroColor T
-	var data unsafe.Pointer
-	switch {
-	case zeroColor.BitsPerPixel()%8 == 0:
-		// Typical formats like RGB888 and RGB565.
-		// Each color starts at a whole byte offset from the start.
-		if len(buf) != width*height*int(unsafe.Sizeof(zeroColor)) {
-			panic("NewImageFromBytes: data slice size mismatch")
-		}
-		data = unsafe.Pointer(&buf[0])
-	default:
-		// Formats like RGB444 that have 12 bits per pixel.
-		// We access these as bytes, so allocate the buffer as a byte slice.
-		bufBits := width * height * zeroColor.BitsPerPixel()
-		bufBytes := (bufBits + 7) / 8
-		if len(buf) != bufBytes {
-			panic("NewImageFromBytes: data slice size mismatch")
-		}
-		data = unsafe.Pointer(&buf[0])
-	}
-	return Image[T]{
-		width:  int16(width),
-		height: int16(height),
-		data:   data,
-	}
-}
-
 // Rescale returns a new Image buffer based on the img buffer.
 // The contents is undefined after the Rescale operation, and any modification
 // to the returned image will overwrite the underlying image buffer in undefined
@@ -139,15 +105,14 @@ func (img Image[T]) setPixel(index int, c T) {
 	case zeroColor.BitsPerPixel() == 1:
 		// Monochrome.
 		x := index % int(img.width)
-		offset := index / 8
-
+		y := index / int(img.width)
+		offset := x + (y/8)*int(img.width)
 		ptr := (*byte)(unsafe.Add(img.data, offset))
 		if c != zeroColor {
-			*((*byte)(ptr)) |= (1 << (7 - uint8(x%8)))
+			*((*byte)(ptr)) |= 1 << uint8(y%8)
 		} else {
-			*((*byte)(ptr)) &^= (1 << (7 - uint8(x%8)))
+			*((*byte)(ptr)) &^= 1 << uint8(y%8)
 		}
-
 		return
 	case zeroColor.BitsPerPixel()%8 == 0:
 		// Each color starts at a whole byte offset.
@@ -201,10 +166,9 @@ func (img Image[T]) Get(x, y int) T {
 	case zeroColor.BitsPerPixel() == 1:
 		// Monochrome.
 		var c Monochrome
-		offset := index / 8
-		bits := index - (offset * 8)
+		offset := x + (y/8)*int(img.width)
 		ptr := (*byte)(unsafe.Add(img.data, offset))
-		c = ((*ptr >> (7 - uint8(bits))) & 0x1) > 0
+		c = (*ptr >> uint8(y%8) & 0x1) == 1
 		return any(c).(T)
 	case zeroColor.BitsPerPixel()%8 == 0:
 		// Colors like RGB565, RGB888, etc.
