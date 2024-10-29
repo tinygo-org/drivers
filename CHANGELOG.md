@@ -1,3 +1,40 @@
+0.29.0
+---
+- **new devices**
+    - **epd1in54**
+        - Waveshare 1.54inch B/W e-Paper display (#704)
+    - **touch**
+        - add capacitive touch sensing on normal GPIO pins
+    - **INA219**
+        - I2C INA219 driver (#705)
+    - **pcf8591**
+        - add ADC only implementation for I2C ADC/DAC (#690)
+
+- **enhancements**
+    - **pixel**
+        - add NewImageFromBytes() function to allow creating image from existing slice
+    - **servo**
+        - Add function `SetAngleWithMicroseconds` (#695)
+    - **onewire**
+        - onewire improvements
+    - **ssd1306**
+        - Add function `SetFlip` and `GetFlip` (#702)
+    - **uc8151**
+        - add FillRectangle() and SetScroll() functions to satisfy tinyterm.Displayer interface
+    - **ssd1306**
+        - add FillRectangle() and SetScroll() functions to satisfy tinyterm.Displayer interface
+
+- **bugfixes**
+    - **pixel**
+        - fix Monochrome setPixel
+
+- **docs**
+    - **readme**
+        - discuss need to change variables in examples
+    - **sponsor**
+        - Add sponsor button to key repositories
+
+
 0.28.0
 ---
 - **new devices**
