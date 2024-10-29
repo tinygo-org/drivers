@@ -76,7 +76,7 @@ func (p ADCPin) Get() uint16 {
 	p.d.bus.Tx(p.d.Address, tx, rx)
 
 	// scale result to 16bit value like other ADCs
-	return uint16(rx[1] << 8)
+	return uint16(rx[1]) << 8
 }
 
 // Configure here just for interface compatibility.
