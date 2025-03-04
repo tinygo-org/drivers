@@ -1,3 +1,32 @@
+0.30.0
+---
+- **new devices**
+    - **comboat**
+        - Add wifi driver comboat for Elecrow W5 rp2040 and rp2350 devices (#741)
+    - **max6675**
+        - Add MAX6675 device
+    - **TMC2209**
+        - Added TMC2209 support (#727)
+    - **TMC5160**
+        - Added TMC5160 support (#725)
+    - **sharpmem**
+        - Add sharpmem (#724)
+
+- **enhancements**
+    - **net**
+        - move to latest golang.org/x/net v0.33.0 (#732)
+    - **microphone**
+        - update microphone driver to use latest i2s interface
+
+- **bugfixes**
+    - **net**
+        - fix typo in DHCP error message
+    - **aht20**
+        - Fixed bug in aht20 driver
+    - **hub75**
+        - fix data buffering
+
+
 0.29.0
 ---
 - **new devices**
