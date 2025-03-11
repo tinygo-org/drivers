@@ -16,12 +16,12 @@ func (e CustomError) Error() string {
 
 // SPIComm implements RegisterComm for SPI-based communication
 type SPIComm struct {
-	spi    machine.SPI
+	spi    *machine.SPI
 	CsPins map[uint8]machine.Pin // Map to store CS pin for each Driver by its address
 }
 
 // NewSPIComm creates a new SPIComm instance.
-func NewSPIComm(spi machine.SPI, csPins map[uint8]machine.Pin) *SPIComm {
+func NewSPIComm(spi *machine.SPI, csPins map[uint8]machine.Pin) *SPIComm {
 	return &SPIComm{
 		spi:    spi,
 		CsPins: csPins,
@@ -31,7 +31,7 @@ func NewSPIComm(spi machine.SPI, csPins map[uint8]machine.Pin) *SPIComm {
 // Setup initializes the SPI communication with the Driver and configures all CS pins.
 func (comm *SPIComm) Setup() error {
 	// Check if SPI is initialized
-	if comm.spi == (machine.SPI{}) {
+	if comm.spi == nil {
 		return CustomError("SPI not initialized")
 	}
 
@@ -66,7 +66,7 @@ func (comm *SPIComm) WriteRegister(register uint8, value uint32, driverAddress u
 	addressWithWriteAccess := register | 0x80
 
 	// Send the address and the data to write (split into 4 bytes)
-	_, err := spiTransfer40(&comm.spi, addressWithWriteAccess, value)
+	_, err := spiTransfer40(comm.spi, addressWithWriteAccess, value)
 	if err != nil {
 		csPin.High()
 		return CustomError("Failed to write register")
@@ -88,7 +88,7 @@ func (comm *SPIComm) ReadRegister(register uint8, driverAddress uint8) (uint32, 
 	csPin.Low()
 
 	// Step 1: Send a dummy write operation to begin the read sequence
-	_, err := spiTransfer40(&comm.spi, register, 0x00) // Send dummy data
+	_, err := spiTransfer40(comm.spi, register, 0x00) // Send dummy data
 	if err != nil {
 		csPin.High()
 		return 0, CustomError("Failed to send dummy write")
@@ -97,7 +97,7 @@ func (comm *SPIComm) ReadRegister(register uint8, driverAddress uint8) (uint32, 
 	time.Sleep(176 * time.Nanosecond)
 	csPin.Low()
 	// Step 2: Send the register read request again to get the actual value
-	response, err := spiTransfer40(&comm.spi, register, 0x00) // Send again to get actual register data
+	response, err := spiTransfer40(comm.spi, register, 0x00) // Send again to get actual register data
 	if err != nil {
 		csPin.High()
 		return 0, CustomError("Failed to read register")

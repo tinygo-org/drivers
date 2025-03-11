@@ -4,6 +4,8 @@ package max6675
 import (
 	"errors"
 	"machine"
+
+	"tinygo.org/x/drivers"
 )
 
 // ErrThermocoupleOpen is returned when the thermocouple input is open.
@@ -11,14 +13,14 @@ import (
 var ErrThermocoupleOpen = errors.New("thermocouple input open")
 
 type Device struct {
-	bus machine.SPI
+	bus drivers.SPI
 	cs  machine.Pin
 }
 
 // Create a new Device to read from a MAX6675 thermocouple.
 // Pins must be configured before use.  Frequency for SPI
 // should be 4.3MHz maximum.
-func NewDevice(bus machine.SPI, cs machine.Pin) *Device {
+func NewDevice(bus drivers.SPI, cs machine.Pin) *Device {
 	return &Device{
 		bus: bus,
 		cs:  cs,

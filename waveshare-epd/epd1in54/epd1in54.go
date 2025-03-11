@@ -22,7 +22,7 @@ type Config struct {
 }
 
 type Device struct {
-	bus  machine.SPI
+	bus  *machine.SPI
 	cs   machine.Pin
 	dc   machine.Pin
 	rst  machine.Pin
@@ -79,7 +79,7 @@ var partialRefresh = [159]uint8{
 }
 
 // New returns a new epd1in54 driver. Pass in a fully configured SPI bus.
-func New(bus machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
+func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
 	return Device{
 		buffer: make([]uint8, (uint32(Width)*uint32(Height))/8),
 		bus:    bus,

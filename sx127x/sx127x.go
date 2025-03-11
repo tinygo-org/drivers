@@ -43,7 +43,7 @@ func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(spi machine.SPI, rstPin machine.Pin) *Device {
+func New(spi drivers.SPI, rstPin machine.Pin) *Device {
 	k := Device{
 		spi:            spi,
 		rstPin:         rstPin,

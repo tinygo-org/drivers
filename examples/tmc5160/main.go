@@ -27,7 +27,7 @@ func main() {
 	//bind csPin to driverAdddress
 	driverAddress := uint8(0) // Let's assume we are working with driver at address 0x01
 	// Step 3. Bind the communication interface to the protocol
-	comm := tmc5160.NewSPIComm(*spi, csPins)
+	comm := tmc5160.NewSPIComm(spi, csPins)
 	// Step 4. Define your stepper like this below
 	//stepper := tmc5160.NewStepper(angle , gearRatio  vSupply  rCoil , lCoil , iPeak , rSense , mSteps, fclk )
 	stepper := tmc5160.NewDefaultStepper() // Default Stepper should be used only for testing.

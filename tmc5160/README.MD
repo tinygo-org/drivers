@@ -183,7 +183,7 @@ if err != nil {
 
 ## API Reference
 
-    NewSPIComm(spi machine.SPI, csPins map[uint8]machine.Pin) *SPIComm
+    NewSPIComm(spi *machine.SPI, csPins map[uint8]machine.Pin) *SPIComm
 
 Creates a new SPI communication interface for the TMC5160.
 
