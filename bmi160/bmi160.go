@@ -1,7 +1,6 @@
 package bmi160
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -11,7 +10,7 @@ import (
 // also an I2C interface, but it is not yet supported.
 type DeviceSPI struct {
 	// Chip select pin
-	CSB machine.Pin
+	CSB drivers.Pin
 
 	buf [7]byte
 
@@ -22,18 +21,16 @@ type DeviceSPI struct {
 // NewSPI returns a new device driver. The pin and SPI interface are not
 // touched, provide a fully configured SPI object and call Configure to start
 // using this device.
-func NewSPI(csb machine.Pin, spi drivers.SPI) *DeviceSPI {
+func NewSPI(csb drivers.Pin, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
 		CSB: csb, // chip select
 		Bus: spi,
 	}
 }
 
-// Configure configures the BMI160 for use. It configures the CSB pin and
-// configures the BMI160, but it does not configure the SPI interface (it is
-// assumed to be up and running).
+// Configure configures the BMI160 for use. The CSB pin  anf the SPI interface
+// should be configured already. This function configures the BMI160 only.
 func (d *DeviceSPI) Configure() error {
-	d.CSB.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.CSB.High()
 
 	// The datasheet recommends doing a register read from address 0x7F to get

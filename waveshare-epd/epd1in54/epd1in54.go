@@ -12,6 +12,8 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Config struct {
@@ -23,10 +25,10 @@ type Config struct {
 
 type Device struct {
 	bus  *machine.SPI
-	cs   machine.Pin
-	dc   machine.Pin
-	rst  machine.Pin
-	busy machine.Pin
+	cs   drivers.Pin
+	dc   drivers.Pin
+	rst  drivers.Pin
+	busy drivers.Pin
 
 	buffer   []uint8
 	rotation Rotation
@@ -79,7 +81,7 @@ var partialRefresh = [159]uint8{
 }
 
 // New returns a new epd1in54 driver. Pass in a fully configured SPI bus.
-func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
+func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin drivers.Pin) Device {
 	return Device{
 		buffer: make([]uint8, (uint32(Width)*uint32(Height))/8),
 		bus:    bus,
@@ -91,11 +93,6 @@ func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
 }
 
 func (d *Device) LDirInit(cfg Config) {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.busy.Configure(machine.PinConfig{Mode: machine.PinInput})
-
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,
 		Mode:      0,
@@ -150,11 +147,6 @@ func (d *Device) LDirInit(cfg Config) {
 }
 
 func (d *Device) HDirInit(cfg Config) {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.busy.Configure(machine.PinConfig{Mode: machine.PinInput})
-
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,
 		Mode:      0,

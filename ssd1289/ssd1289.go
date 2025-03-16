@@ -5,8 +5,9 @@ package ssd1289
 
 import (
 	"image/color"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 type Bus interface {
@@ -14,17 +15,17 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  machine.Pin
-	wr  machine.Pin
-	cs  machine.Pin
-	rst machine.Pin
+	rs  drivers.Pin
+	wr  drivers.Pin
+	cs  drivers.Pin
+	rst drivers.Pin
 	bus Bus
 }
 
 const width = int16(240)
 const height = int16(320)
 
-func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bus) Device {
+func New(rs drivers.Pin, wr drivers.Pin, cs drivers.Pin, rst drivers.Pin, bus Bus) Device {
 	d := Device{
 		rs:  rs,
 		wr:  wr,
@@ -32,11 +33,6 @@ func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bu
 		rst: rst,
 		bus: bus,
 	}
-
-	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	wr.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	cs.High()
 	rst.High()

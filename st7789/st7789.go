@@ -46,10 +46,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus             drivers.SPI
-	dcPin           machine.Pin
-	resetPin        machine.Pin
-	csPin           machine.Pin
-	blPin           machine.Pin
+	dcPin           drivers.Pin
+	resetPin        drivers.Pin
+	csPin           drivers.Pin
+	blPin           drivers.Pin
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -83,17 +83,13 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.Pin) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
-// wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+// wire and pins must already be configured.
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.Pin) DeviceOf[T] {
 	return DeviceOf[T]{
 		bus:      bus,
 		dcPin:    dcPin,

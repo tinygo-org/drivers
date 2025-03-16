@@ -3,8 +3,9 @@ package easystepper // import "tinygo.org/x/drivers/easystepper"
 
 import (
 	"errors"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // StepMode determines the coil sequence used to perform a single step
@@ -33,7 +34,7 @@ func (sm StepMode) stepCount() uint {
 // DeviceConfig contains the configuration data for a single easystepper driver
 type DeviceConfig struct {
 	// Pin1 ... Pin4 determines the pins to configure and use for the device
-	Pin1, Pin2, Pin3, Pin4 machine.Pin
+	Pin1, Pin2, Pin3, Pin4 drivers.Pin
 	// StepCount is the number of steps required to perform a full revolution of the stepper motor
 	StepCount uint
 	// RPM determines the speed of the stepper motor in 'Revolutions per Minute'
@@ -46,12 +47,12 @@ type DeviceConfig struct {
 type DualDeviceConfig struct {
 	DeviceConfig
 	// Pin5 ... Pin8 determines the pins to configure and use for the second device
-	Pin5, Pin6, Pin7, Pin8 machine.Pin
+	Pin5, Pin6, Pin7, Pin8 drivers.Pin
 }
 
 // Device holds the pins and the delay between steps
 type Device struct {
-	pins       [4]machine.Pin
+	pins       [4]drivers.Pin
 	stepDelay  time.Duration
 	stepNumber uint8
 	stepMode   StepMode
@@ -68,17 +69,15 @@ func New(config DeviceConfig) (*Device, error) {
 		return nil, errors.New("config.StepCount and config.RPM must be > 0")
 	}
 	return &Device{
-		pins:      [4]machine.Pin{config.Pin1, config.Pin2, config.Pin3, config.Pin4},
+		pins:      [4]drivers.Pin{config.Pin1, config.Pin2, config.Pin3, config.Pin4},
 		stepDelay: time.Second * 60 / time.Duration((config.StepCount * config.RPM)),
 		stepMode:  config.Mode,
 	}, nil
 }
 
-// Configure configures the pins of the Device
+// Configure does nothing, as it assumes that the pins of the Device have already
+// been configured by the user as outputs.
 func (d *Device) Configure() {
-	for _, pin := range d.pins {
-		pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	}
 }
 
 // NewDual returns a new dual easystepper driver given 8 pins, number of steps and rpm

@@ -8,7 +8,6 @@ package uc8151 // import "tinygo.org/x/drivers/uc8151"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -31,10 +30,10 @@ type Config struct {
 
 type Device struct {
 	bus                      drivers.SPI
-	cs                       machine.Pin
-	dc                       machine.Pin
-	rst                      machine.Pin
-	busy                     machine.Pin
+	cs                       drivers.Pin
+	dc                       drivers.Pin
+	rst                      drivers.Pin
+	busy                     drivers.Pin
 	width                    int16
 	height                   int16
 	buffer                   []uint8
@@ -48,12 +47,9 @@ type Device struct {
 
 type Speed uint8
 
-// New returns a new uc8151 driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	busyPin.Configure(machine.PinConfig{Mode: machine.PinInput})
+// New returns a new uc8151 driver. Pass in a fully configured SPI bus and pins.
+// busyPin should be set and input, the others as outputs.
+func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin drivers.Pin) Device {
 	return Device{
 		bus:  bus,
 		cs:   csPin,

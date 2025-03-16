@@ -2,7 +2,7 @@
 package shiftregister
 
 import (
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 type NumberBit int8
@@ -16,20 +16,20 @@ const (
 
 // Device holds pin number
 type Device struct {
-	latch, clock, out machine.Pin // IC wiring
+	latch, clock, out drivers.Pin // IC wiring
 	bits              NumberBit   // Pin number
 	mask              uint32      // keep all pins state
 }
 
 // ShiftPin is the implementation of the ShiftPin interface.
-// ShiftPin provide an interface like regular machine.Pin
+// ShiftPin provide an interface like regular drivers.Pin
 type ShiftPin struct {
 	mask uint32  // Bit representing the pin
 	d    *Device // Reference to the register
 }
 
 // New returns a new shift output register device
-func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
+func New(Bits NumberBit, Latch, Clock, Out drivers.Pin) *Device {
 	return &Device{
 		latch: Latch,
 		clock: Clock,
@@ -38,11 +38,9 @@ func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
 	}
 }
 
-// Configure set hardware configuration
+// Configure set hardware configuration. Make sure that the pins are already configured
+// as output.
 func (d *Device) Configure() {
-	d.latch.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.out.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.latch.High()
 }
 
