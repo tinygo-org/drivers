@@ -4,5 +4,5 @@ type Pin interface {
 	Get() bool
 	High()
 	Low()
-	Set(high bool)
+	Set(value bool)
 }

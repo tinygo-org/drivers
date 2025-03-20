@@ -15,12 +15,15 @@ type Pin struct {
 	expectations []pinExpectation
 }
 
-func (p *Pin) ExpectGet(high bool) {
-	p.expectations = append(p.expectations, pinExpectation{get: true, value: high})
+// Expect a Get() call, and return the provided value.
+func (p *Pin) ExpectGet(value bool) {
+	p.expectations = append(p.expectations, pinExpectation{get: true, value: value})
 }
 
-func (p *Pin) ExpectSet(high bool) {
-	p.expectations = append(p.expectations, pinExpectation{get: false, value: high})
+// Expect a Set(bool) call, with the provided value.
+// true is High, false is Low
+func (p *Pin) ExpectSet(value bool) {
+	p.expectations = append(p.expectations, pinExpectation{get: false, value: value})
 }
 
 func (p *Pin) Get() bool {
@@ -35,7 +38,7 @@ func (p *Pin) Get() bool {
 	return ex.value
 }
 
-func (p *Pin) Set(high bool) {
+func (p *Pin) Set(value bool) {
 	if len(p.expectations) == 0 {
 		p.c.Fatalf("unexpected pin write")
 	}
@@ -43,8 +46,8 @@ func (p *Pin) Set(high bool) {
 	if ex.get {
 		p.c.Fatalf("unexpected pin write")
 	}
-	if ex.value != high {
-		p.c.Fatalf("unexpected pin write: got %v, expecting %v", high, ex.value)
+	if ex.value != value {
+		p.c.Fatalf("unexpected pin write: got %v, expecting %v", value, ex.value)
 	}
 	p.expectations = p.expectations[1:]
 }
@@ -61,6 +64,7 @@ func NewPin(c Failer) *Pin {
 	return &Pin{c, []pinExpectation{}}
 }
 
+// NoopPin is a pin that does nothing, and always returns true for Get()
 type NoopPin struct{}
 
 func NewNoopPin() *NoopPin {
