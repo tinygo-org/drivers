@@ -1,10 +1,8 @@
 module tinygo.org/x/drivers
 
-
 go 1.22.1
 
 toolchain go1.23.1
-
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
