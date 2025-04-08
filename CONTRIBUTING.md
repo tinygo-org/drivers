@@ -8,6 +8,9 @@ We would like your help to make this project better, so we appreciate any contri
 
 We'd love to get your feedback on getting started with TinyGo. Run into any difficulty, confusion, or anything else? You are not alone. We want to know about your experience, so we can help the next people. Please open a Github issue with your questions, or you can also get in touch directly with us on our Slack channel at [https://gophers.slack.com/messages/CDJD3SUP6](https://gophers.slack.com/messages/CDJD3SUP6).
 
+### Driver design
+Before porting or writing a driver from scratch please read **[Driver Design for TinyGo](https://tinygo.org/docs/guides/driver-design)**.
+
 ### One of the TinyGo drivers is not working as you expect
 
 Please open a Github issue with your problem, and we will be happy to assist.
