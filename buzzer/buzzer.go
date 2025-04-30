@@ -2,22 +2,23 @@
 package buzzer // import "tinygo.org/x/drivers/buzzer"
 
 import (
-	"machine"
-
 	"time"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps a GPIO connection to a buzzer.
 type Device struct {
-	pin  machine.Pin
+	pin  drivers.PinOutput
 	High bool
 	BPM  float64
 }
 
 // New returns a new buzzer driver given which pin to use
-func New(pin machine.Pin) Device {
+func New(pin legacy.PinOutput) Device {
 	return Device{
-		pin:  pin,
+		pin:  pin.Set,
 		High: false,
 		BPM:  96.0,
 	}
@@ -25,14 +26,14 @@ func New(pin machine.Pin) Device {
 
 // On sets the buzzer to a high state.
 func (l *Device) On() (err error) {
-	l.pin.Set(true)
+	l.pin(true)
 	l.High = true
 	return
 }
 
 // Off sets the buzzer to a low state.
 func (l *Device) Off() (err error) {
-	l.pin.Set(false)
+	l.pin(false)
 	l.High = false
 	return
 }
