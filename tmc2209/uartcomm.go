@@ -57,6 +57,7 @@ func (comm *UARTComm) WriteRegister(register uint8, value uint32, driverIndex ui
 		byte((value >> 16) & 0xFF), // Middle byte
 		byte((value >> 8) & 0xFF),  // Next byte
 		byte(value & 0xFF),         // LSB of value
+		0,                          // CRC
 	}
 
 	// Calculate checksum by XORing all bytes
