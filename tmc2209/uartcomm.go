@@ -115,7 +115,7 @@ func (comm *UARTComm) ReadRegister(register uint8, driverIndex uint8) (uint32, e
 	// Implementing timeout using a 100ms timer
 	select {
 	case readBuffer := <-done:
-		checksum = comm.crc(readBuffer[:7])
+		checksum := comm.crc(readBuffer[:7])
 		if checksum != readBuffer[7] {
 			return 0, CustomError("checksum error")
 		}
