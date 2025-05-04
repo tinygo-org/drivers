@@ -60,12 +60,7 @@ func (comm *UARTComm) WriteRegister(register uint8, value uint32, driverIndex ui
 		0,                          // CRC
 	}
 
-	// Calculate checksum by XORing all bytes
-	checksum := byte(0)
-	for _, b := range buffer[:7] {
-		checksum ^= b
-	}
-	buffer[7] = checksum // Set checksum byte
+	buffer[7] = comm.crc(buffer[:7])
 
 	// Write the data to the TMC2209
 	done := make(chan error, 1)
@@ -84,13 +79,29 @@ func (comm *UARTComm) WriteRegister(register uint8, value uint32, driverIndex ui
 	}
 }
 
+func (comm *UARTComm) crc(buf []byte) byte {
+	crc := byte(0)
+	for i := range buf {
+		currentByte := buf[i]
+		for j := 0; j < 8; j++ {
+			if (crc>>7)^(currentByte&0x01) > 0 {
+				crc = (crc << 1) ^ 0x07
+			} else {
+				crc = crc << 1
+			}
+			currentByte = currentByte >> 1
+		}
+	}
+	return crc
+}
+
 // ReadRegister sends a register read command to the TMC2209 with a timeout.
 func (comm *UARTComm) ReadRegister(register uint8, driverIndex uint8) (uint32, error) {
 	var writeBuffer [4]byte
-	writeBuffer[0] = 0x05                                             // Sync byte
-	writeBuffer[1] = 0x00                                             // Slave address
-	writeBuffer[2] = register & 0x7F                                  // Read command (MSB clear for read)
-	writeBuffer[3] = writeBuffer[0] ^ writeBuffer[1] ^ writeBuffer[2] // Checksum
+	writeBuffer[0] = 0x05            // Sync byte
+	writeBuffer[1] = 0x00            // Slave address
+	writeBuffer[2] = register & 0x7F // Read command (MSB clear for read)
+	writeBuffer[3] = comm.crc(writeBuffer[:3])
 
 	// Send the read command
 	done := make(chan []byte, 1)
@@ -104,11 +115,7 @@ func (comm *UARTComm) ReadRegister(register uint8, driverIndex uint8) (uint32, e
 	// Implementing timeout using a 100ms timer
 	select {
 	case readBuffer := <-done:
-		// Validate checksum
-		checksum := byte(0)
-		for i := 0; i < 7; i++ {
-			checksum ^= readBuffer[i]
-		}
+		checksum = comm.crc(readBuffer[:7])
 		if checksum != readBuffer[7] {
 			return 0, CustomError("checksum error")
 		}
