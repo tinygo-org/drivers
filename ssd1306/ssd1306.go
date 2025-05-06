@@ -322,7 +322,6 @@ func (b *SPIBus) tx(data []byte, isCommand bool) error {
 
 	if isCommand {
 		b.csPin.High()
-		time.Sleep(1 * time.Millisecond)
 		b.dcPin.Low()
 		b.csPin.Low()
 
@@ -330,7 +329,6 @@ func (b *SPIBus) tx(data []byte, isCommand bool) error {
 		b.csPin.High()
 	} else {
 		b.csPin.High()
-		time.Sleep(1 * time.Millisecond)
 		b.dcPin.High()
 		b.csPin.Low()
 
