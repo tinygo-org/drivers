@@ -5,6 +5,7 @@
 package ds3231 // import "tinygo.org/x/drivers/ds3231"
 
 import (
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -148,6 +149,108 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 	return
 }
 
+func (d *Device) GetSqwPinMode() SqwPinMode {
+	data := []uint8{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return SQW_OFF
+	}
+	print("CTRL: ")
+	println(data[0])
+
+	data[0] &= 0x1C // turn off INTCON
+	if data[0]&0x04 != 0 {
+		return SQW_OFF
+	}
+
+	return SqwPinMode(data[0])
+}
+
+func (d *Device) SetSqwPinMode(mode SqwPinMode) error {
+	data := []uint8{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+
+	data[0] &^= 0x04 // turn off INTCON
+	data[0] &^= 0x18 // set freq bits to 0
+
+	data[0] |= uint8(mode)
+
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetAlarm1 set the alarm1 time
+func (d *Device) SetAlarm1(dt time.Time, mode Alarm1Mode) error {
+	dataCtrl := []uint8{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	if err != nil {
+		return err
+	}
+	if dataCtrl[0]&(1<<INTCN) == 0x00 {
+		return errors.New("INTCN has to be disabled")
+	}
+
+	A1M1 := uint8((mode & 0x01) << 7)
+	A1M2 := uint8((mode & 0x02) << 6)
+	A1M3 := uint8((mode & 0x04) << 5)
+	A1M4 := uint8((mode & 0x08) << 4)
+	DY_DT := uint8((mode & 0x10) << 2)
+
+	day := dt.Day()
+	if DY_DT > 0 {
+		day = dowToDS3231(int(dt.Weekday()))
+	}
+
+	data := make([]uint8, 4)
+	data[0] = uint8ToBCD(uint8(dt.Second())) | A1M1
+	data[1] = uint8ToBCD(uint8(dt.Minute())) | A1M2
+	data[2] = uint8ToBCD(uint8(dt.Hour())) | A1M3
+	data[3] = uint8ToBCD(uint8(day)) | A1M4 | DY_DT
+
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_ALARMONE, data)
+	if err != nil {
+		return err
+	}
+
+	dataCtrl[0] |= AlarmFlag_Alarm1
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReadAlarm1 returns the alarm1 time
+func (d *Device) ReadAlarm1() (dt time.Time, err error) {
+	data := make([]uint8, 5)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_ALARMONE, data)
+	if err != nil {
+		return
+	}
+	second := bcdToInt(data[0] & 0x7F)
+	minute := bcdToInt(data[1] & 0x7F)
+	hour := hoursBCDToInt(data[2] & 0x3F)
+
+	isDayOfWeek := (data[3] & 0x40) >> 6
+	var day int
+	if isDayOfWeek > 0 {
+		day = bcdToInt(data[3] & 0x0F)
+	} else {
+		day = bcdToInt(data[3] & 0x3F)
+	}
+
+	dt = time.Date(2000, 5, day, hour, minute, second, 0, time.UTC)
+	return
+}
+
 // ReadTemperature returns the temperature in millicelsius (mC)
 func (d *Device) ReadTemperature() (int32, error) {
 	data := make([]uint8, 2)
@@ -156,6 +259,104 @@ func (d *Device) ReadTemperature() (int32, error) {
 		return 0, err
 	}
 	return milliCelsius(data[0], data[1]), nil
+}
+
+// disableAlarm disable alarm
+func (d *Device) disableAlarm(alarm_num uint8) error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+	data[0] &^= (1 << (alarm_num - 1))
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DisableAlarm1 disable alarm1
+func (d *Device) DisableAlarm1() error {
+	return d.disableAlarm(1)
+}
+
+// clearAlarm clear status of alarm
+func (d *Device) clearAlarm(alarm_num uint8) error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	data[0] &^= (1 << (alarm_num - 1))
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ClearAlarm1 clear status of alarm1
+func (d *Device) ClearAlarm1() error {
+	return d.clearAlarm(1)
+}
+
+// IsAlarmFired get status of alarm
+func (d *Device) isAlarmFired(alarm_num uint8) bool {
+	dataCtrl := []byte{0}
+	legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	dataCtrl[0] &^= (1 << (alarm_num - 1))
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return false
+	}
+	return (data[0] & (1 << (alarm_num - 1))) != 0x00
+}
+
+// IsAlarm1Fired get status of alarm1
+func (d *Device) IsAlarm1Fired() bool {
+	return d.isAlarmFired(1)
+}
+
+// Enable32K enables the 32KHz output
+func (d *Device) Enable32K() error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	data[0] |= 1 << EN32KHZ
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Disable32K disables the 32KHz output
+func (d *Device) Disable32K() error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	data[0] &^= 1 << EN32KHZ
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// IsEnabled32K get status of 32KHz output
+func (d *Device) IsEnabled32K() bool {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return false
+	}
+	return (data[0] & (1 << EN32KHZ)) != 0x00
 }
 
 // milliCelsius converts the raw temperature bytes (msb and lsb) from the DS3231
@@ -199,4 +400,12 @@ func hoursBCDToInt(value uint8) (hour int) {
 		hour = bcdToInt(value)
 	}
 	return
+}
+
+// dowToDS3231 converts the day of the week to internal DS3231 format
+func dowToDS3231(d int) int {
+	if d == 0 {
+		return 7
+	}
+	return d
 }
