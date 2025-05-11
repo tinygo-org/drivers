@@ -46,3 +46,26 @@ const (
 	AlarmTwo      Mode = 4
 	ModeAlarmBoth Mode = 5
 )
+
+// SQW Pin Modes
+type SqwPinMode uint8
+
+const (
+	SQW_OFF  SqwPinMode = 0x1C
+	SQW_1HZ  SqwPinMode = 0x00
+	SQW_1KHZ SqwPinMode = 0x08
+	SQW_4KHZ SqwPinMode = 0x10
+	SQW_8KHZ SqwPinMode = 0x18
+)
+
+// ALarm1 Modes
+type Alarm1Mode uint8
+
+const (
+	A1_PER_SECOND Alarm1Mode = 0x0F
+	A1_SECOND     Alarm1Mode = 0x0E
+	A1_MINUTE     Alarm1Mode = 0x0C
+	A1_HOUR       Alarm1Mode = 0x08
+	A1_DATE       Alarm1Mode = 0x00
+	A1_DAY        Alarm1Mode = 0x10
+)
