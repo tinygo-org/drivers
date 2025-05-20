@@ -14,7 +14,7 @@ func main() {
 	// use 3.3V (and may be damaged by 5V).
 
 	machine.I2C0.Configure(machine.I2CConfig{
-		Frequency: machine.TWI_FREQ_400KHZ,
+		Frequency: 400e3,
 	})
 
 	lcd := hd44780i2c.New(machine.I2C0, 0x27) // some modules have address 0x3F

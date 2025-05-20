@@ -11,7 +11,7 @@ import (
 
 func main() {
 	machine.I2C0.Configure(machine.I2CConfig{
-		Frequency: machine.TWI_FREQ_400KHZ,
+		Frequency: 400e3,
 	})
 
 	display := ssd1306.NewI2C(machine.I2C0)
