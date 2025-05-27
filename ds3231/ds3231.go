@@ -155,8 +155,6 @@ func (d *Device) GetSqwPinMode() SqwPinMode {
 	if err != nil {
 		return SQW_OFF
 	}
-	print("CTRL: ")
-	println(data[0])
 
 	data[0] &= 0x1C // turn off INTCON
 	if data[0]&0x04 != 0 {
@@ -218,7 +216,6 @@ func (d *Device) SetAlarm1(dt time.Time, mode Alarm1Mode) error {
 	if err != nil {
 		return err
 	}
-
 	dataCtrl[0] |= AlarmFlag_Alarm1
 	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
 	if err != nil {
@@ -276,9 +273,44 @@ func (d *Device) disableAlarm(alarm_num uint8) error {
 	return nil
 }
 
+// enableAlarm enable alarm
+func (d *Device) enableAlarm(alarm_num uint8) error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+	data[0] |= (1 << (alarm_num - 1))
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// isEnabledAlarm check if alarm is enabled for interrupt
+func (d *Device) isEnabledAlarm(alarm_num uint8) bool {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	if err != nil {
+		return false
+	}
+	return (data[0] & (1 << (alarm_num - 1))) != 0x00
+}
+
+// IsEnabledAlarm1 checks if alarm1 is enabled
+func (d *Device) IsEnabledAlarm1() bool {
+	return d.isEnabledAlarm(1)
+}
+
 // DisableAlarm1 disable alarm1
 func (d *Device) DisableAlarm1() error {
 	return d.disableAlarm(1)
+}
+
+// EnableAlarm1 enable alarm1
+func (d *Device) EnableAlarm1() error {
+	return d.enableAlarm(1)
 }
 
 // clearAlarm clear status of alarm
