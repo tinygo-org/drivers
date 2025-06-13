@@ -1,3 +1,30 @@
+0.32.0
+---
+- **enhancements**
+    - **bmp280**
+        - remove alloc on read sensor data
+    - **ws2812**
+        - add 200MHz support for the Cortex-M0/rp2040
+
+- **bugfixes**
+    - **ssd1306**
+        - remove time.Sleep from SSD1306 SPI transfer code
+    - **tmc2209**
+        - tmc2209 bug fixes (#755)
+
+- **docs**
+    - **contributing**
+        - add driver design pointer to CONTRIBUTING.md
+
+
+0.31.0
+---
+---
+- **enhancements**
+    - **spi**
+        - update all SPI usage to use either *machine.SPI or drivers.SPI
+
+
 0.30.0
 ---
 - **new devices**
