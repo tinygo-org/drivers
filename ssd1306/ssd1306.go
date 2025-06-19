@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -128,7 +127,7 @@ func (d *Device) Configure(cfg Config) {
 		d.resetPage = ResetValue{0, uint8(d.height/8) - 1}
 	}
 	d.bufferSize = d.width * d.height / 8
-	d.buffer = make([]byte, d.bufferSize)
+	d.buffer = make([]byte, d.bufferSize+1)                           // +1 for the I2C command byte
 	d.canReset = cfg.Address != 0 || d.width != 128 || d.height != 64 // I2C or not 128x64
 
 	d.bus.configure()
@@ -268,7 +267,8 @@ func (d *Device) GetBuffer() []byte {
 
 // Command sends a command to the display
 func (d *Device) Command(command uint8) {
-	d.bus.tx([]byte{command}, true)
+	d.buffer[1] = command // The second byte is the actual command
+	d.bus.tx(d.buffer[0:2], true)
 }
 
 // setAddress sets the address to the I2C bus
@@ -310,32 +310,24 @@ func (d *Device) Tx(data []byte, isCommand bool) error {
 // tx sends data to the display (I2CBus implementation)
 func (b *I2CBus) tx(data []byte, isCommand bool) error {
 	if isCommand {
-		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
+		data[0] = 0x00 // Command mode
 	} else {
-		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
+		data[0] = 0x40 // Data mode
 	}
+	return b.wire.Tx(uint16(b.Address), data, nil)
 }
 
 // tx sends data to the display (SPIBus implementation)
 func (b *SPIBus) tx(data []byte, isCommand bool) error {
-	var err error
-
+	b.csPin.High()
 	if isCommand {
-		b.csPin.High()
 		b.dcPin.Low()
-		b.csPin.Low()
-
-		err = b.wire.Tx(data, nil)
-		b.csPin.High()
 	} else {
-		b.csPin.High()
 		b.dcPin.High()
-		b.csPin.Low()
-
-		err = b.wire.Tx(data, nil)
-		b.csPin.High()
 	}
-
+	b.csPin.Low()
+	err := b.wire.Tx(data[1:], nil) // The first byte is reserved for I2C communcation, strip it
+	b.csPin.High()
 	return err
 }
 
