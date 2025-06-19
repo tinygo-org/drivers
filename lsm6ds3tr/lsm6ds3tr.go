@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -26,7 +25,7 @@ type Device struct {
 	accelSampleRate AccelSampleRate
 	gyroRange       GyroRange
 	gyroSampleRate  GyroSampleRate
-	buf             [6]uint8
+	buf             [7]uint8 // cmd + up to 6 bytes of data
 }
 
 // Configuration for LSM6DS3TR device.
@@ -84,30 +83,32 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 		d.gyroSampleRate = GYRO_SR_104
 	}
 
-	data := d.buf[:1]
-
 	// Configure accelerometer
-	data[0] = uint8(d.accelRange) | uint8(d.accelSampleRate)
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL1_XL, data)
+	d.buf[0] = CTRL1_XL
+	d.buf[1] = uint8(d.accelRange) | uint8(d.accelSampleRate)
+	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
 	if err != nil {
 		return
 	}
 
 	// Set ODR bit
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), CTRL4_C, data)
+	d.buf[0] = CTRL4_C
+	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:2])
 	if err != nil {
 		return
 	}
-	data[0] = data[0] &^ BW_SCAL_ODR_ENABLED
-	data[0] |= BW_SCAL_ODR_ENABLED
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL4_C, data)
+	d.buf[0] = CTRL4_C
+	d.buf[1] = d.buf[1] &^ BW_SCAL_ODR_ENABLED
+	d.buf[1] |= BW_SCAL_ODR_ENABLED
+	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
 	if err != nil {
 		return
 	}
 
 	// Configure gyroscope
-	data[0] = uint8(d.gyroRange) | uint8(d.gyroSampleRate)
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL2_G, data)
+	d.buf[0] = CTRL2_G
+	d.buf[1] = uint8(d.gyroRange) | uint8(d.gyroSampleRate)
+	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
 	if err != nil {
 		return
 	}
@@ -118,9 +119,9 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 // Connected returns whether a LSM6DS3TR has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	data := d.buf[:1]
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
-	return data[0] == 0x6A
+	d.buf[0] = WHO_AM_I
+	d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:2])
+	return d.buf[1] == 0x6A
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -128,8 +129,8 @@ func (d *Device) Connected() bool {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_XL, data)
+	d.buf[0] = OUTX_L_XL
+	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:7])
 	if err != nil {
 		return
 	}
@@ -142,9 +143,9 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	} else if d.accelRange == ACCEL_16G {
 		k = 488
 	}
-	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * k
-	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * k
-	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * k
+	x = int32(int16((uint16(d.buf[2])<<8)|uint16(d.buf[1]))) * k
+	y = int32(int16((uint16(d.buf[4])<<8)|uint16(d.buf[3]))) * k
+	z = int32(int16((uint16(d.buf[6])<<8)|uint16(d.buf[5]))) * k
 	return
 }
 
@@ -153,8 +154,8 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_G, data)
+	d.buf[0] = OUTX_L_G
+	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:7])
 	if err != nil {
 		return
 	}
@@ -169,21 +170,21 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	} else if d.gyroRange == GYRO_2000DPS {
 		k = 70000
 	}
-	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * k
-	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * k
-	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * k
+	x = int32(int16((uint16(d.buf[2])<<8)|uint16(d.buf[1]))) * k
+	y = int32(int16((uint16(d.buf[4])<<8)|uint16(d.buf[3]))) * k
+	z = int32(int16((uint16(d.buf[6])<<8)|uint16(d.buf[5]))) * k
 	return
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_TEMP_L, data)
+	d.buf[0] = OUT_TEMP_L
+	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:3])
 	if err != nil {
 		return
 	}
 	// From "Table 5. Temperature sensor characteristics"
 	// temp = value/256 + 25
-	t = 25000 + (int32(int16((int16(data[1])<<8)|int16(data[0])))*125)/32
+	t = 25000 + (int32(int16((int16(d.buf[2])<<8)|int16(d.buf[1])))*125)/32
 	return
 }
