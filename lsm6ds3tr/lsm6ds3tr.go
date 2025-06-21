@@ -84,31 +84,19 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	}
 
 	// Configure accelerometer
-	d.buf[0] = CTRL1_XL
-	d.buf[1] = uint8(d.accelRange) | uint8(d.accelSampleRate)
-	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
+	err = d.writeValue(CTRL1_XL, uint8(d.accelRange)|uint8(d.accelSampleRate))
 	if err != nil {
 		return
 	}
 
-	// Set ODR bit
-	d.buf[0] = CTRL4_C
-	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:2])
-	if err != nil {
-		return
-	}
-	d.buf[0] = CTRL4_C
-	d.buf[1] = d.buf[1] &^ BW_SCAL_ODR_ENABLED
-	d.buf[1] |= BW_SCAL_ODR_ENABLED
-	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
+	// Enable ODR scaling
+	err = d.setBits(CTRL4_C, BW_SCAL_ODR_ENABLED)
 	if err != nil {
 		return
 	}
 
 	// Configure gyroscope
-	d.buf[0] = CTRL2_G
-	d.buf[1] = uint8(d.gyroRange) | uint8(d.gyroSampleRate)
-	err = d.bus.Tx(d.Address, d.buf[0:2], nil)
+	err = d.writeValue(CTRL2_G, uint8(d.gyroRange)|uint8(d.gyroSampleRate))
 	if err != nil {
 		return
 	}
@@ -119,8 +107,10 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 // Connected returns whether a LSM6DS3TR has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	d.buf[0] = WHO_AM_I
-	d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:2])
+	err := d.readValue(WHO_AM_I, 1)
+	if err != nil {
+		return false
+	}
 	return d.buf[1] == 0x6A
 }
 
@@ -129,8 +119,7 @@ func (d *Device) Connected() bool {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	d.buf[0] = OUTX_L_XL
-	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:7])
+	err = d.readValue(OUTX_L_XL, 6)
 	if err != nil {
 		return
 	}
@@ -154,8 +143,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	d.buf[0] = OUTX_L_G
-	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:7])
+	err = d.readValue(OUTX_L_G, 6)
 	if err != nil {
 		return
 	}
@@ -178,8 +166,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	d.buf[0] = OUT_TEMP_L
-	err = d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:3])
+	err = d.readValue(OUT_TEMP_L, 2)
 	if err != nil {
 		return
 	}
@@ -187,4 +174,23 @@ func (d *Device) ReadTemperature() (t int32, err error) {
 	// temp = value/256 + 25
 	t = 25000 + (int32(int16((int16(d.buf[2])<<8)|int16(d.buf[1])))*125)/32
 	return
+}
+
+func (d *Device) readValue(reg, size uint8) error {
+	d.buf[0] = reg
+	return d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:size+1])
+}
+
+func (d *Device) writeValue(reg, value uint8) error {
+	d.buf[0] = reg
+	d.buf[1] = value
+	return d.bus.Tx(d.Address, d.buf[0:2], nil)
+}
+
+func (d *Device) setBits(reg, bits uint8) (err error) {
+	err = d.readValue(reg, 1)
+	if err != nil {
+		return
+	}
+	return d.writeValue(reg, (d.buf[1]&^bits)|bits)
 }
