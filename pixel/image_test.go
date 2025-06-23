@@ -107,6 +107,66 @@ func TestImageRGB444BE(t *testing.T) {
 	}
 }
 
+func TestImageGrayScale2bit(t *testing.T) {
+	image := pixel.NewImage[pixel.GrayScale2bit](128, 64)
+
+	if width, height := image.Size(); width != 128 || height != 64 {
+		t.Errorf("image.Size(): expected 128, 64 but got %d, %d", width, height)
+	}
+
+	// Define test colors representing 4 grayscale levels.
+	testColors := []color.RGBA{
+		{R: 0x00, G: 0x00, B: 0x00, A: 0xff}, // black
+		{R: 0x55, G: 0x55, B: 0x55, A: 0xff}, // dark gray
+		{R: 0xaa, G: 0xaa, B: 0xaa, A: 0xff}, // light gray
+		{R: 0xff, G: 0xff, B: 0xff, A: 0xff}, // white
+	}
+
+	// Single pixel roundtrip test at a fixed coordinate.
+	for _, c := range testColors {
+		encoded := pixel.NewColor[pixel.GrayScale2bit](c.R, c.G, c.B)
+		image.Set(5, 3, encoded)
+		actual := image.Get(5, 3).RGBA()
+		if actual != c {
+			t.Errorf("failed to roundtrip color: expected %v but got %v", c, actual)
+		}
+	}
+
+	// Multi-coordinate test across the image.
+	for x := 0; x < 8; x++ {
+		for y, c := range testColors {
+			encoded := pixel.NewColor[pixel.GrayScale2bit](c.R, c.G, c.B)
+			image.Set(x, y, encoded)
+			actual := image.Get(x, y).RGBA()
+			if actual != c {
+				t.Errorf("Set/Get mismatch at (%d,%d): expected %v but got %v", x, y, c, actual)
+			}
+		}
+	}
+}
+
+func TestNewGrayScale2bitMapping(t *testing.T) {
+	testCases := []struct {
+		input  color.RGBA
+		expect pixel.GrayScale2bit
+	}{
+		{color.RGBA{R: 0x00, G: 0x00, B: 0x00}, 0}, // 0
+		{color.RGBA{R: 0x3F, G: 0x3F, B: 0x3F}, 0}, // 63
+		{color.RGBA{R: 0x40, G: 0x40, B: 0x40}, 1}, // 64
+		{color.RGBA{R: 0x7F, G: 0x7F, B: 0x7F}, 1}, // 127
+		{color.RGBA{R: 0x80, G: 0x80, B: 0x80}, 2}, // 128
+		{color.RGBA{R: 0xBF, G: 0xBF, B: 0xBF}, 2}, // 191
+		{color.RGBA{R: 0xC0, G: 0xC0, B: 0xC0}, 3}, // 192
+		{color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF}, 3}, // 255
+	}
+	for _, tc := range testCases {
+		actual := pixel.NewColor[pixel.GrayScale2bit](tc.input.R, tc.input.G, tc.input.B)
+		if actual != tc.expect {
+			t.Errorf("NewGrayScale2bit(%#v) = %d, want %d", tc.input, actual, tc.expect)
+		}
+	}
+}
+
 func TestImageMonochrome(t *testing.T) {
 	image := pixel.NewImage[pixel.Monochrome](128, 64)
 	if width, height := image.Size(); width != 128 || height != 64 {
@@ -235,6 +295,9 @@ func TestImageNoise(t *testing.T) {
 	})
 	t.Run("RGB444BE", func(t *testing.T) {
 		testImageNoiseN[pixel.RGB444BE](t)
+	})
+	t.Run("GrayScale2bit", func(t *testing.T) {
+		testImageNoiseN[pixel.GrayScale2bit](t)
 	})
 	t.Run("Monochrome", func(t *testing.T) {
 		testImageNoiseN[pixel.Monochrome](t)
