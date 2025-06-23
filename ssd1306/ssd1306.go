@@ -6,7 +6,6 @@ package ssd1306 // import "tinygo.org/x/drivers/ssd1306"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -22,16 +21,15 @@ type ResetValue [2]byte
 
 // Device wraps I2C or SPI connection.
 type Device struct {
-	bus        Buser
-	buffer     []byte
-	width      int16
-	height     int16
-	bufferSize int16
-	vccState   VccMode
-	canReset   bool
-	resetCol   ResetValue
-	resetPage  ResetValue
-	rotation   drivers.Rotation
+	bus       Buser
+	buffer    []byte
+	width     int16
+	height    int16
+	vccState  VccMode
+	canReset  bool
+	resetCol  ResetValue
+	resetPage ResetValue
+	rotation  drivers.Rotation
 }
 
 // Config is the configuration for the display
@@ -50,50 +48,13 @@ type Config struct {
 	Rotation  drivers.Rotation
 }
 
-type I2CBus struct {
-	wire    drivers.I2C
-	Address uint16
-}
-
-type SPIBus struct {
-	wire     drivers.SPI
-	dcPin    machine.Pin
-	resetPin machine.Pin
-	csPin    machine.Pin
-}
-
 type Buser interface {
-	configure() error
-	tx(data []byte, isCommand bool) error
-	setAddress(address uint16) error
+	configure(address uint16, size int16) []byte // configure the bus with the given configuration and return the buffer to use
+	command(cmd uint8) error                     // send a command to the display
+	flush() error                                // send the data in the buffer to the display
 }
 
 type VccMode uint8
-
-// NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
-func NewI2C(bus drivers.I2C) Device {
-	return Device{
-		bus: &I2CBus{
-			wire:    bus,
-			Address: Address,
-		},
-	}
-}
-
-// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{
-		bus: &SPIBus{
-			wire:     bus,
-			dcPin:    dcPin,
-			resetPin: resetPin,
-			csPin:    csPin,
-		},
-	}
-}
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
@@ -107,9 +68,6 @@ func (d *Device) Configure(cfg Config) {
 		d.height = cfg.Height
 	} else {
 		d.height = 64
-	}
-	if cfg.Address != 0 {
-		d.bus.setAddress(cfg.Address)
 	}
 	if cfg.VccState != 0 {
 		d.vccState = cfg.VccState
@@ -126,77 +84,75 @@ func (d *Device) Configure(cfg Config) {
 	} else {
 		d.resetPage = ResetValue{0, uint8(d.height/8) - 1}
 	}
-	d.bufferSize = d.width * d.height / 8
-	d.buffer = make([]byte, d.bufferSize+1)                           // +1 for the I2C command byte
 	d.canReset = cfg.Address != 0 || d.width != 128 || d.height != 64 // I2C or not 128x64
 
-	d.bus.configure()
+	d.buffer = d.bus.configure(cfg.Address, d.width*d.height/8)
 
 	time.Sleep(100 * time.Nanosecond)
-	d.Command(DISPLAYOFF)
-	d.Command(SETDISPLAYCLOCKDIV)
-	d.Command(0x80)
-	d.Command(SETMULTIPLEX)
-	d.Command(uint8(d.height - 1))
-	d.Command(SETDISPLAYOFFSET)
-	d.Command(0x0)
-	d.Command(SETSTARTLINE | 0x0)
-	d.Command(CHARGEPUMP)
+	d.bus.command(DISPLAYOFF)
+	d.bus.command(SETDISPLAYCLOCKDIV)
+	d.bus.command(0x80)
+	d.bus.command(SETMULTIPLEX)
+	d.bus.command(uint8(d.height - 1))
+	d.bus.command(SETDISPLAYOFFSET)
+	d.bus.command(0x0)
+	d.bus.command(SETSTARTLINE | 0x0)
+	d.bus.command(CHARGEPUMP)
 	if d.vccState == EXTERNALVCC {
-		d.Command(0x10)
+		d.bus.command(0x10)
 	} else {
-		d.Command(0x14)
+		d.bus.command(0x14)
 	}
-	d.Command(MEMORYMODE)
-	d.Command(0x00)
+	d.bus.command(MEMORYMODE)
+	d.bus.command(0x00)
 
 	d.SetRotation(cfg.Rotation)
 
 	if (d.width == 128 && d.height == 64) || (d.width == 64 && d.height == 48) { // 128x64 or 64x48
-		d.Command(SETCOMPINS)
-		d.Command(0x12)
-		d.Command(SETCONTRAST)
+		d.bus.command(SETCOMPINS)
+		d.bus.command(0x12)
+		d.bus.command(SETCONTRAST)
 		if d.vccState == EXTERNALVCC {
-			d.Command(0x9F)
+			d.bus.command(0x9F)
 		} else {
-			d.Command(0xCF)
+			d.bus.command(0xCF)
 		}
 	} else if d.width == 128 && d.height == 32 { // 128x32
-		d.Command(SETCOMPINS)
-		d.Command(0x02)
-		d.Command(SETCONTRAST)
-		d.Command(0x8F)
+		d.bus.command(SETCOMPINS)
+		d.bus.command(0x02)
+		d.bus.command(SETCONTRAST)
+		d.bus.command(0x8F)
 	} else if d.width == 96 && d.height == 16 { // 96x16
-		d.Command(SETCOMPINS)
-		d.Command(0x2)
-		d.Command(SETCONTRAST)
+		d.bus.command(SETCOMPINS)
+		d.bus.command(0x2)
+		d.bus.command(SETCONTRAST)
 		if d.vccState == EXTERNALVCC {
-			d.Command(0x10)
+			d.bus.command(0x10)
 		} else {
-			d.Command(0xAF)
+			d.bus.command(0xAF)
 		}
 	} else {
 		// fail silently, it might work
 		println("there's no configuration for this display's size")
 	}
 
-	d.Command(SETPRECHARGE)
+	d.bus.command(SETPRECHARGE)
 	if d.vccState == EXTERNALVCC {
-		d.Command(0x22)
+		d.bus.command(0x22)
 	} else {
-		d.Command(0xF1)
+		d.bus.command(0xF1)
 	}
-	d.Command(SETVCOMDETECT)
-	d.Command(0x40)
-	d.Command(DISPLAYALLON_RESUME)
-	d.Command(NORMALDISPLAY)
-	d.Command(DEACTIVATE_SCROLL)
-	d.Command(DISPLAYON)
+	d.bus.command(SETVCOMDETECT)
+	d.bus.command(0x40)
+	d.bus.command(DISPLAYALLON_RESUME)
+	d.bus.command(NORMALDISPLAY)
+	d.bus.command(DEACTIVATE_SCROLL)
+	d.bus.command(DISPLAYON)
 }
 
 // ClearBuffer clears the image buffer
 func (d *Device) ClearBuffer() {
-	for i := int16(0); i < d.bufferSize; i++ {
+	for i := 0; i < len(d.buffer); i++ {
 		d.buffer[i] = 0
 	}
 }
@@ -214,15 +170,15 @@ func (d *Device) Display() error {
 	// In the 128x64 (SPI) screen resetting to 0x0 after 128 times corrupt the buffer
 	// Since we're printing the whole buffer, avoid resetting it in this case
 	if d.canReset {
-		d.Command(COLUMNADDR)
-		d.Command(d.resetCol[0])
-		d.Command(d.resetCol[1])
-		d.Command(PAGEADDR)
-		d.Command(d.resetPage[0])
-		d.Command(d.resetPage[1])
+		d.bus.command(COLUMNADDR)
+		d.bus.command(d.resetCol[0])
+		d.bus.command(d.resetCol[1])
+		d.bus.command(PAGEADDR)
+		d.bus.command(d.resetPage[0])
+		d.bus.command(d.resetPage[1])
 	}
 
-	return d.Tx(d.buffer, false)
+	return d.bus.flush()
 }
 
 // SetPixel enables or disables a pixel in the buffer
@@ -251,84 +207,16 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 
 // SetBuffer changes the whole buffer at once
 func (d *Device) SetBuffer(buffer []byte) error {
-	if int16(len(buffer)) != d.bufferSize {
+	if len(buffer) != len(d.buffer) {
 		return errBufferSize
 	}
-	for i := int16(0); i < d.bufferSize; i++ {
-		d.buffer[i] = buffer[i]
-	}
+	copy(d.buffer, buffer)
 	return nil
 }
 
 // GetBuffer returns the whole buffer
 func (d *Device) GetBuffer() []byte {
 	return d.buffer
-}
-
-// Command sends a command to the display
-func (d *Device) Command(command uint8) {
-	d.buffer[1] = command // The second byte is the actual command
-	d.bus.tx(d.buffer[0:2], true)
-}
-
-// setAddress sets the address to the I2C bus
-func (b *I2CBus) setAddress(address uint16) error {
-	b.Address = address
-	return nil
-}
-
-// setAddress does nothing, but it's required to avoid reflection
-func (b *SPIBus) setAddress(address uint16) error {
-	// do nothing
-	println("trying to Configure an address on a SPI device")
-	return nil
-}
-
-// configure does nothing, but it's required to avoid reflection
-func (b *I2CBus) configure() error { return nil }
-
-// configure configures some pins with the SPI bus
-func (b *SPIBus) configure() error {
-	b.csPin.Low()
-	b.dcPin.Low()
-	b.resetPin.Low()
-
-	b.resetPin.High()
-	time.Sleep(1 * time.Millisecond)
-	b.resetPin.Low()
-	time.Sleep(10 * time.Millisecond)
-	b.resetPin.High()
-
-	return nil
-}
-
-// Tx sends data to the display
-func (d *Device) Tx(data []byte, isCommand bool) error {
-	return d.bus.tx(data, isCommand)
-}
-
-// tx sends data to the display (I2CBus implementation)
-func (b *I2CBus) tx(data []byte, isCommand bool) error {
-	if isCommand {
-		data[0] = 0x00 // Command mode
-	} else {
-		data[0] = 0x40 // Data mode
-	}
-	return b.wire.Tx(uint16(b.Address), data, nil)
-}
-
-// tx sends data to the display (SPIBus implementation)
-func (b *SPIBus) tx(data []byte, isCommand bool) error {
-	b.csPin.High()
-	if isCommand {
-		b.dcPin.Low()
-	} else {
-		b.dcPin.High()
-	}
-	b.csPin.Low()
-	err := b.wire.Tx(data[1:], nil) // The first byte is reserved for I2C communcation, strip it
-	b.csPin.High()
-	return err
 }
 
 // Size returns the current size of the display.
@@ -362,15 +250,15 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	d.rotation = rotation
 	switch d.rotation {
 	case drivers.Rotation0:
-		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
-		d.Command(COMSCANDEC)     // Reverse vertical mapping
+		d.bus.command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.bus.command(COMSCANDEC)     // Reverse vertical mapping
 	case drivers.Rotation180:
-		d.Command(SEGREMAP)   // Normal horizontal mapping
-		d.Command(COMSCANINC) // Normal vertical mapping
+		d.bus.command(SEGREMAP)   // Normal horizontal mapping
+		d.bus.command(COMSCANINC) // Normal vertical mapping
 	// nothing to do
 	default:
-		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
-		d.Command(COMSCANDEC)     // Reverse vertical mapping
+		d.bus.command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.bus.command(COMSCANDEC)     // Reverse vertical mapping
 	}
 	return nil
 }
@@ -380,9 +268,9 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 // should be kept.
 func (d *Device) Sleep(sleepEnabled bool) error {
 	if sleepEnabled {
-		d.Command(DISPLAYOFF)
+		d.bus.command(DISPLAYOFF)
 	} else {
-		d.Command(DISPLAYON)
+		d.bus.command(DISPLAYON)
 	}
 	return nil
 }
