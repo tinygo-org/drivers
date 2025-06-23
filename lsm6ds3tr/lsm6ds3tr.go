@@ -25,7 +25,7 @@ type Device struct {
 	accelSampleRate AccelSampleRate
 	gyroRange       GyroRange
 	gyroSampleRate  GyroSampleRate
-	buf             [7]uint8 // cmd + up to 6 bytes of data
+	buf             [7]uint8 // up to 6 bytes for read + 1 byte for the register address
 }
 
 // Configuration for LSM6DS3TR device.
@@ -84,7 +84,7 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	}
 
 	// Configure accelerometer
-	err = d.writeValue(CTRL1_XL, uint8(d.accelRange)|uint8(d.accelSampleRate))
+	err = d.writeByte(CTRL1_XL, uint8(d.accelRange)|uint8(d.accelSampleRate))
 	if err != nil {
 		return
 	}
@@ -96,7 +96,7 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	}
 
 	// Configure gyroscope
-	err = d.writeValue(CTRL2_G, uint8(d.gyroRange)|uint8(d.gyroSampleRate))
+	err = d.writeByte(CTRL2_G, uint8(d.gyroRange)|uint8(d.gyroSampleRate))
 	if err != nil {
 		return
 	}
@@ -107,11 +107,11 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 // Connected returns whether a LSM6DS3TR has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	err := d.readValue(WHO_AM_I, 1)
+	data, err := d.readBytes(WHO_AM_I, 1)
 	if err != nil {
 		return false
 	}
-	return d.buf[1] == 0x6A
+	return data[0] == 0x6A
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -119,7 +119,7 @@ func (d *Device) Connected() bool {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	err = d.readValue(OUTX_L_XL, 6)
+	data, err := d.readBytes(OUTX_L_XL, 6)
 	if err != nil {
 		return
 	}
@@ -132,9 +132,9 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	} else if d.accelRange == ACCEL_16G {
 		k = 488
 	}
-	x = int32(int16((uint16(d.buf[2])<<8)|uint16(d.buf[1]))) * k
-	y = int32(int16((uint16(d.buf[4])<<8)|uint16(d.buf[3]))) * k
-	z = int32(int16((uint16(d.buf[6])<<8)|uint16(d.buf[5]))) * k
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * k
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * k
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * k
 	return
 }
 
@@ -143,7 +143,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	err = d.readValue(OUTX_L_G, 6)
+	data, err := d.readBytes(OUTX_L_G, 6)
 	if err != nil {
 		return
 	}
@@ -158,39 +158,43 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	} else if d.gyroRange == GYRO_2000DPS {
 		k = 70000
 	}
-	x = int32(int16((uint16(d.buf[2])<<8)|uint16(d.buf[1]))) * k
-	y = int32(int16((uint16(d.buf[4])<<8)|uint16(d.buf[3]))) * k
-	z = int32(int16((uint16(d.buf[6])<<8)|uint16(d.buf[5]))) * k
+	x = int32(int16((uint16(data[1])<<8)|uint16(data[0]))) * k
+	y = int32(int16((uint16(data[3])<<8)|uint16(data[2]))) * k
+	z = int32(int16((uint16(data[5])<<8)|uint16(data[4]))) * k
 	return
 }
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	err = d.readValue(OUT_TEMP_L, 2)
+	data, err := d.readBytes(OUT_TEMP_L, 2)
 	if err != nil {
 		return
 	}
 	// From "Table 5. Temperature sensor characteristics"
 	// temp = value/256 + 25
-	t = 25000 + (int32(int16((int16(d.buf[2])<<8)|int16(d.buf[1])))*125)/32
+	t = 25000 + (int32(int16((int16(data[1])<<8)|int16(data[0])))*125)/32
 	return
 }
 
-func (d *Device) readValue(reg, size uint8) error {
+func (d *Device) readBytes(reg, size uint8) ([]byte, error) {
 	d.buf[0] = reg
-	return d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:size+1])
+	err := d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:size+1])
+	if err != nil {
+		return nil, err
+	}
+	return d.buf[1 : size+1], nil
 }
 
-func (d *Device) writeValue(reg, value uint8) error {
+func (d *Device) writeByte(reg, value uint8) error {
 	d.buf[0] = reg
 	d.buf[1] = value
 	return d.bus.Tx(d.Address, d.buf[0:2], nil)
 }
 
-func (d *Device) setBits(reg, bits uint8) (err error) {
-	err = d.readValue(reg, 1)
+func (d *Device) setBits(reg, bits uint8) error {
+	data, err := d.readBytes(reg, 1)
 	if err != nil {
-		return
+		return err
 	}
-	return d.writeValue(reg, (d.buf[1]&^bits)|bits)
+	return d.writeByte(reg, (data[0]&^bits)|bits)
 }
