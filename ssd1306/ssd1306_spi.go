@@ -12,7 +12,7 @@ type SPIBus struct {
 	dcPin    machine.Pin
 	resetPin machine.Pin
 	csPin    machine.Pin
-	buffer   []byte
+	buffer   []byte // buffer to avoid heap allocations
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
@@ -42,27 +42,27 @@ func (b *SPIBus) configure(address uint16, size int16) []byte {
 	time.Sleep(10 * time.Millisecond)
 	b.resetPin.High()
 
-	b.buffer = make([]byte, size+1) // +1 for the command
-	return b.buffer[1:]             // return the buffer without the command part
-}
-
-// flush sends the data part of the buffer to the display
-func (b *SPIBus) flush() error {
-	b.csPin.High()
-	b.dcPin.High()
-	b.csPin.Low()
-	err := b.wire.Tx(b.buffer[1:], nil)
-	b.csPin.High()
-	return err
+	b.buffer = make([]byte, size+1) // +1 for a command
+	return b.buffer[1:]             // return the image buffer
 }
 
 // command sends a command to the display
 func (b *SPIBus) command(cmd uint8) error {
 	b.buffer[0] = cmd
+	return b.tx(b.buffer[:1], true)
+}
+
+// flush sends the image to the display
+func (b *SPIBus) flush() error {
+	return b.tx(b.buffer[1:], false)
+}
+
+// tx sends data to the display
+func (b *SPIBus) tx(data []byte, isCommand bool) error {
 	b.csPin.High()
-	b.dcPin.Low()
+	b.dcPin.Set(!isCommand)
 	b.csPin.Low()
-	err := b.wire.Tx(b.buffer[:1], nil)
+	err := b.wire.Tx(data, nil)
 	b.csPin.High()
 	return err
 }

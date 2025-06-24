@@ -49,9 +49,10 @@ type Config struct {
 }
 
 type Buser interface {
-	configure(address uint16, size int16) []byte // configure the bus with the given configuration and return the buffer to use
+	configure(address uint16, size int16) []byte // configure the bus and return the image buffer to use
 	command(cmd uint8) error                     // send a command to the display
-	flush() error                                // send the data in the buffer to the display
+	flush() error                                // send the image to the display, faster than "tx()" in i2c case since avoids slice copy
+	tx(data []byte, isCommand bool) error        // generic transmit function
 }
 
 type VccMode uint8
@@ -89,65 +90,76 @@ func (d *Device) Configure(cfg Config) {
 	d.buffer = d.bus.configure(cfg.Address, d.width*d.height/8)
 
 	time.Sleep(100 * time.Nanosecond)
-	d.bus.command(DISPLAYOFF)
-	d.bus.command(SETDISPLAYCLOCKDIV)
-	d.bus.command(0x80)
-	d.bus.command(SETMULTIPLEX)
-	d.bus.command(uint8(d.height - 1))
-	d.bus.command(SETDISPLAYOFFSET)
-	d.bus.command(0x0)
-	d.bus.command(SETSTARTLINE | 0x0)
-	d.bus.command(CHARGEPUMP)
+	d.Command(DISPLAYOFF)
+	d.Command(SETDISPLAYCLOCKDIV)
+	d.Command(0x80)
+	d.Command(SETMULTIPLEX)
+	d.Command(uint8(d.height - 1))
+	d.Command(SETDISPLAYOFFSET)
+	d.Command(0x0)
+	d.Command(SETSTARTLINE | 0x0)
+	d.Command(CHARGEPUMP)
 	if d.vccState == EXTERNALVCC {
-		d.bus.command(0x10)
+		d.Command(0x10)
 	} else {
-		d.bus.command(0x14)
+		d.Command(0x14)
 	}
-	d.bus.command(MEMORYMODE)
-	d.bus.command(0x00)
+	d.Command(MEMORYMODE)
+	d.Command(0x00)
 
 	d.SetRotation(cfg.Rotation)
 
 	if (d.width == 128 && d.height == 64) || (d.width == 64 && d.height == 48) { // 128x64 or 64x48
-		d.bus.command(SETCOMPINS)
-		d.bus.command(0x12)
-		d.bus.command(SETCONTRAST)
+		d.Command(SETCOMPINS)
+		d.Command(0x12)
+		d.Command(SETCONTRAST)
 		if d.vccState == EXTERNALVCC {
-			d.bus.command(0x9F)
+			d.Command(0x9F)
 		} else {
-			d.bus.command(0xCF)
+			d.Command(0xCF)
 		}
 	} else if d.width == 128 && d.height == 32 { // 128x32
-		d.bus.command(SETCOMPINS)
-		d.bus.command(0x02)
-		d.bus.command(SETCONTRAST)
-		d.bus.command(0x8F)
+		d.Command(SETCOMPINS)
+		d.Command(0x02)
+		d.Command(SETCONTRAST)
+		d.Command(0x8F)
 	} else if d.width == 96 && d.height == 16 { // 96x16
-		d.bus.command(SETCOMPINS)
-		d.bus.command(0x2)
-		d.bus.command(SETCONTRAST)
+		d.Command(SETCOMPINS)
+		d.Command(0x2)
+		d.Command(SETCONTRAST)
 		if d.vccState == EXTERNALVCC {
-			d.bus.command(0x10)
+			d.Command(0x10)
 		} else {
-			d.bus.command(0xAF)
+			d.Command(0xAF)
 		}
 	} else {
 		// fail silently, it might work
 		println("there's no configuration for this display's size")
 	}
 
-	d.bus.command(SETPRECHARGE)
+	d.Command(SETPRECHARGE)
 	if d.vccState == EXTERNALVCC {
-		d.bus.command(0x22)
+		d.Command(0x22)
 	} else {
-		d.bus.command(0xF1)
+		d.Command(0xF1)
 	}
-	d.bus.command(SETVCOMDETECT)
-	d.bus.command(0x40)
-	d.bus.command(DISPLAYALLON_RESUME)
-	d.bus.command(NORMALDISPLAY)
-	d.bus.command(DEACTIVATE_SCROLL)
-	d.bus.command(DISPLAYON)
+	d.Command(SETVCOMDETECT)
+	d.Command(0x40)
+	d.Command(DISPLAYALLON_RESUME)
+	d.Command(NORMALDISPLAY)
+	d.Command(DEACTIVATE_SCROLL)
+	d.Command(DISPLAYON)
+
+}
+
+// Command sends a command to the display
+func (d *Device) Command(command uint8) {
+	d.bus.command(command)
+}
+
+// Tx sends data to the display; if isCommand is false, this also updates the image buffer.
+func (d *Device) Tx(data []byte, isCommand bool) error {
+	return d.bus.tx(data, isCommand)
 }
 
 // ClearBuffer clears the image buffer
@@ -170,12 +182,12 @@ func (d *Device) Display() error {
 	// In the 128x64 (SPI) screen resetting to 0x0 after 128 times corrupt the buffer
 	// Since we're printing the whole buffer, avoid resetting it in this case
 	if d.canReset {
-		d.bus.command(COLUMNADDR)
-		d.bus.command(d.resetCol[0])
-		d.bus.command(d.resetCol[1])
-		d.bus.command(PAGEADDR)
-		d.bus.command(d.resetPage[0])
-		d.bus.command(d.resetPage[1])
+		d.Command(COLUMNADDR)
+		d.Command(d.resetCol[0])
+		d.Command(d.resetCol[1])
+		d.Command(PAGEADDR)
+		d.Command(d.resetPage[0])
+		d.Command(d.resetPage[1])
 	}
 
 	return d.bus.flush()
@@ -250,15 +262,15 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 	d.rotation = rotation
 	switch d.rotation {
 	case drivers.Rotation0:
-		d.bus.command(SEGREMAP | 0x1) // Reverse horizontal mapping
-		d.bus.command(COMSCANDEC)     // Reverse vertical mapping
+		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.Command(COMSCANDEC)     // Reverse vertical mapping
 	case drivers.Rotation180:
-		d.bus.command(SEGREMAP)   // Normal horizontal mapping
-		d.bus.command(COMSCANINC) // Normal vertical mapping
+		d.Command(SEGREMAP)   // Normal horizontal mapping
+		d.Command(COMSCANINC) // Normal vertical mapping
 	// nothing to do
 	default:
-		d.bus.command(SEGREMAP | 0x1) // Reverse horizontal mapping
-		d.bus.command(COMSCANDEC)     // Reverse vertical mapping
+		d.Command(SEGREMAP | 0x1) // Reverse horizontal mapping
+		d.Command(COMSCANDEC)     // Reverse vertical mapping
 	}
 	return nil
 }
@@ -268,9 +280,9 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 // should be kept.
 func (d *Device) Sleep(sleepEnabled bool) error {
 	if sleepEnabled {
-		d.bus.command(DISPLAYOFF)
+		d.Command(DISPLAYOFF)
 	} else {
-		d.bus.command(DISPLAYON)
+		d.Command(DISPLAYON)
 	}
 	return nil
 }
