@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -26,7 +25,7 @@ type Device struct {
 	accelSampleRate AccelSampleRate
 	gyroRange       GyroRange
 	gyroSampleRate  GyroSampleRate
-	buf             [6]uint8
+	buf             [7]uint8 // up to 6 bytes for read + 1 byte for the register address
 }
 
 // Configuration for LSM6DS3TR device.
@@ -84,30 +83,20 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 		d.gyroSampleRate = GYRO_SR_104
 	}
 
-	data := d.buf[:1]
-
 	// Configure accelerometer
-	data[0] = uint8(d.accelRange) | uint8(d.accelSampleRate)
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL1_XL, data)
+	err = d.writeByte(CTRL1_XL, uint8(d.accelRange)|uint8(d.accelSampleRate))
 	if err != nil {
 		return
 	}
 
-	// Set ODR bit
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), CTRL4_C, data)
-	if err != nil {
-		return
-	}
-	data[0] = data[0] &^ BW_SCAL_ODR_ENABLED
-	data[0] |= BW_SCAL_ODR_ENABLED
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL4_C, data)
+	// Enable ODR scaling
+	err = d.setBits(CTRL4_C, BW_SCAL_ODR_ENABLED)
 	if err != nil {
 		return
 	}
 
 	// Configure gyroscope
-	data[0] = uint8(d.gyroRange) | uint8(d.gyroSampleRate)
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), CTRL2_G, data)
+	err = d.writeByte(CTRL2_G, uint8(d.gyroRange)|uint8(d.gyroSampleRate))
 	if err != nil {
 		return
 	}
@@ -118,8 +107,10 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 // Connected returns whether a LSM6DS3TR has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	data := d.buf[:1]
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	data, err := d.readBytes(WHO_AM_I, 1)
+	if err != nil {
+		return false
+	}
 	return data[0] == 0x6A
 }
 
@@ -128,8 +119,7 @@ func (d *Device) Connected() bool {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_XL, data)
+	data, err := d.readBytes(OUTX_L_XL, 6)
 	if err != nil {
 		return
 	}
@@ -153,8 +143,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_G, data)
+	data, err := d.readBytes(OUTX_L_G, 6)
 	if err != nil {
 		return
 	}
@@ -177,8 +166,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_TEMP_L, data)
+	data, err := d.readBytes(OUT_TEMP_L, 2)
 	if err != nil {
 		return
 	}
@@ -186,4 +174,27 @@ func (d *Device) ReadTemperature() (t int32, err error) {
 	// temp = value/256 + 25
 	t = 25000 + (int32(int16((int16(data[1])<<8)|int16(data[0])))*125)/32
 	return
+}
+
+func (d *Device) readBytes(reg, size uint8) ([]byte, error) {
+	d.buf[0] = reg
+	err := d.bus.Tx(d.Address, d.buf[0:1], d.buf[1:size+1])
+	if err != nil {
+		return nil, err
+	}
+	return d.buf[1 : size+1], nil
+}
+
+func (d *Device) writeByte(reg, value uint8) error {
+	d.buf[0] = reg
+	d.buf[1] = value
+	return d.bus.Tx(d.Address, d.buf[0:2], nil)
+}
+
+func (d *Device) setBits(reg, bits uint8) error {
+	data, err := d.readBytes(reg, 1)
+	if err != nil {
+		return err
+	}
+	return d.writeByte(reg, (data[0]&^bits)|bits)
 }
