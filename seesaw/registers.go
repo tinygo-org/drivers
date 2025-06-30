@@ -98,3 +98,13 @@ const (
 	FunctionKeypadCount    FunctionAddress = 0x04
 	FunctionKeypadFifo     FunctionAddress = 0x10
 )
+
+// encoder module function address registers
+// these are the defaults for encoder 0, change the lower nibble to address other encoders
+// see the Device.GetEncoderPosition and SetEncoderPosition methods for examples.
+const (
+	FunctionEncoderIntenset FunctionAddress = 0x10
+	FunctionEncoderIntenclr FunctionAddress = 0x20
+	FunctionEncoderPosition FunctionAddress = 0x30
+	FunctionEncoderDelta    FunctionAddress = 0x40
+)
