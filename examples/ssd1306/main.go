@@ -2,26 +2,24 @@ package main
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers/ssd1306"
 )
 
 func main() {
-	machine.SPI0.Configure(machine.SPIConfig{
-		Frequency: 8000000,
-	})
-	display := ssd1306.NewSPI(machine.SPI0, machine.P8, machine.P7, machine.P9)
-	display.Configure(ssd1306.Config{
-		Width:  128,
-		Height: 64,
-	})
-
+	const height = 32
+	const width = 128
+	var display *ssd1306.Device
+	var err error
+	display, err = makeSSD1306(width, height)
+	if err != nil {
+		panic(err)
+	}
 	display.ClearDisplay()
 
-	x := int16(64)
-	y := int16(32)
+	x := int16(36)
+	y := int16(20)
 	deltaX := int16(1)
 	deltaY := int16(1)
 	for {
@@ -36,11 +34,11 @@ func main() {
 		x += deltaX
 		y += deltaY
 
-		if x == 0 || x == 127 {
+		if x == 0 || x == width-1 {
 			deltaX = -deltaX
 		}
 
-		if y == 0 || y == 63 {
+		if y == 0 || y == height-1 {
 			deltaY = -deltaY
 		}
 		time.Sleep(1 * time.Millisecond)
