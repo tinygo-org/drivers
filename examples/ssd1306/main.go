@@ -8,18 +8,21 @@ import (
 )
 
 func main() {
-	const height = 32
-	const width = 128
+	// Thumby will have preset size.
+	// If not compiling for thumby the width and height will be whatever we suggest
+	const suggestHeight = 32
+	const suggestWidth = 128
 	var display *ssd1306.Device
 	var err error
-	display, err = makeSSD1306(width, height)
+	display, err = makeSSD1306(suggestWidth, suggestHeight)
 	if err != nil {
 		panic(err)
 	}
 	display.ClearDisplay()
 
-	x := int16(36)
-	y := int16(20)
+	width, height := display.Size()
+	x := int16(width)
+	y := int16(height)
 	deltaX := int16(1)
 	deltaY := int16(1)
 	for {
