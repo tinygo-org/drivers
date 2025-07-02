@@ -8,7 +8,7 @@ import (
 	"tinygo.org/x/drivers/ssd1306"
 )
 
-func makeSSD1306(_, _ int16, address uint16) (*ssd1306.Device, error) {
+func makeSSD1306(_, _ int16) (*ssd1306.Device, error) {
 	// width and height are known for thumby.
 	machine.SPI0.Configure(machine.SPIConfig{})
 	display := ssd1306.NewSPI(machine.SPI0, machine.THUMBY_DC_PIN, machine.THUMBY_RESET_PIN, machine.THUMBY_CS_PIN)
