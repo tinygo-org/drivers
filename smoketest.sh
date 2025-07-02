@@ -66,6 +66,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht3x/m
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/sht4x/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/shtc3/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1306/
+tinygo build -size short -o ./build/test.hex -target=thumby ./examples/ssd1306/
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1331/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/st7735/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/st7789/main.go
