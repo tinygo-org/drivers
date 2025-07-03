@@ -1,3 +1,5 @@
+//go:build baremetal
+
 package ssd1289
 
 import "machine"

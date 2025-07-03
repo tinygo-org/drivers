@@ -5,12 +5,12 @@ package gc9a01 // import "tinygo.org/x/drivers/gc9a01"
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Rotation controls the rotation used by the display.
@@ -22,10 +22,10 @@ type FrameRate uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus             drivers.SPI
-	dcPin           machine.Pin
-	resetPin        machine.Pin
-	csPin           machine.Pin
-	blPin           machine.Pin
+	dcPin           drivers.PinOutput
+	resetPin        drivers.PinOutput
+	csPin           drivers.PinOutput
+	blPin           drivers.PinOutput
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -52,27 +52,27 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device {
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
 	return Device{
 		bus:      bus,
-		resetPin: resetPin,
-		dcPin:    dcPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		resetPin: resetPin.Set,
+		dcPin:    dcPin.Set,
+		csPin:    csPin.Set,
+		blPin:    blPin.Set,
 	}
 }
 
 // Reset the Device
 func (d *Device) Reset() {
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin.Low()
+	d.resetPin(false)
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(100 * time.Millisecond)
 
 }
@@ -226,20 +226,20 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.bus.Tx(data, nil)
 }
 
 // Rx reads data from the display
 func (d *Device) Rx(command uint8, data []byte) {
-	d.dcPin.Low()
-	d.csPin.Low()
+	d.dcPin(false)
+	d.csPin(false)
 	d.bus.Transfer(command)
-	d.dcPin.High()
+	d.dcPin(true)
 	for i := range data {
 		data[i], _ = d.bus.Transfer(0xFF)
 	}
-	d.csPin.High()
+	d.csPin(true)
 }
 
 // Size returns the current size of the display.
@@ -250,9 +250,9 @@ func (d *Device) Size() (w, h int16) {
 // EnableBacklight enables or disables the backlight
 func (d *Device) EnableBacklight(enable bool) {
 	if enable {
-		d.blPin.High()
+		d.blPin(true)
 	} else {
-		d.blPin.Low()
+		d.blPin(false)
 	}
 }
 
@@ -563,5 +563,5 @@ func (d *Device) Configure(cfg Config) {
 	d.Command(DISPON)
 	time.Sleep(20 * time.Millisecond)
 
-	d.blPin.High()
+	d.blPin(true)
 }

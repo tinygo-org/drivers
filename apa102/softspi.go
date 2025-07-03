@@ -2,6 +2,7 @@ package apa102
 
 import (
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // bbSPI is a dumb bit-bang implementation of SPI protocol that is hardcoded
@@ -18,6 +19,9 @@ type bbSPI struct {
 
 // Configure sets up the SCK and SDO pins as outputs and sets them low
 func (s *bbSPI) Configure() {
+	if s.config == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
 	s.config()
 	s.SCK(false)
 	s.SDO(false)

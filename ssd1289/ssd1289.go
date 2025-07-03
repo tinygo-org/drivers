@@ -7,6 +7,9 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Bus interface {
@@ -14,10 +17,10 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  machine.Pin
-	wr  machine.Pin
-	cs  machine.Pin
-	rst machine.Pin
+	rs  drivers.PinOutput
+	wr  drivers.PinOutput
+	cs  drivers.PinOutput
+	rst drivers.PinOutput
 	bus Bus
 }
 
@@ -26,32 +29,31 @@ const height = int16(320)
 
 func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bus) Device {
 	d := Device{
-		rs:  rs,
-		wr:  wr,
-		cs:  cs,
-		rst: rst,
+		rs:  rs.Set,
+		wr:  wr.Set,
+		cs:  cs.Set,
+		rst: rst.Set,
 		bus: bus,
 	}
+	legacy.ConfigurePinOut(rs)
+	legacy.ConfigurePinOut(wr)
+	legacy.ConfigurePinOut(cs)
+	legacy.ConfigurePinOut(rst)
 
-	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	wr.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
-	cs.High()
-	rst.High()
-	wr.High()
+	cs.Set(true)
+	rst.Set(true)
+	wr.Set(true)
 
 	return d
 }
 
 func (d *Device) lcdWriteCom(cmd Command) {
-	d.rs.Low()
+	d.rs(false)
 	d.lcdWriteBusInt(uint16(cmd))
 }
 
 func (d *Device) lcdWriteDataInt(data uint16) {
-	d.rs.High()
+	d.rs(true)
 	d.lcdWriteBusInt(data)
 }
 
@@ -61,8 +63,8 @@ func (d *Device) lcdWriteComData(cmd Command, data uint16) {
 }
 
 func (d *Device) tx() {
-	d.wr.Low()
-	d.wr.High()
+	d.wr(false)
+	d.wr(true)
 }
 
 func (d *Device) lcdWriteBusInt(data uint16) {
@@ -71,13 +73,13 @@ func (d *Device) lcdWriteBusInt(data uint16) {
 }
 
 func (d *Device) Configure() {
-	d.rst.High()
+	d.rst(true)
 	time.Sleep(time.Millisecond * 5)
-	d.rst.Low()
+	d.rst(false)
 	time.Sleep(time.Millisecond * 15)
-	d.rst.High()
+	d.rst(true)
 	time.Sleep(time.Millisecond * 15)
-	d.cs.Low()
+	d.cs(false)
 
 	//Power supply setting
 	d.lcdWriteComData(POWERCONTROL1, 0xA8A4)
@@ -137,7 +139,7 @@ func (d *Device) Configure() {
 	//MUX 319 --> Number of lines in display
 	d.lcdWriteComData(DRIVEROUTPUTCONTROL, 0x233F)
 
-	d.cs.High()
+	d.cs(true)
 
 }
 
@@ -167,25 +169,25 @@ func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 
 	encoded := encodeColor(c)
 
-	d.cs.Low()
+	d.cs(false)
 	d.setXY(uint16(x), uint16(y), uint16(x), uint16(y))
-	d.rs.High()
+	d.rs(true)
 	d.lcdWriteBusInt(encoded)
-	d.cs.High()
+	d.cs(true)
 }
 
 func (d *Device) FillRect(x, y, w, h int16, c color.RGBA) {
 	encoded := encodeColor(c)
 
-	d.cs.Low()
+	d.cs(false)
 	d.setXY(uint16(x), uint16(y), uint16(x+(w-1)), uint16(y+(h-1)))
-	d.rs.High()
+	d.rs(true)
 	d.bus.Set(encoded)
 	for i := int64(0); i < int64(w)*int64(h); i++ {
 		d.tx()
 	}
-	d.cs.High()
-	d.rs.Low()
+	d.cs(true)
+	d.rs(false)
 
 }
 

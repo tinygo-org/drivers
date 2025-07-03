@@ -5,8 +5,6 @@
 package ft6336
 
 import (
-	"machine"
-
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/touch"
@@ -17,16 +15,18 @@ type Device struct {
 	bus     drivers.I2C
 	buf     []byte
 	Address uint8
-	intPin  machine.Pin
+	config  func()
 }
 
 // New returns FT6336 device for the provided I2C bus using default address.
-func New(i2c drivers.I2C, intPin machine.Pin) *Device {
+func New(i2c drivers.I2C, intPin legacy.PinInput) *Device {
 	return &Device{
 		bus:     i2c,
 		buf:     make([]byte, 11),
 		Address: Address,
-		intPin:  intPin,
+		config: func() {
+			legacy.ConfigurePinInputPulldown(intPin)
+		},
 	}
 }
 
@@ -36,8 +36,11 @@ type Config struct {
 
 // Configure the FT6336 device.
 func (d *Device) Configure(config Config) error {
+	if d.config == nil {
+		return legacy.ErrConfigBeforeInstantiated
+	}
 	d.write1Byte(0xA4, 0x00)
-	d.intPin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	d.config()
 	return nil
 }
 

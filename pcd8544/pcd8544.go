@@ -6,18 +6,18 @@ package pcd8544 // import "tinygo.org/x/drivers/pcd8544"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an SPI connection.
 type Device struct {
 	bus        drivers.SPI
-	dcPin      machine.Pin
-	rstPin     machine.Pin
-	scePin     machine.Pin
+	dcPin      drivers.PinOutput
+	rstPin     drivers.PinOutput
+	scePin     drivers.PinOutput
 	buffer     []byte
 	width      int16
 	height     int16
@@ -30,12 +30,12 @@ type Config struct {
 }
 
 // New creates a new PCD8544 connection. The SPI bus must already be configured.
-func New(bus drivers.SPI, dcPin, rstPin, scePin machine.Pin) *Device {
+func New(bus drivers.SPI, dcPin, rstPin, scePin legacy.PinOutput) *Device {
 	return &Device{
 		bus:    bus,
-		dcPin:  dcPin,
-		rstPin: rstPin,
-		scePin: scePin,
+		dcPin:  dcPin.Set,
+		rstPin: rstPin.Set,
+		scePin: scePin.Set,
 	}
 }
 
@@ -54,9 +54,9 @@ func (d *Device) Configure(cfg Config) {
 	d.bufferSize = d.width * d.height / 8
 	d.buffer = make([]byte, d.bufferSize)
 
-	d.rstPin.Low()
+	d.rstPin(false)
 	time.Sleep(100 * time.Nanosecond)
-	d.rstPin.High()
+	d.rstPin(true)
 	d.SendCommand(FUNCTIONSET | EXTENDEDINSTRUCTION) // H = 1
 	d.SendCommand(SETVOP | 0x3f)                     // 0x3f : Vop6 = 0, Vop5 to Vop0 = 1
 	d.SendCommand(SETTEMP | 0x03)                    // Experimentally determined
@@ -91,13 +91,13 @@ func (d *Device) Display() error {
 // sendDataCommand sends image data or a command to the screen
 func (d *Device) sendDataCommand(isCommand bool, data uint8) {
 	if isCommand {
-		d.dcPin.Low()
+		d.dcPin(false)
 	} else {
-		d.dcPin.High()
+		d.dcPin(true)
 	}
-	d.scePin.Low()
+	d.scePin(false)
 	d.bus.Transfer(data)
-	d.scePin.High()
+	d.scePin(true)
 }
 
 // SetPixel enables or disables a pixel in the buffer

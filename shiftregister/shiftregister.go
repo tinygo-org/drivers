@@ -2,7 +2,8 @@
 package shiftregister
 
 import (
-	"machine"
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type NumberBit int8
@@ -16,9 +17,10 @@ const (
 
 // Device holds pin number
 type Device struct {
-	latch, clock, out machine.Pin // IC wiring
-	bits              NumberBit   // Pin number
-	mask              uint32      // keep all pins state
+	latch, clock, out drivers.PinOutput // IC wiring
+	config            func()
+	bits              NumberBit // Pin number
+	mask              uint32    // keep all pins state
 }
 
 // ShiftPin is the implementation of the ShiftPin interface.
@@ -29,35 +31,40 @@ type ShiftPin struct {
 }
 
 // New returns a new shift output register device
-func New(Bits NumberBit, Latch, Clock, Out machine.Pin) *Device {
+func New(Bits NumberBit, Latch, Clock, Out legacy.PinOutput) *Device {
 	return &Device{
-		latch: Latch,
-		clock: Clock,
-		out:   Out,
+		latch: Latch.Set,
+		clock: Clock.Set,
+		out:   Out.Set,
 		bits:  Bits,
+		config: func() {
+			legacy.ConfigurePinOut(Latch)
+			legacy.ConfigurePinOut(Clock)
+			legacy.ConfigurePinOut(Out)
+		},
 	}
 }
 
 // Configure set hardware configuration
 func (d *Device) Configure() {
-	d.latch.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.clock.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.out.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.latch.High()
+	if d.config == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	d.latch(true)
 }
 
 // WriteMask applies mask's bits to register's outputs pin
 // mask's MSB set Q1, LSB set Q8 (for 8 bits mask)
 func (d *Device) WriteMask(mask uint32) {
 	d.mask = mask // Keep the mask for individual addressing
-	d.latch.Low()
+	d.latch(false)
 	for i := 0; i < int(d.bits); i++ {
-		d.clock.Low()
-		d.out.Set(mask&1 != 0)
+		d.clock(false)
+		d.out(mask&1 != 0)
 		mask = mask >> 1
-		d.clock.High()
+		d.clock(true)
 	}
-	d.latch.High()
+	d.latch(true)
 }
 
 // GetShiftPin return an individually addressable pin

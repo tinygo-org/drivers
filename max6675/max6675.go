@@ -3,9 +3,9 @@ package max6675
 
 import (
 	"errors"
-	"machine"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // ErrThermocoupleOpen is returned when the thermocouple input is open.
@@ -14,16 +14,16 @@ var ErrThermocoupleOpen = errors.New("thermocouple input open")
 
 type Device struct {
 	bus drivers.SPI
-	cs  machine.Pin
+	cs  drivers.PinOutput
 }
 
 // Create a new Device to read from a MAX6675 thermocouple.
 // Pins must be configured before use.  Frequency for SPI
 // should be 4.3MHz maximum.
-func NewDevice(bus drivers.SPI, cs machine.Pin) *Device {
+func NewDevice(bus drivers.SPI, cs legacy.PinOutput) *Device {
 	return &Device{
 		bus: bus,
-		cs:  cs,
+		cs:  cs.Set,
 	}
 }
 
@@ -34,11 +34,11 @@ func (d *Device) Read() (float32, error) {
 		value uint16
 	)
 
-	d.cs.Low()
+	d.cs(false)
 	if err := d.bus.Tx([]byte{0, 0}, read); err != nil {
 		return 0, err
 	}
-	d.cs.High()
+	d.cs(true)
 
 	// datasheet: Bit D2 is normally low and goes high if the thermocouple input is open.
 	if read[1]&0x04 == 0x04 {
