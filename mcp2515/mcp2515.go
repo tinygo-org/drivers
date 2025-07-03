@@ -8,18 +8,19 @@ package mcp2515 // import "tinygo.org/x/drivers/mcp2515"
 import (
 	"errors"
 	"fmt"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps MCP2515 SPI CAN Module.
 type Device struct {
 	spi     SPI
-	cs      machine.Pin
+	cs      drivers.PinOutput
 	msg     *CANMsg
 	mcpMode byte
+	config  func()
 }
 
 // CANMsg stores CAN message fields.
@@ -36,15 +37,18 @@ const (
 )
 
 // New returns a new MCP2515 driver. Pass in a fully configured SPI bus.
-func New(b drivers.SPI, csPin machine.Pin) *Device {
+func New(b drivers.SPI, csPin legacy.PinOutput) *Device {
 	d := &Device{
 		spi: SPI{
 			bus: b,
 			tx:  make([]byte, 0, bufferSize),
 			rx:  make([]byte, 0, bufferSize),
 		},
-		cs:  csPin,
+		cs:  csPin.Set,
 		msg: &CANMsg{},
+		config: func() {
+			legacy.ConfigurePinOut(csPin)
+		},
 	}
 
 	return d
@@ -52,7 +56,10 @@ func New(b drivers.SPI, csPin machine.Pin) *Device {
 
 // Configure sets up the device for communication.
 func (d *Device) Configure() {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	if d.config == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	d.config()
 }
 
 const beginTimeoutValue int = 10
@@ -159,9 +166,9 @@ func (d *Device) init(speed, clock byte) error {
 
 // Reset resets mcp2515.
 func (d *Device) Reset() error {
-	d.cs.Low()
+	d.cs(false)
 	_, err := d.spi.readWrite(mcpReset)
-	d.cs.High()
+	d.cs(true)
 	// time.Sleep(time.Microsecond * 4)
 	if err != nil {
 		return err
@@ -449,8 +456,8 @@ func (d *Device) readMsg() error {
 
 func (d *Device) readRxBuffer(loadAddr uint8) error {
 	msg := d.msg
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(loadAddr)
 	if err != nil {
 		return err
@@ -517,8 +524,8 @@ func (d *Device) getNextFreeTxBuf() (uint8, uint8, error) {
 }
 
 func (d *Device) writeCANMsg(bufNum uint8, canid uint32, ext, rtrBit, dlc uint8, data []byte) error {
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(txSidhToLoad(bufNum))
 	if err != nil {
 		return err
@@ -537,7 +544,7 @@ func (d *Device) writeCANMsg(bufNum uint8, canid uint32, ext, rtrBit, dlc uint8,
 	}
 	// Since cs.Low and cs.High are executed in d.startTransmission,
 	// it is necessary to set cs.High once to separate the instruction of mcp2515.
-	d.cs.High()
+	d.cs(true)
 
 	err = d.startTransmission(bufNum)
 	if err != nil {
@@ -605,9 +612,9 @@ func (s *SPI) setTxBufData(canid uint32, ext, rtrBit, dlc uint8, data []byte) er
 }
 
 func (d *Device) startTransmission(bufNum uint8) error {
-	d.cs.Low()
+	d.cs(false)
 	_, err := d.spi.readWrite(txSidhToRTS(bufNum))
-	d.cs.High()
+	d.cs(true)
 	if err != nil {
 		return err
 	}
@@ -701,8 +708,8 @@ func txSidhToLoad(i uint8) uint8 {
 }
 
 func (d *Device) setRegister(addr, value byte) error {
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(mcpWrite)
 	if err != nil {
 		return err
@@ -721,8 +728,8 @@ func (d *Device) setRegister(addr, value byte) error {
 }
 
 func (d *Device) readRegister(addr byte) (byte, error) {
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(mcpRead)
 	if err != nil {
 		return 0, err
@@ -740,8 +747,8 @@ func (d *Device) readRegister(addr byte) (byte, error) {
 }
 
 func (d *Device) modifyRegister(addr, mask, data byte) error {
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(mcpBitMod)
 	if err != nil {
 		return err
@@ -783,8 +790,8 @@ func (d *Device) requestNewMode(newMode byte) error {
 }
 
 func (d *Device) readStatus() (byte, error) {
-	d.cs.Low()
-	defer d.cs.High()
+	d.cs(false)
+	defer d.cs(true)
 	_, err := d.spi.readWrite(mcpReadStatus)
 	if err != nil {
 		return 0, err
