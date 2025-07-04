@@ -16,11 +16,11 @@ type SPIBus struct {
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
+func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) *Device {
 	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{
+	return &Device{
 		bus: &SPIBus{
 			wire:     bus,
 			dcPin:    dcPin,

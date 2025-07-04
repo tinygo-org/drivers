@@ -11,8 +11,8 @@ type I2CBus struct {
 }
 
 // NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
-func NewI2C(bus drivers.I2C) Device {
-	return Device{
+func NewI2C(bus drivers.I2C) *Device {
+	return &Device{
 		bus: &I2CBus{
 			wire:    bus,
 			address: Address,

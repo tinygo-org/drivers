@@ -1,25 +1,31 @@
-package common
+package main
+
+// This example shows how to use SSD1306 OLED display driver over I2C and SPI.
+//
+// Check the `newSSD1306Display()` functions for I2C and SPI initializations.
 
 import (
 	"runtime"
 
 	"image/color"
 	"time"
-
-	"tinygo.org/x/drivers/ssd1306"
 )
 
-var ms = runtime.MemStats{}
+func main() {
 
-func Loop(display ssd1306.Device) {
+	display := newSSD1306Display()
 	display.ClearDisplay()
+
 	w, h := display.Size()
 	x := int16(0)
 	y := int16(0)
 	deltaX := int16(1)
 	deltaY := int16(1)
-	trace := time.Now().UnixMilli() + 1000
+
+	traceTime := time.Now().UnixMilli() + 1000
 	frames := 0
+	ms := runtime.MemStats{}
+
 	for {
 		pixel := display.GetPixel(x, y)
 		c := color.RGBA{255, 255, 255, 255}
@@ -42,11 +48,12 @@ func Loop(display ssd1306.Device) {
 
 		frames++
 		now := time.Now().UnixMilli()
-		if now >= trace {
+		if now >= traceTime {
 			runtime.ReadMemStats(&ms)
 			println("TS", now, "| FPS", frames, "| HeapInuse", ms.HeapInuse)
-			trace = now + 1000
+			traceTime = now + 1000
 			frames = 0
 		}
 	}
+
 }
