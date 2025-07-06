@@ -1,25 +1,21 @@
 package apa102
 
-import (
-	"tinygo.org/x/drivers"
-)
-
 // bbSPI is a dumb bit-bang implementation of SPI protocol that is hardcoded
 // to mode 0 and ignores trying to receive data. Just enough for the APA102.
 // Note: making this unexported for now because it is probable not suitable
 // most purposes other than the APA102 package. It might be desirable to make
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
-	SCK   drivers.Pin
-	SDO   drivers.Pin
+	SCK   func(bool)
+	SDO   func(bool)
 	Delay uint32
 }
 
 // Configure sets the SCK and SDO pins to low.
 // Note that the SCK and SDO pins must already be configured as outputs.
 func (s *bbSPI) Configure() {
-	s.SCK.Low()
-	s.SDO.Low()
+	s.SCK(false) // SCK is low
+	s.SDO(false) // SDO is low
 	if s.Delay == 0 {
 		s.Delay = 1
 	}
@@ -48,19 +44,19 @@ func (s *bbSPI) Transfer(b byte) (byte, error) {
 	for i := uint8(0); i < 8; i++ {
 
 		// half clock cycle high to start
-		s.SCK.High()
+		s.SCK(true)
 		s.delay()
 
 		// write the value to SDO (MSB first)
 		if b&(1<<(7-i)) == 0 {
-			s.SDO.Low()
+			s.SDO(false)
 		} else {
-			s.SDO.High()
+			s.SDO(true)
 		}
 		s.delay()
 
 		// half clock cycle low
-		s.SCK.Low()
+		s.SCK(false)
 		s.delay()
 
 		// for actual SPI would try to read the SDI value here

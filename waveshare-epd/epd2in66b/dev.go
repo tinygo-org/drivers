@@ -18,18 +18,18 @@ const (
 const Baudrate = 4_000_000 // 4 MHz
 
 type Config struct {
-	ResetPin      drivers.Pin
-	DataPin       drivers.Pin
-	ChipSelectPin drivers.Pin
-	BusyPin       drivers.Pin
+	ResetPin      drivers.PinOut
+	DataPin       drivers.PinOut
+	ChipSelectPin drivers.PinOut
+	BusyPin       drivers.PinIn
 }
 
 type Device struct {
 	bus  drivers.SPI
-	cs   drivers.Pin
-	dc   drivers.Pin
-	rst  drivers.Pin
-	busy drivers.Pin
+	cs   drivers.PinOut
+	dc   drivers.PinOut
+	rst  drivers.PinOut
+	busy drivers.PinIn
 
 	blackBuffer []byte
 	redBuffer   []byte

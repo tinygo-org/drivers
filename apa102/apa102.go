@@ -36,8 +36,8 @@ func New(b drivers.SPI) *Device {
 
 // NewSoftwareSPI returns a new APA102 driver that will use a software based
 // implementation of the SPI protocol.
-func NewSoftwareSPI(sckPin, sdoPin drivers.Pin, delay uint32) *Device {
-	return New(&bbSPI{SCK: sckPin, SDO: sdoPin, Delay: delay})
+func NewSoftwareSPI(sckPin, sdoPin drivers.PinOut, delay uint32) *Device {
+	return New(&bbSPI{SCK: sckPin.Set, SDO: sdoPin.Set, Delay: delay})
 }
 
 // WriteColors writes the given RGBA color slice out using the APA102 protocol.
