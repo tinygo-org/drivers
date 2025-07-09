@@ -63,6 +63,13 @@ func ConfigurePinInputPullup(pi PinInput) {
 	configurePinInputPullup(pi)
 }
 
+// PinIsNoPin returns true if the argument is a machine.Pin type and is the machine.NoPin predeclared type.
+//
+// Deprecated: Drivers do not require pin knowledge from now on.
+func PinIsNoPin(pin any) bool {
+	return pinIsNoPin(pin)
+}
+
 var (
 	ErrConfigBeforeInstantiated = errors.New("device must be instantiated with New before calling Configure method")
 )

@@ -5,12 +5,12 @@ package st7735 // import "tinygo.org/x/drivers/st7735"
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -39,10 +39,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus          drivers.SPI
-	dcPin        machine.Pin
-	resetPin     machine.Pin
-	csPin        machine.Pin
-	blPin        machine.Pin
+	dcPin        drivers.PinOutput
+	resetPin     drivers.PinOutput
+	csPin        drivers.PinOutput
+	blPin        drivers.PinOutput
 	width        int16
 	height       int16
 	columnOffset int16
@@ -65,23 +65,23 @@ type Config struct {
 }
 
 // New creates a new ST7735 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7735 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) DeviceOf[T] {
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
 	return DeviceOf[T]{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
+		blPin:    blPin.Set,
 	}
 }
 
@@ -114,11 +114,11 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	d.batchData = pixel.NewImage[T](int(d.batchLength), 1)
 
 	// reset the device
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(5 * time.Millisecond)
-	d.resetPin.Low()
+	d.resetPin(false)
 	time.Sleep(20 * time.Millisecond)
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(150 * time.Millisecond)
 
 	// Common initialization
@@ -226,7 +226,7 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 
 	d.SetRotation(d.rotation)
 
-	d.blPin.High()
+	d.blPin(true)
 }
 
 // Display does nothing, there's no buffer as it might be too big for some boards
@@ -423,7 +423,7 @@ func (d *DeviceOf[T]) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *DeviceOf[T]) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.bus.Tx(data, nil)
 }
 
@@ -438,9 +438,9 @@ func (d *DeviceOf[T]) Size() (w, h int16) {
 // EnableBacklight enables or disables the backlight
 func (d *DeviceOf[T]) EnableBacklight(enable bool) {
 	if enable {
-		d.blPin.High()
+		d.blPin(true)
 	} else {
-		d.blPin.Low()
+		d.blPin(false)
 	}
 }
 
