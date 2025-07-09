@@ -5,7 +5,7 @@ package legacy
 import "machine"
 
 func configurePinOut(p PinOutput) {
-	configurePin(p, machine.PinInputPulldown)
+	configurePin(p, machine.PinOutput)
 }
 
 func configurePinInputPulldown(p PinInput) {
