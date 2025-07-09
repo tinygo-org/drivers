@@ -6,10 +6,10 @@ package epd2in13x // import "tinygo.org/x/drivers/waveshare-epd/epd2in13x"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Config struct {
@@ -20,10 +20,10 @@ type Config struct {
 
 type Device struct {
 	bus          drivers.SPI
-	cs           machine.Pin
-	dc           machine.Pin
-	rst          machine.Pin
-	busy         machine.Pin
+	cs           drivers.PinOutput
+	dc           drivers.PinOutput
+	rst          drivers.PinOutput
+	busy         drivers.PinInput
 	width        int16
 	height       int16
 	buffer       [][]uint8
@@ -33,17 +33,17 @@ type Device struct {
 type Color uint8
 
 // New returns a new epd2in13x driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	busyPin.Configure(machine.PinConfig{Mode: machine.PinInput})
+func New(bus drivers.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.PinInput) Device {
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(rstPin)
+	legacy.ConfigurePinInput(busyPin)
 	return Device{
 		bus:  bus,
-		cs:   csPin,
-		dc:   dcPin,
-		rst:  rstPin,
-		busy: busyPin,
+		cs:   csPin.Set,
+		dc:   dcPin.Set,
+		rst:  rstPin.Set,
+		busy: busyPin.Get,
 	}
 }
 
@@ -75,9 +75,9 @@ func (d *Device) Configure(cfg Config) {
 		}
 	}
 
-	d.cs.Low()
-	d.dc.Low()
-	d.rst.Low()
+	d.cs(false)
+	d.dc(false)
+	d.rst(false)
 
 	d.Reset()
 
@@ -99,9 +99,9 @@ func (d *Device) Configure(cfg Config) {
 
 // Reset resets the device
 func (d *Device) Reset() {
-	d.rst.Low()
+	d.rst(false)
 	time.Sleep(200 * time.Millisecond)
-	d.rst.High()
+	d.rst(true)
 	time.Sleep(200 * time.Millisecond)
 }
 
@@ -126,13 +126,13 @@ func (d *Device) SendData(data uint8) {
 // sendDataCommand sends image data or a command to the screen
 func (d *Device) sendDataCommand(isCommand bool, data uint8) {
 	if isCommand {
-		d.dc.Low()
+		d.dc(false)
 	} else {
-		d.dc.High()
+		d.dc(true)
 	}
-	d.cs.Low()
+	d.cs(false)
 	d.bus.Transfer(data)
-	d.cs.High()
+	d.cs(true)
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
@@ -277,14 +277,14 @@ func (d *Device) ClearDisplay() {
 
 // WaitUntilIdle waits until the display is ready
 func (d *Device) WaitUntilIdle() {
-	for !d.busy.Get() {
+	for !d.busy() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 // IsBusy returns the busy status of the display
 func (d *Device) IsBusy() bool {
-	return d.busy.Get()
+	return d.busy()
 }
 
 // ClearBuffer sets the buffer to 0xFF (white)

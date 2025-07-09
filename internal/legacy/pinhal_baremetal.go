@@ -20,6 +20,11 @@ func configurePinInputPullup(p PinInput) {
 	configurePin(p, machine.PinInputPullup)
 }
 
+func pinIsNoPin(a any) bool {
+	p, ok := a.(machine.Pin)
+	return ok && p == machine.NoPin
+}
+
 func configurePin(p any, mode machine.PinMode) {
 	machinePin, ok := p.(machine.Pin)
 	if ok {

@@ -7,13 +7,13 @@ package st7789 // import "tinygo.org/x/drivers/st7789"
 
 import (
 	"image/color"
-	"machine"
 	"math"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -46,10 +46,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus             drivers.SPI
-	dcPin           machine.Pin
-	resetPin        machine.Pin
-	csPin           machine.Pin
-	blPin           machine.Pin
+	dcPin           drivers.PinOutput
+	resetPin        drivers.PinOutput
+	csPin           drivers.PinOutput
+	blPin           drivers.PinOutput
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -83,23 +83,27 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) DeviceOf[T] {
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
+	var cs drivers.PinOutput
+	if !legacy.PinIsNoPin(csPin) {
+		cs = csPin.Set
+	}
 	return DeviceOf[T]{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    cs,
+		blPin:    blPin.Set,
 	}
 }
 
@@ -139,11 +143,11 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	d.batchLength += d.batchLength & 1
 
 	// Reset the device
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(50 * time.Millisecond)
-	d.resetPin.Low()
+	d.resetPin(false)
 	time.Sleep(50 * time.Millisecond)
-	d.resetPin.High()
+	d.resetPin(true)
 	time.Sleep(50 * time.Millisecond)
 
 	// Common initialization
@@ -209,7 +213,7 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	time.Sleep(10 * time.Millisecond) //
 
 	d.endWrite()
-	d.blPin.High() // Backlight ON
+	d.blPin(true) // Backlight ON
 }
 
 // Send a command with data to the display. It does not change the chip select
@@ -217,9 +221,9 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 // meaning that data can be sent right away.
 func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 	d.cmdBuf[0] = command
-	d.dcPin.Low()
+	d.dcPin(false)
 	err := d.bus.Tx(d.cmdBuf[:1], nil)
-	d.dcPin.High()
+	d.dcPin(true)
 	if len(data) != 0 {
 		err = d.bus.Tx(data, nil)
 	}
@@ -229,16 +233,16 @@ func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 // startWrite must be called at the beginning of all exported methods to set the
 // chip select pin low.
 func (d *DeviceOf[T]) startWrite() {
-	if d.csPin != machine.NoPin {
-		d.csPin.Low()
+	if d.csPin != nil {
+		d.csPin(false)
 	}
 }
 
 // endWrite must be called at the end of all exported methods to set the chip
 // select pin high.
 func (d *DeviceOf[T]) endWrite() {
-	if d.csPin != machine.NoPin {
-		d.csPin.High()
+	if d.csPin != nil {
+		d.csPin(true)
 	}
 }
 
@@ -300,9 +304,9 @@ func (d *DeviceOf[T]) SyncToScanLine(scanline uint16) {
 func (d *DeviceOf[T]) GetScanLine() uint16 {
 	d.startWrite()
 	data := []uint8{0x00, 0x00}
-	d.dcPin.Low()
+	d.dcPin(false)
 	d.bus.Transfer(GSCAN)
-	d.dcPin.High()
+	d.dcPin(true)
 	for i := range data {
 		data[i], _ = d.bus.Transfer(0xFF)
 	}
@@ -541,9 +545,9 @@ func (d *DeviceOf[T]) Size() (w, h int16) {
 // EnableBacklight enables or disables the backlight
 func (d *DeviceOf[T]) EnableBacklight(enable bool) {
 	if enable {
-		d.blPin.High()
+		d.blPin(true)
 	} else {
-		d.blPin.Low()
+		d.blPin(false)
 	}
 }
 

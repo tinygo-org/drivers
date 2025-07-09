@@ -6,10 +6,10 @@ package sx127x
 
 import (
 	"errors"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/lora"
 )
 
@@ -22,7 +22,7 @@ const (
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
-	rstPin         machine.Pin          // GPIO for reset
+	rstPin         drivers.PinOutput    // GPIO for reset
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
 	controller     RadioController      // to manage interactions with the radio
@@ -43,10 +43,10 @@ func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(spi drivers.SPI, rstPin machine.Pin) *Device {
+func New(spi drivers.SPI, rstPin legacy.PinOutput) *Device {
 	k := Device{
 		spi:            spi,
-		rstPin:         rstPin,
+		rstPin:         rstPin.Set,
 		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
 		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
 		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
@@ -67,9 +67,9 @@ func (d *Device) SetRadioController(rc RadioController) error {
 
 // Reset re-initialize the sx127x device
 func (d *Device) Reset() {
-	d.rstPin.Low()
+	d.rstPin(false)
 	time.Sleep(100 * time.Millisecond)
-	d.rstPin.High()
+	d.rstPin(true)
 	time.Sleep(100 * time.Millisecond)
 }
 

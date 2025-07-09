@@ -12,6 +12,9 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type Config struct {
@@ -22,12 +25,12 @@ type Config struct {
 }
 
 type Device struct {
-	bus  *machine.SPI
-	cs   machine.Pin
-	dc   machine.Pin
-	rst  machine.Pin
-	busy machine.Pin
-
+	bus      *machine.SPI
+	cs       drivers.PinOutput
+	dc       drivers.PinOutput
+	rst      drivers.PinOutput
+	busy     drivers.PinInput
+	config   func()
 	buffer   []uint8
 	rotation Rotation
 }
@@ -79,22 +82,28 @@ var partialRefresh = [159]uint8{
 }
 
 // New returns a new epd1in54 driver. Pass in a fully configured SPI bus.
-func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
+func New(bus *machine.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.PinInput) Device {
 	return Device{
 		buffer: make([]uint8, (uint32(Width)*uint32(Height))/8),
 		bus:    bus,
-		cs:     csPin,
-		dc:     dcPin,
-		rst:    rstPin,
-		busy:   busyPin,
+		cs:     csPin.Set,
+		dc:     dcPin.Set,
+		rst:    rstPin.Set,
+		busy:   busyPin.Get,
+		config: func() {
+			legacy.ConfigurePinOut(csPin)
+			legacy.ConfigurePinOut(dcPin)
+			legacy.ConfigurePinOut(rstPin)
+			legacy.ConfigurePinInput(busyPin)
+		},
 	}
 }
 
 func (d *Device) LDirInit(cfg Config) {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.busy.Configure(machine.PinConfig{Mode: machine.PinInput})
+	if d.config == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	d.config()
 
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,
@@ -150,10 +159,10 @@ func (d *Device) LDirInit(cfg Config) {
 }
 
 func (d *Device) HDirInit(cfg Config) {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.busy.Configure(machine.PinConfig{Mode: machine.PinInput})
+	if d.config == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	d.config()
 
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,
@@ -231,11 +240,11 @@ func (d *Device) setLUT(lut [159]uint8) {
 
 // Reset resets the display.
 func (d *Device) Reset() {
-	d.rst.High()
+	d.rst(true)
 	time.Sleep(20 * time.Millisecond)
-	d.rst.Low()
+	d.rst(false)
 	time.Sleep(5 * time.Millisecond)
-	d.rst.High()
+	d.rst(true)
 	time.Sleep(20 * time.Millisecond)
 }
 
@@ -252,13 +261,13 @@ func (d *Device) SendData(data uint8) {
 // sendDataCommand sends image data or a command to the screen
 func (d *Device) sendDataCommand(isCommand bool, data uint8) {
 	if isCommand {
-		d.dc.Low()
+		d.dc(false)
 	} else {
-		d.dc.High()
+		d.dc(true)
 	}
-	d.cs.Low()
+	d.cs(false)
 	d.bus.Transfer(data)
-	d.cs.High()
+	d.cs(true)
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
@@ -369,7 +378,7 @@ func (d *Device) Clear() {
 
 // WaitUntilIdle waits until the display is ready
 func (d *Device) WaitUntilIdle() {
-	for d.busy.Get() {
+	for d.busy() {
 		time.Sleep(100 * time.Millisecond)
 	}
 	time.Sleep(200 * time.Millisecond)
@@ -377,7 +386,7 @@ func (d *Device) WaitUntilIdle() {
 
 // IsBusy returns the busy status of the display
 func (d *Device) IsBusy() bool {
-	return d.busy.Get()
+	return d.busy()
 }
 
 // ClearBuffer sets the buffer to 0xFF (white)
@@ -420,5 +429,5 @@ func (d *Device) Sleep() {
 	d.SendData(0x01)
 	time.Sleep(200 * time.Millisecond)
 
-	d.rst.Low()
+	d.rst(false)
 }
