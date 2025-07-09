@@ -9,7 +9,7 @@ func configurePinOut(p PinOutput) {
 }
 
 func configurePinInputPulldown(p PinInput) {
-	configurePin(p, machine.PinInputPulldown)
+	configurePin(p, pulldown) // some chips do not have pull down, in which case pulldown==machine.PinInput.
 }
 
 func configurePinInput(p PinInput) {
@@ -17,7 +17,7 @@ func configurePinInput(p PinInput) {
 }
 
 func configurePinInputPullup(p PinInput) {
-	configurePin(p, machine.PinInputPullup)
+	configurePin(p, pullup) // some chips do not have pull up, in which case pullup==machine.PinInput.
 }
 
 func pinIsNoPin(a any) bool {
