@@ -6,11 +6,9 @@ package ssd1306 // import "tinygo.org/x/drivers/ssd1306"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -23,16 +21,15 @@ type ResetValue [2]byte
 
 // Device wraps I2C or SPI connection.
 type Device struct {
-	bus        Buser
-	buffer     []byte
-	width      int16
-	height     int16
-	bufferSize int16
-	vccState   VccMode
-	canReset   bool
-	resetCol   ResetValue
-	resetPage  ResetValue
-	rotation   drivers.Rotation
+	bus       Buser
+	buffer    []byte
+	width     int16
+	height    int16
+	vccState  VccMode
+	canReset  bool
+	resetCol  ResetValue
+	resetPage ResetValue
+	rotation  drivers.Rotation
 }
 
 // Config is the configuration for the display
@@ -51,50 +48,14 @@ type Config struct {
 	Rotation  drivers.Rotation
 }
 
-type I2CBus struct {
-	wire    drivers.I2C
-	Address uint16
-}
-
-type SPIBus struct {
-	wire     drivers.SPI
-	dcPin    machine.Pin
-	resetPin machine.Pin
-	csPin    machine.Pin
-}
-
 type Buser interface {
-	configure() error
-	tx(data []byte, isCommand bool) error
-	setAddress(address uint16) error
+	configure(address uint16, size int16) []byte // configure the bus and return the image buffer to use
+	command(cmd uint8) error                     // send a command to the display
+	flush() error                                // send the image to the display, faster than "tx()" in i2c case since avoids slice copy
+	tx(data []byte, isCommand bool) error        // generic transmit function
 }
 
 type VccMode uint8
-
-// NewI2C creates a new SSD1306 connection. The I2C wire must already be configured.
-func NewI2C(bus drivers.I2C) Device {
-	return Device{
-		bus: &I2CBus{
-			wire:    bus,
-			Address: Address,
-		},
-	}
-}
-
-// NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	return Device{
-		bus: &SPIBus{
-			wire:     bus,
-			dcPin:    dcPin,
-			resetPin: resetPin,
-			csPin:    csPin,
-		},
-	}
-}
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
@@ -108,9 +69,6 @@ func (d *Device) Configure(cfg Config) {
 		d.height = cfg.Height
 	} else {
 		d.height = 64
-	}
-	if cfg.Address != 0 {
-		d.bus.setAddress(cfg.Address)
 	}
 	if cfg.VccState != 0 {
 		d.vccState = cfg.VccState
@@ -127,11 +85,9 @@ func (d *Device) Configure(cfg Config) {
 	} else {
 		d.resetPage = ResetValue{0, uint8(d.height/8) - 1}
 	}
-	d.bufferSize = d.width * d.height / 8
-	d.buffer = make([]byte, d.bufferSize)
 	d.canReset = cfg.Address != 0 || d.width != 128 || d.height != 64 // I2C or not 128x64
 
-	d.bus.configure()
+	d.buffer = d.bus.configure(cfg.Address, d.width*d.height/8)
 
 	time.Sleep(100 * time.Nanosecond)
 	d.Command(DISPLAYOFF)
@@ -193,11 +149,22 @@ func (d *Device) Configure(cfg Config) {
 	d.Command(NORMALDISPLAY)
 	d.Command(DEACTIVATE_SCROLL)
 	d.Command(DISPLAYON)
+
+}
+
+// Command sends a command to the display
+func (d *Device) Command(command uint8) {
+	d.bus.command(command)
+}
+
+// Tx sends data to the display; if isCommand is false, this also updates the image buffer.
+func (d *Device) Tx(data []byte, isCommand bool) error {
+	return d.bus.tx(data, isCommand)
 }
 
 // ClearBuffer clears the image buffer
 func (d *Device) ClearBuffer() {
-	for i := int16(0); i < d.bufferSize; i++ {
+	for i := 0; i < len(d.buffer); i++ {
 		d.buffer[i] = 0
 	}
 }
@@ -223,7 +190,7 @@ func (d *Device) Display() error {
 		d.Command(d.resetPage[1])
 	}
 
-	return d.Tx(d.buffer, false)
+	return d.bus.flush()
 }
 
 // SetPixel enables or disables a pixel in the buffer
@@ -252,91 +219,16 @@ func (d *Device) GetPixel(x int16, y int16) bool {
 
 // SetBuffer changes the whole buffer at once
 func (d *Device) SetBuffer(buffer []byte) error {
-	if int16(len(buffer)) != d.bufferSize {
+	if len(buffer) != len(d.buffer) {
 		return errBufferSize
 	}
-	for i := int16(0); i < d.bufferSize; i++ {
-		d.buffer[i] = buffer[i]
-	}
+	copy(d.buffer, buffer)
 	return nil
 }
 
 // GetBuffer returns the whole buffer
 func (d *Device) GetBuffer() []byte {
 	return d.buffer
-}
-
-// Command sends a command to the display
-func (d *Device) Command(command uint8) {
-	d.bus.tx([]byte{command}, true)
-}
-
-// setAddress sets the address to the I2C bus
-func (b *I2CBus) setAddress(address uint16) error {
-	b.Address = address
-	return nil
-}
-
-// setAddress does nothing, but it's required to avoid reflection
-func (b *SPIBus) setAddress(address uint16) error {
-	// do nothing
-	println("trying to Configure an address on a SPI device")
-	return nil
-}
-
-// configure does nothing, but it's required to avoid reflection
-func (b *I2CBus) configure() error { return nil }
-
-// configure configures some pins with the SPI bus
-func (b *SPIBus) configure() error {
-	b.csPin.Low()
-	b.dcPin.Low()
-	b.resetPin.Low()
-
-	b.resetPin.High()
-	time.Sleep(1 * time.Millisecond)
-	b.resetPin.Low()
-	time.Sleep(10 * time.Millisecond)
-	b.resetPin.High()
-
-	return nil
-}
-
-// Tx sends data to the display
-func (d *Device) Tx(data []byte, isCommand bool) error {
-	return d.bus.tx(data, isCommand)
-}
-
-// tx sends data to the display (I2CBus implementation)
-func (b *I2CBus) tx(data []byte, isCommand bool) error {
-	if isCommand {
-		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x00, data)
-	} else {
-		return legacy.WriteRegister(b.wire, uint8(b.Address), 0x40, data)
-	}
-}
-
-// tx sends data to the display (SPIBus implementation)
-func (b *SPIBus) tx(data []byte, isCommand bool) error {
-	var err error
-
-	if isCommand {
-		b.csPin.High()
-		b.dcPin.Low()
-		b.csPin.Low()
-
-		err = b.wire.Tx(data, nil)
-		b.csPin.High()
-	} else {
-		b.csPin.High()
-		b.dcPin.High()
-		b.csPin.Low()
-
-		err = b.wire.Tx(data, nil)
-		b.csPin.High()
-	}
-
-	return err
 }
 
 // Size returns the current size of the display.
