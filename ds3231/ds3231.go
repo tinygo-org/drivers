@@ -149,6 +149,7 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 	return
 }
 
+// GetSqwPinMode returns the current square wave output frequency
 func (d *Device) GetSqwPinMode() SqwPinMode {
 	data := []uint8{0}
 	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
@@ -164,6 +165,7 @@ func (d *Device) GetSqwPinMode() SqwPinMode {
 	return SqwPinMode(data[0])
 }
 
+// SetSqwPinMode sets the square wave output mode to the given frequency
 func (d *Device) SetSqwPinMode(mode SqwPinMode) error {
 	data := []uint8{0}
 	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
