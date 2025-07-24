@@ -69,3 +69,14 @@ const (
 	A1_DATE       Alarm1Mode = 0x00
 	A1_DAY        Alarm1Mode = 0x10
 )
+
+// Alarm2 Modes
+type Alarm2Mode uint8
+
+const (
+	A2_PER_MINUTE Alarm2Mode = 0x07
+	A2_MINUTE     Alarm2Mode = 0x06
+	A2_HOUR       Alarm2Mode = 0x04
+	A2_DATE       Alarm2Mode = 0x00
+	A2_DAY        Alarm2Mode = 0x08
+)
