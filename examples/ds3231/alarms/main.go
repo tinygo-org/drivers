@@ -31,8 +31,8 @@ func main() {
 		fmt.Println("Error while enabling Alarm1")
 	}
 
-	// Set alarm2 so it triggers when the minutes match 59 => repeats every hour at dd:hh:59:ss
-	if err := rtc.SetAlarm2(time.Date(0, 0, 0, 0, 59, 0, 0, time.UTC), ds3231.A2_MINUTE); err != nil {
+	// Set alarm2 so it triggers when the minutes match 35 => repeats every hour at dd:hh:35:ss
+	if err := rtc.SetAlarm2(time.Date(0, 0, 0, 0, 35, 0, 0, time.UTC), ds3231.A2_MINUTE); err != nil {
 		fmt.Println("Error while setting Alarm2")
 	}
 	if err := rtc.EnableAlarm2(); err != nil {
@@ -54,34 +54,31 @@ func main() {
 			continue
 		}
 
-		if rtc.IsAlarm1Fired() {
-			fmt.Printf(
-				"Alarm1 fired at %d/%s/%02d %02d:%02d:%02d \r\n",
-				dt.Year(),
-				dt.Month(),
-				dt.Day(),
-				dt.Hour(),
-				dt.Minute(),
-				dt.Second(),
-			)
+		a1 := rtc.IsAlarm1Fired()
+		a2 := rtc.IsAlarm2Fired()
+
+		fmt.Printf(
+			"%d/%s/%02d %02d:%02d:%02d A1: %t A2: %t\r\n",
+			dt.Year(),
+			dt.Month(),
+			dt.Day(),
+			dt.Hour(),
+			dt.Minute(),
+			dt.Second(),
+			a1,
+			a2,
+		)
+
+		if a1 {
 			if err := rtc.ClearAlarm1(); err != nil {
 				fmt.Println("Error while clearing alarm1")
 			}
 		}
-
-		if rtc.IsAlarm2Fired() {
-			fmt.Printf(
-				"Alarm2 fired at %d/%s/%02d %02d:%02d:%02d \r\n",
-				dt.Year(),
-				dt.Month(),
-				dt.Day(),
-				dt.Hour(),
-				dt.Minute(),
-				dt.Second(),
-			)
+		if a2 {
 			if err := rtc.ClearAlarm2(); err != nil {
 				fmt.Println("Error while clearing alarm2")
 			}
+
 		}
 
 		time.Sleep(time.Second * 1)
