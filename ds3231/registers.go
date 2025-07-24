@@ -58,7 +58,7 @@ const (
 	SQW_8KHZ SqwPinMode = 0x18
 )
 
-// ALarm1 Modes
+// Alarm1 Modes
 type Alarm1Mode uint8
 
 const (
