@@ -250,6 +250,67 @@ func (d *Device) ReadAlarm1() (dt time.Time, err error) {
 	return
 }
 
+// SetAlarm2 set the alarm2 time
+func (d *Device) SetAlarm2(dt time.Time, mode Alarm1Mode) error {
+	dataCtrl := []uint8{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	if err != nil {
+		return err
+	}
+	if dataCtrl[0]&(1<<INTCN) == 0x00 {
+		return errors.New("INTCN has to be disabled")
+	}
+
+	A2M2 := uint8((mode & 0x01) << 7)
+	A2M3 := uint8((mode & 0x02) << 6)
+	A2M4 := uint8((mode & 0x04) << 5)
+	DY_DT := uint8((mode & 0x08) << 3)
+
+	day := dt.Day()
+	if DY_DT > 0 {
+		day = dowToDS3231(int(dt.Weekday()))
+	}
+
+	data := make([]uint8, 4)
+	data[0] = uint8ToBCD(uint8(dt.Minute())) | A2M2
+	data[1] = uint8ToBCD(uint8(dt.Hour())) | A2M3
+	data[2] = uint8ToBCD(uint8(day)) | A2M4 | DY_DT
+
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_ALARMTWO, data)
+	if err != nil {
+		return err
+	}
+	dataCtrl[0] |= AlarmFlag_Alarm2
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReadAlarm2 returns the alarm2 time
+func (d *Device) ReadAlarm2() (dt time.Time, err error) {
+	data := make([]uint8, 5)
+	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_ALARMTWO, data)
+	if err != nil {
+		return
+	}
+	minute := bcdToInt(data[0] & 0x7F)
+	hour := hoursBCDToInt(data[1] & 0x3F)
+
+	isDayOfWeek := (data[2] & 0x40) >> 6
+	var day int
+	if isDayOfWeek > 0 {
+		day = bcdToInt(data[2] & 0x0F)
+	} else {
+		day = bcdToInt(data[2] & 0x3F)
+	}
+
+	dt = time.Date(2000, 5, day, hour, minute, 0, 0, time.UTC)
+	return
+}
+
 // ReadTemperature returns the temperature in millicelsius (mC)
 func (d *Device) ReadTemperature() (int32, error) {
 	data := make([]uint8, 2)
@@ -315,6 +376,21 @@ func (d *Device) EnableAlarm1() error {
 	return d.enableAlarm(1)
 }
 
+// IsEnabledAlarm2 checks if alarm2 is enabled
+func (d *Device) IsEnabledAlarm2() bool {
+	return d.isEnabledAlarm(2)
+}
+
+// DisableAlarm2 disable alarm2
+func (d *Device) DisableAlarm2() error {
+	return d.disableAlarm(2)
+}
+
+// EnableAlarm2 enable alarm2
+func (d *Device) EnableAlarm2() error {
+	return d.enableAlarm(2)
+}
+
 // clearAlarm clear status of alarm
 func (d *Device) clearAlarm(alarm_num uint8) error {
 	data := []byte{0}
@@ -335,6 +411,11 @@ func (d *Device) ClearAlarm1() error {
 	return d.clearAlarm(1)
 }
 
+// ClearAlarm2 clear status of alarm2
+func (d *Device) ClearAlarm2() error {
+	return d.clearAlarm(2)
+}
+
 // IsAlarmFired get status of alarm
 func (d *Device) isAlarmFired(alarm_num uint8) bool {
 	dataCtrl := []byte{0}
@@ -351,6 +432,11 @@ func (d *Device) isAlarmFired(alarm_num uint8) bool {
 // IsAlarm1Fired get status of alarm1
 func (d *Device) IsAlarm1Fired() bool {
 	return d.isAlarmFired(1)
+}
+
+// IsAlarm2Fired get status of alarm2
+func (d *Device) IsAlarm2Fired() bool {
+	return d.isAlarmFired(2)
 }
 
 // Enable32K enables the 32KHz output
