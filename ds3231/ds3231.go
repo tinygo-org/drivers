@@ -251,7 +251,7 @@ func (d *Device) ReadAlarm1() (dt time.Time, err error) {
 }
 
 // SetAlarm2 set the alarm2 time
-func (d *Device) SetAlarm2(dt time.Time, mode Alarm1Mode) error {
+func (d *Device) SetAlarm2(dt time.Time, mode Alarm2Mode) error {
 	dataCtrl := []uint8{0}
 	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
 	if err != nil {
