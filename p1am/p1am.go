@@ -14,7 +14,8 @@ import (
 )
 
 type P1AM struct {
-	bus                                        machine.SPI
+	bus *machine.SPI
+
 	slaveSelectPin, slaveAckPin, baseEnablePin machine.Pin
 
 	// SkipAutoConfig will skip loading a default configuration into each module.

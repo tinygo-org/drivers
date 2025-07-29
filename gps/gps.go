@@ -69,10 +69,16 @@ func NewUART(uart drivers.UART) Device {
 }
 
 // NewI2C creates a new I2C GPS connection.
+// Uses the default i2c address (0x42) for backward compatibility reasons.
 func NewI2C(bus drivers.I2C) Device {
+	return NewI2CWithAddress(bus, I2C_ADDRESS)
+}
+
+// NewI2CWithAddress creates a new I2C GPS connection on the provided address
+func NewI2CWithAddress(bus drivers.I2C, i2cAddress uint16) Device {
 	return Device{
 		bus:      bus,
-		address:  I2C_ADDRESS,
+		address:  i2cAddress,
 		buffer:   make([]byte, bufferSize),
 		bufIdx:   bufferSize,
 		sentence: strings.Builder{},

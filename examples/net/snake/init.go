@@ -1,4 +1,4 @@
-//go:build ninafw || wioterminal
+//go:build ninafw || wioterminal || comboat_fw
 
 package main
 

@@ -4,7 +4,7 @@
 // Note: It may be necessary to increase the stack size when using
 // paho.mqtt.golang.  Use the -stack-size=4KB command line option.
 
-//go:build ninafw || wioterminal || challenger_rp2040
+//go:build ninafw || wioterminal || challenger_rp2040 || comboat_fw
 
 package main
 
