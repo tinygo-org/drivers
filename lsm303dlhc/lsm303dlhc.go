@@ -1,7 +1,9 @@
 // Package lsm303dlhc implements a driver for the LSM303dlhc,
-// a 3 axis accelerometer/magnetic sensor which is included on BBC micro:bits v1.5.
+// a 3 axis accelerometer/magnetic sensor typically available on breakout boards.
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lsm303dlhc.pdf
+
+
 package lsm303dlhc // import "tinygo.org/x/drivers/lsm303dlhc"
 
 import (
@@ -35,12 +37,7 @@ type Configuration struct {
 	MagDataRate    uint8
 }
 
-// commented out "Connected" related lines since the DLHC sensor does not have the WHO_AM_I registers
-
-// var errNotConnected = errors.New("lsm303dlhc: failed to communicate with either accel or magnet sensor")
-
 // New creates a new LSM303DLHC connection. The I2C bus must already be configured.
-//
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) *Device {
 	return &Device{
@@ -50,22 +47,9 @@ func New(bus drivers.I2C) *Device {
 	}
 }
 
-// Connected returns whether both sensor on LSM303dlhc has been found.
-// It does two "who am I" requests and checks the responses.
-// func (d *Device) Connected() bool {
-// 	data1, data2 := []byte{0}, []byte{0}
-// 	legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_WHO_AM_I, data1)
-// 	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_WHO_AM_I, data2)
-// 	return data1[0] == 0x33 && data2[0] == 0x40
-// }
 
 // Configure sets up the LSM303dlhc device for communication.
 func (d *Device) Configure(cfg Configuration) (err error) {
-
-	// Verify unit communication
-	// if !d.Connected() {
-	// 	return errNotConnected
-	// }
 
 	if cfg.AccelDataRate != 0 {
 		d.AccelDataRate = cfg.AccelDataRate
