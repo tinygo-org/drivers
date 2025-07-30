@@ -3,7 +3,6 @@
 //
 // Datasheet: https://www.st.com/resource/en/datasheet/lsm303dlhc.pdf
 
-
 package lsm303dlhc // import "tinygo.org/x/drivers/lsm303dlhc"
 
 import (
@@ -46,7 +45,6 @@ func New(bus drivers.I2C) *Device {
 		MagAddress:   MAG_ADDRESS,
 	}
 }
-
 
 // Configure sets up the LSM303dlhc device for communication.
 func (d *Device) Configure(cfg Configuration) (err error) {
