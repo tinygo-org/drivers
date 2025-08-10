@@ -4,17 +4,19 @@ package max72xx
 
 import (
 	"machine"
+
+	"tinygo.org/x/drivers"
 )
 
 type Device struct {
-	bus machine.SPI
+	bus drivers.SPI
 	cs  machine.Pin
 }
 
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
 // The SPI frequency must not be higher than 10MHz.
 // parameter cs: the datasheet also refers to this pin as "load" pin.
-func NewDevice(bus machine.SPI, cs machine.Pin) *Device {
+func NewDevice(bus drivers.SPI, cs machine.Pin) *Device {
 	return &Device{
 		bus: bus,
 		cs:  cs,

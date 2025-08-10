@@ -29,7 +29,7 @@ func New(bus drivers.I2C) Device {
 func (d *Device) Configure() {
 	// Check initialization state
 	status := d.Status()
-	if status&0x08 == 1 {
+	if status&STATUS_CALIBRATED == 1 {
 		// Device is initialized
 		return
 	}
@@ -69,7 +69,7 @@ func (d *Device) Read() error {
 		}
 
 		// If measurement complete, store values
-		if data[0]&0x04 != 0 && data[0]&0x80 == 0 {
+		if data[0]&STATUS_CALIBRATED != 0 && data[0]&STATUS_BUSY == 0 {
 			d.humidity = uint32(data[1])<<12 | uint32(data[2])<<4 | uint32(data[3])>>4
 			d.temp = (uint32(data[3])&0xF)<<16 | uint32(data[4])<<8 | uint32(data[5])
 			return nil

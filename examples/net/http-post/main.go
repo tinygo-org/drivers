@@ -9,7 +9,7 @@
 //     examples/net/webclient (for HTTP)
 //     examples/net/tlsclient (for HTTPS)
 
-//go:build ninafw || wioterminal
+//go:build ninafw || wioterminal || comboat_fw
 
 package main
 

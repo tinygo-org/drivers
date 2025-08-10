@@ -64,7 +64,7 @@ func (d *Device) Read(r []int32) (int, error) {
 	count := len(r)
 
 	// get the next group of samples
-	machine.I2S0.Read(d.buf)
+	machine.I2S0.ReadStereo(d.buf)
 
 	if len(r) > len(d.buf) {
 		count = len(d.buf)
@@ -83,7 +83,7 @@ func (d *Device) ReadWithFilter(r []int32) (int, error) {
 	for i := 0; i < len(r); i++ {
 
 		// get the next group of samples
-		machine.I2S0.Read(d.buf)
+		machine.I2S0.ReadStereo(d.buf)
 
 		// filter
 		sum = applySincFilter(d.buf)

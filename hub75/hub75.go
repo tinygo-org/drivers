@@ -167,7 +167,7 @@ func (d *Device) fillMatrixBuffer(x int16, y int16, r uint8, g uint8, b uint8) {
 		if r > colorTresh {
 			d.buffer[c][offsetR] |= 1 << bitSelect
 		} else {
-			d.buffer[c][offsetR] = d.buffer[c][offsetR] &^ 1 << bitSelect
+			d.buffer[c][offsetR] &^= 1 << bitSelect
 		}
 		if g > colorTresh {
 			d.buffer[(c+d.colorThirdStep)%d.colorDepth][offsetG] |= 1 << bitSelect

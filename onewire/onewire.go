@@ -27,8 +27,9 @@ type Config struct{}
 
 // Errors list
 var (
-	errNoPresence  = errors.New("Error: OneWire. No devices on the bus.")
-	errReadAddress = errors.New("Error: OneWire. Read address error: CRC mismatch.")
+	errNoPresence     = errors.New("Error: OneWire. No devices on the bus.")
+	errTooManyDevices = errors.New("Error: OneWire. Too many devices on the bus.")
+	errReadAddress    = errors.New("Error: OneWire. Read address error: CRC mismatch.")
 )
 
 // New creates a new GPIO 1-Wire connection.
@@ -46,7 +47,7 @@ func (d *Device) Configure(config Config) {}
 func (d Device) Reset() error {
 	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	time.Sleep(480 * time.Microsecond)
-	d.p.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	time.Sleep(70 * time.Microsecond)
 	precence := d.p.Get()
 	time.Sleep(410 * time.Microsecond)
@@ -61,11 +62,11 @@ func (d Device) WriteBit(data uint8) {
 	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	if data&1 == 1 { // Send '1'
 		time.Sleep(5 * time.Microsecond)
-		d.p.Configure(machine.PinConfig{Mode: machine.PinInput})
+		d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 		time.Sleep(60 * time.Microsecond)
 	} else { // Send '0'
 		time.Sleep(60 * time.Microsecond)
-		d.p.Configure(machine.PinConfig{Mode: machine.PinInput})
+		d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 		time.Sleep(5 * time.Microsecond)
 	}
 }
@@ -82,7 +83,7 @@ func (d Device) Write(data uint8) {
 func (d Device) ReadBit() (data uint8) {
 	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	time.Sleep(3 * time.Microsecond)
-	d.p.Configure(machine.PinConfig{Mode: machine.PinInput})
+	d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	time.Sleep(8 * time.Microsecond)
 	if d.p.Get() {
 		data = 1
@@ -111,7 +112,7 @@ func (d Device) ReadAddress() ([]uint8, error) {
 	for i := 0; i < 8; i++ {
 		romid[i] = d.Read()
 	}
-	if d.Сrc8(romid, 7) != romid[7] {
+	if d.Сrc8(romid) != 0 {
 		return nil, errReadAddress
 	}
 	return romid, nil
@@ -187,15 +188,22 @@ func (d Device) Search(cmd uint8) ([][]uint8, error) {
 			}
 			d.WriteBit(bit)
 		}
+		if d.Сrc8(lastAddress) != 0 {
+			continue
+		}
+
 		lastFork = lastZero
 		copy(romIDs[romIndex], lastAddress)
 		romIndex++
+		if romIndex >= 32 {
+			return romIDs, errTooManyDevices
+		}
 	}
 	return romIDs[:romIndex:romIndex], nil
 }
 
 // Crc8 compute a Dallas Semiconductor 8 bit CRC.
-func (d Device) Сrc8(buffer []uint8, size int) (crc uint8) {
+func (_ Device) Сrc8(buffer []uint8) (crc uint8) {
 	// Dow-CRC using polynomial X^8 + X^5 + X^4 + X^0
 	// Tiny 2x16 entry CRC table created by Arjen Lentz
 	// See http://lentz.com.au/blog/calculating-crc-with-a-tiny-32-entry-lookup-table
@@ -205,7 +213,7 @@ func (d Device) Сrc8(buffer []uint8, size int) (crc uint8) {
 		0x00, 0x9D, 0x23, 0xBE, 0x46, 0xDB, 0x65, 0xF8,
 		0x8C, 0x11, 0xAF, 0x32, 0xCA, 0x57, 0xE9, 0x74,
 	}
-	for i := 0; i < size; i++ {
+	for i := 0; i < len(buffer); i++ {
 		crc = buffer[i] ^ crc // just re-using crc as intermediate
 		crc = crc8_table[crc&0x0f] ^ crc8_table[16+((crc>>4)&0x0f)]
 	}
