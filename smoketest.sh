@@ -44,6 +44,7 @@ tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis3dh/main.go
 tinygo build -size short -o ./build/test.hex -target=nano-33-ble ./examples/lps22hb/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/lsm303agr/main.go
+tinygo build -size short -o ./build/test.hex -target=feather-m4 ./examples/lsm303dlhc/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/lsm6ds3/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mag3110/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mcp23017/main.go

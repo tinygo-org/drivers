@@ -1,18 +1,18 @@
-// Package lsm303agr implements a driver for the LSM303AGR,
-// a 3 axis accelerometer/magnetic sensor which is included on BBC micro:bits v1.5.
+// Package lsm303dlhc implements a driver for the LSM303dlhc,
+// a 3 axis accelerometer/magnetic sensor typically available on breakout boards.
 //
-// Datasheet: https://www.st.com/resource/en/datasheet/lsm303agr.pdf
-package lsm303agr // import "tinygo.org/x/drivers/lsm303agr"
+// Datasheet: https://www.st.com/resource/en/datasheet/lsm303dlhc.pdf
+
+package lsm303dlhc // import "tinygo.org/x/drivers/lsm303dlhc"
 
 import (
-	"errors"
 	"math"
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 )
 
-// Device wraps an I2C connection to a LSM303AGR device.
+// Device wraps an I2C connection to a LSM303dlhc device.
 type Device struct {
 	bus            drivers.I2C
 	AccelAddress   uint8
@@ -26,7 +26,7 @@ type Device struct {
 	buf            [6]uint8
 }
 
-// Configuration for LSM303AGR device.
+// Configuration for LSM303dlhc device.
 type Configuration struct {
 	AccelPowerMode uint8
 	AccelRange     uint8
@@ -36,10 +36,7 @@ type Configuration struct {
 	MagDataRate    uint8
 }
 
-var errNotConnected = errors.New("lsm303agr: failed to communicate with either accel or magnet sensor")
-
-// New creates a new LSM303AGR connection. The I2C bus must already be configured.
-//
+// New creates a new LSM303DLHC connection. The I2C bus must already be configured.
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) *Device {
 	return &Device{
@@ -49,22 +46,8 @@ func New(bus drivers.I2C) *Device {
 	}
 }
 
-// Connected returns whether both sensor on LSM303AGR has been found.
-// It does two "who am I" requests and checks the responses.
-func (d *Device) Connected() bool {
-	data1, data2 := []byte{0}, []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_WHO_AM_I, data1)
-	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_WHO_AM_I, data2)
-	return data1[0] == 0x33 && data2[0] == 0x40
-}
-
-// Configure sets up the LSM303AGR device for communication.
+// Configure sets up the LSM303dlhc device for communication.
 func (d *Device) Configure(cfg Configuration) (err error) {
-
-	// Verify unit communication
-	if !d.Connected() {
-		return errNotConnected
-	}
 
 	if cfg.AccelDataRate != 0 {
 		d.AccelDataRate = cfg.AccelDataRate
@@ -117,7 +100,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 	}
 
 	data[0] = byte(0xC0)
-	err = legacy.WriteRegister(d.bus, uint8(d.AccelAddress), TEMP_CFG_REG_A, data)
+	err = legacy.WriteRegister(d.bus, uint8(d.AccelAddress), CRA_REG_M, data)
 	if err != nil {
 		return
 	}
@@ -220,7 +203,7 @@ func (d *Device) ReadCompass() (h int32, err error) {
 func (d *Device) ReadTemperature() (t int32, err error) {
 
 	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_TEMP_AUTO_INC, data)
+	err = legacy.ReadRegister(d.bus, uint8(d.MagAddress), TEMP_OUT_AUTO_INC, data)
 	if err != nil {
 		return
 	}
