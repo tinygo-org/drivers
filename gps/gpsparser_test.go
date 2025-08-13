@@ -70,15 +70,15 @@ func TestParseRMC(t *testing.T) {
 		t.Error("should have errInvalidRMCSentence error")
 	}
 
-	val = "$GPRMC,203522.00,A,5109.0262308,N,11401.8407342,W,0.004,133.4,130522,0.0,E,D*2B"
+	val = "$GPRMC,203522.00,A,5109.0262308,N,11401.8407342,W,0.004,133.4,010622,0.0,E,D*2B"
 	fix, err := p.Parse(val)
 	if err != nil {
 		t.Error("should have parsed")
 	}
 
 	c.Assert(fix.Time.Year(), qt.Equals, 2022)
-	c.Assert(fix.Time.Month(), qt.Equals, time.May)
-	c.Assert(fix.Time.Day(), qt.Equals, 13)
+	c.Assert(fix.Time.Month(), qt.Equals, time.June)
+	c.Assert(fix.Time.Day(), qt.Equals, 1)
 	c.Assert(fix.Time.Hour(), qt.Equals, 20)
 	c.Assert(fix.Time.Minute(), qt.Equals, 35)
 	c.Assert(fix.Time.Second(), qt.Equals, 22)
