@@ -1,3 +1,28 @@
+0.33.0
+---
+- **new devices**
+    - **ens160**
+        - Add ens160 i2c driver
+    - **lsm303dlhc**
+        - added support for LSM303DLHC e-Compass; (#783)
+    - **seesaw**
+        - add support for Adafruit Seesaw encoders
+
+- **enhancements**
+    - **ws2812**
+        - add RP2350 support
+    - **ssd1306**
+        - avoid unnecessary heap allocations (#767)
+    - **gps**
+        - allow gps init with address
+    - **lsm6ds3tr**
+        - avoid unnecessary heap allocations (#766)
+
+- **bugfixes**
+    - **gps**
+        - Fix gps time calculation (#785)
+
+
 0.32.0
 ---
 - **enhancements**
