@@ -46,6 +46,8 @@ var DefaultDeviceIdentifier = DeviceIdentifierFunc(func(id JedecID) Attrs {
 		return GD25Q16C()
 	case 0xC84017:
 		return GD25Q64C()
+	case 0xEF4014:
+		return W25Q80DV()
 	case 0xEF4015:
 		return W25Q16JVIQ()
 	case 0xEF4016:
@@ -380,6 +382,25 @@ func W25Q80DL() Attrs {
 		TotalSize:           1 << 20, // 1 MiB
 		StartUp:             5000 * time.Microsecond,
 		JedecID:             JedecID{0xEF, 0x60, 0x14},
+		MaxClockSpeedMHz:    80,
+		QuadEnableBitMask:   0x02,
+		HasSectorProtection: false,
+		SupportsFastRead:    true,
+		SupportsQSPI:        true,
+		SupportsQSPIWrites:  false,
+		WriteStatusSplit:    false,
+		SingleStatusByte:    false,
+	}
+}
+
+// Settings for the Winbond W25Q80DV 2MiB SPI flash.
+// Datasheet:
+// https://www.winbond.com/resource-files/w25q80dv%20dl_revh_10022015.pdf
+func W25Q80DV() Attrs {
+	return Attrs{
+		TotalSize:           1 << 21, // 2 MiB
+		StartUp:             5000 * time.Microsecond,
+		JedecID:             JedecID{0xEF, 0x40, 0x14},
 		MaxClockSpeedMHz:    104,
 		QuadEnableBitMask:   0x02,
 		HasSectorProtection: false,
