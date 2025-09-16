@@ -18,11 +18,11 @@ const (
 const Baudrate = 4_000_000 // 4 MHz
 
 type Device struct {
-	bus  drivers.SPI
-	cs   drivers.PinOutput
-	dc   drivers.PinOutput
-	rst  drivers.PinOutput
-	busy drivers.PinInput
+	bus    drivers.SPI
+	cs     drivers.PinOutput
+	dc     drivers.PinOutput
+	rst    drivers.PinOutput
+	isBusy drivers.PinInput
 
 	blackBuffer []byte
 	redBuffer   []byte
@@ -206,7 +206,7 @@ func (d *Device) WaitUntilIdle() {
 	// give it some time to get busy
 	time.Sleep(50 * time.Millisecond)
 
-	for d.busy() { // high = busy
+	for d.isBusy() { // high = busy
 		time.Sleep(10 * time.Millisecond)
 	}
 

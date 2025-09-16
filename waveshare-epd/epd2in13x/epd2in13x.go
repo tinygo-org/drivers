@@ -23,7 +23,7 @@ type Device struct {
 	cs           drivers.PinOutput
 	dc           drivers.PinOutput
 	rst          drivers.PinOutput
-	busy         drivers.PinInput
+	isBusy       drivers.PinInput
 	width        int16
 	height       int16
 	buffer       [][]uint8
@@ -39,11 +39,11 @@ func New(bus drivers.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.
 	legacy.ConfigurePinOut(rstPin)
 	legacy.ConfigurePinInput(busyPin)
 	return Device{
-		bus:  bus,
-		cs:   csPin.Set,
-		dc:   dcPin.Set,
-		rst:  rstPin.Set,
-		busy: busyPin.Get,
+		bus:    bus,
+		cs:     csPin.Set,
+		dc:     dcPin.Set,
+		rst:    rstPin.Set,
+		isBusy: busyPin.Get,
 	}
 }
 
@@ -277,14 +277,14 @@ func (d *Device) ClearDisplay() {
 
 // WaitUntilIdle waits until the display is ready
 func (d *Device) WaitUntilIdle() {
-	for !d.busy() {
+	for !d.isBusy() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 // IsBusy returns the busy status of the display
 func (d *Device) IsBusy() bool {
-	return d.busy()
+	return d.isBusy()
 }
 
 // ClearBuffer sets the buffer to 0xFF (white)

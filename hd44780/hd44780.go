@@ -210,7 +210,7 @@ func (d *Device) SendCommand(command byte) {
 	d.bus.SetCommandMode(true)
 	d.bus.Write([]byte{command})
 
-	for d.busy(command == DISPLAY_CLEAR || command == CURSOR_HOME) {
+	for d.isBusy(command == DISPLAY_CLEAR || command == CURSOR_HOME) {
 	}
 }
 
@@ -219,7 +219,7 @@ func (d *Device) sendData(data byte) {
 	d.bus.SetCommandMode(false)
 	d.bus.Write([]byte{data})
 
-	for d.busy(false) {
+	for d.isBusy(false) {
 	}
 }
 
@@ -231,9 +231,9 @@ func (d *Device) CreateCharacter(cgramAddr uint8, data []byte) {
 	}
 }
 
-// busy returns true when hd447890 is busy
+// isBusy returns true when hd447890 is isBusy
 // or after the timeout specified
-func (d *Device) busy(longDelay bool) bool {
+func (d *Device) isBusy(longDelay bool) bool {
 	if d.bus.WriteOnly() {
 		// Can't read busy flag if write only, so sleep a bit then return
 		if longDelay {
@@ -261,7 +261,7 @@ func (d *Device) busy(longDelay bool) bool {
 
 // Busy returns true when hd447890 is busy
 func (d *Device) Busy() bool {
-	return d.busy(false)
+	return d.isBusy(false)
 }
 
 // Size returns the current size of the display.

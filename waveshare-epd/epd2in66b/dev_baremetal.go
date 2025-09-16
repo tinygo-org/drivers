@@ -25,6 +25,6 @@ func (d *Device) Configure(c Config) error {
 	d.cs = cs.Set
 	d.dc = dc.Set
 	d.rst = rst.Set
-	d.busy = busy.Get
+	d.isBusy = busy.Get
 	return nil
 }
