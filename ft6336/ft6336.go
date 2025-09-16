@@ -7,6 +7,7 @@ package ft6336
 import (
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/touch"
 )
 
@@ -19,7 +20,7 @@ type Device struct {
 }
 
 // New returns FT6336 device for the provided I2C bus using default address.
-func New(i2c drivers.I2C, intPin legacy.PinInput) *Device {
+func New(i2c drivers.I2C, intPin pin.Input) *Device {
 	return &Device{
 		bus:     i2c,
 		buf:     make([]byte, 11),

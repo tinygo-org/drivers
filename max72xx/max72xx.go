@@ -5,6 +5,7 @@ package max72xx
 import (
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Device struct {
@@ -16,7 +17,7 @@ type Device struct {
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
 // The SPI frequency must not be higher than 10MHz.
 // parameter cs: the datasheet also refers to this pin as "load" pin.
-func NewDevice(bus drivers.SPI, cs legacy.PinOutput) *Device {
+func NewDevice(bus drivers.SPI, cs pin.Output) *Device {
 	return &Device{
 		bus: bus,
 		cs:  cs.Set,
@@ -93,8 +94,8 @@ func (driver *Device) writeByte(data byte) {
 
 // WriteCommand write data to a given register.
 func (driver *Device) WriteCommand(register, data byte) {
-	driver.cs(false)
+	driver.cs.Low()
 	driver.writeByte(register)
 	driver.writeByte(data)
-	driver.cs(true)
+	driver.cs.High()
 }

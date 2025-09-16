@@ -11,6 +11,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Rotation controls the rotation used by the display.
@@ -52,7 +53,7 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
 	legacy.ConfigurePinOut(resetPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(csPin)
@@ -68,11 +69,11 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device
 
 // Reset the Device
 func (d *Device) Reset() {
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
 
 }
@@ -232,14 +233,14 @@ func (d *Device) Tx(data []byte, isCommand bool) {
 
 // Rx reads data from the display
 func (d *Device) Rx(command uint8, data []byte) {
-	d.dcPin(false)
-	d.csPin(false)
+	d.dcPin.Low()
+	d.csPin.Low()
 	d.bus.Transfer(command)
-	d.dcPin(true)
+	d.dcPin.High()
 	for i := range data {
 		data[i], _ = d.bus.Transfer(0xFF)
 	}
-	d.csPin(true)
+	d.csPin.High()
 }
 
 // Size returns the current size of the display.
@@ -250,9 +251,9 @@ func (d *Device) Size() (w, h int16) {
 // EnableBacklight enables or disables the backlight
 func (d *Device) EnableBacklight(enable bool) {
 	if enable {
-		d.blPin(true)
+		d.blPin.High()
 	} else {
-		d.blPin(false)
+		d.blPin.Low()
 	}
 }
 
@@ -563,5 +564,5 @@ func (d *Device) Configure(cfg Config) {
 	d.Command(DISPON)
 	time.Sleep(20 * time.Millisecond)
 
-	d.blPin(true)
+	d.blPin.High()
 }

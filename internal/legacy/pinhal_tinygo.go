@@ -2,22 +2,26 @@
 
 package legacy
 
-import "machine"
+import (
+	"machine"
 
-func configurePinOut(p PinOutput) {
-	configurePin(p, machine.PinOutput)
+	"tinygo.org/x/drivers/internal/pin"
+)
+
+func configurePinOut(po pin.Output) {
+	configurePin(po, machine.PinOutput)
 }
 
-func configurePinInputPulldown(p PinInput) {
-	configurePin(p, pulldown) // some chips do not have pull down, in which case pulldown==machine.PinInput.
+func configurePinInputPulldown(pi pin.Input) {
+	configurePin(pi, pulldown) // some chips do not have pull down, in which case pulldown==machine.PinInput.
 }
 
-func configurePinInput(p PinInput) {
-	configurePin(p, machine.PinInput)
+func configurePinInput(pi pin.Input) {
+	configurePin(pi, machine.PinInput)
 }
 
-func configurePinInputPullup(p PinInput) {
-	configurePin(p, pullup) // some chips do not have pull up, in which case pullup==machine.PinInput.
+func configurePinInputPullup(pi pin.Input) {
+	configurePin(pi, pullup) // some chips do not have pull up, in which case pullup==machine.PinInput.
 }
 
 func pinIsNoPin(a any) bool {

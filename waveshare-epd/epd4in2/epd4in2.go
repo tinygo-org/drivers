@@ -14,6 +14,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Config struct {
@@ -40,7 +41,7 @@ type Device struct {
 type Rotation uint8
 
 // New returns a new epd4in2 driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.PinInput) Device {
+func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
 	legacy.ConfigurePinOut(csPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(rstPin)
@@ -78,9 +79,9 @@ func (d *Device) Configure(cfg Config) {
 		d.buffer[i] = 0xFF
 	}
 
-	d.cs(false)
-	d.dc(false)
-	d.rst(false)
+	d.cs.Low()
+	d.dc.Low()
+	d.rst.Low()
 
 	d.Reset()
 	d.SendCommand(POWER_SETTING)
@@ -104,9 +105,9 @@ func (d *Device) Configure(cfg Config) {
 
 // Reset resets the device
 func (d *Device) Reset() {
-	d.rst(false)
+	d.rst.Low()
 	time.Sleep(200 * time.Millisecond)
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(200 * time.Millisecond)
 }
 
@@ -145,13 +146,13 @@ func (d *Device) SendData(data uint8) {
 // sendDataCommand sends image data or a command to the screen
 func (d *Device) sendDataCommand(isCommand bool, data uint8) {
 	if isCommand {
-		d.dc(false)
+		d.dc.Low()
 	} else {
-		d.dc(true)
+		d.dc.High()
 	}
-	d.cs(false)
+	d.cs.Low()
 	d.bus.Transfer(data)
-	d.cs(true)
+	d.cs.High()
 }
 
 // SetLUT sets the look up tables for full or partial updates

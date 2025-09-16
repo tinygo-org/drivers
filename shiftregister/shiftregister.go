@@ -4,6 +4,7 @@ package shiftregister
 import (
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type NumberBit int8
@@ -31,7 +32,7 @@ type ShiftPin struct {
 }
 
 // New returns a new shift output register device
-func New(Bits NumberBit, Latch, Clock, Out legacy.PinOutput) *Device {
+func New(Bits NumberBit, Latch, Clock, Out pin.Output) *Device {
 	return &Device{
 		latch: Latch.Set,
 		clock: Clock.Set,
@@ -50,21 +51,21 @@ func (d *Device) Configure() {
 	if d.config == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	d.latch(true)
+	d.latch.High()
 }
 
 // WriteMask applies mask's bits to register's outputs pin
 // mask's MSB set Q1, LSB set Q8 (for 8 bits mask)
 func (d *Device) WriteMask(mask uint32) {
 	d.mask = mask // Keep the mask for individual addressing
-	d.latch(false)
+	d.latch.Low()
 	for i := 0; i < int(d.bits); i++ {
-		d.clock(false)
+		d.clock.Low()
 		d.out(mask&1 != 0)
 		mask = mask >> 1
-		d.clock(true)
+		d.clock.High()
 	}
-	d.latch(true)
+	d.latch.High()
 }
 
 // GetShiftPin return an individually addressable pin

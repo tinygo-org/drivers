@@ -2,8 +2,10 @@
 
 package legacy
 
-func configurePinOut(p PinOutput)          {}
-func configurePinInput(p PinInput)         {}
-func configurePinInputPulldown(p PinInput) {}
-func configurePinInputPullup(p PinInput)   {}
-func pinIsNoPin(a any) bool                { return false }
+import "tinygo.org/x/drivers/internal/pin"
+
+func configurePinOut(p pin.Output)          {}
+func configurePinInput(p pin.Input)         {}
+func configurePinInputPulldown(p pin.Input) {}
+func configurePinInputPullup(p pin.Input)   {}
+func pinIsNoPin(a any) bool                 { return false }

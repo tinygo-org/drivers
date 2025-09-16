@@ -5,6 +5,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // DeviceSPI is the SPI interface to a BMI160 accelerometer/gyroscope. There is
@@ -23,7 +24,7 @@ type DeviceSPI struct {
 // NewSPI returns a new device driver. The pin and SPI interface are not
 // touched, provide a fully configured SPI object and call Configure to start
 // using this device.
-func NewSPI(csb legacy.PinOutput, spi drivers.SPI) *DeviceSPI {
+func NewSPI(csb pin.Output, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
 		csb: csb.Set, // chip select
 		bus: spi,
@@ -41,7 +42,7 @@ func (d *DeviceSPI) Configure() error {
 		return legacy.ErrConfigBeforeInstantiated
 	}
 	d.configurePins()
-	d.csb(true)
+	d.csb.High()
 
 	// The datasheet recommends doing a register read from address 0x7F to get
 	// SPI communication going:
@@ -93,9 +94,9 @@ func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
 	data[0] = 0x80 | reg_TEMPERATURE_0
 	data[1] = 0
 	data[2] = 0
-	d.csb(false)
+	d.csb.Low()
 	err = d.bus.Tx(data, data)
-	d.csb(true)
+	d.csb.High()
 	if err != nil {
 		return
 	}
@@ -130,9 +131,9 @@ func (d *DeviceSPI) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	for i := 1; i < len(data); i++ {
 		data[i] = 0
 	}
-	d.csb(false)
+	d.csb.Low()
 	err = d.bus.Tx(data, data)
-	d.csb(true)
+	d.csb.High()
 	if err != nil {
 		return
 	}
@@ -160,9 +161,9 @@ func (d *DeviceSPI) ReadRotation() (x int32, y int32, z int32, err error) {
 	for i := 1; i < len(data); i++ {
 		data[i] = 0
 	}
-	d.csb(false)
+	d.csb.Low()
 	err = d.bus.Tx(data, data)
-	d.csb(true)
+	d.csb.High()
 	if err != nil {
 		return
 	}
@@ -208,9 +209,9 @@ func (d *DeviceSPI) readRegister(address uint8) uint8 {
 	data := d.buf[:2]
 	data[0] = 0x80 | address
 	data[1] = 0
-	d.csb(false)
+	d.csb.Low()
 	d.bus.Tx(data, data)
-	d.csb(true)
+	d.csb.High()
 	return data[1]
 }
 
@@ -224,7 +225,7 @@ func (d *DeviceSPI) writeRegister(address, data uint8) {
 	buf[0] = address
 	buf[1] = data
 
-	d.csb(false)
+	d.csb.Low()
 	d.bus.Tx(buf, buf)
-	d.csb(true)
+	d.csb.High()
 }

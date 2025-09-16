@@ -9,6 +9,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 const TIMEOUT = 23324 // max sensing distance (4m)
@@ -21,7 +22,7 @@ type Device struct {
 }
 
 // New returns a new ultrasonic driver given 2 pins
-func New(trigger legacy.PinOutput, echo legacy.PinInput) Device {
+func New(trigger pin.Output, echo pin.Input) Device {
 	return Device{
 		trigger: trigger.Set,
 		echo:    echo.Get,
@@ -54,11 +55,11 @@ func (d *Device) ReadDistance() int32 {
 // ReadPulse returns the time of the pulse (roundtrip) in microseconds
 func (d *Device) ReadPulse() int32 {
 	t := time.Now()
-	d.trigger(false)
+	d.trigger.Low()
 	time.Sleep(2 * time.Microsecond)
-	d.trigger(true)
+	d.trigger.High()
 	time.Sleep(10 * time.Microsecond)
-	d.trigger(false)
+	d.trigger.Low()
 	i := uint8(0)
 	for {
 		if d.echo() {

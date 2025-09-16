@@ -70,11 +70,11 @@ func (d *Device) Configure(cfg Config) {
 	d.batchData = make([]uint8, d.batchLength*2)
 
 	// reset the device
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(200 * time.Millisecond)
 
 	// Initialization
