@@ -15,9 +15,9 @@ const TIMEOUT = 23324 // max sensing distance (4m)
 
 // Device holds the pins
 type Device struct {
-	trigger drivers.PinOutput
-	echo    drivers.PinInput
-	config  func()
+	trigger       drivers.PinOutput
+	echo          drivers.PinInput
+	configurePins func()
 }
 
 // New returns a new ultrasonic driver given 2 pins
@@ -25,7 +25,7 @@ func New(trigger legacy.PinOutput, echo legacy.PinInput) Device {
 	return Device{
 		trigger: trigger.Set,
 		echo:    echo.Get,
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(trigger)
 			legacy.ConfigurePinInput(echo)
 		},
@@ -34,10 +34,10 @@ func New(trigger legacy.PinOutput, echo legacy.PinInput) Device {
 
 // Configure configures the pins of the Device
 func (d *Device) Configure() {
-	if d.config == nil {
+	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	d.config()
+	d.configurePins()
 }
 
 // ReadDistance returns the distance of the object in mm
