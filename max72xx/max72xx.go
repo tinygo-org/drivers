@@ -8,9 +8,9 @@ import (
 )
 
 type Device struct {
-	bus    drivers.SPI
-	cs     drivers.PinOutput
-	config func()
+	bus           drivers.SPI
+	cs            drivers.PinOutput
+	configurePins func()
 }
 
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
@@ -20,7 +20,7 @@ func NewDevice(bus drivers.SPI, cs legacy.PinOutput) *Device {
 	return &Device{
 		bus: bus,
 		cs:  cs.Set,
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(cs)
 		},
 	}
@@ -28,10 +28,10 @@ func NewDevice(bus drivers.SPI, cs legacy.PinOutput) *Device {
 
 // Configure setups the pins.
 func (driver *Device) Configure() {
-	if driver.config == nil {
+	if driver.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	driver.config()
+	driver.configurePins()
 }
 
 // SetScanLimit sets the scan limit. Maximum is 8.

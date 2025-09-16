@@ -19,18 +19,18 @@ var (
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus          drivers.SPI
-	dcPin        drivers.PinOutput
-	resetPin     drivers.PinOutput
-	csPin        drivers.PinOutput
-	enPin        drivers.PinOutput
-	rwPin        drivers.PinOutput
-	config       func()
-	width        int16
-	height       int16
-	rowOffset    int16
-	columnOffset int16
-	bufferLength int16
+	bus           drivers.SPI
+	dcPin         drivers.PinOutput
+	resetPin      drivers.PinOutput
+	csPin         drivers.PinOutput
+	enPin         drivers.PinOutput
+	rwPin         drivers.PinOutput
+	configurePins func()
+	width         int16
+	height        int16
+	rowOffset     int16
+	columnOffset  int16
+	bufferLength  int16
 }
 
 // Config is the configuration for the display
@@ -50,7 +50,7 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput)
 		csPin:    csPin.Set,
 		enPin:    enPin.Set,
 		rwPin:    rwPin.Set,
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(dcPin)
 			legacy.ConfigurePinOut(resetPin)
 			legacy.ConfigurePinOut(csPin)
@@ -62,7 +62,7 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput)
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
-	if d.config == nil {
+	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
 	if cfg.Width == 0 {
@@ -84,7 +84,7 @@ func (d *Device) Configure(cfg Config) {
 	}
 
 	// configure GPIO pins
-	d.config()
+	d.configurePins()
 
 	// reset the device
 	d.resetPin(true)

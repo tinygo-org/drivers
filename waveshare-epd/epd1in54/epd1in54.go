@@ -25,14 +25,14 @@ type Config struct {
 }
 
 type Device struct {
-	bus      *machine.SPI
-	cs       drivers.PinOutput
-	dc       drivers.PinOutput
-	rst      drivers.PinOutput
-	busy     drivers.PinInput
-	config   func()
-	buffer   []uint8
-	rotation Rotation
+	bus           *machine.SPI
+	cs            drivers.PinOutput
+	dc            drivers.PinOutput
+	rst           drivers.PinOutput
+	busy          drivers.PinInput
+	configurePins func()
+	buffer        []uint8
+	rotation      Rotation
 }
 
 type Rotation uint8
@@ -90,7 +90,7 @@ func New(bus *machine.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy
 		dc:     dcPin.Set,
 		rst:    rstPin.Set,
 		busy:   busyPin.Get,
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(csPin)
 			legacy.ConfigurePinOut(dcPin)
 			legacy.ConfigurePinOut(rstPin)
@@ -100,10 +100,10 @@ func New(bus *machine.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy
 }
 
 func (d *Device) LDirInit(cfg Config) {
-	if d.config == nil {
+	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	d.config()
+	d.configurePins()
 
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,
@@ -159,10 +159,10 @@ func (d *Device) LDirInit(cfg Config) {
 }
 
 func (d *Device) HDirInit(cfg Config) {
-	if d.config == nil {
+	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	d.config()
+	d.configurePins()
 
 	d.bus.Configure(machine.SPIConfig{
 		Frequency: 2000000,

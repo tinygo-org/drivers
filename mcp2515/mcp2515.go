@@ -16,11 +16,11 @@ import (
 
 // Device wraps MCP2515 SPI CAN Module.
 type Device struct {
-	spi     SPI
-	cs      drivers.PinOutput
-	msg     *CANMsg
-	mcpMode byte
-	config  func()
+	spi           SPI
+	cs            drivers.PinOutput
+	msg           *CANMsg
+	mcpMode       byte
+	configurePins func()
 }
 
 // CANMsg stores CAN message fields.
@@ -46,7 +46,7 @@ func New(b drivers.SPI, csPin legacy.PinOutput) *Device {
 		},
 		cs:  csPin.Set,
 		msg: &CANMsg{},
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(csPin)
 		},
 	}
@@ -56,10 +56,10 @@ func New(b drivers.SPI, csPin legacy.PinOutput) *Device {
 
 // Configure sets up the device for communication.
 func (d *Device) Configure() {
-	if d.config == nil {
+	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	d.config()
+	d.configurePins()
 }
 
 const beginTimeoutValue int = 10

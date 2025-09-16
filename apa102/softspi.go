@@ -11,18 +11,18 @@ import (
 // most purposes other than the APA102 package. It might be desirable to make
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
-	SCK    drivers.PinOutput
-	SDO    drivers.PinOutput
-	Delay  uint32
-	config func()
+	SCK           drivers.PinOutput
+	SDO           drivers.PinOutput
+	Delay         uint32
+	configurePins func()
 }
 
 // Configure sets up the SCK and SDO pins as outputs and sets them low
 func (s *bbSPI) Configure() {
-	if s.config == nil {
+	if s.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
-	s.config()
+	s.configurePins()
 	s.SCK(false)
 	s.SDO(false)
 	if s.Delay == 0 {

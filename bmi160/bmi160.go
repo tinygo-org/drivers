@@ -16,8 +16,8 @@ type DeviceSPI struct {
 	buf [7]byte
 
 	// SPI bus (requires chip select to be usable).
-	bus    drivers.SPI
-	config func()
+	bus           drivers.SPI
+	configurePins func()
 }
 
 // NewSPI returns a new device driver. The pin and SPI interface are not
@@ -27,7 +27,7 @@ func NewSPI(csb legacy.PinOutput, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
 		csb: csb.Set, // chip select
 		bus: spi,
-		config: func() {
+		configurePins: func() {
 			legacy.ConfigurePinOut(csb)
 		},
 	}
@@ -37,10 +37,10 @@ func NewSPI(csb legacy.PinOutput, spi drivers.SPI) *DeviceSPI {
 // configures the BMI160, but it does not configure the SPI interface (it is
 // assumed to be up and running).
 func (d *DeviceSPI) Configure() error {
-	if d.config == nil {
+	if d.configurePins == nil {
 		return legacy.ErrConfigBeforeInstantiated
 	}
-	d.config()
+	d.configurePins()
 	d.csb(true)
 
 	// The datasheet recommends doing a register read from address 0x7F to get
