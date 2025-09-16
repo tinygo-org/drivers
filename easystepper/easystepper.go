@@ -63,7 +63,7 @@ func (d *Device) Move(steps int32) {
 // Off turns off all motor pins
 func (d *Device) Off() {
 	for _, pin := range d.pins {
-		pin(false)
+		pin.Low()
 	}
 }
 
@@ -124,28 +124,28 @@ func (d *Device) stepMotor(step uint8) {
 func (d *Device) stepMotor4(step uint8) {
 	switch step {
 	case 0:
-		d.pins[0](true)
-		d.pins[1](false)
-		d.pins[2](true)
-		d.pins[3](false)
+		d.pins[0].High()
+		d.pins[1].Low()
+		d.pins[2].High()
+		d.pins[3].Low()
 		break
 	case 1:
-		d.pins[0](false)
-		d.pins[1](true)
-		d.pins[2](true)
-		d.pins[3](false)
+		d.pins[0].Low()
+		d.pins[1].High()
+		d.pins[2].High()
+		d.pins[3].Low()
 		break
 	case 2:
-		d.pins[0](false)
-		d.pins[1](true)
-		d.pins[2](false)
-		d.pins[3](true)
+		d.pins[0].Low()
+		d.pins[1].High()
+		d.pins[2].Low()
+		d.pins[3].High()
 		break
 	case 3:
-		d.pins[0](true)
-		d.pins[1](false)
-		d.pins[2](false)
-		d.pins[3](true)
+		d.pins[0].High()
+		d.pins[1].Low()
+		d.pins[2].Low()
+		d.pins[3].High()
 		break
 	}
 	d.stepNumber = step
@@ -155,45 +155,45 @@ func (d *Device) stepMotor4(step uint8) {
 func (d *Device) stepMotor8(step uint8) {
 	switch step {
 	case 0:
-		d.pins[0](true)
-		d.pins[2](false)
-		d.pins[1](false)
-		d.pins[3](false)
+		d.pins[0].High()
+		d.pins[2].Low()
+		d.pins[1].Low()
+		d.pins[3].Low()
 	case 1:
-		d.pins[0](true)
-		d.pins[2](true)
-		d.pins[1](false)
-		d.pins[3](false)
+		d.pins[0].High()
+		d.pins[2].High()
+		d.pins[1].Low()
+		d.pins[3].Low()
 	case 2:
-		d.pins[0](false)
-		d.pins[2](true)
-		d.pins[1](false)
-		d.pins[3](false)
+		d.pins[0].Low()
+		d.pins[2].High()
+		d.pins[1].Low()
+		d.pins[3].Low()
 	case 3:
-		d.pins[0](false)
-		d.pins[2](true)
-		d.pins[1](true)
-		d.pins[3](false)
+		d.pins[0].Low()
+		d.pins[2].High()
+		d.pins[1].High()
+		d.pins[3].Low()
 	case 4:
-		d.pins[0](false)
-		d.pins[2](false)
-		d.pins[1](true)
-		d.pins[3](false)
+		d.pins[0].Low()
+		d.pins[2].Low()
+		d.pins[1].High()
+		d.pins[3].Low()
 	case 5:
-		d.pins[0](false)
-		d.pins[2](false)
-		d.pins[1](true)
-		d.pins[3](true)
+		d.pins[0].Low()
+		d.pins[2].Low()
+		d.pins[1].High()
+		d.pins[3].High()
 	case 6:
-		d.pins[0](false)
-		d.pins[2](false)
-		d.pins[1](false)
-		d.pins[3](true)
+		d.pins[0].Low()
+		d.pins[2].Low()
+		d.pins[1].Low()
+		d.pins[3].High()
 	case 7:
-		d.pins[0](true)
-		d.pins[2](false)
-		d.pins[1](false)
-		d.pins[3](true)
+		d.pins[0].High()
+		d.pins[2].Low()
+		d.pins[1].Low()
+		d.pins[3].High()
 	}
 	d.stepNumber = step
 }
