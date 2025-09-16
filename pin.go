@@ -1,7 +1,7 @@
 package drivers
 
 // PinOutput is hardware abstraction for a pin which outputs a
-// digital signal (high or low voltage).
+// digital signal (high or low level).
 //
 //	// Code conversion demo: from machine.Pin to drivers.PinOutput
 //	led := machine.LED
@@ -10,7 +10,7 @@ package drivers
 type PinOutput func(level bool)
 
 // PinInput is hardware abstraction for a pin which receives a
-// digital signal and reads it (high or low voltage).
+// digital signal and reads it (high or low level).
 //
 //	// Code conversion demo: from machine.Pin to drivers.PinInput
 //	input := machine.LED
