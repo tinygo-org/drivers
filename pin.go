@@ -9,6 +9,16 @@ package drivers
 //	var pin drivers.PinOutput = led.Set // Going from a machine.Pin to a drivers.PinOutput
 type PinOutput func(level bool)
 
+// High sets the underlying pin's level to high. This is equivalent to calling PinOutput(true).
+func (po PinOutput) High() {
+	po(true)
+}
+
+// Low sets the underlying pin's level to low. This is equivalent to calling PinOutput(false).
+func (po PinOutput) Low() {
+	po(false)
+}
+
 // PinInput is hardware abstraction for a pin which receives a
 // digital signal and reads it (high or low level).
 //

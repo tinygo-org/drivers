@@ -10,6 +10,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 var (
@@ -42,7 +43,7 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin.Set,
@@ -87,16 +88,16 @@ func (d *Device) Configure(cfg Config) {
 	d.configurePins()
 
 	// reset the device
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(200 * time.Millisecond)
 
-	d.rwPin(false)
-	d.dcPin(false)
-	d.enPin(true)
+	d.rwPin.Low()
+	d.dcPin.Low()
+	d.enPin.High()
 
 	// Initialization
 	d.Command(SET_COMMAND_LOCK)
@@ -286,9 +287,9 @@ func (d *Device) Data(data uint8) {
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
 	d.dcPin(!isCommand)
-	d.csPin(false)
+	d.csPin.Low()
 	d.bus.Tx(data, nil)
-	d.csPin(true)
+	d.csPin.High()
 }
 
 // Size returns the current size of the display

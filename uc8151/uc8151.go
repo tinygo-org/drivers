@@ -12,6 +12,7 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -49,7 +50,7 @@ type Device struct {
 type Speed uint8
 
 // New returns a new uc8151 driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.PinInput) Device {
+func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
 	legacy.ConfigurePinOut(csPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(rstPin)
@@ -133,9 +134,9 @@ func (d *Device) Configure(cfg Config) {
 
 // Reset resets the device
 func (d *Device) Reset() {
-	d.rst(false)
+	d.rst.Low()
 	time.Sleep(10 * time.Millisecond)
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(10 * time.Millisecond)
 	d.WaitUntilIdle()
 }
@@ -152,18 +153,18 @@ func (d *Device) PowerOn() {
 
 // SendCommand sends a command to the display
 func (d *Device) SendCommand(command uint8) {
-	d.dc(false)
-	d.cs(false)
+	d.dc.Low()
+	d.cs.Low()
 	d.bus.Transfer(command)
-	d.cs(true)
+	d.cs.High()
 }
 
 // SendData sends a data byte to the display
 func (d *Device) SendData(data ...uint8) {
-	d.dc(true)
-	d.cs(false)
+	d.dc.High()
+	d.cs.Low()
 	d.bus.Tx(data, nil)
-	d.cs(true)
+	d.cs.High()
 }
 
 // SetPixel modifies the internal buffer in a single pixel.

@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // ErrThermocoupleOpen is returned when the thermocouple input is open.
@@ -20,7 +20,7 @@ type Device struct {
 // Create a new Device to read from a MAX6675 thermocouple.
 // Pins must be configured before use.  Frequency for SPI
 // should be 4.3MHz maximum.
-func NewDevice(bus drivers.SPI, cs legacy.PinOutput) *Device {
+func NewDevice(bus drivers.SPI, cs pin.Output) *Device {
 	return &Device{
 		bus: bus,
 		cs:  cs.Set,
@@ -34,11 +34,11 @@ func (d *Device) Read() (float32, error) {
 		value uint16
 	)
 
-	d.cs(false)
+	d.cs.Low()
 	if err := d.bus.Tx([]byte{0, 0}, read); err != nil {
 		return 0, err
 	}
-	d.cs(true)
+	d.cs.High()
 
 	// datasheet: Bit D2 is normally low and goes high if the thermocouple input is open.
 	if read[1]&0x04 == 0x04 {

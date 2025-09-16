@@ -48,12 +48,12 @@ func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bu
 }
 
 func (d *Device) lcdWriteCom(cmd Command) {
-	d.rs(false)
+	d.rs.Low()
 	d.lcdWriteBusInt(uint16(cmd))
 }
 
 func (d *Device) lcdWriteDataInt(data uint16) {
-	d.rs(true)
+	d.rs.High()
 	d.lcdWriteBusInt(data)
 }
 
@@ -63,8 +63,8 @@ func (d *Device) lcdWriteComData(cmd Command, data uint16) {
 }
 
 func (d *Device) tx() {
-	d.wr(false)
-	d.wr(true)
+	d.wr.Low()
+	d.wr.High()
 }
 
 func (d *Device) lcdWriteBusInt(data uint16) {
@@ -73,13 +73,13 @@ func (d *Device) lcdWriteBusInt(data uint16) {
 }
 
 func (d *Device) Configure() {
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(time.Millisecond * 5)
-	d.rst(false)
+	d.rst.Low()
 	time.Sleep(time.Millisecond * 15)
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(time.Millisecond * 15)
-	d.cs(false)
+	d.cs.Low()
 
 	//Power supply setting
 	d.lcdWriteComData(POWERCONTROL1, 0xA8A4)
@@ -139,7 +139,7 @@ func (d *Device) Configure() {
 	//MUX 319 --> Number of lines in display
 	d.lcdWriteComData(DRIVEROUTPUTCONTROL, 0x233F)
 
-	d.cs(true)
+	d.cs.High()
 
 }
 
@@ -169,25 +169,25 @@ func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 
 	encoded := encodeColor(c)
 
-	d.cs(false)
+	d.cs.Low()
 	d.setXY(uint16(x), uint16(y), uint16(x), uint16(y))
-	d.rs(true)
+	d.rs.High()
 	d.lcdWriteBusInt(encoded)
-	d.cs(true)
+	d.cs.High()
 }
 
 func (d *Device) FillRect(x, y, w, h int16, c color.RGBA) {
 	encoded := encodeColor(c)
 
-	d.cs(false)
+	d.cs.Low()
 	d.setXY(uint16(x), uint16(y), uint16(x+(w-1)), uint16(y+(h-1)))
-	d.rs(true)
+	d.rs.High()
 	d.bus.Set(encoded)
 	for i := int64(0); i < int64(w)*int64(h); i++ {
 		d.tx()
 	}
-	d.cs(true)
-	d.rs(false)
+	d.cs.High()
+	d.rs.Low()
 
 }
 
