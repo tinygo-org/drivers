@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Model uint8
@@ -20,9 +20,9 @@ type Rotation uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus         drivers.SPI
-	dcPin       drivers.PinOutput
-	resetPin    drivers.PinOutput
-	csPin       drivers.PinOutput
+	dcPin       pin.OutputFunc
+	resetPin    pin.OutputFunc
+	csPin       pin.OutputFunc
 	width       int16
 	height      int16
 	batchLength int16
@@ -38,9 +38,9 @@ type Config struct {
 
 // New creates a new SSD1331 connection. The SPI wire must already be configured.
 func New(bus drivers.SPI, resetPin, dcPin, csPin machine.Pin) Device {
-	legacy.ConfigurePinOut(dcPin)
-	legacy.ConfigurePinOut(resetPin)
-	legacy.ConfigurePinOut(csPin)
+	pin.ConfigureOutput(dcPin)
+	pin.ConfigureOutput(resetPin)
+	pin.ConfigureOutput(csPin)
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin.Set,
@@ -70,11 +70,11 @@ func (d *Device) Configure(cfg Config) {
 	d.batchData = make([]uint8, d.batchLength*2)
 
 	// reset the device
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(200 * time.Millisecond)
 
 	// Initialization

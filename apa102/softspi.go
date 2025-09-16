@@ -1,8 +1,7 @@
 package apa102
 
 import (
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // bbSPI is a dumb bit-bang implementation of SPI protocol that is hardcoded
@@ -11,8 +10,8 @@ import (
 // most purposes other than the APA102 package. It might be desirable to make
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
-	SCK           drivers.PinOutput
-	SDO           drivers.PinOutput
+	SCK           pin.OutputFunc
+	SDO           pin.OutputFunc
 	Delay         uint32
 	configurePins func()
 }
@@ -20,11 +19,11 @@ type bbSPI struct {
 // Configure sets up the SCK and SDO pins as outputs and sets them low
 func (s *bbSPI) Configure() {
 	if s.configurePins == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	s.configurePins()
-	s.SCK(false)
-	s.SDO(false)
+	s.SCK.Low()
+	s.SDO.Low()
 	if s.Delay == 0 {
 		s.Delay = 1
 	}
@@ -53,19 +52,19 @@ func (s *bbSPI) Transfer(b byte) (byte, error) {
 	for i := uint8(0); i < 8; i++ {
 
 		// half clock cycle high to start
-		s.SCK(true)
+		s.SCK.High()
 		s.delay()
 
 		// write the value to SDO (MSB first)
 		if b&(1<<(7-i)) == 0 {
-			s.SDO(false)
+			s.SDO.Low()
 		} else {
-			s.SDO(true)
+			s.SDO.High()
 		}
 		s.delay()
 
 		// half clock cycle low
-		s.SCK(false)
+		s.SCK.Low()
 		s.delay()
 
 		// for actual SPI would try to read the SDI value here

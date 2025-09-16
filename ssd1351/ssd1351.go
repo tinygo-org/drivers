@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 var (
@@ -20,11 +20,11 @@ var (
 // Device wraps an SPI connection.
 type Device struct {
 	bus           drivers.SPI
-	dcPin         drivers.PinOutput
-	resetPin      drivers.PinOutput
-	csPin         drivers.PinOutput
-	enPin         drivers.PinOutput
-	rwPin         drivers.PinOutput
+	dcPin         pin.OutputFunc
+	resetPin      pin.OutputFunc
+	csPin         pin.OutputFunc
+	enPin         pin.OutputFunc
+	rwPin         pin.OutputFunc
 	configurePins func()
 	width         int16
 	height        int16
@@ -42,7 +42,7 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin.Set,
@@ -51,11 +51,11 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput)
 		enPin:    enPin.Set,
 		rwPin:    rwPin.Set,
 		configurePins: func() {
-			legacy.ConfigurePinOut(dcPin)
-			legacy.ConfigurePinOut(resetPin)
-			legacy.ConfigurePinOut(csPin)
-			legacy.ConfigurePinOut(enPin)
-			legacy.ConfigurePinOut(rwPin)
+			pin.ConfigureOutput(dcPin)
+			pin.ConfigureOutput(resetPin)
+			pin.ConfigureOutput(csPin)
+			pin.ConfigureOutput(enPin)
+			pin.ConfigureOutput(rwPin)
 		},
 	}
 }
@@ -63,7 +63,7 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin legacy.PinOutput)
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
 	if d.configurePins == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	if cfg.Width == 0 {
 		cfg.Width = 128
@@ -87,16 +87,16 @@ func (d *Device) Configure(cfg Config) {
 	d.configurePins()
 
 	// reset the device
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(100 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(200 * time.Millisecond)
 
-	d.rwPin(false)
-	d.dcPin(false)
-	d.enPin(true)
+	d.rwPin.Low()
+	d.dcPin.Low()
+	d.enPin.High()
 
 	// Initialization
 	d.Command(SET_COMMAND_LOCK)
@@ -286,9 +286,9 @@ func (d *Device) Data(data uint8) {
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
 	d.dcPin(!isCommand)
-	d.csPin(false)
+	d.csPin.Low()
 	d.bus.Tx(data, nil)
-	d.csPin(true)
+	d.csPin.High()
 }
 
 // Size returns the current size of the display

@@ -2,8 +2,7 @@
 package shiftregister
 
 import (
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type NumberBit int8
@@ -17,7 +16,7 @@ const (
 
 // Device holds pin number
 type Device struct {
-	latch, clock, out drivers.PinOutput // IC wiring
+	latch, clock, out pin.OutputFunc // IC wiring
 	config            func()
 	bits              NumberBit // Pin number
 	mask              uint32    // keep all pins state
@@ -31,16 +30,16 @@ type ShiftPin struct {
 }
 
 // New returns a new shift output register device
-func New(Bits NumberBit, Latch, Clock, Out legacy.PinOutput) *Device {
+func New(Bits NumberBit, Latch, Clock, Out pin.Output) *Device {
 	return &Device{
 		latch: Latch.Set,
 		clock: Clock.Set,
 		out:   Out.Set,
 		bits:  Bits,
 		config: func() {
-			legacy.ConfigurePinOut(Latch)
-			legacy.ConfigurePinOut(Clock)
-			legacy.ConfigurePinOut(Out)
+			pin.ConfigureOutput(Latch)
+			pin.ConfigureOutput(Clock)
+			pin.ConfigureOutput(Out)
 		},
 	}
 }
@@ -48,7 +47,7 @@ func New(Bits NumberBit, Latch, Clock, Out legacy.PinOutput) *Device {
 // Configure set hardware configuration
 func (d *Device) Configure() {
 	if d.config == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	d.latch(true)
 }

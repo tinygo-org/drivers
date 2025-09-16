@@ -7,8 +7,7 @@ import (
 	"machine"
 	"time"
 
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // New returns a new single easystepper driver given a DeviceConfig
@@ -17,14 +16,14 @@ func New(config DeviceConfig) (*Device, error) {
 		return nil, errors.New("config.StepCount and config.RPM must be > 0")
 	}
 	return &Device{
-		pins:      [4]drivers.PinOutput{config.Pin1.Set, config.Pin2.Set, config.Pin3.Set, config.Pin4.Set},
+		pins:      [4]pin.OutputFunc{config.Pin1.Set, config.Pin2.Set, config.Pin3.Set, config.Pin4.Set},
 		stepDelay: time.Second * 60 / time.Duration((config.StepCount * config.RPM)),
 		stepMode:  config.Mode,
 		config: func() {
-			legacy.ConfigurePinOut(config.Pin1)
-			legacy.ConfigurePinOut(config.Pin2)
-			legacy.ConfigurePinOut(config.Pin3)
-			legacy.ConfigurePinOut(config.Pin4)
+			pin.ConfigureOutput(config.Pin1)
+			pin.ConfigureOutput(config.Pin2)
+			pin.ConfigureOutput(config.Pin3)
+			pin.ConfigureOutput(config.Pin4)
 		},
 	}, nil
 }
@@ -32,7 +31,7 @@ func New(config DeviceConfig) (*Device, error) {
 // Configure configures the pins of the Device
 func (d *Device) Configure() {
 	if d.config == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	d.config()
 }

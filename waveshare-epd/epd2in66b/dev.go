@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 const (
@@ -19,9 +20,9 @@ const Baudrate = 4_000_000 // 4 MHz
 
 type Device struct {
 	bus    drivers.SPI
-	cs     drivers.PinOutput
-	dc     drivers.PinOutput
-	rst    drivers.PinOutput
+	cs     pin.OutputFunc
+	dc     pin.OutputFunc
+	rst    pin.OutputFunc
 	isBusy drivers.PinInput
 
 	blackBuffer []byte
@@ -176,11 +177,11 @@ func (d *Device) setCursor(x, y uint16) error {
 }
 
 func (d *Device) hwReset() {
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(50 * time.Millisecond)
-	d.rst(false)
+	d.rst.Low()
 	time.Sleep(2 * time.Millisecond)
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(50 * time.Millisecond)
 }
 
@@ -232,26 +233,26 @@ func (d *Device) sendCommandSequence(seq []byte) error {
 }
 
 func (d *Device) sendCommandByte(b byte) error {
-	d.dc(false)
-	d.cs(false)
+	d.dc.Low()
+	d.cs.Low()
 	_, err := d.bus.Transfer(b)
-	d.cs(true)
+	d.cs.High()
 	return err
 }
 
 func (d *Device) sendDataByte(b byte) error {
-	d.dc(true)
-	d.cs(false)
+	d.dc.High()
+	d.cs.Low()
 	_, err := d.bus.Transfer(b)
-	d.cs(true)
+	d.cs.High()
 	return err
 }
 
 func (d *Device) sendData(b []byte) error {
-	d.dc(true)
-	d.cs(false)
+	d.dc.High()
+	d.cs.Low()
 	err := d.bus.Tx(b, nil)
-	d.cs(true)
+	d.cs.High()
 	return err
 }
 

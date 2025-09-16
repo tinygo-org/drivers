@@ -1,6 +1,6 @@
 //go:build baremetal && fe310
 
-package legacy
+package pin
 
 import "machine"
 

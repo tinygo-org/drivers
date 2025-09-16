@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Config struct {
@@ -26,9 +26,9 @@ type Config struct {
 
 type Device struct {
 	bus           *machine.SPI
-	cs            drivers.PinOutput
-	dc            drivers.PinOutput
-	rst           drivers.PinOutput
+	cs            pin.OutputFunc
+	dc            pin.OutputFunc
+	rst           pin.OutputFunc
 	isBusy        drivers.PinInput
 	configurePins func()
 	buffer        []uint8
@@ -82,7 +82,7 @@ var partialRefresh = [159]uint8{
 }
 
 // New returns a new epd1in54 driver. Pass in a fully configured SPI bus.
-func New(bus *machine.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy.PinInput) Device {
+func New(bus *machine.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
 	return Device{
 		buffer: make([]uint8, (uint32(Width)*uint32(Height))/8),
 		bus:    bus,
@@ -91,17 +91,17 @@ func New(bus *machine.SPI, csPin, dcPin, rstPin legacy.PinOutput, busyPin legacy
 		rst:    rstPin.Set,
 		isBusy: busyPin.Get,
 		configurePins: func() {
-			legacy.ConfigurePinOut(csPin)
-			legacy.ConfigurePinOut(dcPin)
-			legacy.ConfigurePinOut(rstPin)
-			legacy.ConfigurePinInput(busyPin)
+			pin.ConfigureOutput(csPin)
+			pin.ConfigureOutput(dcPin)
+			pin.ConfigureOutput(rstPin)
+			pin.ConfigureInput(busyPin)
 		},
 	}
 }
 
 func (d *Device) LDirInit(cfg Config) {
 	if d.configurePins == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	d.configurePins()
 
@@ -160,7 +160,7 @@ func (d *Device) LDirInit(cfg Config) {
 
 func (d *Device) HDirInit(cfg Config) {
 	if d.configurePins == nil {
-		panic(legacy.ErrConfigBeforeInstantiated)
+		panic(pin.ErrConfigBeforeInstantiated)
 	}
 	d.configurePins()
 
@@ -240,11 +240,11 @@ func (d *Device) setLUT(lut [159]uint8) {
 
 // Reset resets the display.
 func (d *Device) Reset() {
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(20 * time.Millisecond)
-	d.rst(false)
+	d.rst.Low()
 	time.Sleep(5 * time.Millisecond)
-	d.rst(true)
+	d.rst.High()
 	time.Sleep(20 * time.Millisecond)
 }
 
@@ -261,13 +261,13 @@ func (d *Device) SendData(data uint8) {
 // sendDataCommand sends image data or a command to the screen
 func (d *Device) sendDataCommand(isCommand bool, data uint8) {
 	if isCommand {
-		d.dc(false)
+		d.dc.Low()
 	} else {
-		d.dc(true)
+		d.dc.High()
 	}
-	d.cs(false)
+	d.cs.Low()
 	d.bus.Transfer(data)
-	d.cs(true)
+	d.cs.High()
 }
 
 // SetPixel modifies the internal buffer in a single pixel.
@@ -429,5 +429,5 @@ func (d *Device) Sleep() {
 	d.SendData(0x01)
 	time.Sleep(200 * time.Millisecond)
 
-	d.rst(false)
+	d.rst.Low()
 }

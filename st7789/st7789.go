@@ -13,7 +13,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -46,10 +46,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus             drivers.SPI
-	dcPin           drivers.PinOutput
-	resetPin        drivers.PinOutput
-	csPin           drivers.PinOutput
-	blPin           drivers.PinOutput
+	dcPin           pin.OutputFunc
+	resetPin        pin.OutputFunc
+	csPin           pin.OutputFunc
+	blPin           pin.OutputFunc
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -83,19 +83,19 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin legacy.PinOutput) DeviceOf[T] {
-	legacy.ConfigurePinOut(dcPin)
-	legacy.ConfigurePinOut(resetPin)
-	legacy.ConfigurePinOut(csPin)
-	legacy.ConfigurePinOut(blPin)
-	var cs drivers.PinOutput
-	if !legacy.PinIsNoPin(csPin) {
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
+	pin.ConfigureOutput(dcPin)
+	pin.ConfigureOutput(resetPin)
+	pin.ConfigureOutput(csPin)
+	pin.ConfigureOutput(blPin)
+	var cs pin.OutputFunc
+	if !pin.IsNotPin(csPin) {
 		cs = csPin.Set
 	}
 	return DeviceOf[T]{
@@ -143,11 +143,11 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	d.batchLength += d.batchLength & 1
 
 	// Reset the device
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(50 * time.Millisecond)
-	d.resetPin(false)
+	d.resetPin.Low()
 	time.Sleep(50 * time.Millisecond)
-	d.resetPin(true)
+	d.resetPin.High()
 	time.Sleep(50 * time.Millisecond)
 
 	// Common initialization
@@ -213,7 +213,7 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	time.Sleep(10 * time.Millisecond) //
 
 	d.endWrite()
-	d.blPin(true) // Backlight ON
+	d.blPin.High() // Backlight ON
 }
 
 // Send a command with data to the display. It does not change the chip select
@@ -221,9 +221,9 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 // meaning that data can be sent right away.
 func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 	d.cmdBuf[0] = command
-	d.dcPin(false)
+	d.dcPin.Low()
 	err := d.bus.Tx(d.cmdBuf[:1], nil)
-	d.dcPin(true)
+	d.dcPin.High()
 	if len(data) != 0 {
 		err = d.bus.Tx(data, nil)
 	}
@@ -234,7 +234,7 @@ func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 // chip select pin low.
 func (d *DeviceOf[T]) startWrite() {
 	if d.csPin != nil {
-		d.csPin(false)
+		d.csPin.Low()
 	}
 }
 
@@ -242,7 +242,7 @@ func (d *DeviceOf[T]) startWrite() {
 // select pin high.
 func (d *DeviceOf[T]) endWrite() {
 	if d.csPin != nil {
-		d.csPin(true)
+		d.csPin.High()
 	}
 }
 
@@ -304,9 +304,9 @@ func (d *DeviceOf[T]) SyncToScanLine(scanline uint16) {
 func (d *DeviceOf[T]) GetScanLine() uint16 {
 	d.startWrite()
 	data := []uint8{0x00, 0x00}
-	d.dcPin(false)
+	d.dcPin.Low()
 	d.bus.Transfer(GSCAN)
-	d.dcPin(true)
+	d.dcPin.High()
 	for i := range data {
 		data[i], _ = d.bus.Transfer(0xFF)
 	}
@@ -545,9 +545,9 @@ func (d *DeviceOf[T]) Size() (w, h int16) {
 // EnableBacklight enables or disables the backlight
 func (d *DeviceOf[T]) EnableBacklight(enable bool) {
 	if enable {
-		d.blPin(true)
+		d.blPin.High()
 	} else {
-		d.blPin(false)
+		d.blPin.Low()
 	}
 }
 
