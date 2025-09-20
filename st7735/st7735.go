@@ -11,7 +11,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -40,10 +39,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus          drivers.SPI
-	dcPin        drivers.PinOutput
-	resetPin     drivers.PinOutput
-	csPin        drivers.PinOutput
-	blPin        drivers.PinOutput
+	dcPin        drivers.PinOutputFunc
+	resetPin     drivers.PinOutputFunc
+	csPin        drivers.PinOutputFunc
+	blPin        drivers.PinOutputFunc
 	width        int16
 	height       int16
 	columnOffset int16
@@ -66,13 +65,13 @@ type Config struct {
 }
 
 // New creates a new ST7735 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.PinOutput) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7735 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.PinOutput) DeviceOf[T] {
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(resetPin)
 	legacy.ConfigurePinOut(csPin)

@@ -8,7 +8,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 const (
@@ -38,7 +37,7 @@ func New(b drivers.SPI) *Device {
 
 // NewSoftwareSPI returns a new APA102 driver that will use a software based
 // implementation of the SPI protocol.
-func NewSoftwareSPI(sckPin, sdoPin pin.Output, delay uint32) *Device {
+func NewSoftwareSPI(sckPin, sdoPin drivers.PinOutput, delay uint32) *Device {
 	return New(&bbSPI{SCK: sckPin.Set, SDO: sdoPin.Set, Delay: delay, configurePins: func() {
 		legacy.ConfigurePinOut(sckPin)
 		legacy.ConfigurePinOut(sdoPin)

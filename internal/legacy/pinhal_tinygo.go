@@ -5,22 +5,22 @@ package legacy
 import (
 	"machine"
 
-	"tinygo.org/x/drivers/internal/pin"
+	"tinygo.org/x/drivers"
 )
 
-func configurePinOut(po pin.Output) {
+func configurePinOut(po drivers.PinOutput) {
 	configurePin(po, machine.PinOutput)
 }
 
-func configurePinInputPulldown(pi pin.Input) {
+func configurePinInputPulldown(pi drivers.PinInput) {
 	configurePin(pi, pulldown) // some chips do not have pull down, in which case pulldown==machine.PinInput.
 }
 
-func configurePinInput(pi pin.Input) {
+func configurePinInput(pi drivers.PinInput) {
 	configurePin(pi, machine.PinInput)
 }
 
-func configurePinInputPullup(pi pin.Input) {
+func configurePinInputPullup(pi drivers.PinInput) {
 	configurePin(pi, pullup) // some chips do not have pull up, in which case pullup==machine.PinInput.
 }
 

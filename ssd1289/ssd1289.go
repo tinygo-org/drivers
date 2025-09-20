@@ -17,10 +17,10 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  drivers.PinOutput
-	wr  drivers.PinOutput
-	cs  drivers.PinOutput
-	rst drivers.PinOutput
+	rs  drivers.PinOutputFunc
+	wr  drivers.PinOutputFunc
+	cs  drivers.PinOutputFunc
+	rst drivers.PinOutputFunc
 	bus Bus
 }
 

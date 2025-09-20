@@ -12,13 +12,12 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Device wraps MCP2515 SPI CAN Module.
 type Device struct {
 	spi           SPI
-	cs            drivers.PinOutput
+	cs            drivers.PinOutputFunc
 	msg           *CANMsg
 	mcpMode       byte
 	configurePins func()
@@ -38,7 +37,7 @@ const (
 )
 
 // New returns a new MCP2515 driver. Pass in a fully configured SPI bus.
-func New(b drivers.SPI, csPin pin.Output) *Device {
+func New(b drivers.SPI, csPin drivers.PinOutput) *Device {
 	d := &Device{
 		spi: SPI{
 			bus: b,

@@ -17,7 +17,7 @@ func New(config DeviceConfig) (*Device, error) {
 		return nil, errors.New("config.StepCount and config.RPM must be > 0")
 	}
 	return &Device{
-		pins:      [4]drivers.PinOutput{config.Pin1.Set, config.Pin2.Set, config.Pin3.Set, config.Pin4.Set},
+		pins:      [4]drivers.PinOutputFunc{config.Pin1.Set, config.Pin2.Set, config.Pin3.Set, config.Pin4.Set},
 		stepDelay: time.Second * 60 / time.Duration((config.StepCount * config.RPM)),
 		stepMode:  config.Mode,
 		config: func() {

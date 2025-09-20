@@ -11,8 +11,8 @@ import (
 // most purposes other than the APA102 package. It might be desirable to make
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
-	SCK           drivers.PinOutput
-	SDO           drivers.PinOutput
+	SCK           drivers.PinOutputFunc
+	SDO           drivers.PinOutputFunc
 	Delay         uint32
 	configurePins func()
 }

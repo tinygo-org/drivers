@@ -10,7 +10,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 var (
@@ -21,11 +20,11 @@ var (
 // Device wraps an SPI connection.
 type Device struct {
 	bus           drivers.SPI
-	dcPin         drivers.PinOutput
-	resetPin      drivers.PinOutput
-	csPin         drivers.PinOutput
-	enPin         drivers.PinOutput
-	rwPin         drivers.PinOutput
+	dcPin         drivers.PinOutputFunc
+	resetPin      drivers.PinOutputFunc
+	csPin         drivers.PinOutputFunc
+	enPin         drivers.PinOutputFunc
+	rwPin         drivers.PinOutputFunc
 	configurePins func()
 	width         int16
 	height        int16
@@ -43,7 +42,7 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin drivers.PinOutput) Device {
 	return Device{
 		bus:      bus,
 		dcPin:    dcPin.Set,

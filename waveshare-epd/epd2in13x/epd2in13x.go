@@ -10,7 +10,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Config struct {
@@ -21,10 +20,10 @@ type Config struct {
 
 type Device struct {
 	bus          drivers.SPI
-	cs           drivers.PinOutput
-	dc           drivers.PinOutput
-	rst          drivers.PinOutput
-	isBusy       drivers.PinInput
+	cs           drivers.PinOutputFunc
+	dc           drivers.PinOutputFunc
+	rst          drivers.PinOutputFunc
+	isBusy       drivers.PinInputFunc
 	width        int16
 	height       int16
 	buffer       [][]uint8
@@ -34,7 +33,7 @@ type Device struct {
 type Color uint8
 
 // New returns a new epd2in13x driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
+func New(bus drivers.SPI, csPin, dcPin, rstPin drivers.PinOutput, busyPin drivers.PinInput) Device {
 	legacy.ConfigurePinOut(csPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(rstPin)

@@ -9,20 +9,19 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 const TIMEOUT = 23324 // max sensing distance (4m)
 
 // Device holds the pins
 type Device struct {
-	trigger       drivers.PinOutput
-	echo          drivers.PinInput
+	trigger       drivers.PinOutputFunc
+	echo          drivers.PinInputFunc
 	configurePins func()
 }
 
 // New returns a new ultrasonic driver given 2 pins
-func New(trigger pin.Output, echo pin.Input) Device {
+func New(trigger drivers.PinOutput, echo drivers.PinInput) Device {
 	return Device{
 		trigger: trigger.Set,
 		echo:    echo.Get,

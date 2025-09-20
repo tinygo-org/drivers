@@ -1,29 +1,39 @@
 package drivers
 
-// PinOutput is hardware abstraction for a pin which outputs a
+// PinOutput represents a pin hardware abstraction layer for a pin that can output a digital signal.
+type PinOutput interface {
+	Set(level bool)
+}
+
+// PinInput represents a pin hardware abstraction layer.
+type PinInput interface {
+	Get() (level bool)
+}
+
+// PinOutputFunc is hardware abstraction for a function that causes pin to output a
 // digital signal (high or low level).
 //
-//	// Code conversion demo: from machine.Pin to drivers.PinOutput
+//	// Code conversion demo: from machine.Pin to drivers.PinOutputFunc
 //	led := machine.LED
 //	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-//	var pin drivers.PinOutput = led.Set // Going from a machine.Pin to a drivers.PinOutput
-type PinOutput func(level bool)
+//	var pin drivers.PinOutputFunc = led.Set // Going from a machine.Pin to a drivers.PinOutputFunc
+type PinOutputFunc func(level bool)
 
 // High sets the underlying pin's level to high. This is equivalent to calling PinOutput(true).
-func (po PinOutput) High() {
+func (po PinOutputFunc) High() {
 	po(true)
 }
 
 // Low sets the underlying pin's level to low. This is equivalent to calling PinOutput(false).
-func (po PinOutput) Low() {
+func (po PinOutputFunc) Low() {
 	po(false)
 }
 
-// PinInput is hardware abstraction for a pin which receives a
+// PinInputFunc is hardware abstraction for a pin which receives a
 // digital signal and reads it (high or low level).
 //
-//	// Code conversion demo: from machine.Pin to drivers.PinInput
+//	// Code conversion demo: from machine.Pin to drivers.PinInputFunc
 //	input := machine.LED
 //	input.Configure(machine.PinConfig{Mode: machine.PinInputPulldown}) // or use machine.PinInputPullup or machine.PinInput
-//	var pin drivers.PinInput = input.Get // Going from a machine.Pin to a drivers.PinInput
-type PinInput func() (level bool)
+//	var pin drivers.PinInputFunc = input.Get // Going from a machine.Pin to a drivers.PinInputFunc
+type PinInputFunc func() (level bool)

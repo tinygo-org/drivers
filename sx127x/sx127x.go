@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/lora"
 )
 
@@ -21,15 +20,15 @@ const (
 
 // Device wraps an SPI connection to a SX127x device.
 type Device struct {
-	spi            drivers.SPI          // SPI bus for module communication
-	rstPin         drivers.PinOutput    // GPIO for reset
-	radioEventChan chan lora.RadioEvent // Channel for Receiving events
-	loraConf       lora.Config          // Current Lora configuration
-	controller     RadioController      // to manage interactions with the radio
-	deepSleep      bool                 // Internal Sleep state
-	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
-	spiTxBuf       []byte               // global Tx buffer to avoid heap allocations in interrupt
-	spiRxBuf       []byte               // global Rx buffer to avoid heap allocations in interrupt
+	spi            drivers.SPI           // SPI bus for module communication
+	rstPin         drivers.PinOutputFunc // GPIO for reset
+	radioEventChan chan lora.RadioEvent  // Channel for Receiving events
+	loraConf       lora.Config           // Current Lora configuration
+	controller     RadioController       // to manage interactions with the radio
+	deepSleep      bool                  // Internal Sleep state
+	deviceType     int                   // sx1261,sx1262,sx1268 (defaults sx1261)
+	spiTxBuf       []byte                // global Tx buffer to avoid heap allocations in interrupt
+	spiRxBuf       []byte                // global Rx buffer to avoid heap allocations in interrupt
 }
 
 // --------------------------------------------------
@@ -43,7 +42,7 @@ func (d *Device) GetRadioEventChan() chan lora.RadioEvent {
 }
 
 // New creates a new SX127x connection. The SPI bus must already be configured.
-func New(spi drivers.SPI, rstPin pin.Output) *Device {
+func New(spi drivers.SPI, rstPin drivers.PinOutput) *Device {
 	k := Device{
 		spi:            spi,
 		rstPin:         rstPin.Set,

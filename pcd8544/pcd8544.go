@@ -9,15 +9,14 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Device wraps an SPI connection.
 type Device struct {
 	bus        drivers.SPI
-	dcPin      drivers.PinOutput
-	rstPin     drivers.PinOutput
-	scePin     drivers.PinOutput
+	dcPin      drivers.PinOutputFunc
+	rstPin     drivers.PinOutputFunc
+	scePin     drivers.PinOutputFunc
 	buffer     []byte
 	width      int16
 	height     int16
@@ -30,7 +29,7 @@ type Config struct {
 }
 
 // New creates a new PCD8544 connection. The SPI bus must already be configured.
-func New(bus drivers.SPI, dcPin, rstPin, scePin pin.Output) *Device {
+func New(bus drivers.SPI, dcPin, rstPin, scePin drivers.PinOutput) *Device {
 	return &Device{
 		bus:    bus,
 		dcPin:  dcPin.Set,

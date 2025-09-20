@@ -20,9 +20,9 @@ type Rotation uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus         drivers.SPI
-	dcPin       drivers.PinOutput
-	resetPin    drivers.PinOutput
-	csPin       drivers.PinOutput
+	dcPin       drivers.PinOutputFunc
+	resetPin    drivers.PinOutputFunc
+	csPin       drivers.PinOutputFunc
 	width       int16
 	height      int16
 	batchLength int16

@@ -19,10 +19,10 @@ const Baudrate = 4_000_000 // 4 MHz
 
 type Device struct {
 	bus    drivers.SPI
-	cs     drivers.PinOutput
-	dc     drivers.PinOutput
-	rst    drivers.PinOutput
-	isBusy drivers.PinInput
+	cs     drivers.PinOutputFunc
+	dc     drivers.PinOutputFunc
+	rst    drivers.PinOutputFunc
+	isBusy drivers.PinInputFunc
 
 	blackBuffer []byte
 	redBuffer   []byte

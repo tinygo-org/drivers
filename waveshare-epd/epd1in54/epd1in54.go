@@ -15,7 +15,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Config struct {
@@ -27,10 +26,10 @@ type Config struct {
 
 type Device struct {
 	bus           *machine.SPI
-	cs            drivers.PinOutput
-	dc            drivers.PinOutput
-	rst           drivers.PinOutput
-	isBusy        drivers.PinInput
+	cs            drivers.PinOutputFunc
+	dc            drivers.PinOutputFunc
+	rst           drivers.PinOutputFunc
+	isBusy        drivers.PinInputFunc
 	configurePins func()
 	buffer        []uint8
 	rotation      Rotation
@@ -83,7 +82,7 @@ var partialRefresh = [159]uint8{
 }
 
 // New returns a new epd1in54 driver. Pass in a fully configured SPI bus.
-func New(bus *machine.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
+func New(bus *machine.SPI, csPin, dcPin, rstPin drivers.PinOutput, busyPin drivers.PinInput) Device {
 	return Device{
 		buffer: make([]uint8, (uint32(Width)*uint32(Height))/8),
 		bus:    bus,

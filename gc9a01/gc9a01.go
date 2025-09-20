@@ -11,7 +11,6 @@ import (
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
-	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Rotation controls the rotation used by the display.
@@ -23,10 +22,10 @@ type FrameRate uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus             drivers.SPI
-	dcPin           drivers.PinOutput
-	resetPin        drivers.PinOutput
-	csPin           drivers.PinOutput
-	blPin           drivers.PinOutput
+	dcPin           drivers.PinOutputFunc
+	resetPin        drivers.PinOutputFunc
+	csPin           drivers.PinOutputFunc
+	blPin           drivers.PinOutputFunc
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -53,7 +52,7 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.PinOutput) Device {
 	legacy.ConfigurePinOut(resetPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(csPin)

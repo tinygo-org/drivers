@@ -32,7 +32,7 @@ func (sm StepMode) stepCount() uint {
 
 // Device holds the pins and the delay between steps
 type Device struct {
-	pins       [4]drivers.PinOutput
+	pins       [4]drivers.PinOutputFunc
 	config     func()
 	stepDelay  time.Duration
 	stepNumber uint8

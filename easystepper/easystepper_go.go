@@ -7,7 +7,7 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-func NewCrossPlatform(stepcount, rpm uint, mode StepMode, pins [4]drivers.PinOutput) (*Device, error) {
+func NewCrossPlatform(stepcount, rpm uint, mode StepMode, pins [4]drivers.PinOutputFunc) (*Device, error) {
 	if stepcount == 0 || rpm == 0 {
 		return nil, errors.New("zero rpm and/or stepcount")
 	}
