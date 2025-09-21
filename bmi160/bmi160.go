@@ -1,7 +1,6 @@
 package bmi160
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -11,7 +10,7 @@ import (
 // also an I2C interface, but it is not yet supported.
 type DeviceSPI struct {
 	// Chip select pin
-	CSB machine.Pin
+	CSB drivers.PinOutput
 
 	buf [7]byte
 
@@ -22,9 +21,9 @@ type DeviceSPI struct {
 // NewSPI returns a new device driver. The pin and SPI interface are not
 // touched, provide a fully configured SPI object and call Configure to start
 // using this device.
-func NewSPI(csb machine.Pin, spi drivers.SPI) *DeviceSPI {
+func NewSPI(csb drivers.PinOutput, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
-		CSB: csb, // chip select
+		CSB: drivers.SafePinOutput(csb), // chip select
 		Bus: spi,
 	}
 }
@@ -33,8 +32,7 @@ func NewSPI(csb machine.Pin, spi drivers.SPI) *DeviceSPI {
 // configures the BMI160, but it does not configure the SPI interface (it is
 // assumed to be up and running).
 func (d *DeviceSPI) Configure() error {
-	d.CSB.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.CSB.High()
+	d.CSB.Set(true)
 
 	// The datasheet recommends doing a register read from address 0x7F to get
 	// SPI communication going:
@@ -86,9 +84,9 @@ func (d *DeviceSPI) ReadTemperature() (temperature int32, err error) {
 	data[0] = 0x80 | reg_TEMPERATURE_0
 	data[1] = 0
 	data[2] = 0
-	d.CSB.Low()
+	d.CSB.Set(false)
 	err = d.Bus.Tx(data, data)
-	d.CSB.High()
+	d.CSB.Set(true)
 	if err != nil {
 		return
 	}
@@ -123,9 +121,9 @@ func (d *DeviceSPI) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	for i := 1; i < len(data); i++ {
 		data[i] = 0
 	}
-	d.CSB.Low()
+	d.CSB.Set(false)
 	err = d.Bus.Tx(data, data)
-	d.CSB.High()
+	d.CSB.Set(true)
 	if err != nil {
 		return
 	}
@@ -153,9 +151,9 @@ func (d *DeviceSPI) ReadRotation() (x int32, y int32, z int32, err error) {
 	for i := 1; i < len(data); i++ {
 		data[i] = 0
 	}
-	d.CSB.Low()
+	d.CSB.Set(false)
 	err = d.Bus.Tx(data, data)
-	d.CSB.High()
+	d.CSB.Set(true)
 	if err != nil {
 		return
 	}
@@ -201,9 +199,9 @@ func (d *DeviceSPI) readRegister(address uint8) uint8 {
 	data := d.buf[:2]
 	data[0] = 0x80 | address
 	data[1] = 0
-	d.CSB.Low()
+	d.CSB.Set(false)
 	d.Bus.Tx(data, data)
-	d.CSB.High()
+	d.CSB.Set(true)
 	return data[1]
 }
 
@@ -217,7 +215,7 @@ func (d *DeviceSPI) writeRegister(address, data uint8) {
 	buf[0] = address
 	buf[1] = data
 
-	d.CSB.Low()
+	d.CSB.Set(false)
 	d.Bus.Tx(buf, buf)
-	d.CSB.High()
+	d.CSB.Set(true)
 }

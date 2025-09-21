@@ -9,9 +9,10 @@
 package dht // import "tinygo.org/x/drivers/dht"
 
 import (
-	"machine"
 	"runtime/interrupt"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // DummyDevice provides a basic interface for DHT devices.
@@ -30,7 +31,7 @@ type DummyDevice interface {
 // Since taking measurements from the sensor is time consuming procedure and blocks interrupts,
 // user can avoid any hidden calls to the sensor.
 type device struct {
-	pin machine.Pin
+	pin drivers.Pin
 
 	measurements DeviceType
 	initialized  bool
@@ -44,7 +45,9 @@ type device struct {
 func (t *device) ReadMeasurements() error {
 	// initial waiting
 	state := powerUp(t.pin)
-	defer t.pin.Set(state)
+	defer func() {
+		t.pin.Set(state)
+	}()
 	err := t.read()
 	if err == nil {
 		t.initialized = true
@@ -93,14 +96,12 @@ func (t *device) HumidityFloat() (float32, error) {
 // Perform initialization of the communication protocol.
 // Device lowers the voltage on pin for startingLow=20ms and starts listening for response
 // Section 5.2 in [1]
-func initiateCommunication(p machine.Pin) {
+func initiateCommunication(p drivers.Pin) {
 	// Send low signal to the device
-	p.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	p.Low()
+	p.Set(false)
 	time.Sleep(startingLow)
 	// Set pin to high and wait for reply
-	p.High()
-	p.Configure(machine.PinConfig{Mode: machine.PinInput})
+	p.Set(true)
 }
 
 // Measurements returns both measurements: temperature and humidity as they sent by the device.
@@ -158,7 +159,7 @@ func (t *device) read() error {
 
 // receiveSignals counts number of low and high cycles. The execution is time critical, so the function disables
 // interrupts
-func receiveSignals(pin machine.Pin, result []counter) {
+func receiveSignals(pin drivers.PinInput, result []counter) {
 	i := uint8(0)
 	mask := interrupt.Disable()
 	defer interrupt.Restore(mask)
@@ -189,7 +190,7 @@ func (t *device) extractData(signals []counter, buf []uint8) error {
 // waitForDataTransmission waits for reply from the sensor.
 // If no reply received, returns NoSignalError.
 // For more details, see section 5.2 in [1]
-func waitForDataTransmission(p machine.Pin) error {
+func waitForDataTransmission(p drivers.PinInput) error {
 	// wait for thermometer to pull down
 	if expectChange(p, true) == timeout {
 		return NoSignalError
@@ -209,10 +210,10 @@ func waitForDataTransmission(p machine.Pin) error {
 // This device provides full control to the user.
 // It does not do any hidden measurements calls and does not check
 // for 2 seconds delay between measurements.
-func NewDummyDevice(pin machine.Pin, deviceType DeviceType) DummyDevice {
-	pin.High()
+func NewDummyDevice(pin drivers.Pin, deviceType DeviceType) DummyDevice {
+	pin.Set(true)
 	return &device{
-		pin:          pin,
+		pin:          drivers.SafePin(pin),
 		measurements: deviceType,
 		initialized:  false,
 		temperature:  0,

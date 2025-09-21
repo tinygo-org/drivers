@@ -1,7 +1,6 @@
 package ssd1306
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -9,38 +8,35 @@ import (
 
 type SPIBus struct {
 	wire     drivers.SPI
-	dcPin    machine.Pin
-	resetPin machine.Pin
-	csPin    machine.Pin
+	dcPin    drivers.PinOutput
+	resetPin drivers.PinOutput
+	csPin    drivers.PinOutput
 	buffer   []byte // buffer to avoid heap allocations
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) *Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin drivers.PinOutput) *Device {
 	return &Device{
 		bus: &SPIBus{
 			wire:     bus,
-			dcPin:    dcPin,
-			resetPin: resetPin,
-			csPin:    csPin,
+			dcPin:    drivers.SafePinOutput(dcPin),
+			resetPin: drivers.SafePinOutput(resetPin),
+			csPin:    drivers.SafePinOutput(csPin),
 		},
 	}
 }
 
 // configure pins with the SPI bus and allocate the buffer
 func (b *SPIBus) configure(address uint16, size int16) []byte {
-	b.csPin.Low()
-	b.dcPin.Low()
-	b.resetPin.Low()
+	b.csPin.Set(false)
+	b.dcPin.Set(false)
+	b.resetPin.Set(false)
 
-	b.resetPin.High()
+	b.resetPin.Set(true)
 	time.Sleep(1 * time.Millisecond)
-	b.resetPin.Low()
+	b.resetPin.Set(false)
 	time.Sleep(10 * time.Millisecond)
-	b.resetPin.High()
+	b.resetPin.Set(true)
 
 	b.buffer = make([]byte, size+1) // +1 for a command
 	return b.buffer[1:]             // return the image buffer
@@ -59,10 +55,10 @@ func (b *SPIBus) flush() error {
 
 // tx sends data to the display
 func (b *SPIBus) tx(data []byte, isCommand bool) error {
-	b.csPin.High()
+	b.csPin.Set(true)
 	b.dcPin.Set(!isCommand)
-	b.csPin.Low()
+	b.csPin.Set(false)
 	err := b.wire.Tx(data, nil)
-	b.csPin.High()
+	b.csPin.Set(true)
 	return err
 }

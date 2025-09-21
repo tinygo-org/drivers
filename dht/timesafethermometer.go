@@ -9,8 +9,9 @@
 package dht // import "tinygo.org/x/drivers/dht"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 // Device interface provides main functionality of the DHTXX sensors.
@@ -124,11 +125,11 @@ func (m *managedDevice) Configure(policy UpdatePolicy) {
 
 // Constructor of the Device implementation.
 // This implementation updates data every 2 seconds during data access.
-func New(pin machine.Pin, deviceType DeviceType) Device {
-	pin.High()
+func New(pin drivers.Pin, deviceType DeviceType) Device {
+	pin.Set(true)
 	return &managedDevice{
 		t: device{
-			pin:          pin,
+			pin:          drivers.SafePin(pin),
 			measurements: deviceType,
 			initialized:  false,
 		},
@@ -141,11 +142,11 @@ func New(pin machine.Pin, deviceType DeviceType) Device {
 }
 
 // Constructor of the Device implementation with given UpdatePolicy
-func NewWithPolicy(pin machine.Pin, deviceType DeviceType, updatePolicy UpdatePolicy) Device {
-	pin.High()
+func NewWithPolicy(pin drivers.Pin, deviceType DeviceType, updatePolicy UpdatePolicy) Device {
+	pin.Set(true)
 	result := &managedDevice{
 		t: device{
-			pin:          pin,
+			pin:          drivers.SafePin(pin),
 			measurements: deviceType,
 			initialized:  false,
 		},
