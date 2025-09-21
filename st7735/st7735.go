@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -73,10 +74,10 @@ func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.PinOutput) Devic
 func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin drivers.PinOutput) DeviceOf[T] {
 	return DeviceOf[T]{
 		bus:      bus,
-		dcPin:    drivers.SafePinOutput(dcPin),
-		resetPin: drivers.SafePinOutput(resetPin),
-		csPin:    drivers.SafePinOutput(csPin),
-		blPin:    drivers.SafePinOutput(blPin),
+		dcPin:    legacy.PinOutput(dcPin),
+		resetPin: legacy.PinOutput(resetPin),
+		csPin:    legacy.PinOutput(csPin),
+		blPin:    legacy.PinOutput(blPin),
 	}
 }
 

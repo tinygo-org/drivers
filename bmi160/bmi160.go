@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // DeviceSPI is the SPI interface to a BMI160 accelerometer/gyroscope. There is
@@ -23,7 +24,7 @@ type DeviceSPI struct {
 // using this device.
 func NewSPI(csb drivers.PinOutput, spi drivers.SPI) *DeviceSPI {
 	return &DeviceSPI{
-		CSB: drivers.SafePinOutput(csb), // chip select
+		CSB: legacy.PinOutput(csb), // chip select
 		Bus: spi,
 	}
 }

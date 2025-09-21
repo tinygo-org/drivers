@@ -1,4 +1,6 @@
 // Implementation of the Pin interface for the Raspberry Pi GPIO pins.
+// Depends on the go-rpio library.
+// Configures pin modes automatically when Get or Set methods are called.
 
 package rpio // import "tinygo.org/x/drivers/rpio"
 

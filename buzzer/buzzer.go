@@ -17,7 +17,7 @@ type Device struct {
 // New returns a new buzzer driver given which pin to use
 func New(pin drivers.PinOutput) Device {
 	return Device{
-		set:  drivers.SafePinOutput(pin).Set,
+		set:  pin.Set,
 		High: false,
 		BPM:  96.0,
 	}

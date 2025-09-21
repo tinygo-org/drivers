@@ -5,20 +5,22 @@
 package hcsr04
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
 )
 
 const TIMEOUT = 23324 // max sensing distance (4m)
 
 // Device holds the pins
 type Device struct {
-	trigger machine.Pin
-	echo    machine.Pin
+	trigger drivers.PinOutput
+	echo    drivers.PinInput
 }
 
-// New returns a new ultrasonic driver given 2 pins
-func New(trigger, echo machine.Pin) Device {
+// New returns a new ultrasonic driver given 2 pins.
+// Pins must be configured as output (trigger) and input (echo).
+func New(trigger drivers.PinOutput, echo drivers.PinInput) Device {
 	return Device{
 		trigger: trigger,
 		echo:    echo,
@@ -27,8 +29,7 @@ func New(trigger, echo machine.Pin) Device {
 
 // Configure configures the pins of the Device
 func (d *Device) Configure() {
-	d.trigger.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.echo.Configure(machine.PinConfig{Mode: machine.PinInput})
+	// no-op, left for API compatibility
 }
 
 // ReadDistance returns the distance of the object in mm
@@ -45,11 +46,11 @@ func (d *Device) ReadDistance() int32 {
 // ReadPulse returns the time of the pulse (roundtrip) in microseconds
 func (d *Device) ReadPulse() int32 {
 	t := time.Now()
-	d.trigger.Low()
+	d.trigger.Set(false)
 	time.Sleep(2 * time.Microsecond)
-	d.trigger.High()
+	d.trigger.Set(true)
 	time.Sleep(10 * time.Microsecond)
-	d.trigger.Low()
+	d.trigger.Set(false)
 	i := uint8(0)
 	for {
 		if d.echo.Get() {

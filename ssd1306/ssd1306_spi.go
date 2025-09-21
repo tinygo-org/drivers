@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type SPIBus struct {
@@ -19,9 +20,9 @@ func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin drivers.PinOutput) *Device {
 	return &Device{
 		bus: &SPIBus{
 			wire:     bus,
-			dcPin:    drivers.SafePinOutput(dcPin),
-			resetPin: drivers.SafePinOutput(resetPin),
-			csPin:    drivers.SafePinOutput(csPin),
+			dcPin:    legacy.PinOutput(dcPin),
+			resetPin: legacy.PinOutput(resetPin),
+			csPin:    legacy.PinOutput(csPin),
 		},
 	}
 }

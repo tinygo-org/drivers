@@ -4,13 +4,17 @@ package drivers
 // allowing the use of different hardware or libraries without changing driver code.
 //
 // Note, pin mode functionality is not part of the Pin interface.
-// Implementations must ensure correct pin mode is set when Get or Set methods are called.
+// Client code is responsible for configuring pin modes correctly.
+// This can be done either before passing the pin to a driver constructor
+// or by ensuring correct pin mode is set when Get or Set methods are called.
+// See rpio package for an example of a pin implementation that does this.
 //
-// Drivers must use SafePin(), SafePinInput() and SafePinOutput() wrappers in constructors.
-// The client code can pass either machine.Pin or a custom implementation of the Pin interface.
-// Wrappers for TinyGo's machine.Pin are provided in pin_tinygo.go.
-// It's custom implementation's responsibility to configure the pin modes correctly as
-// Wrappers in pin_generic.go are no-ops.
+// Drivers that used to configure output pin mode in their constructors can use
+// legacy.PinOutput() wrapper to keep the same behavior for machine.Pin.
+// See internal/legacy/pinlegacy_tinygo.go and internal/legacy/pinlegacy_generic.go for details.
+//
+// All new drivers are encouraged to not configure pin modes in their constructors and
+// do not depend on either machine package or legacy wrappers.
 
 // PinInput is an interface for reading the state of a pin.
 type PinInput interface {

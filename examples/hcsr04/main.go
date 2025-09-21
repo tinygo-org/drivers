@@ -5,10 +5,13 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/hcsr04"
+	"tinygo.org/x/drivers/tinygo"
 )
 
 func main() {
-	sensor := hcsr04.New(machine.D10, machine.D9)
+	trigger := tinygo.New(machine.D10) // automatically configures pin as output
+	echo := tinygo.New(machine.D9)     // automatically configures pin as input
+	sensor := hcsr04.New(trigger, echo)
 	sensor.Configure()
 
 	println("Ultrasonic starts")

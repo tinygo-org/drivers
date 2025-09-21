@@ -45,9 +45,7 @@ type device struct {
 func (t *device) ReadMeasurements() error {
 	// initial waiting
 	state := powerUp(t.pin)
-	defer func() {
-		t.pin.Set(state)
-	}()
+	defer t.pin.Set(state)
 	err := t.read()
 	if err == nil {
 		t.initialized = true
@@ -213,7 +211,7 @@ func waitForDataTransmission(p drivers.PinInput) error {
 func NewDummyDevice(pin drivers.Pin, deviceType DeviceType) DummyDevice {
 	pin.Set(true)
 	return &device{
-		pin:          drivers.SafePin(pin),
+		pin:          pin,
 		measurements: deviceType,
 		initialized:  false,
 		temperature:  0,

@@ -129,7 +129,7 @@ func New(pin drivers.Pin, deviceType DeviceType) Device {
 	pin.Set(true)
 	return &managedDevice{
 		t: device{
-			pin:          drivers.SafePin(pin),
+			pin:          pin,
 			measurements: deviceType,
 			initialized:  false,
 		},
@@ -146,7 +146,7 @@ func NewWithPolicy(pin drivers.Pin, deviceType DeviceType, updatePolicy UpdatePo
 	pin.Set(true)
 	result := &managedDevice{
 		t: device{
-			pin:          drivers.SafePin(pin),
+			pin:          pin,
 			measurements: deviceType,
 			initialized:  false,
 		},
