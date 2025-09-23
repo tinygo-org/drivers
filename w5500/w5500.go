@@ -33,13 +33,14 @@ type Device struct {
 	sockets []*socket
 	laddr   netip.Addr
 
-	cmdBuf []byte
+	cmdBuf [3]byte
 }
 
 // New returns a new w5500 driver.
-func New() *Device {
+func New(bus drivers.SPI, cs PinOutput) *Device {
 	return &Device{
-		cmdBuf: make([]byte, 3),
+		bus: bus,
+		cs:  cs,
 	}
 }
 
@@ -47,8 +48,6 @@ func New() *Device {
 //
 // The SPI bus must be fully configured.
 type Config struct {
-	SPI drivers.SPI
-	CS  PinOutput
 	DNS Resolver
 
 	MAC        net.HardwareAddr
@@ -64,13 +63,11 @@ type Config struct {
 //
 // MAC address must be provided. The other fields are optional.
 func (d *Device) Configure(cfg Config) error {
-	cfg.CS(true)
+	d.cs(true)
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	d.bus = cfg.SPI
-	d.cs = cfg.CS
 	d.dns = cfg.DNS
 
 	d.reset()

@@ -104,7 +104,7 @@ func (d *Device) sendReadHeader(addr uint16, bsb uint8) {
 	buf[0] = byte(addr >> 8)
 	buf[1] = byte(addr & 0xff)
 	buf[2] = bsb<<3 | 0b000
-	_ = d.bus.Tx(buf, nil)
+	_ = d.bus.Tx(buf[:], nil)
 }
 
 func (d *Device) sendWriteHeader(addr uint16, bsb uint8) {
@@ -112,5 +112,5 @@ func (d *Device) sendWriteHeader(addr uint16, bsb uint8) {
 	buf[0] = byte(addr >> 8)
 	buf[1] = byte(addr & 0xff)
 	buf[2] = bsb<<3 | 0b100
-	_ = d.bus.Tx(buf, nil)
+	_ = d.bus.Tx(buf[:], nil)
 }

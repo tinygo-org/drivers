@@ -16,10 +16,8 @@ func main() {
 	})
 	machine.GPIO17.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	eth := w5500.New()
+	eth := w5500.New(machine.SPI0, machine.GPIO17.Set)
 	eth.Configure(w5500.Config{
-		SPI:        machine.SPI0,
-		CS:         machine.GPIO17.Set,
 		MAC:        net.HardwareAddr{0xee, 0xbe, 0xe9, 0xa9, 0xb6, 0x4f},
 		IP:         netip.AddrFrom4([4]byte{192, 168, 1, 2}),
 		SubnetMask: netip.AddrFrom4([4]byte{255, 255, 255, 0}),
