@@ -16,3 +16,16 @@ const (
 	REG_SHUTDOWN     byte = 0x0C // turn on for no shutdown mode
 	REG_DISPLAY_TEST byte = 0x0F // turn off for no display test
 )
+
+// BCD (B) codes for the 7-segment display
+// B coding uses the first 4 bits to represent the character and bit 7 to represent the dot.
+// 0 - 9 represent the numbers 0 to 9
+const (
+	BcdDash  byte = 10
+	BcdE     byte = 11
+	BcdH     byte = 12
+	BcdL     byte = 13
+	BcdP     byte = 14
+	BcdBlank byte = 15
+	BcdDot   byte = 128 // 7 bit must be | with the character
+)
