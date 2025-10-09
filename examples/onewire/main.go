@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/hex"
+	"machine"
 	"time"
+
 	"tinygo.org/x/drivers/onewire"
 )
 
@@ -18,7 +20,7 @@ func main() {
 		println()
 		println("Device:", machine.Device)
 
-		romIDs, err := ow.Search(onewire.SEARCH)
+		romIDs, err := ow.Search(onewire.SEARCH_ROM)
 		if err != nil {
 			println(err)
 		}
