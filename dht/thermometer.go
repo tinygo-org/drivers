@@ -9,9 +9,12 @@
 package dht // import "tinygo.org/x/drivers/dht"
 
 import (
-	"machine"
 	"runtime/interrupt"
 	"time"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // DummyDevice provides a basic interface for DHT devices.
@@ -30,7 +33,8 @@ type DummyDevice interface {
 // Since taking measurements from the sensor is time consuming procedure and blocks interrupts,
 // user can avoid any hidden calls to the sensor.
 type device struct {
-	pin machine.Pin
+	set pin.OutputFn
+	get pin.InputFn
 
 	measurements DeviceType
 	initialized  bool
@@ -43,8 +47,8 @@ type device struct {
 // According to documentation pin should be always, but the t *device restores pin to the state before call.
 func (t *device) ReadMeasurements() error {
 	// initial waiting
-	state := powerUp(t.pin)
-	defer t.pin.Set(state)
+	state := powerUp(t.set, t.get)
+	defer t.set(state)
 	err := t.read()
 	if err == nil {
 		t.initialized = true
@@ -93,14 +97,11 @@ func (t *device) HumidityFloat() (float32, error) {
 // Perform initialization of the communication protocol.
 // Device lowers the voltage on pin for startingLow=20ms and starts listening for response
 // Section 5.2 in [1]
-func initiateCommunication(p machine.Pin) {
-	// Send low signal to the device
-	p.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	p.Low()
+func initiateCommunication(set pin.OutputFn) {
+	set.Low()
 	time.Sleep(startingLow)
 	// Set pin to high and wait for reply
-	p.High()
-	p.Configure(machine.PinConfig{Mode: machine.PinInput})
+	set.High()
 }
 
 // Measurements returns both measurements: temperature and humidity as they sent by the device.
@@ -131,14 +132,14 @@ func (t *device) read() error {
 	signals := signalsData[:]
 
 	// Start communication protocol with sensor
-	initiateCommunication(t.pin)
+	initiateCommunication(t.set)
 	// Wait for sensor's response and abort if sensor does not reply
-	err := waitForDataTransmission(t.pin)
+	err := waitForDataTransmission(t.get)
 	if err != nil {
 		return err
 	}
 	// count low and high cycles for sensor's reply
-	receiveSignals(t.pin, signals)
+	receiveSignals(t.get, signals)
 
 	// process received signals and store the result in the buffer. Abort if data transmission was interrupted and not
 	// all 40 bits were received
@@ -158,13 +159,13 @@ func (t *device) read() error {
 
 // receiveSignals counts number of low and high cycles. The execution is time critical, so the function disables
 // interrupts
-func receiveSignals(pin machine.Pin, result []counter) {
+func receiveSignals(get pin.InputFn, result []counter) {
 	i := uint8(0)
 	mask := interrupt.Disable()
 	defer interrupt.Restore(mask)
 	for ; i < 40; i++ {
-		result[i*2] = expectChange(pin, false)
-		result[i*2+1] = expectChange(pin, true)
+		result[i*2] = expectChange(get, false)
+		result[i*2+1] = expectChange(get, true)
 	}
 }
 
@@ -189,33 +190,59 @@ func (t *device) extractData(signals []counter, buf []uint8) error {
 // waitForDataTransmission waits for reply from the sensor.
 // If no reply received, returns NoSignalError.
 // For more details, see section 5.2 in [1]
-func waitForDataTransmission(p machine.Pin) error {
+func waitForDataTransmission(get pin.InputFn) error {
 	// wait for thermometer to pull down
-	if expectChange(p, true) == timeout {
+	if expectChange(get, true) == timeout {
 		return NoSignalError
 	}
 	//wait for thermometer to pull up
-	if expectChange(p, false) == timeout {
+	if expectChange(get, false) == timeout {
 		return NoSignalError
 	}
 	// wait for thermometer to pull down and start sending the data
-	if expectChange(p, true) == timeout {
+	if expectChange(get, true) == timeout {
 		return NoSignalError
 	}
 	return nil
+}
+
+func newDevice(pin drivers.Pin, deviceType DeviceType) *device {
+	pin.Set(true)
+	// Pins are configured to maintain backward compatibility,
+	// When writing new drivers we assume that pins are configured in user code
+	// so the device initialization could be simplified like this:
+	// return &device{
+	// 	set:          pin.Set,
+	// 	get:          pin.Get,
+	//  ...
+	// }
+	isOutput := true
+	return &device{
+		set: func(level bool) {
+			if !isOutput {
+				legacy.ConfigurePinOut(pin)
+				isOutput = true
+			}
+			pin.Set(level)
+		},
+		get: func() bool {
+			if isOutput {
+				legacy.ConfigurePinInput(pin)
+				isOutput = false
+			}
+			return pin.Get()
+		},
+		measurements: deviceType,
+		initialized:  false,
+		temperature:  0,
+		humidity:     0,
+	}
 }
 
 // Constructor function for a DummyDevice implementation.
 // This device provides full control to the user.
 // It does not do any hidden measurements calls and does not check
 // for 2 seconds delay between measurements.
-func NewDummyDevice(pin machine.Pin, deviceType DeviceType) DummyDevice {
-	pin.High()
-	return &device{
-		pin:          pin,
-		measurements: deviceType,
-		initialized:  false,
-		temperature:  0,
-		humidity:     0,
-	}
+func NewDummyDevice(pin drivers.Pin, deviceType DeviceType) DummyDevice {
+	return newDevice(pin, deviceType)
 }

@@ -3,7 +3,7 @@ package legacy
 import (
 	"errors"
 
-	"tinygo.org/x/drivers/internal/pin"
+	"tinygo.org/x/drivers"
 )
 
 // The pingconfig group of files serve to abstract away
@@ -19,7 +19,7 @@ import (
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinOut(po pin.Output) {
+func ConfigurePinOut(po drivers.OutputPin) {
 	configurePinOut(po)
 }
 
@@ -28,7 +28,7 @@ func ConfigurePinOut(po pin.Output) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInputPulldown(pi pin.Input) {
+func ConfigurePinInputPulldown(pi drivers.InputPin) {
 	configurePinInputPulldown(pi)
 }
 
@@ -37,7 +37,7 @@ func ConfigurePinInputPulldown(pi pin.Input) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInput(pi pin.Input) {
+func ConfigurePinInput(pi drivers.InputPin) {
 	configurePinInput(pi)
 }
 
@@ -46,14 +46,14 @@ func ConfigurePinInput(pi pin.Input) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInputPullup(pi pin.Input) {
+func ConfigurePinInputPullup(pi drivers.InputPin) {
 	configurePinInputPullup(pi)
 }
 
 // PinIsNoPin returns true if the argument is a machine.Pin type and is the machine.NoPin predeclared type.
 //
 // Deprecated: Drivers do not require pin knowledge from now on.
-func PinIsNoPin(pin any) bool {
+func PinIsNoPin(pin drivers.Pin) bool {
 	return pinIsNoPin(pin)
 }
 

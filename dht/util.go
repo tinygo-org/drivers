@@ -3,23 +3,24 @@
 package dht // import "tinygo.org/x/drivers/dht"
 
 import (
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Check if the pin is disabled
-func powerUp(p machine.Pin) bool {
-	state := p.Get()
+func powerUp(set pin.OutputFn, get pin.InputFn) bool {
+	state := get()
 	if !state {
-		p.High()
+		set.High()
 		time.Sleep(startTimeout)
 	}
 	return state
 }
 
-func expectChange(p machine.Pin, oldState bool) counter {
+func expectChange(get pin.InputFn, oldState bool) counter {
 	cnt := counter(0)
-	for ; p.Get() == oldState && cnt != timeout; cnt++ {
+	for ; get() == oldState && cnt != timeout; cnt++ {
 	}
 	return cnt
 }

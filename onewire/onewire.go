@@ -5,8 +5,11 @@ package onewire // import "tinygo.org/x/drivers/onewire"
 
 import (
 	"errors"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // OneWire ROM commands
@@ -19,7 +22,8 @@ const (
 
 // Device wraps a connection to an 1-Wire devices.
 type Device struct {
-	p machine.Pin
+	set pin.OutputFn
+	get pin.InputFn
 }
 
 // Config wraps a configuration to an 1-Wire devices.
@@ -34,9 +38,34 @@ var (
 
 // New creates a new GPIO 1-Wire connection.
 // The pin must be pulled up to the VCC via a resistor greater than 500 ohms (default 4.7k).
-func New(p machine.Pin) Device {
+func New(p drivers.Pin) Device {
+	legacy.ConfigurePinInputPullup(p)
+	isOutput := false
+	// Pins are configured to maintain backward compatibility,
+	// When writing new drivers we assume that pins are configured in user code
+	// so the device initialization could be simplified like this:
+	// return &device{
+	// 	set:          p.Set,
+	// 	get:          p.Get,
+	// }
 	return Device{
-		p: p,
+		set: func(level bool) {
+			if level && isOutput {
+				legacy.ConfigurePinInputPullup(p)
+				isOutput = false
+			}
+			if !level && !isOutput {
+				legacy.ConfigurePinOut(p)
+				isOutput = true
+			}
+		},
+		get: func() bool {
+			if isOutput {
+				legacy.ConfigurePinInputPullup(p)
+				isOutput = false
+			}
+			return p.Get()
+		},
 	}
 }
 
@@ -45,11 +74,11 @@ func (d *Device) Configure(config Config) {}
 
 // Reset pull DQ line low, then up.
 func (d Device) Reset() error {
-	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.set.Low()
 	time.Sleep(480 * time.Microsecond)
-	d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	d.set.High()
 	time.Sleep(70 * time.Microsecond)
-	precence := d.p.Get()
+	precence := d.get()
 	time.Sleep(410 * time.Microsecond)
 	if precence {
 		return errNoPresence
@@ -59,14 +88,14 @@ func (d Device) Reset() error {
 
 // WriteBit transmits a bit to 1-Wire bus.
 func (d Device) WriteBit(data uint8) {
-	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.set.Low()
 	if data&1 == 1 { // Send '1'
 		time.Sleep(5 * time.Microsecond)
-		d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+		d.set.High()
 		time.Sleep(60 * time.Microsecond)
 	} else { // Send '0'
 		time.Sleep(60 * time.Microsecond)
-		d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+		d.set.Low()
 		time.Sleep(5 * time.Microsecond)
 	}
 }
@@ -81,11 +110,11 @@ func (d Device) Write(data uint8) {
 
 // ReadBit receives a bit from 1-Wire bus.
 func (d Device) ReadBit() (data uint8) {
-	d.p.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.set.Low()
 	time.Sleep(3 * time.Microsecond)
-	d.p.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	d.set.High()
 	time.Sleep(8 * time.Microsecond)
-	if d.p.Get() {
+	if d.get() {
 		data = 1
 	}
 	time.Sleep(60 * time.Microsecond)
