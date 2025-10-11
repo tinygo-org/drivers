@@ -13,6 +13,7 @@ type Device struct {
 	bus     drivers.I2C
 	address uint16
 	r       Range
+	accel   [6]byte // stored acceleration data (from the Update call)
 }
 
 // Driver configuration, used for the Configure call. All fields are optional.
@@ -120,20 +121,9 @@ func (d *Device) ReadRange() (r Range, err error) {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (int32, int32, int32, error) {
-	x, y, z := d.ReadRawAcceleration()
-	divider := float32(1)
-	switch d.r {
-	case RANGE_16_G:
-		divider = 1365
-	case RANGE_8_G:
-		divider = 4096
-	case RANGE_4_G:
-		divider = 8190
-	case RANGE_2_G:
-		divider = 16380
-	}
-
-	return int32(float32(x) / divider * 1000000), int32(float32(y) / divider * 1000000), int32(float32(z) / divider * 1000000), nil
+	rawX, rawY, rawZ := d.ReadRawAcceleration()
+	x, y, z := normalizeRange(rawX, rawY, rawZ, d.r)
+	return x, y, z, nil
 }
 
 // ReadRawAcceleration returns the raw x, y and z axis from the LIS3DH
@@ -146,6 +136,71 @@ func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
 	x = int16((uint16(data[1]) << 8) | uint16(data[0]))
 	y = int16((uint16(data[3]) << 8) | uint16(data[2]))
 	z = int16((uint16(data[5]) << 8) | uint16(data[4]))
+
+	return
+}
+
+// Update the sensor values of the 'which' parameter. Only acceleration is
+// supported at the moment.
+func (d *Device) Update(which drivers.Measurement) error {
+	if which&drivers.Acceleration != 0 {
+		// Read raw acceleration values and store them in the driver.
+		err := legacy.WriteRegister(d.bus, uint8(d.address), REG_OUT_X_L|0x80, nil)
+		if err != nil {
+			return err
+		}
+		err = d.bus.Tx(d.address, nil, d.accel[:])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Acceleration returns the last read acceleration in µg (micro-gravity).
+// When one of the axes is pointing straight to Earth and the sensor is not
+// moving the returned value will be around 1000000 or -1000000.
+func (d *Device) Acceleration() (x, y, z int32) {
+	// Extract the raw 16-bit values.
+	rawX := int16((uint16(d.accel[1]) << 8) | uint16(d.accel[0]))
+	rawY := int16((uint16(d.accel[3]) << 8) | uint16(d.accel[2]))
+	rawZ := int16((uint16(d.accel[5]) << 8) | uint16(d.accel[4]))
+
+	// Normalize these values, to be in µg (micro-gravity).
+	return normalizeRange(rawX, rawY, rawZ, d.r)
+}
+
+// Convert raw 16-bit values to normalized 32-bit values while avoiding floats
+// and divisions.
+func normalizeRange(rawX, rawY, rawZ int16, r Range) (x, y, z int32) {
+	// We're going to convert the 16-bit raw values to values in the range
+	// -1000_000..1000_000. For now we're going to assume a range of 16G, we'll
+	// adjust that range later.
+	// The formula is derived as follows, and carefully selected to avoid
+	// overflow and integer divisions (the division will be optimized to a
+	// bitshift):
+	//   x = x * 1000_000      / 2048
+	//   x = x * (1000_000/64) / (2048/64)
+	//   x = x * 15625         / 32
+	x = int32(rawX) * 15625 / 32
+	y = int32(rawY) * 15625 / 32
+	z = int32(rawZ) * 15625 / 32
+
+	// Now we need to normalize the three values, since we assumed 16G before.
+	shift := uint32(0)
+	switch r {
+	case RANGE_16_G:
+		shift = 0
+	case RANGE_8_G:
+		shift = 1
+	case RANGE_4_G:
+		shift = 2
+	case RANGE_2_G:
+		shift = 3
+	}
+	x >>= shift
+	y >>= shift
+	z >>= shift
 
 	return
 }
