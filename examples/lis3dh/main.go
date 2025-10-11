@@ -14,9 +14,18 @@ func main() {
 	i2c.Configure(machine.I2CConfig{SCL: machine.SCL1_PIN, SDA: machine.SDA1_PIN})
 
 	accel := lis3dh.New(i2c)
-	accel.Address = lis3dh.Address1 // address on the Circuit Playground Express
-	accel.Configure()
-	accel.SetRange(lis3dh.RANGE_2_G)
+	err := accel.Configure(lis3dh.Config{
+		Address: lis3dh.Address1, // address on the Circuit Playground Express
+	})
+	for err != nil {
+		println("could not configure LIS3DH:", err)
+		time.Sleep(time.Second)
+	}
+	err = accel.SetRange(lis3dh.RANGE_2_G)
+	for err != nil {
+		println("could not set acceleration range:", err)
+		time.Sleep(time.Second)
+	}
 
 	println(accel.Connected())
 

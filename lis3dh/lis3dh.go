@@ -11,37 +11,56 @@ import (
 // Device wraps an I2C connection to a LIS3DH device.
 type Device struct {
 	bus     drivers.I2C
-	Address uint16
+	address uint16
 	r       Range
+}
+
+// Driver configuration, used for the Configure call. All fields are optional.
+type Config struct {
+	Address uint16
 }
 
 // New creates a new LIS3DH connection. The I2C bus must already be configured.
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) Device {
-	return Device{bus: bus, Address: Address0}
+	return Device{bus: bus, address: Address0}
 }
 
 // Configure sets up the device for communication
-func (d *Device) Configure() {
+func (d *Device) Configure(config Config) error {
+	if config.Address != 0 {
+		d.address = config.Address
+	}
+
 	// enable all axes, normal mode
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL1, []byte{0x07})
+	err := legacy.WriteRegister(d.bus, uint8(d.address), REG_CTRL1, []byte{0x07})
+	if err != nil {
+		return err
+	}
 
 	// 400Hz rate
-	d.SetDataRate(DATARATE_400_HZ)
+	err = d.SetDataRate(DATARATE_400_HZ)
+	if err != nil {
+		return err
+	}
 
 	// High res & BDU enabled
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL4, []byte{0x88})
+	err = legacy.WriteRegister(d.bus, uint8(d.address), REG_CTRL4, []byte{0x88})
+	if err != nil {
+		return err
+	}
 
 	// get current range
-	d.r = d.ReadRange()
+	d.r, err = d.ReadRange()
+	return err
 }
 
 // Connected returns whether a LIS3DH has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	err := legacy.ReadRegister(d.bus, uint8(d.address), WHO_AM_I, data)
 	if err != nil {
 		return false
 	}
@@ -49,46 +68,51 @@ func (d *Device) Connected() bool {
 }
 
 // SetDataRate sets the speed of data collected by the LIS3DH.
-func (d *Device) SetDataRate(rate DataRate) {
+func (d *Device) SetDataRate(rate DataRate) error {
 	ctl1 := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL1, ctl1)
+	err := legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL1, ctl1)
 	if err != nil {
-		println(err.Error())
+		return err
 	}
 	// mask off bits
 	ctl1[0] &^= 0xf0
 	ctl1[0] |= (byte(rate) << 4)
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL1, ctl1)
+	return legacy.WriteRegister(d.bus, uint8(d.address), REG_CTRL1, ctl1)
 }
 
 // SetRange sets the G range for LIS3DH.
-func (d *Device) SetRange(r Range) {
+func (d *Device) SetRange(r Range) error {
 	ctl := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
+	err := legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL4, ctl)
 	if err != nil {
-		println(err.Error())
+		return err
 	}
 	// mask off bits
 	ctl[0] &^= 0x30
 	ctl[0] |= (byte(r) << 4)
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
+	err = legacy.WriteRegister(d.bus, uint8(d.address), REG_CTRL4, ctl)
+	if err != nil {
+		return err
+	}
 
 	// store the new range
 	d.r = r
+
+	return nil
 }
 
 // ReadRange returns the current G range for LIS3DH.
-func (d *Device) ReadRange() (r Range) {
+func (d *Device) ReadRange() (r Range, err error) {
 	ctl := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CTRL4, ctl)
+	err = legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL4, ctl)
 	if err != nil {
-		println(err.Error())
+		return 0, err
 	}
 	// mask off bits
 	r = Range(ctl[0] >> 4)
 	r &= 0x03
 
-	return r
+	return r, nil
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -114,10 +138,10 @@ func (d *Device) ReadAcceleration() (int32, int32, int32, error) {
 
 // ReadRawAcceleration returns the raw x, y and z axis from the LIS3DH
 func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_OUT_X_L|0x80, nil)
+	legacy.WriteRegister(d.bus, uint8(d.address), REG_OUT_X_L|0x80, nil)
 
 	data := []byte{0, 0, 0, 0, 0, 0}
-	d.bus.Tx(d.Address, nil, data)
+	d.bus.Tx(d.address, nil, data)
 
 	x = int16((uint16(data[1]) << 8) | uint16(data[0]))
 	y = int16((uint16(data[3]) << 8) | uint16(data[2]))
