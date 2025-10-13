@@ -14,12 +14,14 @@ func New(p machine.Pin) Device {
 		set: func(level bool) {
 			if !isOut {
 				legacy.ConfigurePinOut(p)
+				isOut = true
 			}
 			p.Set(level)
 		},
 		get: func() (level bool) {
 			if isOut {
 				legacy.ConfigurePinInputPullup(p)
+				isOut = false
 			}
 			return p.Get()
 		},
