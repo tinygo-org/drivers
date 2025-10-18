@@ -26,7 +26,7 @@ const (
 func main() {
 	bus := machine.I2C0
 	err := bus.Configure(machine.I2CConfig{
-		Frequency: 10_000,
+		Frequency: 400_000, // 100kHz minimum and 400kHz I2C maximum clock. 50 to 800 for SPI.
 		SDA:       machine.I2C0_SDA_PIN,
 		SCL:       machine.I2C0_SCL_PIN,
 	})
