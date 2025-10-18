@@ -18,6 +18,10 @@ type Device8SPI struct {
 }
 
 // SetBus sets the SPI bus and byte order for the Device8SPI.
+//
+// As a hint, most SPI devices use big-endian (MSB) byte order.
+//   - Big endian: A value of 0x1234 is transmitted as 0x12 followed by 0x34.
+//   - Little endian: A value of 0x1234 is transmitted as 0x34 followed by 0x12.
 func (d *Device8SPI) SetBus(bus drivers.SPI, order binary.ByteOrder) {
 	d.bus = bus
 	d.order = order
@@ -73,6 +77,10 @@ type Device8I2C struct {
 }
 
 // SetBus sets the I2C bus, device address, and byte order for the Device8I2C.
+//
+// As a hint, most I2C devices use big-endian (MSB) byte order.
+//   - Big endian: A value of 0x1234 is transmitted as 0x12 followed by 0x34.
+//   - Little endian: A value of 0x1234 is transmitted as 0x34 followed by 0x12.
 func (d *Device8I2C) SetBus(bus drivers.I2C, i2cAddr uint16, order binary.ByteOrder) {
 	d.bus = bus
 	d.i2cAddr = i2cAddr
