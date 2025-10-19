@@ -12,6 +12,7 @@ import (
 	"os"
 	"testing"
 	"time"
+
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/tinyfont"
 	"tinygo.org/x/tinyfont/freemono"
