@@ -92,7 +92,7 @@ func ReadRegister(comm RegisterComm, driverIndex uint8, register uint8) (uint32,
 	// Read the register value using the comm interface
 
 	value, err := comm.ReadRegister(register, driverIndex)
-	log.Printf("Request read ", register, driverIndex, value)
+	log.Print("Request read ", register, driverIndex, value)
 	if err != nil {
 		return 0, err
 	}
