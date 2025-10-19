@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package epd2in9 implements a driver for Waveshare 2.9in black and white e-paper device.
 //
 // Note: this is for the V1 device (using IL3820), the V2 device uses a different chipset.

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an QMI8658C I2C accelerometer/gyroscope and print the read data.
 // This example was made with the "WaveShare RP2040 Round LCD 1.28in" in mind.
 // For more infor about this development board:

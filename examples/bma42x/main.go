@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // Smoke test for the BMA421/BMA425 sensors.

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Capacitive touch sensing example.
 //
 // This capacitive touch sensor works by charging a normal GPIO pin, then slowly

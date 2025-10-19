@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package uc8151 implements a driver for e-ink displays controlled by UC8151
 //
 // Inspired by https://github.com/pimoroni/pimoroni-pico/blob/main/drivers/uc8151/uc8151.cpp

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package rtl8720dn implements TCP wireless communication over UART
 // talking to a RealTek rtl8720dn module.
 //

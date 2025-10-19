@@ -1,4 +1,4 @@
-//go:build !digispark && !arduino
+//go:build !digispark && !arduino && !lint
 
 package main
 

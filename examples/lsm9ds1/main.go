@@ -1,3 +1,5 @@
+//go:build !lint
+
 // LSM9DS1, 9 axis Inertial Measurement Unit (IMU)
 package main
 

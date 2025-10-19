@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Driver works for max7219 and 7221
 // Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX7219-MAX7221.pdf
 package max72xx

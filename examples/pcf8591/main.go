@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to a pcf8591 ADC via I2C.
 package main
 

@@ -1,3 +1,5 @@
+//go:build !lint
+
 package i2csoft
 
 import (

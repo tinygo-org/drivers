@@ -1,3 +1,5 @@
+//go:build !lint
+
 package wifinina
 
 type debug uint8

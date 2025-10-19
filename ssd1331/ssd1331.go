@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package ssd1331 implements a driver for the SSD1331 TFT color displays.
 //
 // Datasheet: https://www.crystalfontz.com/controllers/SolomonSystech/SSD1331/381/

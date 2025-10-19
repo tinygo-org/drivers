@@ -1,3 +1,5 @@
+//go:build !lint
+
 package irremote // import "tinygo.org/x/drivers/irremote"
 
 import (

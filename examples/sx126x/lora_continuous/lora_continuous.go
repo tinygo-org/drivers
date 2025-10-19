@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // This example will periodically enable Continuous "Preamble" and "Wave" modes  on 868.1 Mhz

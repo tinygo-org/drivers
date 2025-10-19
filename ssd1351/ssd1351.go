@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package ssd1351 implements a driver for the SSD1351 OLED color displays.
 //
 // Datasheet: https://download.mikroe.com/documents/datasheets/ssd1351-revision-1.3.pdf

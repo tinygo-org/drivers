@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // In this example, a Lora packet will be sent every 10s

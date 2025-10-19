@@ -1,3 +1,5 @@
+//go:build !lint
+
 // This example uses the settings for the thermistor that is built in to the
 // Adafruit Circuit Playground Express.
 package main

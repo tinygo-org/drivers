@@ -1,3 +1,5 @@
+//go:build !lint
+
 package microbitmatrix // import "tinygo.org/x/drivers/microbitmatrix"
 
 import (

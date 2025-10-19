@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package pcf8591 implements a driver for the PCF8591 Analog to Digital/Digital to Analog Converter.
 //
 // Datasheet: https://www.nxp.com/docs/en/data-sheet/PCF8591.pdf

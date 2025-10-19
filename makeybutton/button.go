@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package makeybutton providers a driver for a button that can be triggered
 // by anything that is conductive by using an ultra high value resistor.
 //

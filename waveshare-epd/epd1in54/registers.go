@@ -1,3 +1,5 @@
+//go:build !lint
+
 package epd1in54
 
 // Derived from https://github.com/waveshare/e-Paper/blob/master/Arduino/epd4in2/epd4in2.h

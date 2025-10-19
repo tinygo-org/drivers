@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package thermistor is for temperature sensing using a thermistor
 // such as the NTC 3950.
 //

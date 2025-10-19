@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an WS2812 RGB LED strip with 10 LEDS.
 //
 // See either the others.go or digispark.go files in this directory

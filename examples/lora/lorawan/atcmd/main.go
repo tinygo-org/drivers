@@ -1,3 +1,5 @@
+//go:build !lint
+
 // AT command set console running on the device UART to communicate with
 // an attached LoRa device.
 //

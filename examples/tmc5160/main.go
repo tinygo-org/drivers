@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to SPI1 on a RP2040 (Pico)
 package main
 

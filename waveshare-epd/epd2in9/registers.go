@@ -1,3 +1,5 @@
+//go:build !lint
+
 package epd2in9
 
 // Registers

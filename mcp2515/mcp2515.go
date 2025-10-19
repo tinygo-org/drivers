@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package mcp2515 implements a driver for the MCP2515 CAN Controller.
 //
 // Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/MCP2515-Stand-Alone-CAN-Controller-with-SPI-20001801J.pdf

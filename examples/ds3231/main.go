@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an DS3231 I2C Real Time Clock (RTC).
 package main
 

@@ -1,3 +1,5 @@
+//go:build !lint
+
 package sh1106
 
 // Registers

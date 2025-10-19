@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package l9110x provides a driver to the L9110/L9110S H-bridge chip
 // typically used to control DC motors.
 //

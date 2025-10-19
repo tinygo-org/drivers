@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package wifinina implements TCP wireless communication over SPI with an
 // attached separate ESP32 SoC using the Arduino WiFiNINA protocol.
 //

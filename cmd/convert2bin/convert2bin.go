@@ -19,7 +19,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: %s FILE")
+		return fmt.Errorf("usage: %s FILE", args[0])
 	}
 
 	b, err := ioutil.ReadFile(args[1])

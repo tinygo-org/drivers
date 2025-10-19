@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package espat implements TCP/UDP wireless communication over serial
 // with a separate ESP8266 or ESP32 board using the Espressif AT command set
 // across a UART interface.

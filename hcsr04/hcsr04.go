@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package hcsr04 provides a driver for the HC-SR04 ultrasonic distance sensor
 //
 // Datasheet:

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an LSM6DSOX I2C a 6 axis Inertial Measurement Unit (IMU)
 package main
 

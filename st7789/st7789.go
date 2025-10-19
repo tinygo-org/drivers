@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package st7789 implements a driver for the ST7789 TFT displays, it comes in various screen sizes.
 //
 // Datasheets: https://cdn-shop.adafruit.com/product-files/3787/3787_tft_QT154H2201__________20190228182902.pdf

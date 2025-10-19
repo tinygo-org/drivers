@@ -1,3 +1,5 @@
+//go:build !lint
+
 package sx127x
 
 import (

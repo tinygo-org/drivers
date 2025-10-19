@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package ttp229 is for the 16 keys or 8 keys touch pad detector IC
 // Datasheet (BSF version): https://www.sunrom.com/download/SUNROM-TTP229-BSF_V1.1_EN.pdf
 package ttp229 // import "tinygo.org/x/drivers/ttp229"

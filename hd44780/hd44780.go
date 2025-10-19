@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package hd44780 provides a driver for the HD44780 LCD controller.
 //
 // Datasheet: https://www.sparkfun.com/datasheets/LCD/HD44780.pdf

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Driver for the P1AM-100 base controller.
 //
 // This is an embedded device on the P1AM-100 board.

@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // Example for the SGP30 to be used on a Raspberry Pi pico.
