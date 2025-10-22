@@ -1,0 +1,306 @@
+# note: GolangCI-Lint also searches for config files in all directories from the directory of the first analyzed path up to the root.
+version: "2"
+run:
+  build-tags:
+    - linte
+
+  # If set we pass it to "go list -mod={option}". From "go help modules":
+  # If invoked with -mod=readonly, the go command is disallowed from the implicit
+  # automatic updating of go.mod described above. Instead, it fails when any changes
+  # to go.mod are needed. This setting is most useful to check that go.mod does
+  # not need updates, such as in a continuous integration and testing system.
+  # If invoked with -mod=vendor, the go command assumes that the vendor
+  # directory holds the correct copies of dependencies and ignores
+  # the dependency descriptions in go.mod.
+  #
+  # Allowed values: readonly|vendor|mod
+  # By default, it isn't set.
+  modules-download-mode: readonly
+
+  # https://golangci-lint.run/usage/linters/#enabled-by-default
+  # note: typecheck can not be disabled, it is used to check code compilation
+linters:
+  default: all
+  disable:
+    # deprecated: none
+    - wsl # deprecated (since v2.2.0) due to: new major version. Replaced by wsl_v5
+    # not used for this go version: none
+    # not used for any reason
+    - err113 # not used (we allow error creation at return statement)
+    - forbidigo # not used (we allow print statements)
+    - ginkgolinter # not needed (enforces standards of using ginkgo and gomega)
+    - godot # not used (seems to be counting peas)
+    - godox # not used (we have many TODOs)
+    - gosmopolitan # not needed (report i18n/l10n anti-patterns)
+    - importas # not needed yet (there is no alias rule at the moment)
+    - loggercheck # not needed (relates to kitlog, klog, logr, zap)
+    - mnd # good, but very annoying when writing drivers with bit shifting etc.
+    - noinlineerr # this violates best practices in other style guides
+    - paralleltest # not used
+    - promlinter # not needed (prometheus metrics naming)
+    - rowserrcheck # not needed (sql related)
+    - sqlclosecheck # not needed (sql related)
+    - testpackage # not needed, we use the same name for test package to have access to unexposed items
+    - varnamelen # we love short names, if useful
+    - zerologlint # not needed (related to zerolog package)
+    # can be automatically fixed by "-fix"
+    - embeddedstructfieldcheck
+    - gocritic
+    - misspell
+    - nlreturn
+    # important and fast to fix ASAP
+    - asciicheck # never thought that the "C" in ds18b20.go:22:2 is internally the Cyrillic capital letter "ES" (U+0421)
+    - dupl # rarely needed, mostly a mistake, should be justified manually
+    - dogsled # rarely needed, mostly a mistake, should be justified manually
+    - exptostd # usage of experimental packages should be justified manually
+    - funcorder # common style
+    - gochecknoglobals # such global vars are needed rarely, e.g. to prevent huge heap allocations, but should be justified manually
+    - gochecknoinits # we should really not use it (source of hard to find bugs), a manual justification is mandatory
+    - govet # mostly mistakes, should be justified manually
+    - inamedparam # interface declarations should really have the parameters named
+    - ineffassign # very important - unused variables complicate code review (the reviewer often overlooks other problems)
+    - iotamixing # protects against mistakes
+    - ireturn # rarely needed, e.g. for test setups or functional options (not desirable in this repo), but should be justified manually
+    - noctx # how to fix can be found online
+    - perfsprint # will reduce count of usage of fmt-package
+    - predeclared # we should really not use already declared Go-identifiers for our own functions/variables
+    - recvcheck # simple to repair
+    - staticcheck # mostly simple to repair, big benefit
+    - thelper
+    - unconvert
+    - unused # should be fixed, because reduce bugs
+    - unparam # simplifies code
+    - wastedassign # same as "ineffassign"
+    # important to fix ASAP, but maybe more effort
+    - errcheck # very important - leads to many trouble, when errors are dropped silently
+    - errorlint # hard to find bugs, if error wrapping is used
+    - exhaustive # if we allow incomplete usage of enum switch this should be justified manually, e.g. "bma42x.go:120:2" is a valid finding
+    - interfacebloat # should be justified manually
+    - lll # 48 findings
+    - nakedret # should be fixed together with "nonamedreturns" (possible source of bugs)
+    - nonamedreturns # should be fixed, because reduce bugs
+    # useful for the future
+    - cyclop # useful (better understandable code)
+    - errname # useful for common style
+    - exhaustruct # useful in general, but for device drivers too often done by intention than a mistake
+    - funlen # useful (reduce bugs, simplify code, better understandable code)
+    - forcetypeassert # useful (prevents panic, possibility to return error instead)
+    - gocognit # useful (better understandable code)
+    - godoclint # useful, we should try it later
+    - goheader # useful, if we introduce a common header (e.g. for copyright)
+    - gosec # very important (can lead to sporadic fails), but too many findings to fix it ASAP
+    - intrange # introduced with go 1.22, will simplify the range syntax (opinionated)
+    - nestif # useful (reduce bugs, simplify code, better understandable code)
+    - whitespace # more common style, but could become annoying
+    - wrapcheck # error strings from interface methods are very poor/generic and not very helpful for debugging problems
+    - wsl_v5 # more common style, but could become annoying
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - image/
+
+
+  settings:
+    depguard:
+      # Rules to apply.
+      #
+      # Variables:
+      # - File Variables
+      #   you can still use and exclamation mark ! in front of a variable to say not to use it.
+      #   Example !$test will match any file that is not a go test file.
+      #
+      #   `$all` - matches all go files
+      #   `$test` - matches all go test files
+      #
+      # - Package Variables
+      #
+      #  `$gostd` - matches all of go's standard library (Pulled from `GOROOT`)
+      #
+      # Default: Only allow $gostd in all files.
+      rules:
+        main:
+          # Packages that are not allowed where the value is a suggestion.
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: Should be replaced by standard lib errors package
+
+    dupword:
+      # Keywords for detecting duplicate words.
+      # If this list is not empty, only the words defined in this list will be detected.
+      # Default: []
+      keywords:
+        - the
+        - and
+        - a
+
+    errorlint:
+      # Default: true
+      # %v should be used by default over %w, see https://github.com/uber-go/guide/blob/master/style.md#error-wrapping
+      errorf: false
+      # Permit more than 1 %w verb, valid per Go 1.20 (Requires errorf:true)
+      # Default: true
+      errorf-multi: false
+
+    gocritic:
+      disabled-checks:
+        - assignOp # very opinionated
+        - appendAssign # mostly used by intention
+
+    nolintlint:
+      # Enable to require an explanation of nonzero length after each nolint directive.
+      # Default: false
+      require-explanation: true
+      # Enable to require nolint directives to mention the specific linter being suppressed.
+      # Default: false
+      require-specific: true
+
+
+    revive:
+      # Revive handles the default rules in a way that can be unexpected:
+      # - If there are no explicit rules, the default rules are used.
+      # - If there is at least one explicit rule, the default rules are not used.
+      # Run `GL_DEBUG=revive golangci-lint run --enable-only=revive` to see default, all available rules, and enabled rules.
+      # We enable all available rules and disable explicitly.
+      # Default: false
+      enable-all-rules: true
+      # Because revive's error description is pretty good, we can decide to activate this linter-rules instead of other linters, see the
+      # list at beginning of this document
+      rules:
+        - name: add-constant
+          disabled: true # if needed, mnd is used instead
+        - name: argument-limit
+          disabled: true # TODO: should be activated after some code is fixed/justified, maybe already covered by other linters
+        - name: bare-return
+          disabled: true # nakedret is used instead
+        - name: bool-literal-in-expr
+          disabled: true # TODO: can be activated after some code is fixed/justified
+        - name: cognitive-complexity
+          disabled: true # if needed, gocognit is used instead
+        - name: comment-spacings
+          disabled: true # will be fixed by formatters, see below
+        - name: confusing-naming
+          disabled: true # for driver development function names, which differs only by capitalization, seems to be OK
+        - name: confusing-results
+          disabled: true # TODO: should be activated after some code is fixed/justified
+        - name: cyclomatic
+          disabled: true # cyclop is used instead
+        - name: deep-exit
+          disabled: true # TODO: should be activated after some code is fixed/justified
+        - name: early-return
+          disabled: true # TODO: should be activated after some code is fixed (helps avoiding deep nested blocks)
+        - name: empty-block
+          disabled: true # TODO: should be activated after some code is fixed/justified
+        - name: empty-lines
+          disabled: true # will be fixed by formatters, see below
+        - name: enforce-switch-style
+          disabled: true # TODO: should be activated after some code is fixed (reduce hard to find bugs)
+        - name: error-strings
+          disabled: true # other linters already detect those issues
+        - name: exported
+          disabled: true # TODO: should be activated after some code is fixed (helps to find better names)
+        - name: flag-parameter
+          disabled: true # sounds useful, but when working with drivers, we often need boolean flags for some configuration
+        - name: function-length
+          disabled: true # funlen is used instead
+        - name: function-result-limit
+          arguments: [5] # 4 is often needed, e.g. for accelerometers, TODO: 5 was chosen for one finding
+        - name: get-return
+          disabled: true # TODO: should be activated after some code is fixed (helps to find better names)
+        - name: identical-switch-branches
+          disabled: true # first finding was a false positive
+        - name: identical-ifelseif-branches
+          disabled: true # first finding was a false positive, TODO: try to activate it, seems to be useful
+        - name: if-return
+          disabled: true # TODO: can be activated after some code is fixed (shorter code)
+        - name: increment-decrement
+          disabled: true # TODO: code unification, but opinionated
+        - name: import-shadowing
+          disabled: true # TODO: should be activated after some code is fixed (protects against mistakes)
+        - name: indent-error-flow
+          disabled: true # TODO: should be activated after some code is fixed (less complex code)
+        - name: line-length-limit
+          disabled: true # lll is used instead
+        - name: max-public-structs
+          disabled: true # not useful for the driver development
+        - name: modifies-value-receiver
+          disabled: true # TODO: should be activated after some code is fixed/justified (protects against mistakes)
+        - name: nested-structs
+          disabled: true # TODO: should be activated after some code is fixed/justified (less complex code)
+        - name: package-comments
+          disabled: true # TODO: can be enabled after issues are fixed
+        - name: package-directory-mismatch
+          disabled: true # TODO: should be enabled after issues are fixed/justified (ensure common golang style)
+        - name: range
+          disabled: true # TODO: can be enabled after issues are fixed (simpler code)
+        - name: redefines-builtin-id
+          disabled: true # predeclared is used instead
+        - name: receiver-naming
+          disabled: true # already covered by other linters, TODO: recheck this setting after others are enabled
+        - name: time-date
+          disabled: true # TODO: can be enabled after issues are fixed/justified
+        - name: unchecked-type-assertion
+          disabled: true # forcetypeassert is used instead
+        - name: unexported-naming
+          disabled: true # TODO: should be enabled after issues are fixed (really bad style)
+        - name: unexported-return
+          disabled: true # in most cases this is done by intention and if not, compiler errors will show the mistake
+        - name: unhandled-error
+          disabled: true # errcheck is used instead
+        - name: unnecessary-format
+          disabled: true # TODO: should be enabled after issues are fixed (helps avoiding fmt package)
+        - name: unnecessary-stmt
+          disabled: true # TODO: should be enabled after issues are fixed
+        - name: unused-parameter
+          disabled: true # TODO: "unused" is used instead, but check again after unused is activated
+        - name: unused-receiver
+          disabled: true # TODO: "unused" is used instead, but check again after unused is activated
+        - name: use-any
+          disabled: true # TODO: code unification, but opinionated
+        - name: use-errors-new
+          disabled: true # TODO: should be enabled after issues are fixed (helps avoiding fmt package)
+        - name: use-fmt-print
+          disabled: true # no, we try to avoid the fmt package, whenever possible
+        - name: useless-break
+          disabled: true # TODO: should be enabled after issues are fixed, but only one of this or "unnecessary-stmt" is needed
+        - name: useless-fallthrough
+          disabled: true # TODO: should be enabled after issues are fixed
+        - name: var-declaration
+          disabled: true # already covered by other linters
+        - name: var-naming
+          disabled: true # TODO: maybe better by manual justification
+
+
+formatters:
+  enable:
+    # TODO: can be automatically fixed by "-fix"
+    #- gci
+    #- gofmt
+    #- gofumpt
+    - goimports
+
+  exclusions:
+    generated: lax
+
+  settings:
+    gci:
+      # Section configuration to compare against.
+      # Section names are case-insensitive and may contain parameters in ().
+      # The default order of sections is `standard > default > custom > blank > dot`,
+      # If `custom-order` is `true`, it follows the order of `sections` option.
+      # Default: ["standard", "default"]
+      sections:
+        - standard # Standard section: captures all standard packages.
+        - default # Default section: contains all imports that could not be matched to another section type.
+        - prefix(tinygo.org/x/drivers/) # Custom section: groups all imports with the specified Prefix.
+        #- blank # Blank section: contains all blank imports. This section is not present unless explicitly enabled.
+        #- dot # Dot section: contains all dot imports. This section is not present unless explicitly enabled.
+      # Enable custom order of sections.
+      # If `true`, make the section order the same as the order of `sections`.
+      # Default: false
+      custom-order: true

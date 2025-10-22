@@ -1,4 +1,4 @@
-//go:build !atsamd51 && !atsame5x && !atsamd21
+//go:build !atsamd51 && !atsame5x && !atsamd21 && !lint
 
 package ili9341
 

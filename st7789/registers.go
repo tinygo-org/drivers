@@ -1,3 +1,5 @@
+//go:build !lint
+
 package st7789
 
 import "tinygo.org/x/drivers"

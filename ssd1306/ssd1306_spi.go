@@ -1,3 +1,5 @@
+//go:build !lint
+
 package ssd1306
 
 import (

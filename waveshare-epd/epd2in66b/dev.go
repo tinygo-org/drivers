@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package epd2in66b implements a driver for the Waveshare 2.66inch E-Paper E-Ink Display Module (B)
 // for Raspberry Pi Pico, 296×152, Red / Black / White
 // Datasheet: https://files.waveshare.com/upload/e/ec/2.66inch-e-paper-b-specification.pdf

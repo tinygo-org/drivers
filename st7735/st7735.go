@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package st7735 implements a driver for the ST7735 TFT displays, it comes in various screen sizes.
 //
 // Datasheet: https://www.crystalfontz.com/controllers/Sitronix/ST7735R/319/

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package epd4in2 implements a driver for Waveshare 4.2in black and white e-paper device.
 //
 // Derived from:

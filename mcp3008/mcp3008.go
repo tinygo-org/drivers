@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package mcp3008 implements a driver for the MCP3008 Analog to Digital Converter.
 //
 // Datasheet: http://ww1.microchip.com/downloads/en/DeviceDoc/21295d.pdf

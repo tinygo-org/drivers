@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package epd1in54 implements a driver for Waveshare 1.54in black and white e-paper device.
 //
 // Derived from:

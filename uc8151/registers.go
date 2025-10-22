@@ -1,3 +1,5 @@
+//go:build !lint
+
 package uc8151
 
 import "tinygo.org/x/drivers"

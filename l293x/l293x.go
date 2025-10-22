@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package l293x provides a driver to the L293/L293D H-bridge chip
 // typically used to control DC motors.
 //

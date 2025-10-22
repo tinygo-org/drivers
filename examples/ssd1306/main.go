@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // This example shows how to use SSD1306 OLED display driver over I2C and SPI.

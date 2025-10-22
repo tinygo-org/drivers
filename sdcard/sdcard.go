@@ -1,3 +1,5 @@
+//go:build !lint
+
 // package sdcard provides a TinyGo driver for sdcard/mmc devices
 // using a SPI connection.
 //

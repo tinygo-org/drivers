@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Example using the i2s hardware interface on the Adafruit Circuit Playground Express
 // to read data from the onboard MEMS microphone.
 //

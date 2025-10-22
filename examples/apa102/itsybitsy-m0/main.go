@@ -1,3 +1,5 @@
+//go:build !lint
+
 // This example demostrates how to control the "Dotstar" (APA102) LED included
 // on the Adafruit Itsy Bitsy M0 board.  It implements a "rainbow effect" based
 // on the following example:

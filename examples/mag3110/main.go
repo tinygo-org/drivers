@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an MAG3110 I2C magnetometer.
 package main
 

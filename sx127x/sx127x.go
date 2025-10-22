@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package sx127x provides a driver for SX127x LoRa transceivers.
 // References:
 // https://electronics.stackexchange.com/questions/394296/can-t-get-simple-lora-receiver-to-work

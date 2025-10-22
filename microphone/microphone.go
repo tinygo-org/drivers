@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package microphone implements a driver for a PDM microphone.
 // For example, the Adafruit PDM MEMS breakout board (https://www.adafruit.com/product/3492)
 //

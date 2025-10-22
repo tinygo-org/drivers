@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package xpt2046 implements a driver for the XPT2046 resistive touch controller as packaged on the TFT_320QVT board
 //
 // Datasheet: http://grobotronics.com/images/datasheets/xpt2046-datasheet.pdf

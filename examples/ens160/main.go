@@ -1,3 +1,5 @@
+//go:build !lint
+
 // This example demonstrates ENS160 usage.
 //
 // Wiring:

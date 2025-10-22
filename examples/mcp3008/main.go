@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to a MCP3008 ADC via SPI.
 package main
 

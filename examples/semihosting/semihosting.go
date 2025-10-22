@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // A small example that demonstrates how SemiHosting can be used.

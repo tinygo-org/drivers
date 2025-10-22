@@ -1,3 +1,5 @@
+//go:build !lint
+
 package gc9a01
 
 // Registers

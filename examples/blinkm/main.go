@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an BlinkM I2C RGB LED.
 // http://thingm.com/fileadmin/thingm/downloads/BlinkM_datasheet.pdf
 package main

@@ -1,4 +1,4 @@
-//go:build !stm32wlx
+//go:build !stm32wlx && !lint
 
 package main
 

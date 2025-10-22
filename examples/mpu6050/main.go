@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an MPU6050 I2C accelerometer/gyroscope.
 package main
 

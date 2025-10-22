@@ -1,3 +1,5 @@
+//go:build !lint
+
 package semihosting
 
 // These three file descriptors are connected to the host stdin/stdout/stderr,

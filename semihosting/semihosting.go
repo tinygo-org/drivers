@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package semihosting implements parts of the ARM semihosting specification,
 // for communicating over a debug connection.
 //

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package ft6336 provides a driver for the FT6336 I2C Self-Capacitive touch
 // panel controller.
 //

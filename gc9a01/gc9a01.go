@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package gc9a01 implements a driver for the gc9a01 LCD round display
 //
 // Datasheet: https://www.waveshare.com/w/upload/5/5e/GC9A01A.pdf

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an MMA8653 I2C accelerometer.
 package main
 

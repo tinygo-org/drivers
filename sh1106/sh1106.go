@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package sh1106 implements a driver for the SH1106 display controller
 //
 // Copied from https://github.com/toyo/tinygo-sh1106 (under BSD 3-clause license)

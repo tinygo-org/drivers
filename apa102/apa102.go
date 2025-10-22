@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package apa102 implements a driver for the APA102 SPI LED.
 //
 // Datasheet: https://cdn-shop.adafruit.com/product-files/2343/APA102C.pdf

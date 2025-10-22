@@ -1,3 +1,5 @@
+//go:build !lint
+
 // demo of 4-wire touchscreen as described in app note:
 // http://ww1.microchip.com/downloads/en/Appnotes/doc8091.pdf
 package main

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package ws2812 implements a driver for WS2812 and SK6812 RGB LED strips.
 package ws2812 // import "tinygo.org/x/drivers/ws2812"
 

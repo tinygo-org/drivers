@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package sx126x provides a driver for SX126x LoRa transceivers.
 // Inspired from https://github.com/Lora-net/sx126x_driver/
 

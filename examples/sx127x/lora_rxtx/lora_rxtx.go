@@ -1,3 +1,5 @@
+//go:build !lint
+
 package main
 
 // This example code demonstrates Lora RX/TX With SX127x driver

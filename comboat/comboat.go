@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Package comboat implements WiFi driver for the Aithinker-Combo-AT WiFi
 // device found on the Elecrow W5 rp2040 and rp2350 devices.  Ths WiFi device
 // is a RTL8720d variant.  The driver interface is via AT command set over UART

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Connects to an APA102 SPI RGB LED strip with 30 LEDS.
 package main
 

@@ -1,3 +1,5 @@
+//go:build !lint
+
 // Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max6675.pdf
 package max6675
 
