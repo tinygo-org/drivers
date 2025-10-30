@@ -469,11 +469,12 @@ func (d *Device) clearAlarm(alarm_num uint8) error {
 // IsAlarmFired get status of alarm
 func (d *Device) isAlarmFired(alarm_num uint8) bool {
 	dataCtrl := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
+	if err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl); err != nil {
+		return false
+	}
 	dataCtrl[0] &^= (1 << (alarm_num - 1))
 	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
+	if err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data); err != nil {
 		return false
 	}
 	return (data[0] & (1 << (alarm_num - 1))) != 0x00
