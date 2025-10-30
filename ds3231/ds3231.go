@@ -186,7 +186,7 @@ func (d *Device) SetSqwPinMode(mode SqwPinMode) error {
 	return nil
 }
 
-// SetAlarm1 sets the alarm1 time
+// SetAlarm1 sets alarm1 to the given time and mode
 func (d *Device) SetAlarm1(dt time.Time, mode Alarm1Mode) error {
 	dataCtrl := []uint8{0}
 	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
@@ -250,7 +250,7 @@ func (d *Device) ReadAlarm1() (dt time.Time, err error) {
 	return
 }
 
-// SetAlarm2 sets the alarm2 time
+// SetAlarm2 sets alarm2 to the given time and mode
 func (d *Device) SetAlarm2(dt time.Time, mode Alarm2Mode) error {
 	dataCtrl := []uint8{0}
 	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, dataCtrl)
@@ -321,7 +321,7 @@ func (d *Device) ReadTemperature() (int32, error) {
 	return milliCelsius(data[0], data[1]), nil
 }
 
-// IsEnabledAlarm1 checks if alarm1 is enabled
+// IsEnabledAlarm1 returns true when alarm1 is enabled
 func (d *Device) IsEnabledAlarm1() bool {
 	return d.isEnabledAlarm(1)
 }
@@ -336,7 +336,7 @@ func (d *Device) EnableAlarm1() error {
 	return d.enableAlarm(1)
 }
 
-// IsEnabledAlarm2 checks if alarm2 is enabled
+// IsEnabledAlarm2 returns true when alarm2 is enabled
 func (d *Device) IsEnabledAlarm2() bool {
 	return d.isEnabledAlarm(2)
 }
@@ -361,12 +361,12 @@ func (d *Device) ClearAlarm2() error {
 	return d.clearAlarm(2)
 }
 
-// IsAlarm1Fired returns the status of alarm1
+// IsAlarm1Fired returns true if alarm1 is firing
 func (d *Device) IsAlarm1Fired() bool {
 	return d.isAlarmFired(1)
 }
 
-// IsAlarm2Fired returns the status of alarm2
+// IsAlarm2Fired returns true if alarm2 is firing
 func (d *Device) IsAlarm2Fired() bool {
 	return d.isAlarmFired(2)
 }
