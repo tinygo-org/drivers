@@ -149,6 +149,16 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 	return
 }
 
+// ReadTemperature returns the temperature in millicelsius (mC)
+func (d *Device) ReadTemperature() (int32, error) {
+	data := make([]uint8, 2)
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP, data)
+	if err != nil {
+		return 0, err
+	}
+	return milliCelsius(data[0], data[1]), nil
+}
+
 // GetSqwPinMode returns the current square wave output frequency
 func (d *Device) GetSqwPinMode() SqwPinMode {
 	data := []uint8{0}
@@ -309,16 +319,6 @@ func (d *Device) ReadAlarm2() (dt time.Time, err error) {
 
 	dt = time.Date(2000, 5, day, hour, minute, 0, 0, time.UTC)
 	return
-}
-
-// ReadTemperature returns the temperature in millicelsius (mC)
-func (d *Device) ReadTemperature() (int32, error) {
-	data := make([]uint8, 2)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP, data)
-	if err != nil {
-		return 0, err
-	}
-	return milliCelsius(data[0], data[1]), nil
 }
 
 // IsEnabledAlarm1 returns true when alarm1 is enabled
