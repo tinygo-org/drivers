@@ -8,8 +8,8 @@ import "tinygo.org/x/drivers/internal/pin"
 // for use with "big" or "upstream" Go where
 // there is no machine package.
 
-func configurePinOut(p pin.Output)          {}
-func configurePinInput(p pin.Input)         {}
-func configurePinInputPulldown(p pin.Input) {}
-func configurePinInputPullup(p pin.Input)   {}
-func pinIsNoPin(a any) bool                 { return false }
+func configurePinOut(p pin.OutputInterface)          {}
+func configurePinInput(p pin.InputInterface)         {}
+func configurePinInputPulldown(p pin.InputInterface) {}
+func configurePinInputPullup(p pin.InputInterface)   {}
+func pinIsNoPin(a any) bool                          { return false }
