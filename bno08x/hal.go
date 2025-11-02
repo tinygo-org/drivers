@@ -10,6 +10,7 @@ type halI2C struct {
 	device    *Device
 	chunkSize int
 	scratch   []byte
+	header    [shtpHeaderLength]byte // Reusable header buffer
 }
 
 func newHAL(dev *Device) *halI2C {
@@ -34,14 +35,14 @@ func (h *halI2C) close() {}
 
 func (h *halI2C) read(target []byte) (int, uint32, error) {
 	// Read SHTP header (4 bytes) to get packet length
-	header := make([]byte, shtpHeaderLength)
-	err := h.device.bus.Tx(h.device.address, nil, header)
+	// Use pre-allocated header buffer to avoid allocations
+	err := h.device.bus.Tx(h.device.address, nil, h.header[:])
 	if err != nil {
 		return 0, 0, err
 	}
 
 	// Parse packet length from header
-	packetLen := binary.LittleEndian.Uint16(header[0:2])
+	packetLen := binary.LittleEndian.Uint16(h.header[0:2])
 
 	// Check if continuation bit is set (0x8000)
 	// This means no data is available yet

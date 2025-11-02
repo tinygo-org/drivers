@@ -55,6 +55,8 @@ type sh2Protocol struct {
 	pendingConfigSensor  SensorID
 	receivedConfig       SensorConfig
 	configReady          bool
+	configBuf            [17]byte                    // Reusable buffer for setSensorConfig
+	commandBuf           [3 + commandParamCount]byte // Reusable buffer for sendCommand
 }
 
 func newSH2Protocol(device *Device) *sh2Protocol {
@@ -136,7 +138,8 @@ func (s *sh2Protocol) getSensorConfig(id SensorID) (SensorConfig, error) {
 
 // setSensorConfig configures a sensor.
 func (s *sh2Protocol) setSensorConfig(id SensorID, config SensorConfig) error {
-	payload := make([]byte, 17)
+	// Use pre-allocated buffer to avoid allocations
+	payload := s.configBuf[:]
 	payload[0] = reportSetFeature
 	payload[1] = byte(id)
 
@@ -166,7 +169,8 @@ func (s *sh2Protocol) setSensorConfig(id SensorID, config SensorConfig) error {
 
 // sendCommand sends a command with parameters to the sensor.
 func (s *sh2Protocol) sendCommand(command byte, params []byte) error {
-	payload := make([]byte, 3+commandParamCount)
+	// Use pre-allocated buffer to avoid allocations
+	payload := s.commandBuf[:]
 	payload[0] = reportCommandReq
 	payload[1] = s.cmdSeq
 	payload[2] = command
@@ -178,7 +182,7 @@ func (s *sh2Protocol) sendCommand(command byte, params []byte) error {
 		payload[3+i] = params[i]
 	}
 
-	return s.transport.send(channelControl, payload)
+	return s.transport.send(channelControl, payload[:3+commandParamCount])
 }
 
 // handleControl processes control channel messages.

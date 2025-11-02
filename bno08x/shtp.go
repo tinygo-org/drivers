@@ -13,6 +13,7 @@ type shtp struct {
 	handlers map[uint8]shtpHandler
 	seq      [8]uint8
 	rx       [maxTransferIn]byte
+	tx       [maxTransferOut]byte // Reusable transmit buffer
 }
 
 func newSHTP(hal *halI2C) *shtp {
@@ -38,7 +39,8 @@ func (s *shtp) send(channel uint8, payload []byte) error {
 		return errFrameTooLarge
 	}
 
-	frame := make([]byte, total)
+	// Use pre-allocated transmit buffer to avoid allocations
+	frame := s.tx[:total]
 	binary.LittleEndian.PutUint16(frame[0:2], uint16(total))
 	frame[2] = channel
 	frame[3] = s.seq[channel]
