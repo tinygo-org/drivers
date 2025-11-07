@@ -8,19 +8,19 @@ import (
 	"tinygo.org/x/drivers/internal/pin"
 )
 
-func configurePinOut(po pin.OutputInterface) {
+func configurePinOut(po pin.Output) {
 	configurePin(po, machine.PinOutput)
 }
 
-func configurePinInputPulldown(pi pin.InputInterface) {
+func configurePinInputPulldown(pi pin.Input) {
 	configurePin(pi, pulldown) // some chips do not have pull down, in which case pulldown==machine.PinInput.
 }
 
-func configurePinInput(pi pin.InputInterface) {
+func configurePinInput(pi pin.Input) {
 	configurePin(pi, machine.PinInput)
 }
 
-func configurePinInputPullup(pi pin.InputInterface) {
+func configurePinInputPullup(pi pin.Input) {
 	configurePin(pi, pullup) // some chips do not have pull up, in which case pullup==machine.PinInput.
 }
 

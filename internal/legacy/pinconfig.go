@@ -19,7 +19,7 @@ import (
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinOut(po pin.OutputInterface) {
+func ConfigurePinOut(po pin.Output) {
 	configurePinOut(po)
 }
 
@@ -28,7 +28,7 @@ func ConfigurePinOut(po pin.OutputInterface) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInputPulldown(pi pin.InputInterface) {
+func ConfigurePinInputPulldown(pi pin.Input) {
 	configurePinInputPulldown(pi)
 }
 
@@ -37,7 +37,7 @@ func ConfigurePinInputPulldown(pi pin.InputInterface) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInput(pi pin.InputInterface) {
+func ConfigurePinInput(pi pin.Input) {
 	configurePinInput(pi)
 }
 
@@ -46,7 +46,7 @@ func ConfigurePinInput(pi pin.InputInterface) {
 // Deprecated: Do not configure pins in drivers.
 // This is a legacy feature and should only be used by drivers that
 // previously configured pins in initialization to avoid breaking users.
-func ConfigurePinInputPullup(pi pin.InputInterface) {
+func ConfigurePinInputPullup(pi pin.Input) {
 	configurePinInputPullup(pi)
 }
 

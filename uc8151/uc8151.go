@@ -32,10 +32,10 @@ type Config struct {
 
 type Device struct {
 	bus                      drivers.SPI
-	cs                       pin.Output
-	dc                       pin.Output
-	rst                      pin.Output
-	isBusy                   pin.Input
+	cs                       pin.OutputFunc
+	dc                       pin.OutputFunc
+	rst                      pin.OutputFunc
+	isBusy                   pin.InputFunc
 	width                    int16
 	height                   int16
 	buffer                   []uint8
@@ -51,7 +51,7 @@ type Speed uint8
 
 // New returns a new uc8151 driver. Pass in a fully configured SPI bus.
 // Pins passed in must be configured beforehand.
-func New(bus drivers.SPI, csPin, dcPin, rstPin pin.OutputInterface, busyPin pin.InputInterface) Device {
+func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
 	// For backwards compatibility.
 	// This driver used to configure pins,
 	// so leave in to not break users.
