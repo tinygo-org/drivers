@@ -27,7 +27,7 @@ func main() {
 	if err := rtc.SetAlarm1(time.Date(0, 0, 0, 0, 0, 59, 0, time.UTC), ds3231.A1_SECOND); err != nil {
 		fmt.Println("Error while setting Alarm1")
 	}
-	if err := rtc.EnableAlarm1(); err != nil {
+	if err := rtc.SetEnabledAlarm1(true); err != nil {
 		fmt.Println("Error while enabling Alarm1")
 	}
 
@@ -35,7 +35,7 @@ func main() {
 	if err := rtc.SetAlarm2(time.Date(0, 0, 0, 0, 35, 0, 0, time.UTC), ds3231.A2_MINUTE); err != nil {
 		fmt.Println("Error while setting Alarm2")
 	}
-	if err := rtc.EnableAlarm2(); err != nil {
+	if err := rtc.SetEnabledAlarm2(true); err != nil {
 		fmt.Println("Error while enabling Alarm2")
 	}
 
