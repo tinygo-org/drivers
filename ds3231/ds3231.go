@@ -367,12 +367,25 @@ func (d *Device) IsAlarm2Fired() bool {
 	return d.isAlarmFired(2)
 }
 
-// SetEnable32K sets the enabled status of the 32KHz output
-func (d *Device) SetEnable32K(enable bool) error {
-	if enable {
-		return d.enable32K()
+// SetEnabled32K sets the enabled status of the 32KHz output
+func (d *Device) SetEnabled32K(enable bool) error {
+	data := []byte{0}
+	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
 	}
-	return d.disable32K()
+
+	if enable {
+		data[0] |= 1 << EN32KHZ
+	} else {
+		data[0] &^= 1 << EN32KHZ
+	}
+
+	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // IsEnabled32K returns true when the 32KHz output is enabled
@@ -447,34 +460,6 @@ func (d *Device) isAlarmFired(alarm_num uint8) bool {
 		return false
 	}
 	return (data[0] & (1 << (alarm_num - 1))) != 0x00
-}
-
-func (d *Device) enable32K() error {
-	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
-		return err
-	}
-	data[0] |= 1 << EN32KHZ
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Device) disable32K() error {
-	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
-		return err
-	}
-	data[0] &^= 1 << EN32KHZ
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // milliCelsius converts the raw temperature bytes (msb and lsb) from the DS3231
