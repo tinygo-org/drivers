@@ -144,6 +144,7 @@ tinygo build -size short -o ./build/test.hex -target=pico ./examples/tmc5160/mai
 tinygo build -size short -o ./build/test.uf2 -target=nicenano ./examples/sharpmem/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples/max6675/main.go
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/ens160/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/si5351/main.go
 # network examples (espat)
 tinygo build -size short -o ./build/test.hex -target=challenger-rp2040 ./examples/net/ntpclient/
 # network examples (wifinina)
