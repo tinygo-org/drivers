@@ -5,6 +5,7 @@ import (
 	"machine"
 	"math/rand"
 
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/ssd1289"
 )
 
@@ -16,7 +17,7 @@ func main() {
 	//consider creating a more efficient bus implementation that uses
 	//your microcontrollers built in "ports"
 	//see rp2040bus.go for an example for the rapsberry pi pico
-	bus := ssd1289.NewPinBus([16]machine.Pin{
+	bus := ssd1289.NewPinBus([16]pin.Output{
 		machine.GP4,  //DB0
 		machine.GP5,  //DB1
 		machine.GP6,  //DB2
