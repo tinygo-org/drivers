@@ -1,12 +1,13 @@
 package si5351
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/regmap"
 )
 
 // Device wraps an I2C connection to a SI5351 device.
@@ -14,7 +15,7 @@ type Device struct {
 	bus     drivers.I2C
 	Address uint8
 
-	buf            [8]byte
+	rw             regmap.Device8I2C
 	initialised    bool
 	crystalFreq    uint32
 	crystalLoad    uint8
@@ -32,8 +33,12 @@ var ErrInvalidParameter = errors.New("Si5351 invalid parameter")
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) Device {
+	rw := regmap.Device8I2C{}
+	rw.SetBus(bus, AddressDefault, binary.BigEndian)
+
 	return Device{
 		bus:         bus,
+		rw:          rw,
 		Address:     AddressDefault,
 		crystalFreq: CRYSTAL_FREQ_25MHZ,
 		crystalLoad: CRYSTAL_LOAD_10PF,
@@ -43,29 +48,15 @@ func New(bus drivers.I2C) Device {
 // Configure sets up the device for communication
 // TODO error handling
 func (d *Device) Configure() error {
-	data := d.buf[:1]
-
-	// Disable all outputs setting CLKx_DIS high
-	data[0] = 0xFF
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), OUTPUT_ENABLE_CONTROL, data); err != nil {
-		return err
-	}
+	// // Disable all outputs setting CLKx_DIS high
+	d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0xFF)
 
 	// Set the load capacitance for the XTAL
-	data[0] = d.crystalLoad
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), CRYSTAL_INTERNAL_LOAD_CAPACITANCE, data); err != nil {
-		return err
-	}
-
-	data = d.buf[:8]
+	d.rw.Write8(CRYSTAL_INTERNAL_LOAD_CAPACITANCE, d.crystalLoad)
 
 	// Power down all output drivers
-	for i := range data {
-		data[i] = 0x80
-	}
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), CLK0_CONTROL, data); err != nil {
-		return err
-	}
+	buf := []byte{CLK0_CONTROL, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}
+	d.bus.Tx(uint16(d.Address), buf, nil)
 
 	// Disable spread spectrum output.
 	if err := d.DisableSpreadSpectrum(); err != nil {
@@ -85,29 +76,25 @@ func (d *Device) Connected() (bool, error) {
 	return true, nil
 }
 
+// EnableSpreadSpectrum enables spread spectrum modulation to reduce EMI.
 func (d *Device) EnableSpreadSpectrum() error {
-	data := d.buf[:1]
-	if err := legacy.ReadRegister(d.bus, uint8(d.Address), SPREAD_SPECTRUM_PARAMETERS, data); err != nil {
+	data, err := d.rw.Read8(SPREAD_SPECTRUM_PARAMETERS)
+	if err != nil {
 		return err
 	}
-	data[0] |= 0x80
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), SPREAD_SPECTRUM_PARAMETERS, data); err != nil {
-		return err
-	}
-	return nil
+
+	data |= 0x80
+	return d.rw.Write8(SPREAD_SPECTRUM_PARAMETERS, data)
 }
 
 func (d *Device) DisableSpreadSpectrum() error {
-	data := d.buf[:1]
-	if err := legacy.ReadRegister(d.bus, uint8(d.Address), SPREAD_SPECTRUM_PARAMETERS, data); err != nil {
-		return err
-	}
-	data[0] &^= 0x80
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), SPREAD_SPECTRUM_PARAMETERS, data); err != nil {
+	data, err := d.rw.Read8(SPREAD_SPECTRUM_PARAMETERS)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	data &^= 0x80
+	return d.rw.Write8(SPREAD_SPECTRUM_PARAMETERS, data)
 }
 
 func (d *Device) OutputEnable(output uint8, enable bool) error {
@@ -116,12 +103,10 @@ func (d *Device) OutputEnable(output uint8, enable bool) error {
 	}
 
 	// Read the current value of the OUTPUT_ENABLE_CONTROL register
-	data := make([]byte, 1)
-	if err := legacy.ReadRegister(d.bus, uint8(d.Address), OUTPUT_ENABLE_CONTROL, data); err != nil {
+	regVal, err := d.rw.Read8(OUTPUT_ENABLE_CONTROL)
+	if err != nil {
 		return err
 	}
-
-	regVal := data[0]
 
 	// Modify regVal based on clk and enable
 	if enable {
@@ -131,36 +116,22 @@ func (d *Device) OutputEnable(output uint8, enable bool) error {
 	}
 
 	// Write the modified value back to the OUTPUT_ENABLE_CONTROL register
-	data[0] = regVal
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), OUTPUT_ENABLE_CONTROL, data); err != nil {
-		return err
-	}
-
-	return nil
+	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, regVal)
 }
 
 func (d *Device) EnableOutputs() error {
 	if !d.initialised {
 		return ErrNotInitialised
 	}
-	data := d.buf[:1]
-	data[0] = 0x00
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), OUTPUT_ENABLE_CONTROL, data); err != nil {
-		return err
-	}
-	return nil
+
+	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0x00)
 }
 
 func (d *Device) DisableOutputs() error {
 	if !d.initialised {
 		return ErrNotInitialised
 	}
-	data := d.buf[:1]
-	data[0] = 0xFF
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), OUTPUT_ENABLE_CONTROL, data); err != nil {
-		return err
-	}
-	return nil
+	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0xFF)
 }
 
 // ConfigurePLL sets the multiplier for the specified PLL
@@ -191,7 +162,6 @@ func (d *Device) DisableOutputs() error {
 //
 // See: http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
 func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) error {
-
 	// Basic validation
 	if !d.initialised {
 		return ErrNotInitialised
@@ -249,7 +219,7 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) e
 	}
 
 	// The datasheet is a nightmare of typos and inconsistencies here!
-	data := d.buf[:8]
+	data := [8]byte{}
 	data[0] = uint8((p3 & 0x0000FF00) >> 8)
 	data[1] = uint8(p3 & 0x000000FF)
 	data[2] = uint8((p1 & 0x00030000) >> 16)
@@ -258,14 +228,12 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) e
 	data[5] = uint8(((p3 & 0x000F0000) >> 12) | ((p2 & 0x000F0000) >> 16))
 	data[6] = uint8((p2 & 0x0000FF00) >> 8)
 	data[7] = uint8(p2 & 0x000000FF)
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), baseaddr, data); err != nil {
+	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
 		return err
 	}
 
 	// Reset both PLLs
-	data = d.buf[:1]
-	data[0] = (1 << 7) | (1 << 5)
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), PLL_RESET, data); err != nil {
+	if err := d.rw.Write8(PLL_RESET, (1<<7)|(1<<5)); err != nil {
 		return err
 	}
 
@@ -336,7 +304,6 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) e
 //
 //	used, but this isn't currently implemented in the driver.
 func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num uint32, denom uint32) error {
-
 	// Basic validation
 	if !d.initialised {
 		return ErrNotInitialised
@@ -418,7 +385,7 @@ func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num ui
 	}
 
 	// Set the MSx config registers
-	data := d.buf[:8]
+	data := [8]byte{}
 	data[0] = uint8((p3 & 0xFF00) >> 8)
 	data[1] = uint8(p3 & 0xFF)
 	data[2] = uint8(((p1 & 0x30000) >> 16)) | d.lastRdivValue[output]
@@ -427,7 +394,7 @@ func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num ui
 	data[5] = uint8(((p3 & 0xF0000) >> 12) | ((p2 & 0xF0000) >> 16))
 	data[6] = uint8((p2 & 0xFF00) >> 8)
 	data[7] = uint8(p2 & 0xFF)
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), baseaddr, data); err != nil {
+	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
 		return err
 	}
 
@@ -451,13 +418,7 @@ func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num ui
 		register = CLK2_CONTROL
 	}
 
-	data = d.buf[:1]
-	data[0] = clkControlReg
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), register, data); err != nil {
-		return err
-	}
-
-	return nil
+	return d.rw.Write8(register, clkControlReg)
 }
 
 func (d *Device) ConfigureRdiv(output uint8, div uint8) error {
@@ -476,16 +437,12 @@ func (d *Device) ConfigureRdiv(output uint8, div uint8) error {
 		register = MULTISYNTH2_PARAMETERS_3
 	}
 
-	data := d.buf[:1]
-	if err := legacy.ReadRegister(d.bus, uint8(d.Address), register, data); err != nil {
+	data, err := d.rw.Read8(register)
+	if err != nil {
 		return err
 	}
 
 	d.lastRdivValue[output] = (div & 0x07) << 4
-	data[0] = (data[0] & 0x0F) | d.lastRdivValue[output]
-	if err := legacy.WriteRegister(d.bus, uint8(d.Address), register, data); err != nil {
-		return err
-	}
-
-	return nil
+	data = (data & 0x0F) | d.lastRdivValue[output]
+	return d.rw.Write8(register, data)
 }
