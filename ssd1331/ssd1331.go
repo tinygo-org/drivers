@@ -5,12 +5,13 @@ package ssd1331 // import "tinygo.org/x/drivers/ssd1331"
 
 import (
 	"image/color"
-	"machine"
 
 	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Model uint8
@@ -19,9 +20,9 @@ type Rotation uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus         drivers.SPI
-	dcPin       machine.Pin
-	resetPin    machine.Pin
-	csPin       machine.Pin
+	dcPin       pin.OutputStruct
+	resetPin    pin.OutputStruct
+	csPin       pin.OutputStruct
 	width       int16
 	height      int16
 	batchLength int16
@@ -36,15 +37,12 @@ type Config struct {
 }
 
 // New creates a new SSD1331 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin machine.Pin) Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func New(bus drivers.SPI, resetPin, dcPin, csPin pin.Output) Device {
 	return Device{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
+		dcPin:    pin.OutputStruct{Output: dcPin},
+		resetPin: pin.OutputStruct{Output: resetPin},
+		csPin:    pin.OutputStruct{Output: csPin},
 	}
 }
 
@@ -67,6 +65,11 @@ func (d *Device) Configure(cfg Config) {
 	}
 	d.batchLength += d.batchLength & 1
 	d.batchData = make([]uint8, d.batchLength*2)
+
+	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
+	legacy.ConfigurePinOut(d.dcPin)
+	legacy.ConfigurePinOut(d.resetPin)
+	legacy.ConfigurePinOut(d.csPin)
 
 	// reset the device
 	d.resetPin.High()

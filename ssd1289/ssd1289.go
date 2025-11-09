@@ -5,8 +5,10 @@ package ssd1289
 
 import (
 	"image/color"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Bus interface {
@@ -14,35 +16,24 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  machine.Pin
-	wr  machine.Pin
-	cs  machine.Pin
-	rst machine.Pin
+	rs  pin.OutputStruct
+	wr  pin.OutputStruct
+	cs  pin.OutputStruct
+	rst pin.OutputStruct
 	bus Bus
 }
 
 const width = int16(240)
 const height = int16(320)
 
-func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bus) Device {
-	d := Device{
-		rs:  rs,
-		wr:  wr,
-		cs:  cs,
-		rst: rst,
+func New(rs, wr, cs, rst pin.Output, bus Bus) *Device {
+	return &Device{
+		rs:  pin.OutputStruct{Output: rs},
+		wr:  pin.OutputStruct{Output: wr},
+		cs:  pin.OutputStruct{Output: cs},
+		rst: pin.OutputStruct{Output: rst},
 		bus: bus,
 	}
-
-	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	wr.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
-	cs.High()
-	rst.High()
-	wr.High()
-
-	return d
 }
 
 func (d *Device) lcdWriteCom(cmd Command) {
@@ -71,6 +62,16 @@ func (d *Device) lcdWriteBusInt(data uint16) {
 }
 
 func (d *Device) Configure() {
+
+	// configure GPIO pins (only on baremetal targets)
+	legacy.ConfigurePinOut(d.rs)
+	legacy.ConfigurePinOut(d.wr)
+	legacy.ConfigurePinOut(d.cs)
+	legacy.ConfigurePinOut(d.rst)
+
+	d.cs.High()
+	d.wr.High()
+
 	d.rst.High()
 	time.Sleep(time.Millisecond * 5)
 	d.rst.Low()

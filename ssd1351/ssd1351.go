@@ -6,10 +6,11 @@ package ssd1351 // import "tinygo.org/x/drivers/ssd1351"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 var (
@@ -20,11 +21,11 @@ var (
 // Device wraps an SPI connection.
 type Device struct {
 	bus          drivers.SPI
-	dcPin        machine.Pin
-	resetPin     machine.Pin
-	csPin        machine.Pin
-	enPin        machine.Pin
-	rwPin        machine.Pin
+	dcPin        pin.OutputStruct
+	resetPin     pin.OutputStruct
+	csPin        pin.OutputStruct
+	enPin        pin.OutputStruct
+	rwPin        pin.OutputStruct
 	width        int16
 	height       int16
 	rowOffset    int16
@@ -41,14 +42,14 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
 	return Device{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		enPin:    enPin,
-		rwPin:    rwPin,
+		dcPin:    pin.OutputStruct{Output: dcPin},
+		resetPin: pin.OutputStruct{Output: resetPin},
+		csPin:    pin.OutputStruct{Output: csPin},
+		enPin:    pin.OutputStruct{Output: enPin},
+		rwPin:    pin.OutputStruct{Output: rwPin},
 	}
 }
 
@@ -72,12 +73,12 @@ func (d *Device) Configure(cfg Config) {
 		d.bufferLength = d.height
 	}
 
-	// configure GPIO pins
-	d.dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.enPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rwPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
+	legacy.ConfigurePinOut(d.dcPin)
+	legacy.ConfigurePinOut(d.resetPin)
+	legacy.ConfigurePinOut(d.csPin)
+	legacy.ConfigurePinOut(d.enPin)
+	legacy.ConfigurePinOut(d.rwPin)
 
 	// reset the device
 	d.resetPin.High()

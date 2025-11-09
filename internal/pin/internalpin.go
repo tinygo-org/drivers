@@ -70,3 +70,16 @@ type Output interface {
 type Input interface {
 	Get() (level bool)
 }
+
+// OutputStruct implements optional convenience methods
+type OutputStruct struct {
+	Output
+}
+
+func (p OutputStruct) High() {
+	p.Set(true)
+}
+
+func (p OutputStruct) Low() {
+	p.Set(false)
+}

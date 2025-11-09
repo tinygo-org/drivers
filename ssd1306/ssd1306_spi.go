@@ -1,37 +1,41 @@
 package ssd1306
 
 import (
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type SPIBus struct {
 	wire     drivers.SPI
-	dcPin    machine.Pin
-	resetPin machine.Pin
-	csPin    machine.Pin
+	dcPin    pin.OutputStruct
+	resetPin pin.OutputStruct
+	csPin    pin.OutputStruct
 	buffer   []byte // buffer to avoid heap allocations
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
-func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin machine.Pin) *Device {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin pin.Output) *Device {
 	return &Device{
 		bus: &SPIBus{
 			wire:     bus,
-			dcPin:    dcPin,
-			resetPin: resetPin,
-			csPin:    csPin,
+			dcPin:    pin.OutputStruct{Output: dcPin},
+			resetPin: pin.OutputStruct{Output: resetPin},
+			csPin:    pin.OutputStruct{Output: csPin},
 		},
 	}
 }
 
 // configure pins with the SPI bus and allocate the buffer
 func (b *SPIBus) configure(address uint16, size int16) []byte {
+
+	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
+	legacy.ConfigurePinOut(b.dcPin)
+	legacy.ConfigurePinOut(b.resetPin)
+	legacy.ConfigurePinOut(b.csPin)
+
 	b.csPin.Low()
 	b.dcPin.Low()
 	b.resetPin.Low()
