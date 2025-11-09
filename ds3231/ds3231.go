@@ -200,12 +200,12 @@ func (d *Device) SetAlarm1(dt time.Time, mode Alarm1Mode) error {
 		day = dowToDS3231(int(dt.Weekday()))
 	}
 
-	data := make([]uint8, 4)
-	data[0] = uint8ToBCD(uint8(dt.Second())) | A1M1
-	data[1] = uint8ToBCD(uint8(dt.Minute())) | A1M2
-	data[2] = uint8ToBCD(uint8(dt.Hour())) | A1M3
-	data[3] = uint8ToBCD(uint8(day)) | A1M4 | DY_DT
-	if err = d.bus.Tx(d.Address, append([]byte{REG_ALARMONE}, data...), nil); err != nil {
+	alarm1 := uint32(uint8ToBCD(uint8(dt.Second()))|A1M1) << 24
+	alarm1 |= uint32(uint8ToBCD(uint8(dt.Minute()))|A1M2) << 16
+	alarm1 |= uint32(uint8ToBCD(uint8(dt.Hour()))|A1M3) << 8
+	alarm1 |= uint32(uint8ToBCD(uint8(day)) | A1M4 | DY_DT)
+
+	if err := d.d.Write32(REG_ALARMONE, alarm1); err != nil {
 		return err
 	}
 
