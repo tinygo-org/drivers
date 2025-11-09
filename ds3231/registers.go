@@ -58,7 +58,8 @@ const (
 	SQW_8KHZ SqwPinMode = 0x18
 )
 
-// Alarm1 Modes define which parts of the set alarm time has to match the current timestamp of the clock device for alarm1 to fire
+// Alarm1 Modes define which parts of the set alarm time has to match the current timestamp of the clock device for
+// alarm1 to fire
 type Alarm1Mode uint8
 
 const (
@@ -76,7 +77,8 @@ const (
 	A1_DAY Alarm1Mode = 0x10
 )
 
-// Alarm2 Modes define which parts of the set alarm time has to match the current timestamp of the clock device for alarm2 to fire.
+// Alarm2 Modes define which parts of the set alarm time has to match the current timestamp of the clock device for
+// alarm2 to fire.
 //
 // Alarm2 only supports matching down to the minute unlike alarm1 which supports matching down to the second.
 type Alarm2Mode uint8
