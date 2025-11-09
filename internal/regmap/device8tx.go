@@ -35,12 +35,12 @@ type Device8Txer struct {
 	inTx     bool   // Tracks whether a transaction is currently active
 }
 
-// SetBuffers configures the write and read buffers for this device.
+// SetTxBuffers configures the write and read buffers for this device.
 // These buffers are reused across transactions to avoid heap allocations.
 //
 // The writebuf should be large enough to hold the register address plus
 // all data bytes to be written in a single transaction.
-func (d *Device8Txer) SetBuffers(writebuf, readbuf []byte) {
+func (d *Device8Txer) SetTxBuffers(writebuf, readbuf []byte) {
 	d.readBuf = readbuf
 	d.writeBuf = writebuf
 }
