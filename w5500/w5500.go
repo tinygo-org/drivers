@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/netdev"
 )
 
@@ -27,7 +28,7 @@ type Device struct {
 
 	mu  sync.Mutex
 	bus drivers.SPI
-	cs  PinOutput
+	cs  pin.OutputFunc
 	dns Resolver
 
 	sockets []*socket
@@ -37,10 +38,10 @@ type Device struct {
 }
 
 // New returns a new w5500 driver.
-func New(bus drivers.SPI, cs PinOutput) *Device {
+func New(bus drivers.SPI, csPin pin.Output) *Device {
 	return &Device{
 		bus: bus,
-		cs:  cs,
+		cs:  csPin.Set,
 	}
 }
 
