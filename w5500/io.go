@@ -1,19 +1,11 @@
 package w5500
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 func (d *Device) irqPoll(sockn uint8, state uint8, deadline time.Time) uint8 {
 	waitTime := 500 * time.Microsecond
 	for {
 		if !deadline.IsZero() && time.Now().After(deadline) {
-			if debugging(debugDetail) {
-				fmt.Println(time.Now(), deadline)
-				fmt.Printf("[Socket %d] Polling for IRQ %08b timed out.\r\n", sockn, state)
-			}
-
 			// If a deadline is set and it has passed, return 0.
 			return sockIntUnknown
 		}
@@ -22,10 +14,6 @@ func (d *Device) irqPoll(sockn uint8, state uint8, deadline time.Time) uint8 {
 		if got := irq & state; got != 0 {
 			// Acknowledge the interrupt.
 			d.writeByte(sockInt, sockAddr(sockn), got)
-
-			if debugging(debugDetail) {
-				fmt.Printf("[Socket %d] Got IRQ %08b\r\n", sockn, got)
-			}
 
 			return got
 		}

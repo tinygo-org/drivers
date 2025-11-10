@@ -64,11 +64,6 @@ func (d *Device) GetHostByName(name string) (netip.Addr, error) {
 }
 
 func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Socket] domain: %d, type: %d, protocol: %d\r\n",
-			domain, stype, protocol)
-	}
-
 	if domain != netdev.AF_INET {
 		return -1, netdev.ErrFamilyNotSupported
 	}
@@ -108,10 +103,6 @@ func (d *Device) openSocket(sockn uint8, proto byte) {
 }
 
 func (d *Device) Bind(sockfd int, ip netip.AddrPort) error {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip.Addr(), ip.Port())
-	}
-
 	// The IP address is irrelevant. The configured ip will always be used.
 	port := ip.Port()
 	if port < 1 || port > 65535 {
@@ -154,14 +145,6 @@ func (d *Device) SetSockOpt(int, int, int, any) error {
 // If the host is an empty string, it will use the provided ip address and port,
 // otherwise it will resolve the host name to an IP address.
 func (d *Device) Connect(sockfd int, host string, ip netip.AddrPort) error {
-	if debugging(debugNetdev) {
-		if host == "" {
-			fmt.Printf("[Connect] sockfd: %d, addr: %s\r\n", sockfd, ip)
-		} else {
-			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, ip.Port())
-		}
-	}
-
 	destIP := ip.Addr()
 	if host != "" {
 		var err error
@@ -196,10 +179,6 @@ func (d *Device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 //
 // The backlog parameter is ignored, as the W5500 does not support it.
 func (d *Device) Listen(sockfd int, _ int) error {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Listen] sockfd: %d\r\n", sockfd)
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -229,10 +208,6 @@ func (d *Device) listen(sockn uint8) error {
 
 // Accept waits for an incoming connection on the specified socket file descriptor.
 func (d *Device) Accept(sockfd int) (int, netip.AddrPort, error) {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d\r\n", sockfd)
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -263,10 +238,6 @@ func (d *Device) Accept(sockfd int) (int, netip.AddrPort, error) {
 	}
 
 	csock.setInUse(true)
-
-	if debugging(debugNetdev) {
-		fmt.Printf("[Accepted] sockfd: %d\r\n", csockfd)
-	}
 
 	remoteIP := d.remoteIP(csock.sockn)
 	return csockfd, remoteIP, nil
@@ -306,11 +277,6 @@ func (d *Device) remoteIP(sockn uint8) netip.AddrPort {
 // Send sends data to the socket with the given file descriptor.
 // It blocks until all data is sent or the deadline is reached.
 func (d *Device) Send(sockfd int, buf []byte, _ int, deadline time.Time) (int, error) {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Send] sockfd: %d, len(buf): %d\r\n",
-			sockfd, len(buf))
-	}
-
 	bufLen := len(buf)
 	if bufLen <= d.maxSockSize {
 		// Fast path for small buffers.
@@ -399,11 +365,6 @@ func (d *Device) waitForFreeBuffer(sockn uint8, len uint16, deadline time.Time) 
 // Recv reads data from the socket with the given file descriptor into the provided buffer.
 // It blocks until data is available or the deadline is reached.
 func (d *Device) Recv(sockfd int, buf []byte, _ int, deadline time.Time) (int, error) {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Recv] sockfd: %d, len(buf): %d\r\n",
-			sockfd, len(buf))
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -450,10 +411,6 @@ func (d *Device) waitForData(sock *socket, deadline time.Time) (int, error) {
 
 // Close closes the socket with the given file descriptor.
 func (d *Device) Close(sockfd int) error {
-	if debugging(debugNetdev) {
-		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

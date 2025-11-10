@@ -13,8 +13,6 @@ import (
 
 var _ netdev.Netdever = &Device{}
 
-var _debug debug = debugOff
-
 // Resolver is a function that resolves a hostname to an IP address.
 type Resolver func(host string) (netip.Addr, error)
 
@@ -156,10 +154,6 @@ func (d *Device) reset() {
 
 // GetHardwareAddr returns the hardware address of the device.
 func (d *Device) GetHardwareAddr() (net.HardwareAddr, error) {
-	if debugging(debugNetdev) {
-		fmt.Printf("[GetHardwareAddr]\r\n")
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
