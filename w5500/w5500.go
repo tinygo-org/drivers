@@ -18,9 +18,6 @@ var _debug debug = debugOff
 // Resolver is a function that resolves a hostname to an IP address.
 type Resolver func(host string) (netip.Addr, error)
 
-// PinOutput is a function that sets a pin high or low.
-type PinOutput func(level bool)
-
 // Device is a driver for the W5500 Ethernet controller.
 type Device struct {
 	maxSockets  int
