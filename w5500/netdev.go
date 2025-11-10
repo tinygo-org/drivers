@@ -1,7 +1,7 @@
 package w5500
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -17,11 +17,6 @@ type socket struct {
 	port     uint16
 	inUse    bool
 	closed   bool
-}
-
-func (s *socket) setSockn(n int) *socket {
-	s.sockn = uint8(n)
-	return s
 }
 
 func (s *socket) setProtocol(proto byte) *socket {
@@ -71,7 +66,7 @@ func (d *Device) Socket(domain int, stype int, protocol int) (int, error) {
 	case stype == netdev.SOCK_STREAM && protocol == netdev.IPPROTO_TCP:
 	case stype == netdev.SOCK_DGRAM && protocol == netdev.IPPROTO_UDP:
 	default:
-		return -1, fmt.Errorf("unsupported socket type %d and protocol %d", stype, protocol)
+		return -1, errors.New("unsupported combination of socket type and protocol")
 	}
 
 	var proto byte
@@ -105,9 +100,6 @@ func (d *Device) openSocket(sockn uint8, proto byte) {
 func (d *Device) Bind(sockfd int, ip netip.AddrPort) error {
 	// The IP address is irrelevant. The configured ip will always be used.
 	port := ip.Port()
-	if port < 1 || port > 65535 {
-		return fmt.Errorf("invalid port number: %d", port)
-	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -118,7 +110,7 @@ func (d *Device) Bind(sockfd int, ip netip.AddrPort) error {
 	}
 
 	if err = d.bindSocket(sock.sockn, port); err != nil {
-		return fmt.Errorf("could not set socket port: %w", err)
+		return errors.New("could not set socket port: " + err.Error())
 	}
 
 	sock.setPort(port)
@@ -129,7 +121,7 @@ func (d *Device) bindSocket(sockn uint8, port uint16) error {
 	d.writeUint16(sockSrcPort, sockAddr(sockn), port)
 	d.socketSendCmd(sockn, sockCmdOpen)
 	if d.sockStatus(sockn) == sockStatusClosed {
-		return fmt.Errorf("socket %d is closed after binding", sockn)
+		return errors.New("socket is closed after binding")
 	}
 	return nil
 }
@@ -150,16 +142,13 @@ func (d *Device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 		var err error
 		destIP, err = d.GetHostByName(host)
 		if err != nil {
-			return fmt.Errorf("could not resolve host %s: %w", host, err)
+			return errors.New("could not resolve host " + host + ":" + err.Error())
 		}
 	}
 	if !destIP.IsValid() || !destIP.Is4() {
-		return fmt.Errorf("invalid destination IP address: %s", destIP)
+		return errors.New("invalid destination IP address: " + destIP.String())
 	}
 	port := ip.Port()
-	if port < 1 || port > 65535 {
-		return fmt.Errorf("invalid destination port number: %d", port)
-	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -188,11 +177,11 @@ func (d *Device) Listen(sockfd int, _ int) error {
 	}
 
 	if sock.protocol != 1 { // Only TCP sockets can listen
-		return fmt.Errorf("socket %d is not a TCP socket", sockfd)
+		return errors.New("not a TCP socket")
 	}
 
 	if err = d.listen(sock.sockn); err != nil {
-		return fmt.Errorf("could not send listen command: %w", err)
+		return errors.New("could not send listen command: " + err.Error())
 	}
 	return nil
 }
@@ -200,7 +189,7 @@ func (d *Device) Listen(sockfd int, _ int) error {
 func (d *Device) listen(sockn uint8) error {
 	state := d.sockStatus(sockn)
 	if state != sockStatusInit {
-		return fmt.Errorf("socket %d is not in the initial state: got %d", sockn, state)
+		return errors.New("socket is not in the initial state")
 	}
 	d.socketSendCmd(sockn, sockCmdListen)
 	return nil
@@ -213,7 +202,7 @@ func (d *Device) Accept(sockfd int) (int, netip.AddrPort, error) {
 
 	lsock, err := d.socket(sockfd)
 	if err != nil {
-		return -1, netip.AddrPort{}, fmt.Errorf("could not get socket: %w", err)
+		return -1, netip.AddrPort{}, errors.New("could not get socket: " + err.Error())
 	}
 
 	if err = d.waitForEstablished(lsock.sockn); err != nil {
@@ -231,10 +220,10 @@ func (d *Device) Accept(sockfd int) (int, netip.AddrPort, error) {
 	// Rebind the listening socket to the local address and port and start listening.
 	d.openSocket(lsock.sockn, lsock.protocol)
 	if err = d.bindSocket(lsock.sockn, lsock.port); err != nil {
-		return -1, netip.AddrPort{}, fmt.Errorf("could not bind listening socket: %w", err)
+		return -1, netip.AddrPort{}, errors.New("could not bind listening socket: " + err.Error())
 	}
 	if err = d.listen(lsock.sockn); err != nil {
-		return -1, netip.AddrPort{}, fmt.Errorf("could not set listening socket: %w", err)
+		return -1, netip.AddrPort{}, errors.New("could not set listening socket: " + err.Error())
 	}
 
 	csock.setInUse(true)
@@ -255,7 +244,7 @@ func (d *Device) waitForEstablished(sockn uint8) error {
 			// The server closed the connection, so we need to reset the socket
 			// and set it to listen again.
 			if err := d.listen(sockn); err != nil {
-				return fmt.Errorf("could not set socket to listen: %w", err)
+				return errors.New("could not set socket to listen: " + err.Error())
 			}
 			break
 		}
@@ -292,7 +281,7 @@ func (d *Device) Send(sockfd int, buf []byte, _ int, deadline time.Time) (int, e
 
 		sent, err := d.sendChunk(sockfd, buf[i:end], deadline)
 		if err != nil {
-			return n, fmt.Errorf("could not send chunk: %w", err)
+			return n, errors.New("could not send chunk: " + err.Error())
 		}
 		n += sent
 	}
@@ -305,7 +294,7 @@ func (d *Device) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, err
 
 	sock, err := d.socket(sockfd)
 	if err != nil {
-		return 0, fmt.Errorf("could not get socket: %w", err)
+		return 0, errors.New("could not get socket: " + err.Error())
 	}
 	if sock.closed {
 		return 0, os.ErrClosed
@@ -351,7 +340,7 @@ func (d *Device) waitForFreeBuffer(sockn uint8, len uint16, deadline time.Time) 
 		switch status {
 		case sockStatusEstablished, sockStatusCloseWait:
 		default:
-			return fmt.Errorf("socket is not in a valid state for sending data: %d", status)
+			return errors.New("socket is not in a valid state for sending data")
 		}
 
 		d.mu.Unlock()
@@ -370,7 +359,7 @@ func (d *Device) Recv(sockfd int, buf []byte, _ int, deadline time.Time) (int, e
 
 	sock, err := d.socket(sockfd)
 	if err != nil {
-		return 0, fmt.Errorf("could not get socket: %w", err)
+		return 0, errors.New("could not get socket: " + err.Error())
 	}
 	if sock.closed {
 		return 0, os.ErrClosed

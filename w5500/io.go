@@ -91,7 +91,7 @@ func (d *Device) sendReadHeader(addr uint16, bsb uint8) {
 	buf := d.cmdBuf
 	buf[0] = byte(addr >> 8)
 	buf[1] = byte(addr & 0xff)
-	buf[2] = bsb<<3 | 0b000
+	buf[2] = bsb << 3
 	_ = d.bus.Tx(buf[:], nil)
 }
 

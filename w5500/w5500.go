@@ -1,7 +1,7 @@
 package w5500
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"net/netip"
 	"sync"
@@ -69,7 +69,7 @@ func (d *Device) Configure(cfg Config) error {
 	d.reset()
 
 	if err := d.setupSockets(cfg.MaxSockets); err != nil {
-		return fmt.Errorf("could not setup sockets: %w", err)
+		return errors.New("could not setup sockets: " + err.Error())
 	}
 
 	// Set the MAC address and IP configuration.
@@ -90,7 +90,7 @@ func (d *Device) setupSockets(maxSockets int) error {
 	case 1, 2, 4, 8:
 		// Valid socket counts.
 	default:
-		return fmt.Errorf("invalid number of sockets: %d, must be one of 1, 2, 4, or 8", maxSockets)
+		return errors.New("invalid number of sockets, must be one of 1, 2, 4, or 8")
 	}
 
 	socks := make([]*socket, maxSockets)
@@ -127,16 +127,6 @@ func (d *Device) setupSockets(maxSockets int) error {
 	d.writeByte(regSockIntMask, 0, mask)
 	d.writeByte(regIntMask, 0, 0)
 	return nil
-}
-
-func (d *Device) findSocket(sockn uint8) *socket {
-	for _, sock := range d.sockets {
-		if sock.sockn == sockn {
-			return sock
-		}
-	}
-	// This should not be possible
-	panic(fmt.Sprintf("could not find socket with sockn %d", sockn))
 }
 
 // Reset performs a soft reset.
@@ -177,7 +167,7 @@ func (d *Device) Addr() (netip.Addr, error) {
 // The IP address must be a valid IPv4 address.
 func (d *Device) SetAddr(ip netip.Addr) error {
 	if err := d.setAddress(regIPAddr, ip); err != nil {
-		return fmt.Errorf("could not set IP address: %w", err)
+		return errors.New("could not set IP address: " + err.Error())
 	}
 
 	d.mu.Lock()
@@ -205,7 +195,7 @@ func (d *Device) SetGateway(gateway netip.Addr) error {
 
 func (d *Device) setAddress(addr uint16, ip netip.Addr) error {
 	if !ip.IsValid() || !ip.Is4() {
-		return fmt.Errorf("invalid IP address: %s", ip)
+		return errors.New("invalid IP address: " + ip.String())
 	}
 
 	d.mu.Lock()
