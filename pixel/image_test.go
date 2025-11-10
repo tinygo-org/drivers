@@ -109,7 +109,7 @@ func TestImageRGB444BE(t *testing.T) {
 
 func TestImageMonochrome(t *testing.T) {
 	image := pixel.NewImage[pixel.Monochrome](128, 64)
-	if width, height := image.Size(); width != 128 && height != 64 {
+	if width, height := image.Size(); width != 128 || height != 64 {
 		t.Errorf("image.Size(): expected 128, 64 but got %d, %d", width, height)
 	}
 	for _, expected := range []color.RGBA{
