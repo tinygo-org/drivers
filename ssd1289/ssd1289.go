@@ -7,6 +7,9 @@ import (
 	"image/color"
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Bus interface {
@@ -14,10 +17,10 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  machine.Pin
-	wr  machine.Pin
-	cs  machine.Pin
-	rst machine.Pin
+	rs  pin.OutputFunc
+	wr  pin.OutputFunc
+	cs  pin.OutputFunc
+	rst pin.OutputFunc
 	bus Bus
 }
 
@@ -26,21 +29,20 @@ const height = int16(320)
 
 func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bus) Device {
 	d := Device{
-		rs:  rs,
-		wr:  wr,
-		cs:  cs,
-		rst: rst,
+		rs:  rs.Set,
+		wr:  wr.Set,
+		cs:  cs.Set,
+		rst: rst.Set,
 		bus: bus,
 	}
+	legacy.ConfigurePinOut(rs)
+	legacy.ConfigurePinOut(wr)
+	legacy.ConfigurePinOut(cs)
+	legacy.ConfigurePinOut(rst)
 
-	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	wr.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
-	cs.High()
-	rst.High()
-	wr.High()
+	cs.Set(true)
+	rst.Set(true)
+	wr.Set(true)
 
 	return d
 }

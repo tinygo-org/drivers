@@ -8,18 +8,20 @@ package mcp2515 // import "tinygo.org/x/drivers/mcp2515"
 import (
 	"errors"
 	"fmt"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Device wraps MCP2515 SPI CAN Module.
 type Device struct {
-	spi     SPI
-	cs      machine.Pin
-	msg     *CANMsg
-	mcpMode byte
+	spi           SPI
+	cs            pin.OutputFunc
+	msg           *CANMsg
+	mcpMode       byte
+	configurePins func()
 }
 
 // CANMsg stores CAN message fields.
@@ -36,15 +38,18 @@ const (
 )
 
 // New returns a new MCP2515 driver. Pass in a fully configured SPI bus.
-func New(b drivers.SPI, csPin machine.Pin) *Device {
+func New(b drivers.SPI, csPin pin.Output) *Device {
 	d := &Device{
 		spi: SPI{
 			bus: b,
 			tx:  make([]byte, 0, bufferSize),
 			rx:  make([]byte, 0, bufferSize),
 		},
-		cs:  csPin,
+		cs:  csPin.Set,
 		msg: &CANMsg{},
+		configurePins: func() {
+			legacy.ConfigurePinOut(csPin)
+		},
 	}
 
 	return d
@@ -52,7 +57,10 @@ func New(b drivers.SPI, csPin machine.Pin) *Device {
 
 // Configure sets up the device for communication.
 func (d *Device) Configure() {
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	if d.configurePins == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	d.configurePins()
 }
 
 const beginTimeoutValue int = 10

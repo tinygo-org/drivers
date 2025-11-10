@@ -3,31 +3,36 @@
 package max72xx
 
 import (
-	"machine"
-
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Device struct {
-	bus drivers.SPI
-	cs  machine.Pin
+	bus           drivers.SPI
+	cs            pin.OutputFunc
+	configurePins func()
 }
 
 // NewDriver creates a new max7219 connection. The SPI wire must already be configured
 // The SPI frequency must not be higher than 10MHz.
 // parameter cs: the datasheet also refers to this pin as "load" pin.
-func NewDevice(bus drivers.SPI, cs machine.Pin) *Device {
+func NewDevice(bus drivers.SPI, cs pin.Output) *Device {
 	return &Device{
 		bus: bus,
-		cs:  cs,
+		cs:  cs.Set,
+		configurePins: func() {
+			legacy.ConfigurePinOut(cs)
+		},
 	}
 }
 
 // Configure setups the pins.
 func (driver *Device) Configure() {
-	outPutConfig := machine.PinConfig{Mode: machine.PinOutput}
-
-	driver.cs.Configure(outPutConfig)
+	if driver.configurePins == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	driver.configurePins()
 }
 
 // SetScanLimit sets the scan limit. Maximum is 8.

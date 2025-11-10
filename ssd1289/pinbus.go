@@ -1,3 +1,5 @@
+//go:build tinygo
+
 package ssd1289
 
 import "machine"

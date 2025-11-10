@@ -6,10 +6,11 @@ package ssd1351 // import "tinygo.org/x/drivers/ssd1351"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 var (
@@ -19,17 +20,18 @@ var (
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus          drivers.SPI
-	dcPin        machine.Pin
-	resetPin     machine.Pin
-	csPin        machine.Pin
-	enPin        machine.Pin
-	rwPin        machine.Pin
-	width        int16
-	height       int16
-	rowOffset    int16
-	columnOffset int16
-	bufferLength int16
+	bus           drivers.SPI
+	dcPin         pin.OutputFunc
+	resetPin      pin.OutputFunc
+	csPin         pin.OutputFunc
+	enPin         pin.OutputFunc
+	rwPin         pin.OutputFunc
+	configurePins func()
+	width         int16
+	height        int16
+	rowOffset     int16
+	columnOffset  int16
+	bufferLength  int16
 }
 
 // Config is the configuration for the display
@@ -41,19 +43,29 @@ type Config struct {
 }
 
 // New creates a new SSD1351 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
 	return Device{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		enPin:    enPin,
-		rwPin:    rwPin,
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
+		enPin:    enPin.Set,
+		rwPin:    rwPin.Set,
+		configurePins: func() {
+			legacy.ConfigurePinOut(dcPin)
+			legacy.ConfigurePinOut(resetPin)
+			legacy.ConfigurePinOut(csPin)
+			legacy.ConfigurePinOut(enPin)
+			legacy.ConfigurePinOut(rwPin)
+		},
 	}
 }
 
 // Configure initializes the display with default configuration
 func (d *Device) Configure(cfg Config) {
+	if d.configurePins == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
 	if cfg.Width == 0 {
 		cfg.Width = 128
 	}
@@ -73,11 +85,7 @@ func (d *Device) Configure(cfg Config) {
 	}
 
 	// configure GPIO pins
-	d.dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.enPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rwPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	d.configurePins()
 
 	// reset the device
 	d.resetPin.High()
@@ -278,7 +286,7 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.csPin.Low()
 	d.bus.Tx(data, nil)
 	d.csPin.High()

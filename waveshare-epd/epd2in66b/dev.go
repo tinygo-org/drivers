@@ -5,10 +5,10 @@ package epd2in66b
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 const (
@@ -18,20 +18,12 @@ const (
 
 const Baudrate = 4_000_000 // 4 MHz
 
-type Config struct {
-	ResetPin      machine.Pin
-	DataPin       machine.Pin
-	ChipSelectPin machine.Pin
-	BusyPin       machine.Pin
-}
-
 type Device struct {
-	bus  drivers.SPI
-	cs   machine.Pin
-	dc   machine.Pin
-	rst  machine.Pin
-	busy machine.Pin
-
+	bus         drivers.SPI
+	cs          pin.OutputFunc
+	dc          pin.OutputFunc
+	rst         pin.OutputFunc
+	isBusy      pin.InputFunc
 	blackBuffer []byte
 	redBuffer   []byte
 }
@@ -48,21 +40,6 @@ func New(bus drivers.SPI) Device {
 		blackBuffer: make([]byte, bufLen),
 		redBuffer:   make([]byte, bufLen),
 	}
-}
-
-// Configure configures the device and its pins.
-func (d *Device) Configure(c Config) error {
-	d.cs = c.ChipSelectPin
-	d.dc = c.DataPin
-	d.rst = c.ResetPin
-	d.busy = c.BusyPin
-
-	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	d.busy.Configure(machine.PinConfig{Mode: machine.PinInput})
-
-	return nil
 }
 
 func (d *Device) Size() (x, y int16) {
@@ -229,7 +206,7 @@ func (d *Device) WaitUntilIdle() {
 	// give it some time to get busy
 	time.Sleep(50 * time.Millisecond)
 
-	for d.busy.Get() { // high = busy
+	for d.isBusy() { // high = busy
 		time.Sleep(10 * time.Millisecond)
 	}
 

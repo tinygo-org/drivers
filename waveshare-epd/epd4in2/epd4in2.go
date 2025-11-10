@@ -10,10 +10,11 @@ package epd4in2
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Config struct {
@@ -25,10 +26,10 @@ type Config struct {
 
 type Device struct {
 	bus          drivers.SPI
-	cs           machine.Pin
-	dc           machine.Pin
-	rst          machine.Pin
-	busy         machine.Pin
+	cs           pin.OutputFunc
+	dc           pin.OutputFunc
+	rst          pin.OutputFunc
+	isBusy       pin.InputFunc
 	logicalWidth int16
 	width        int16
 	height       int16
@@ -40,17 +41,17 @@ type Device struct {
 type Rotation uint8
 
 // New returns a new epd4in2 driver. Pass in a fully configured SPI bus.
-func New(bus drivers.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	busyPin.Configure(machine.PinConfig{Mode: machine.PinInput})
+func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(rstPin)
+	legacy.ConfigurePinInput(busyPin)
 	return Device{
-		bus:  bus,
-		cs:   csPin,
-		dc:   dcPin,
-		rst:  rstPin,
-		busy: busyPin,
+		bus:    bus,
+		cs:     csPin.Set,
+		dc:     dcPin.Set,
+		rst:    rstPin.Set,
+		isBusy: busyPin.Get,
 	}
 }
 
@@ -311,14 +312,14 @@ func (d *Device) ClearDisplay() {
 
 // WaitUntilIdle waits until the display is ready
 func (d *Device) WaitUntilIdle() {
-	for d.busy.Get() {
+	for d.isBusy() {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 // IsBusy returns the busy status of the display
 func (d *Device) IsBusy() bool {
-	return d.busy.Get()
+	return d.isBusy()
 }
 
 // ClearBuffer sets the buffer to 0xFF (white)

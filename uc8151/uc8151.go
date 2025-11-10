@@ -50,12 +50,7 @@ type Device struct {
 type Speed uint8
 
 // New returns a new uc8151 driver. Pass in a fully configured SPI bus.
-// Pins passed in must be configured beforehand.
 func New(bus drivers.SPI, csPin, dcPin, rstPin pin.Output, busyPin pin.Input) Device {
-	// For backwards compatibility.
-	// This driver used to configure pins,
-	// so leave in to not break users.
-	// May be removed in future so try not to depend on it!
 	legacy.ConfigurePinOut(csPin)
 	legacy.ConfigurePinOut(dcPin)
 	legacy.ConfigurePinOut(rstPin)

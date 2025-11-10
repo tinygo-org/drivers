@@ -5,12 +5,13 @@ package gc9a01 // import "tinygo.org/x/drivers/gc9a01"
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Rotation controls the rotation used by the display.
@@ -22,10 +23,10 @@ type FrameRate uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus             drivers.SPI
-	dcPin           machine.Pin
-	resetPin        machine.Pin
-	csPin           machine.Pin
-	blPin           machine.Pin
+	dcPin           pin.OutputFunc
+	resetPin        pin.OutputFunc
+	csPin           pin.OutputFunc
+	blPin           pin.OutputFunc
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -52,17 +53,17 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
 	return Device{
 		bus:      bus,
-		resetPin: resetPin,
-		dcPin:    dcPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		resetPin: resetPin.Set,
+		dcPin:    dcPin.Set,
+		csPin:    csPin.Set,
+		blPin:    blPin.Set,
 	}
 }
 
@@ -226,7 +227,7 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.bus.Tx(data, nil)
 }
 

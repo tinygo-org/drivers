@@ -1,3 +1,5 @@
+//go:build tinygo
+
 package sx127x
 
 import (
