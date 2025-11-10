@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
 	"tinygo.org/x/drivers/internal/pin"
 )
 
@@ -40,6 +41,26 @@ func New(bus drivers.SPI) Device {
 		blackBuffer: make([]byte, bufLen),
 		redBuffer:   make([]byte, bufLen),
 	}
+}
+
+type Config struct {
+	ResetPin      pin.Output
+	DataPin       pin.Output
+	ChipSelectPin pin.Output
+	BusyPin       pin.Input
+}
+
+// Configure configures the device and its pins.
+func (d *Device) Configure(c Config) error {
+	d.cs = c.ChipSelectPin.Set
+	d.dc = c.DataPin.Set
+	d.rst = c.ResetPin.Set
+	d.isBusy = c.BusyPin.Get
+	legacy.ConfigurePinOut(c.ChipSelectPin)
+	legacy.ConfigurePinOut(c.DataPin)
+	legacy.ConfigurePinOut(c.ResetPin)
+	legacy.ConfigurePinInput(c.BusyPin)
+	return nil
 }
 
 func (d *Device) Size() (x, y int16) {
