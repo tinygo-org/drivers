@@ -3,9 +3,8 @@ package main
 
 import (
 	"machine"
+	"strconv"
 	"time"
-
-	"fmt"
 
 	"tinygo.org/x/drivers/ds3231"
 )
@@ -26,19 +25,19 @@ func main() {
 	if !running {
 		err := rtc.SetRunning(true)
 		if err != nil {
-			fmt.Println("Error configuring RTC")
+			println("Error configuring RTC")
 		}
 	}
 
 	for {
 		dt, err := rtc.ReadTime()
 		if err != nil {
-			fmt.Println("Error reading date:", err)
+			println("Error reading date:", err)
 		} else {
-			fmt.Printf("Date: %d/%s/%02d %02d:%02d:%02d \r\n", dt.Year(), dt.Month(), dt.Day(), dt.Hour(), dt.Minute(), dt.Second())
+			println(dt.Format(time.DateTime))
 		}
 		temp, _ := rtc.ReadTemperature()
-		fmt.Printf("Temperature: %.2f °C \r\n", float32(temp)/1000)
+		println("Temperature:", strconv.FormatFloat(float64(temp)/1000, 'f', -1, 32), "°C")
 
 		time.Sleep(time.Second * 1)
 	}

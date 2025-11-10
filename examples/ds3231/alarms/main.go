@@ -6,8 +6,6 @@ import (
 	"machine"
 	"time"
 
-	"fmt"
-
 	"tinygo.org/x/drivers/ds3231"
 )
 
@@ -25,58 +23,48 @@ func main() {
 
 	// Set alarm1 so it triggers when the seconds match 59 => repeats every minute at dd:hh:mm:59
 	if err := rtc.SetAlarm1(time.Date(0, 0, 0, 0, 0, 59, 0, time.UTC), ds3231.A1_SECOND); err != nil {
-		fmt.Println("Error while setting Alarm1")
+		println("Error while setting Alarm1")
 	}
 	if err := rtc.SetEnabledAlarm1(true); err != nil {
-		fmt.Println("Error while enabling Alarm1")
+		println("Error while enabling Alarm1")
 	}
 
 	// Set alarm2 so it triggers when the minutes match 35 => repeats every hour at dd:hh:35:ss
 	if err := rtc.SetAlarm2(time.Date(0, 0, 0, 0, 35, 0, 0, time.UTC), ds3231.A2_MINUTE); err != nil {
-		fmt.Println("Error while setting Alarm2")
+		println("Error while setting Alarm2")
 	}
 	if err := rtc.SetEnabledAlarm2(true); err != nil {
-		fmt.Println("Error while enabling Alarm2")
+		println("Error while enabling Alarm2")
 	}
 
 	running := rtc.IsRunning()
 	if !running {
 		err := rtc.SetRunning(true)
 		if err != nil {
-			fmt.Println("Error configuring RTC")
+			println("Error configuring RTC")
 		}
 	}
 
 	for {
 		dt, err := rtc.ReadTime()
 		if err != nil {
-			fmt.Println("Error reading date:", err)
+			println("Error reading date:", err)
 			continue
 		}
 
 		a1 := rtc.IsAlarm1Fired()
 		a2 := rtc.IsAlarm2Fired()
 
-		fmt.Printf(
-			"%d/%s/%02d %02d:%02d:%02d A1: %t A2: %t\r\n",
-			dt.Year(),
-			dt.Month(),
-			dt.Day(),
-			dt.Hour(),
-			dt.Minute(),
-			dt.Second(),
-			a1,
-			a2,
-		)
+		println(dt.Format(time.DateTime), "A1:", a1, "A2:", a2)
 
 		if a1 {
 			if err := rtc.ClearAlarm1(); err != nil {
-				fmt.Println("Error while clearing alarm1")
+				println("Error while clearing alarm1")
 			}
 		}
 		if a2 {
 			if err := rtc.ClearAlarm2(); err != nil {
-				fmt.Println("Error while clearing alarm2")
+				println("Error while clearing alarm2")
 			}
 
 		}
