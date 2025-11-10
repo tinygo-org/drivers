@@ -11,7 +11,7 @@ import (
 
 func TestImageRGB565BE(t *testing.T) {
 	image := pixel.NewImage[pixel.RGB565BE](5, 3)
-	if width, height := image.Size(); width != 5 && height != 3 {
+	if width, height := image.Size(); width != 5 || height != 3 {
 		t.Errorf("image.Size(): expected 5, 3 but got %d, %d", width, height)
 	}
 	for _, c := range []color.RGBA{
@@ -32,7 +32,7 @@ func TestImageRGB565BE(t *testing.T) {
 
 func TestImageRGB444BE(t *testing.T) {
 	image := pixel.NewImage[pixel.RGB444BE](5, 3)
-	if width, height := image.Size(); width != 5 && height != 3 {
+	if width, height := image.Size(); width != 5 || height != 3 {
 		t.Errorf("image.Size(): expected 5, 3 but got %d, %d", width, height)
 	}
 	for _, c := range []color.RGBA{
