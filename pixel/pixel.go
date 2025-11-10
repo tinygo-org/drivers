@@ -161,9 +161,9 @@ func (c RGB555) BitsPerPixel() int {
 
 func (c RGB555) RGBA() color.RGBA {
 	color := color.RGBA{
-		R: uint8(c>>10) << 3,
-		G: uint8(c>>5) << 3,
-		B: uint8(c) << 3,
+		R: (uint8(c) & 0x1F) << 3,
+		G: (uint8(c>>5) & 0x1F) << 3,
+		B: (uint8(c>>10) & 0x1F) << 3,
 		A: 255,
 	}
 	// Correct color rounding, so that 0xff roundtrips back to 0xff.
