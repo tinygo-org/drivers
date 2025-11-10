@@ -1,6 +1,9 @@
 package apa102
 
-import "machine"
+import (
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
+)
 
 // bbSPI is a dumb bit-bang implementation of SPI protocol that is hardcoded
 // to mode 0 and ignores trying to receive data. Just enough for the APA102.
@@ -8,15 +11,18 @@ import "machine"
 // most purposes other than the APA102 package. It might be desirable to make
 // this more generic and include it in the TinyGo "machine" package instead.
 type bbSPI struct {
-	SCK   machine.Pin
-	SDO   machine.Pin
-	Delay uint32
+	SCK           pin.OutputFunc
+	SDO           pin.OutputFunc
+	Delay         uint32
+	configurePins func()
 }
 
 // Configure sets up the SCK and SDO pins as outputs and sets them low
 func (s *bbSPI) Configure() {
-	s.SCK.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	s.SDO.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	if s.configurePins == nil {
+		panic(legacy.ErrConfigBeforeInstantiated)
+	}
+	s.configurePins()
 	s.SCK.Low()
 	s.SDO.Low()
 	if s.Delay == 0 {

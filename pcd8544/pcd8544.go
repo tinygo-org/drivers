@@ -6,18 +6,18 @@ package pcd8544 // import "tinygo.org/x/drivers/pcd8544"
 import (
 	"errors"
 	"image/color"
-	"machine"
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Device wraps an SPI connection.
 type Device struct {
 	bus        drivers.SPI
-	dcPin      machine.Pin
-	rstPin     machine.Pin
-	scePin     machine.Pin
+	dcPin      pin.OutputFunc
+	rstPin     pin.OutputFunc
+	scePin     pin.OutputFunc
 	buffer     []byte
 	width      int16
 	height     int16
@@ -30,12 +30,12 @@ type Config struct {
 }
 
 // New creates a new PCD8544 connection. The SPI bus must already be configured.
-func New(bus drivers.SPI, dcPin, rstPin, scePin machine.Pin) *Device {
+func New(bus drivers.SPI, dcPin, rstPin, scePin pin.Output) *Device {
 	return &Device{
 		bus:    bus,
-		dcPin:  dcPin,
-		rstPin: rstPin,
-		scePin: scePin,
+		dcPin:  dcPin.Set,
+		rstPin: rstPin.Set,
+		scePin: scePin.Set,
 	}
 }
 

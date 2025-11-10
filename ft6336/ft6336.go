@@ -1,3 +1,6 @@
+// Guarded because still unsure of how to deal with interrupt drivers.
+//go:build tinygo
+
 // Package ft6336 provides a driver for the FT6336 I2C Self-Capacitive touch
 // panel controller.
 //

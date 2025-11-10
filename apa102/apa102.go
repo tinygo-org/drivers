@@ -5,9 +5,10 @@ package apa102 // import "tinygo.org/x/drivers/apa102"
 
 import (
 	"image/color"
-	"machine"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 const (
@@ -37,8 +38,11 @@ func New(b drivers.SPI) *Device {
 
 // NewSoftwareSPI returns a new APA102 driver that will use a software based
 // implementation of the SPI protocol.
-func NewSoftwareSPI(sckPin, sdoPin machine.Pin, delay uint32) *Device {
-	return New(&bbSPI{SCK: sckPin, SDO: sdoPin, Delay: delay})
+func NewSoftwareSPI(sckPin, sdoPin pin.Output, delay uint32) *Device {
+	return New(&bbSPI{SCK: sckPin.Set, SDO: sdoPin.Set, Delay: delay, configurePins: func() {
+		legacy.ConfigurePinOut(sckPin)
+		legacy.ConfigurePinOut(sdoPin)
+	}})
 }
 
 // WriteColors writes the given RGBA color slice out using the APA102 protocol.
