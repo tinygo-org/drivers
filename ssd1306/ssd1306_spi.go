@@ -10,32 +10,30 @@ import (
 
 type SPIBus struct {
 	wire     drivers.SPI
-	dcPin    pin.OutputStruct
-	resetPin pin.OutputStruct
-	csPin    pin.OutputStruct
+	dcPin    pin.OutputFunc
+	resetPin pin.OutputFunc
+	csPin    pin.OutputFunc
 	buffer   []byte // buffer to avoid heap allocations
 }
 
 // NewSPI creates a new SSD1306 connection. The SPI wire must already be configured.
 func NewSPI(bus drivers.SPI, dcPin, resetPin, csPin pin.Output) *Device {
+	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
 	return &Device{
 		bus: &SPIBus{
 			wire:     bus,
-			dcPin:    pin.OutputStruct{Output: dcPin},
-			resetPin: pin.OutputStruct{Output: resetPin},
-			csPin:    pin.OutputStruct{Output: csPin},
+			dcPin:    dcPin.Set,
+			resetPin: resetPin.Set,
+			csPin:    csPin.Set,
 		},
 	}
 }
 
 // configure pins with the SPI bus and allocate the buffer
 func (b *SPIBus) configure(address uint16, size int16) []byte {
-
-	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
-	legacy.ConfigurePinOut(b.dcPin)
-	legacy.ConfigurePinOut(b.resetPin)
-	legacy.ConfigurePinOut(b.csPin)
-
 	b.csPin.Low()
 	b.dcPin.Low()
 	b.resetPin.Low()
@@ -64,7 +62,7 @@ func (b *SPIBus) flush() error {
 // tx sends data to the display
 func (b *SPIBus) tx(data []byte, isCommand bool) error {
 	b.csPin.High()
-	b.dcPin.Set(!isCommand)
+	b.dcPin(!isCommand)
 	b.csPin.Low()
 	err := b.wire.Tx(data, nil)
 	b.csPin.High()

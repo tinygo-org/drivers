@@ -16,10 +16,10 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  pin.OutputStruct
-	wr  pin.OutputStruct
-	cs  pin.OutputStruct
-	rst pin.OutputStruct
+	rs  pin.OutputFunc
+	wr  pin.OutputFunc
+	cs  pin.OutputFunc
+	rst pin.OutputFunc
 	bus Bus
 }
 
@@ -27,13 +27,25 @@ const width = int16(240)
 const height = int16(320)
 
 func New(rs, wr, cs, rst pin.Output, bus Bus) *Device {
-	return &Device{
-		rs:  pin.OutputStruct{Output: rs},
-		wr:  pin.OutputStruct{Output: wr},
-		cs:  pin.OutputStruct{Output: cs},
-		rst: pin.OutputStruct{Output: rst},
+	d := &Device{
+		rs:  rs.Set,
+		wr:  wr.Set,
+		cs:  cs.Set,
+		rst: rst.Set,
 		bus: bus,
 	}
+
+	// configure GPIO pins (only on baremetal targets, for backwards compatibility)
+	legacy.ConfigurePinOut(rs)
+	legacy.ConfigurePinOut(wr)
+	legacy.ConfigurePinOut(cs)
+	legacy.ConfigurePinOut(rst)
+
+	d.cs.High()
+	d.rst.High()
+	d.wr.High()
+
+	return d
 }
 
 func (d *Device) lcdWriteCom(cmd Command) {
@@ -62,16 +74,6 @@ func (d *Device) lcdWriteBusInt(data uint16) {
 }
 
 func (d *Device) Configure() {
-
-	// configure GPIO pins (only on baremetal targets)
-	legacy.ConfigurePinOut(d.rs)
-	legacy.ConfigurePinOut(d.wr)
-	legacy.ConfigurePinOut(d.cs)
-	legacy.ConfigurePinOut(d.rst)
-
-	d.cs.High()
-	d.wr.High()
-
 	d.rst.High()
 	time.Sleep(time.Millisecond * 5)
 	d.rst.Low()

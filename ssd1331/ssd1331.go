@@ -20,9 +20,9 @@ type Rotation uint8
 // Device wraps an SPI connection.
 type Device struct {
 	bus         drivers.SPI
-	dcPin       pin.OutputStruct
-	resetPin    pin.OutputStruct
-	csPin       pin.OutputStruct
+	dcPin       pin.OutputFunc
+	resetPin    pin.OutputFunc
+	csPin       pin.OutputFunc
 	width       int16
 	height      int16
 	batchLength int16
@@ -38,11 +38,15 @@ type Config struct {
 
 // New creates a new SSD1331 connection. The SPI wire must already be configured.
 func New(bus drivers.SPI, resetPin, dcPin, csPin pin.Output) Device {
+	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
 	return Device{
 		bus:      bus,
-		dcPin:    pin.OutputStruct{Output: dcPin},
-		resetPin: pin.OutputStruct{Output: resetPin},
-		csPin:    pin.OutputStruct{Output: csPin},
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
 	}
 }
 
@@ -65,11 +69,6 @@ func (d *Device) Configure(cfg Config) {
 	}
 	d.batchLength += d.batchLength & 1
 	d.batchData = make([]uint8, d.batchLength*2)
-
-	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
-	legacy.ConfigurePinOut(d.dcPin)
-	legacy.ConfigurePinOut(d.resetPin)
-	legacy.ConfigurePinOut(d.csPin)
 
 	// reset the device
 	d.resetPin.High()
@@ -254,7 +253,7 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.bus.Tx(data, nil)
 }
 

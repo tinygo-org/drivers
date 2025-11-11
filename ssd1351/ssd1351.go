@@ -20,17 +20,18 @@ var (
 
 // Device wraps an SPI connection.
 type Device struct {
-	bus          drivers.SPI
-	dcPin        pin.OutputStruct
-	resetPin     pin.OutputStruct
-	csPin        pin.OutputStruct
-	enPin        pin.OutputStruct
-	rwPin        pin.OutputStruct
-	width        int16
-	height       int16
-	rowOffset    int16
-	columnOffset int16
-	bufferLength int16
+	bus           drivers.SPI
+	dcPin         pin.OutputFunc
+	resetPin      pin.OutputFunc
+	csPin         pin.OutputFunc
+	enPin         pin.OutputFunc
+	rwPin         pin.OutputFunc
+	width         int16
+	height        int16
+	rowOffset     int16
+	columnOffset  int16
+	bufferLength  int16
+	configurePins func()
 }
 
 // Config is the configuration for the display
@@ -45,11 +46,18 @@ type Config struct {
 func New(bus drivers.SPI, resetPin, dcPin, csPin, enPin, rwPin pin.Output) Device {
 	return Device{
 		bus:      bus,
-		dcPin:    pin.OutputStruct{Output: dcPin},
-		resetPin: pin.OutputStruct{Output: resetPin},
-		csPin:    pin.OutputStruct{Output: csPin},
-		enPin:    pin.OutputStruct{Output: enPin},
-		rwPin:    pin.OutputStruct{Output: rwPin},
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
+		enPin:    enPin.Set,
+		rwPin:    rwPin.Set,
+		configurePins: func() {
+			legacy.ConfigurePinOut(dcPin)
+			legacy.ConfigurePinOut(resetPin)
+			legacy.ConfigurePinOut(csPin)
+			legacy.ConfigurePinOut(enPin)
+			legacy.ConfigurePinOut(rwPin)
+		},
 	}
 }
 
@@ -74,11 +82,7 @@ func (d *Device) Configure(cfg Config) {
 	}
 
 	// configure GPIO pins (on baremetal targets only, for backwards compatibility)
-	legacy.ConfigurePinOut(d.dcPin)
-	legacy.ConfigurePinOut(d.resetPin)
-	legacy.ConfigurePinOut(d.csPin)
-	legacy.ConfigurePinOut(d.enPin)
-	legacy.ConfigurePinOut(d.rwPin)
+	d.configurePins()
 
 	// reset the device
 	d.resetPin.High()
@@ -279,7 +283,7 @@ func (d *Device) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *Device) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.csPin.Low()
 	d.bus.Tx(data, nil)
 	d.csPin.High()
