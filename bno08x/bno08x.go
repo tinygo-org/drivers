@@ -9,12 +9,12 @@ package bno08x
 import (
 	"time"
 
-	"machine"
+	"tinygo.org/x/drivers"
 )
 
 // Device represents a BNO08x sensor device.
 type Device struct {
-	bus       machine.I2C
+	bus       drivers.I2C
 	address   uint16
 	resetPin  Pin
 	readChunk int
@@ -82,9 +82,9 @@ const (
 )
 
 // New creates a new BNO08x device.
-func New(bus *machine.I2C) *Device {
+func New(bus drivers.I2C) *Device {
 	return &Device{
-		bus:       *bus,
+		bus:       bus,
 		address:   DefaultAddress,
 		resetPin:  NoPin,
 		readChunk: i2cDefaultChunk,
