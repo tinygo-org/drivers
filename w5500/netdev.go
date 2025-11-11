@@ -246,7 +246,6 @@ func (d *Device) waitForEstablished(sockn uint8) error {
 			if err := d.listen(sockn); err != nil {
 				return errors.New("could not set socket to listen: " + err.Error())
 			}
-			break
 		}
 
 		d.irqPoll(sockn, sockIntConnect|sockIntDisconnect, time.Time{})
