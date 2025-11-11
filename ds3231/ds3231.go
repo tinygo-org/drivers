@@ -142,11 +142,11 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 
 // ReadTemperature returns the temperature in millicelsius (mC)
 func (d *Device) ReadTemperature() (int32, error) {
-	data := make([]uint8, 2)
-	if err := d.d.ReadData(REG_TEMP, data); err != nil {
+	temp, err := d.d.Read16(REG_TEMP)
+	if err != nil {
 		return 0, err
 	}
-	return milliCelsius(data[0], data[1]), nil
+	return milliCelsius(temp), nil
 }
 
 // GetSqwPinMode returns the current square wave output frequency
@@ -416,8 +416,8 @@ func (d *Device) isAlarmFired(alarm_num uint8) bool {
 // 16-bit signed integer in units of centi Celsius (1/100 deg C) with no loss of
 // precision or dynamic range. But for backwards compatibility, let's instead
 // convert this into a 32-bit signed integer in units of milli Celsius.
-func milliCelsius(msb uint8, lsb uint8) int32 {
-	t256 := int16(uint16(msb)<<8 | uint16(lsb))
+func milliCelsius(tempBytes uint16) int32 {
+	t256 := int16(uint16(tempBytes>>8)<<8 | uint16(tempBytes&0xFF))
 	t1000 := int32(t256) / 64 * 250
 	return t1000
 }
