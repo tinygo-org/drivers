@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 // Device represents a BNO08x sensor device.
 type Device struct {
 	bus       drivers.I2C
 	address   uint16
-	resetPin  Pin
+	resetPin  pin.OutputFunc
 	readChunk int
 
 	hal  *halI2C
@@ -32,42 +33,13 @@ type Device struct {
 	lastReset  bool
 }
 
-// Pin represents a GPIO pin (or NoPin if not used).
-type Pin interface {
-	Configure(config PinConfig)
-	High()
-	Low()
-}
-
-// PinConfig holds pin configuration.
-type PinConfig struct {
-	Mode PinMode
-}
-
-// PinMode represents the pin mode.
-type PinMode uint8
-
-const (
-	// PinOutput sets the pin as an output.
-	PinOutput PinMode = iota
-)
-
-// NoPin is a placeholder for when no pin is used.
-var NoPin noPin
-
-type noPin struct{}
-
-func (noPin) Configure(PinConfig) {}
-func (noPin) High()               {}
-func (noPin) Low()                {}
-
 // Config holds configuration options for the device.
 type Config struct {
 	// Address is the I2C address (default: 0x4A).
 	Address uint16
 
 	// ResetPin is the optional hardware reset pin.
-	ResetPin Pin
+	ResetPin pin.OutputFunc
 
 	// ReadChunk is the I2C read chunk size (default: 32 bytes).
 	ReadChunk int
@@ -86,7 +58,6 @@ func New(bus drivers.I2C) *Device {
 	return &Device{
 		bus:       bus,
 		address:   DefaultAddress,
-		resetPin:  NoPin,
 		readChunk: i2cDefaultChunk,
 	}
 }
@@ -99,9 +70,8 @@ func (d *Device) Configure(cfg Config) error {
 	if cfg.ReadChunk > 0 {
 		d.readChunk = cfg.ReadChunk
 	}
-	if cfg.ResetPin != nil && cfg.ResetPin != NoPin {
+	if cfg.ResetPin != nil {
 		d.resetPin = cfg.ResetPin
-		d.resetPin.Configure(PinConfig{Mode: PinOutput})
 	}
 	if cfg.StartupDelay <= 0 {
 		cfg.StartupDelay = 100 * time.Millisecond
@@ -123,7 +93,7 @@ func (d *Device) Configure(cfg Config) error {
 
 	// Now that handlers are registered, perform reset
 	// Try hardware reset first if available
-	if d.resetPin != nil && d.resetPin != NoPin {
+	if d.resetPin != nil {
 		d.hardwareReset()
 		time.Sleep(cfg.StartupDelay)
 	} else {
@@ -285,7 +255,7 @@ func (d *Device) service() error {
 }
 
 func (d *Device) hardwareReset() {
-	if d.resetPin == nil || d.resetPin == NoPin {
+	if d.resetPin == nil {
 		return
 	}
 	d.resetPin.High()
