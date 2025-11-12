@@ -1,3 +1,10 @@
+// Package w5500 implements a driver for the W5500 Ethernet controller.
+//
+// The driver supports basic network functionality including TCP and UDP sockets.
+// It currently does not use the IRQ or RST pins.
+//
+// Datasheet: https://docs.wiznet.io/img/products/w5500/W5500_ds_v110e.pdf
+// Product Page: https://wiznet.io/products/ethernet-chips/w5500
 package w5500
 
 import (
