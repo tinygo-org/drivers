@@ -150,7 +150,7 @@ func (img Image[T]) setPixel(index int, c T) {
 
 		return
 	case zeroColor.BitsPerPixel() == 2:
-		// GrayScale2bit.
+		// Grayscale2bit.
 		offset := index / 4      // 4 pixels per byte
 		shift := 6 - (index%4)*2 // bits: 6, 4, 2, 0
 
@@ -221,12 +221,12 @@ func (img Image[T]) Get(x, y int) T {
 		c = ((*ptr >> (7 - uint8(bits))) & 0x1) > 0
 		return any(c).(T)
 	case zeroColor.BitsPerPixel() == 2:
-		// GrayScale2bit.
+		// Grayscale2bit.
 		offset := index / 4      // 4 pixels per byte
 		shift := 6 - (index%4)*2 // bits: 6, 4, 2, 0
 		ptr := (*byte)(unsafe.Add(img.data, offset))
 		value := ((*ptr) >> shift) & 0b11
-		return any(GrayScale2bit(value)).(T)
+		return any(Grayscale2bit(value)).(T)
 	case zeroColor.BitsPerPixel()%8 == 0:
 		// Colors like RGB565, RGB888, etc.
 		offset := index * int(unsafe.Sizeof(zeroColor))

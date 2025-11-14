@@ -16,7 +16,7 @@ import (
 // particular display. Each pixel is at least 1 byte in size.
 // The color format is sRGB (or close to it) in all cases except for 1-bit.
 type Color interface {
-	RGB888 | RGB565BE | RGB555 | RGB444BE | GrayScale2bit | Monochrome
+	RGB888 | RGB565BE | RGB555 | RGB444BE | Grayscale2bit | Monochrome
 
 	BaseColor
 }
@@ -50,8 +50,8 @@ func NewColor[T Color](r, g, b uint8) T {
 		return any(NewRGB555(r, g, b)).(T)
 	case RGB444BE:
 		return any(NewRGB444BE(r, g, b)).(T)
-	case GrayScale2bit:
-		return any(NewGrayScale2bit(r, g, b)).(T)
+	case Grayscale2bit:
+		return any(NewGrayscale2bit(r, g, b)).(T)
 	case Monochrome:
 		return any(NewMonochrome(r, g, b)).(T)
 	default:
@@ -206,24 +206,24 @@ func (c RGB444BE) RGBA() color.RGBA {
 	return color
 }
 
-// GrayScale2bit represents a 2-bit grayscale value (4 levels: black, dark gray, light gray, white).
-type GrayScale2bit uint8
+// Grayscale2bit represents a 2-bit Grayscale value (4 levels: black, dark gray, light gray, white).
+type Grayscale2bit uint8
 
-func NewGrayScale2bit(r, g, b uint8) GrayScale2bit {
+func NewGrayscale2bit(r, g, b uint8) Grayscale2bit {
 	// Convert RGB to luminance using standard weights (approximation of human perception)
 	// Use shift-based operations to reduce processing time.
 	// luminance := (299*uint32(r) + 587*uint32(g) + 114*uint32(b)) / 1000
 	luminance := (77*uint32(r) + 150*uint32(g) + 29*uint32(b)) >> 8
 	// Map to 2-bit value: 0–63 => 0, 64–127 => 1, 128–191 => 2, 192–255 => 3
-	return GrayScale2bit((luminance >> 6) & 0b11)
+	return Grayscale2bit((luminance >> 6) & 0b11)
 }
 
-func (c GrayScale2bit) BitsPerPixel() int {
+func (c Grayscale2bit) BitsPerPixel() int {
 	return 2
 }
 
-func (c GrayScale2bit) RGBA() color.RGBA {
-	// Expand 2-bit grayscale back to 8-bit (0–255) using multiplication
+func (c Grayscale2bit) RGBA() color.RGBA {
+	// Expand 2-bit Grayscale back to 8-bit (0–255) using multiplication
 	// 0 → 0x00, 1 → 0x55, 2 → 0xAA, 3 → 0xFF (i.e., multiply by 85)
 	gray := uint8(c&0b11) * 85
 	return color.RGBA{
