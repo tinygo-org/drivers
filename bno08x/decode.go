@@ -9,19 +9,19 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 	}
 
 	value := SensorValue{
-		ID:        SensorID(payload[0]),
-		Sequence:  payload[1],
-		Status:    payload[2] & 0x03,
-		Delay:     payload[3],
-		Timestamp: uint64(timestamp),
+		id:        SensorID(payload[0]),
+		sequence:  payload[1],
+		status:    payload[2] & 0x03,
+		delay:     payload[3],
+		timestamp: uint64(timestamp),
 	}
 
 	data := payload[4:]
 
-	switch value.ID {
+	switch value.id {
 	case SensorRawAccelerometer:
 		if len(data) >= 10 {
-			value.RawAccelerometer = RawVector3{
+			value.rawAccelerometer = RawVector3{
 				X:         int16(binary.LittleEndian.Uint16(data[0:])),
 				Y:         int16(binary.LittleEndian.Uint16(data[2:])),
 				Z:         int16(binary.LittleEndian.Uint16(data[4:])),
@@ -31,7 +31,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorAccelerometer:
 		if len(data) >= 6 {
-			value.Accelerometer = Vector3{
+			value.accelerometer = Vector3{
 				X: qToFloat(data[0:], scaleAccel),
 				Y: qToFloat(data[2:], scaleAccel),
 				Z: qToFloat(data[4:], scaleAccel),
@@ -40,7 +40,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorLinearAcceleration:
 		if len(data) >= 6 {
-			value.LinearAcceleration = Vector3{
+			value.linearAcceleration = Vector3{
 				X: qToFloat(data[0:], scaleAccel),
 				Y: qToFloat(data[2:], scaleAccel),
 				Z: qToFloat(data[4:], scaleAccel),
@@ -49,7 +49,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorGravity:
 		if len(data) >= 6 {
-			value.Gravity = Vector3{
+			value.gravity = Vector3{
 				X: qToFloat(data[0:], scaleAccel),
 				Y: qToFloat(data[2:], scaleAccel),
 				Z: qToFloat(data[4:], scaleAccel),
@@ -58,7 +58,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorRawGyroscope:
 		if len(data) >= 12 {
-			value.RawGyroscope = RawGyroscope{
+			value.rawGyroscope = RawGyroscope{
 				X:           int16(binary.LittleEndian.Uint16(data[0:])),
 				Y:           int16(binary.LittleEndian.Uint16(data[2:])),
 				Z:           int16(binary.LittleEndian.Uint16(data[4:])),
@@ -69,7 +69,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorGyroscope:
 		if len(data) >= 6 {
-			value.Gyroscope = Vector3{
+			value.gyroscope = Vector3{
 				X: qToFloat(data[0:], scaleGyro),
 				Y: qToFloat(data[2:], scaleGyro),
 				Z: qToFloat(data[4:], scaleGyro),
@@ -78,7 +78,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorGyroscopeUncalibrated:
 		if len(data) >= 12 {
-			value.GyroscopeUncal = GyroscopeUncalibrated{
+			value.gyroscopeUncal = GyroscopeUncalibrated{
 				X:     qToFloat(data[0:], scaleGyro),
 				Y:     qToFloat(data[2:], scaleGyro),
 				Z:     qToFloat(data[4:], scaleGyro),
@@ -90,7 +90,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorRawMagnetometer:
 		if len(data) >= 10 {
-			value.RawMagnetometer = RawVector3{
+			value.rawMagnetometer = RawVector3{
 				X:         int16(binary.LittleEndian.Uint16(data[0:])),
 				Y:         int16(binary.LittleEndian.Uint16(data[2:])),
 				Z:         int16(binary.LittleEndian.Uint16(data[4:])),
@@ -100,7 +100,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorMagneticField:
 		if len(data) >= 6 {
-			value.MagneticField = Vector3{
+			value.magneticField = Vector3{
 				X: qToFloat(data[0:], scaleMag),
 				Y: qToFloat(data[2:], scaleMag),
 				Z: qToFloat(data[4:], scaleMag),
@@ -109,7 +109,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorMagneticFieldUncalibrated:
 		if len(data) >= 12 {
-			value.MagneticFieldUncal = MagneticFieldUncalibrated{
+			value.magneticFieldUncal = MagneticFieldUncalibrated{
 				X:     qToFloat(data[0:], scaleMag),
 				Y:     qToFloat(data[2:], scaleMag),
 				Z:     qToFloat(data[4:], scaleMag),
@@ -121,18 +121,18 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorRotationVector:
 		if len(data) >= 10 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
 				Real: qToFloat(data[6:], scaleQuat),
 			}
-			value.QuaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
+			value.quaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
 		}
 
 	case SensorGameRotationVector:
 		if len(data) >= 8 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
@@ -142,29 +142,29 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorGeomagneticRotationVector:
 		if len(data) >= 10 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
 				Real: qToFloat(data[6:], scaleQuat),
 			}
-			value.QuaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
+			value.quaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
 		}
 
 	case SensorARVRStabilizedRV:
 		if len(data) >= 10 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
 				Real: qToFloat(data[6:], scaleQuat),
 			}
-			value.QuaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
+			value.quaternionAccuracy = qToFloat(data[8:], scaleAccuracy)
 		}
 
 	case SensorARVRStabilizedGRV:
 		if len(data) >= 8 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
@@ -174,7 +174,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorGyroIntegratedRV:
 		if len(data) >= 10 {
-			value.Quaternion = Quaternion{
+			value.quaternion = Quaternion{
 				I:    qToFloat(data[0:], scaleQuat),
 				J:    qToFloat(data[2:], scaleQuat),
 				K:    qToFloat(data[4:], scaleQuat),
@@ -185,39 +185,39 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorPressure:
 		if len(data) >= 4 {
-			value.Pressure = float32(int32(binary.LittleEndian.Uint32(data[0:]))) * scalePressure
+			value.pressure = float32(int32(binary.LittleEndian.Uint32(data[0:]))) * scalePressure
 		}
 
 	case SensorAmbientLight:
 		if len(data) >= 4 {
-			value.AmbientLight = float32(int32(binary.LittleEndian.Uint32(data[0:]))) * scaleLight
+			value.ambientLight = float32(int32(binary.LittleEndian.Uint32(data[0:]))) * scaleLight
 		}
 
 	case SensorHumidity:
 		if len(data) >= 2 {
-			value.Humidity = qToFloat(data[0:], scaleHumidity)
+			value.humidity = qToFloat(data[0:], scaleHumidity)
 		}
 
 	case SensorProximity:
 		if len(data) >= 2 {
-			value.Proximity = qToFloat(data[0:], scaleProximity)
+			value.proximity = qToFloat(data[0:], scaleProximity)
 		}
 
 	case SensorTemperature:
 		if len(data) >= 2 {
-			value.Temperature = qToFloat(data[0:], scaleTemperature)
+			value.temperature = qToFloat(data[0:], scaleTemperature)
 		}
 
 	case SensorTapDetector:
 		if len(data) >= 1 {
-			value.TapDetector = TapDetector{
+			value.tapDetector = TapDetector{
 				Flags: data[0],
 			}
 		}
 
 	case SensorStepDetector:
 		if len(data) >= 4 {
-			value.StepDetector = StepDetector{
+			value.stepDetector = StepDetector{
 				Latency: binary.LittleEndian.Uint32(data[0:]),
 			}
 		}
@@ -225,31 +225,31 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 	case SensorStepCounter:
 		if len(data) >= 4 {
 			// Detected steps are first 2 bytes, latency is next 4
-			value.StepCounter = uint32(binary.LittleEndian.Uint16(data[0:]))
+			value.stepCounter = uint32(binary.LittleEndian.Uint16(data[0:]))
 		}
 
 	case SensorSignificantMotion:
 		if len(data) >= 2 {
-			value.SignificantMotion = SignificantMotion{
+			value.significantMotion = SignificantMotion{
 				Motion: binary.LittleEndian.Uint16(data[0:]),
 			}
 		}
 
 	case SensorStabilityClassifier:
 		if len(data) >= 1 {
-			value.StabilityClassifier = StabilityClassifier{
+			value.stabilityClassifier = StabilityClassifier{
 				Classification: data[0],
 			}
 		}
 
 	case SensorStabilityDetector:
 		if len(data) >= 1 {
-			value.StabilityDetector = data[0]
+			value.stabilityDetector = data[0]
 		}
 
 	case SensorShakeDetector:
 		if len(data) >= 2 {
-			value.ShakeDetector = ShakeDetector{
+			value.shakeDetector = ShakeDetector{
 				Shake: binary.LittleEndian.Uint16(data[0:]),
 			}
 		}
@@ -266,39 +266,39 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorPersonalActivityClassifier:
 		if len(data) >= 16 {
-			value.PersonalActivityClassifier = PersonalActivityClassifier{
+			value.personalActivityClassifier = PersonalActivityClassifier{
 				Page:            data[0],
 				MostLikelyState: data[1],
 				EndOfPage:       data[15],
 			}
 			for i := 0; i < 10 && i+2 < len(data); i++ {
-				value.PersonalActivityClassifier.Confidence[i] = data[2+i]
+				value.personalActivityClassifier.Confidence[i] = data[2+i]
 			}
 		}
 
 	case SensorSleepDetector:
 		if len(data) >= 1 {
-			value.SleepDetector = data[0]
+			value.sleepDetector = data[0]
 		}
 
 	case SensorTiltDetector:
 		if len(data) >= 1 {
-			value.TiltDetector = data[0]
+			value.tiltDetector = data[0]
 		}
 
 	case SensorPocketDetector:
 		if len(data) >= 1 {
-			value.PocketDetector = data[0]
+			value.pocketDetector = data[0]
 		}
 
 	case SensorCircleDetector:
 		if len(data) >= 1 {
-			value.CircleDetector = data[0]
+			value.circleDetector = data[0]
 		}
 
 	case SensorHeartRateMonitor:
 		if len(data) >= 2 {
-			value.HeartRateMonitor = binary.LittleEndian.Uint16(data[0:])
+			value.heartRateMonitor = binary.LittleEndian.Uint16(data[0:])
 		}
 	}
 

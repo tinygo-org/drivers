@@ -160,52 +160,52 @@ type PersonalActivityClassifier struct {
 
 // SensorValue contains decoded sensor data for all sensor types.
 type SensorValue struct {
-	ID        SensorID
-	Status    uint8
-	Sequence  uint8
-	Delay     uint8
-	Timestamp uint64
+	id        SensorID
+	status    uint8
+	sequence  uint8
+	delay     uint8
+	timestamp uint64
 
 	// Orientation data (quaternions)
-	Quaternion         Quaternion
-	QuaternionAccuracy float32
+	quaternion         Quaternion
+	quaternionAccuracy float32
 
 	// Linear measurements
-	Accelerometer      Vector3
-	LinearAcceleration Vector3
-	Gravity            Vector3
-	Gyroscope          Vector3
-	GyroscopeUncal     GyroscopeUncalibrated
-	MagneticField      Vector3
-	MagneticFieldUncal MagneticFieldUncalibrated
+	accelerometer      Vector3
+	linearAcceleration Vector3
+	gravity            Vector3
+	gyroscope          Vector3
+	gyroscopeUncal     GyroscopeUncalibrated
+	magneticField      Vector3
+	magneticFieldUncal MagneticFieldUncalibrated
 
 	// Raw sensor data
-	RawAccelerometer RawVector3
-	RawGyroscope     RawGyroscope
-	RawMagnetometer  RawVector3
+	rawAccelerometer RawVector3
+	rawGyroscope     RawGyroscope
+	rawMagnetometer  RawVector3
 
 	// Environmental sensors
-	Pressure     float32 // hPa
-	AmbientLight float32 // lux
-	Humidity     float32 // %
-	Proximity    float32 // cm
-	Temperature  float32 // °C
+	pressure     float32 // hPa
+	ambientLight float32 // lux
+	humidity     float32 // %
+	proximity    float32 // cm
+	temperature  float32 // °C
 
 	// Activity detection
-	TapDetector                TapDetector
-	StepCounter                uint32
-	StepDetector               StepDetector
-	SignificantMotion          SignificantMotion
-	ShakeDetector              ShakeDetector
-	StabilityClassifier        StabilityClassifier
-	StabilityDetector          uint8
-	ActivityClassifier         ActivityClassification
-	PersonalActivityClassifier PersonalActivityClassifier
-	SleepDetector              uint8
-	TiltDetector               uint8
-	PocketDetector             uint8
-	CircleDetector             uint8
-	HeartRateMonitor           uint16
+	tapDetector                TapDetector
+	stepCounter                uint32
+	stepDetector               StepDetector
+	significantMotion          SignificantMotion
+	shakeDetector              ShakeDetector
+	stabilityClassifier        StabilityClassifier
+	stabilityDetector          uint8
+	activityClassifier         ActivityClassification
+	personalActivityClassifier PersonalActivityClassifier
+	sleepDetector              uint8
+	tiltDetector               uint8
+	pocketDetector             uint8
+	circleDetector             uint8
+	heartRateMonitor           uint16
 }
 
 // SensorConfig holds configuration settings for a sensor.
@@ -236,3 +236,321 @@ var (
 	errHubError       = Error("bno08x: sensor hub error")
 	errIO             = Error("bno08x: I/O error")
 )
+
+// Metadata accessor methods (always available for any sensor type)
+
+// ID returns the sensor ID.
+func (sv SensorValue) ID() SensorID {
+	return sv.id
+}
+
+// Status returns the sensor status flags.
+func (sv SensorValue) Status() uint8 {
+	return sv.status
+}
+
+// Sequence returns the sequence number.
+func (sv SensorValue) Sequence() uint8 {
+	return sv.sequence
+}
+
+// Delay returns the sensor delay value.
+func (sv SensorValue) Delay() uint8 {
+	return sv.delay
+}
+
+// Timestamp returns the sensor timestamp.
+func (sv SensorValue) Timestamp() uint64 {
+	return sv.timestamp
+}
+
+// Orientation data accessor methods
+
+// Quaternion returns the quaternion value for rotation vector sensors.
+// Panics if called on a sensor type that doesn't provide quaternion data.
+func (sv SensorValue) Quaternion() Quaternion {
+	switch sv.id {
+	case SensorRotationVector, SensorGameRotationVector, SensorGeomagneticRotationVector,
+		SensorARVRStabilizedRV, SensorARVRStabilizedGRV, SensorGyroIntegratedRV:
+		return sv.quaternion
+	default:
+		panic("bno08x: Quaternion() called on non-rotation sensor type")
+	}
+}
+
+// QuaternionAccuracy returns the quaternion accuracy estimate.
+// Panics if called on a sensor type that doesn't provide quaternion accuracy.
+func (sv SensorValue) QuaternionAccuracy() float32 {
+	switch sv.id {
+	case SensorRotationVector, SensorGeomagneticRotationVector, SensorARVRStabilizedRV:
+		return sv.quaternionAccuracy
+	default:
+		panic("bno08x: QuaternionAccuracy() called on sensor type without accuracy data")
+	}
+}
+
+// Linear measurement accessor methods
+
+// Accelerometer returns the accelerometer vector.
+// Panics if called on a sensor type other than SensorAccelerometer.
+func (sv SensorValue) Accelerometer() Vector3 {
+	if sv.id != SensorAccelerometer {
+		panic("bno08x: Accelerometer() called on non-accelerometer sensor type")
+	}
+	return sv.accelerometer
+}
+
+// LinearAcceleration returns the linear acceleration vector.
+// Panics if called on a sensor type other than SensorLinearAcceleration.
+func (sv SensorValue) LinearAcceleration() Vector3 {
+	if sv.id != SensorLinearAcceleration {
+		panic("bno08x: LinearAcceleration() called on wrong sensor type")
+	}
+	return sv.linearAcceleration
+}
+
+// Gravity returns the gravity vector.
+// Panics if called on a sensor type other than SensorGravity.
+func (sv SensorValue) Gravity() Vector3 {
+	if sv.id != SensorGravity {
+		panic("bno08x: Gravity() called on non-gravity sensor type")
+	}
+	return sv.gravity
+}
+
+// Gyroscope returns the gyroscope vector.
+// Panics if called on a sensor type other than SensorGyroscope.
+func (sv SensorValue) Gyroscope() Vector3 {
+	if sv.id != SensorGyroscope {
+		panic("bno08x: Gyroscope() called on non-gyroscope sensor type")
+	}
+	return sv.gyroscope
+}
+
+// GyroscopeUncal returns the uncalibrated gyroscope data.
+// Panics if called on a sensor type other than SensorGyroscopeUncalibrated.
+func (sv SensorValue) GyroscopeUncal() GyroscopeUncalibrated {
+	if sv.id != SensorGyroscopeUncalibrated {
+		panic("bno08x: GyroscopeUncal() called on wrong sensor type")
+	}
+	return sv.gyroscopeUncal
+}
+
+// MagneticField returns the magnetic field vector.
+// Panics if called on a sensor type other than SensorMagneticField.
+func (sv SensorValue) MagneticField() Vector3 {
+	if sv.id != SensorMagneticField {
+		panic("bno08x: MagneticField() called on wrong sensor type")
+	}
+	return sv.magneticField
+}
+
+// MagneticFieldUncal returns the uncalibrated magnetic field data.
+// Panics if called on a sensor type other than SensorMagneticFieldUncalibrated.
+func (sv SensorValue) MagneticFieldUncal() MagneticFieldUncalibrated {
+	if sv.id != SensorMagneticFieldUncalibrated {
+		panic("bno08x: MagneticFieldUncal() called on wrong sensor type")
+	}
+	return sv.magneticFieldUncal
+}
+
+// Raw sensor data accessor methods
+
+// RawAccelerometer returns the raw accelerometer data.
+// Panics if called on a sensor type other than SensorRawAccelerometer.
+func (sv SensorValue) RawAccelerometer() RawVector3 {
+	if sv.id != SensorRawAccelerometer {
+		panic("bno08x: RawAccelerometer() called on wrong sensor type")
+	}
+	return sv.rawAccelerometer
+}
+
+// RawGyroscope returns the raw gyroscope data.
+// Panics if called on a sensor type other than SensorRawGyroscope.
+func (sv SensorValue) RawGyroscope() RawGyroscope {
+	if sv.id != SensorRawGyroscope {
+		panic("bno08x: RawGyroscope() called on wrong sensor type")
+	}
+	return sv.rawGyroscope
+}
+
+// RawMagnetometer returns the raw magnetometer data.
+// Panics if called on a sensor type other than SensorRawMagnetometer.
+func (sv SensorValue) RawMagnetometer() RawVector3 {
+	if sv.id != SensorRawMagnetometer {
+		panic("bno08x: RawMagnetometer() called on wrong sensor type")
+	}
+	return sv.rawMagnetometer
+}
+
+// Environmental sensor accessor methods
+
+// Pressure returns the pressure reading in hPa.
+// Panics if called on a sensor type other than SensorPressure.
+func (sv SensorValue) Pressure() float32 {
+	if sv.id != SensorPressure {
+		panic("bno08x: Pressure() called on non-pressure sensor type")
+	}
+	return sv.pressure
+}
+
+// AmbientLight returns the ambient light reading in lux.
+// Panics if called on a sensor type other than SensorAmbientLight.
+func (sv SensorValue) AmbientLight() float32 {
+	if sv.id != SensorAmbientLight {
+		panic("bno08x: AmbientLight() called on wrong sensor type")
+	}
+	return sv.ambientLight
+}
+
+// Humidity returns the humidity reading in percent.
+// Panics if called on a sensor type other than SensorHumidity.
+func (sv SensorValue) Humidity() float32 {
+	if sv.id != SensorHumidity {
+		panic("bno08x: Humidity() called on non-humidity sensor type")
+	}
+	return sv.humidity
+}
+
+// Proximity returns the proximity reading in cm.
+// Panics if called on a sensor type other than SensorProximity.
+func (sv SensorValue) Proximity() float32 {
+	if sv.id != SensorProximity {
+		panic("bno08x: Proximity() called on non-proximity sensor type")
+	}
+	return sv.proximity
+}
+
+// Temperature returns the temperature reading in °C.
+// Panics if called on a sensor type other than SensorTemperature.
+func (sv SensorValue) Temperature() float32 {
+	if sv.id != SensorTemperature {
+		panic("bno08x: Temperature() called on non-temperature sensor type")
+	}
+	return sv.temperature
+}
+
+// Activity detection accessor methods
+
+// TapDetector returns the tap detector data.
+// Panics if called on a sensor type other than SensorTapDetector.
+func (sv SensorValue) TapDetector() TapDetector {
+	if sv.id != SensorTapDetector {
+		panic("bno08x: TapDetector() called on wrong sensor type")
+	}
+	return sv.tapDetector
+}
+
+// StepCounter returns the step counter value.
+// Panics if called on a sensor type other than SensorStepCounter.
+func (sv SensorValue) StepCounter() uint32 {
+	if sv.id != SensorStepCounter {
+		panic("bno08x: StepCounter() called on wrong sensor type")
+	}
+	return sv.stepCounter
+}
+
+// StepDetector returns the step detector data.
+// Panics if called on a sensor type other than SensorStepDetector.
+func (sv SensorValue) StepDetector() StepDetector {
+	if sv.id != SensorStepDetector {
+		panic("bno08x: StepDetector() called on wrong sensor type")
+	}
+	return sv.stepDetector
+}
+
+// SignificantMotion returns the significant motion data.
+// Panics if called on a sensor type other than SensorSignificantMotion.
+func (sv SensorValue) SignificantMotion() SignificantMotion {
+	if sv.id != SensorSignificantMotion {
+		panic("bno08x: SignificantMotion() called on wrong sensor type")
+	}
+	return sv.significantMotion
+}
+
+// ShakeDetector returns the shake detector data.
+// Panics if called on a sensor type other than SensorShakeDetector.
+func (sv SensorValue) ShakeDetector() ShakeDetector {
+	if sv.id != SensorShakeDetector {
+		panic("bno08x: ShakeDetector() called on wrong sensor type")
+	}
+	return sv.shakeDetector
+}
+
+// StabilityClassifier returns the stability classifier data.
+// Panics if called on a sensor type other than SensorStabilityClassifier.
+func (sv SensorValue) StabilityClassifier() StabilityClassifier {
+	if sv.id != SensorStabilityClassifier {
+		panic("bno08x: StabilityClassifier() called on wrong sensor type")
+	}
+	return sv.stabilityClassifier
+}
+
+// StabilityDetector returns the stability detector value.
+// Panics if called on a sensor type other than SensorStabilityDetector.
+func (sv SensorValue) StabilityDetector() uint8 {
+	if sv.id != SensorStabilityDetector {
+		panic("bno08x: StabilityDetector() called on wrong sensor type")
+	}
+	return sv.stabilityDetector
+}
+
+// ActivityClassifier returns the activity classification data.
+// Note: This field appears unused in decode.go, keeping for API compatibility.
+func (sv SensorValue) ActivityClassifier() ActivityClassification {
+	return sv.activityClassifier
+}
+
+// PersonalActivityClassifier returns the personal activity classifier data.
+// Panics if called on a sensor type other than SensorPersonalActivityClassifier.
+func (sv SensorValue) PersonalActivityClassifier() PersonalActivityClassifier {
+	if sv.id != SensorPersonalActivityClassifier {
+		panic("bno08x: PersonalActivityClassifier() called on wrong sensor type")
+	}
+	return sv.personalActivityClassifier
+}
+
+// SleepDetector returns the sleep detector value.
+// Panics if called on a sensor type other than SensorSleepDetector.
+func (sv SensorValue) SleepDetector() uint8 {
+	if sv.id != SensorSleepDetector {
+		panic("bno08x: SleepDetector() called on wrong sensor type")
+	}
+	return sv.sleepDetector
+}
+
+// TiltDetector returns the tilt detector value.
+// Panics if called on a sensor type other than SensorTiltDetector.
+func (sv SensorValue) TiltDetector() uint8 {
+	if sv.id != SensorTiltDetector {
+		panic("bno08x: TiltDetector() called on wrong sensor type")
+	}
+	return sv.tiltDetector
+}
+
+// PocketDetector returns the pocket detector value.
+// Panics if called on a sensor type other than SensorPocketDetector.
+func (sv SensorValue) PocketDetector() uint8 {
+	if sv.id != SensorPocketDetector {
+		panic("bno08x: PocketDetector() called on wrong sensor type")
+	}
+	return sv.pocketDetector
+}
+
+// CircleDetector returns the circle detector value.
+// Panics if called on a sensor type other than SensorCircleDetector.
+func (sv SensorValue) CircleDetector() uint8 {
+	if sv.id != SensorCircleDetector {
+		panic("bno08x: CircleDetector() called on wrong sensor type")
+	}
+	return sv.circleDetector
+}
+
+// HeartRateMonitor returns the heart rate monitor value.
+// Panics if called on a sensor type other than SensorHeartRateMonitor.
+func (sv SensorValue) HeartRateMonitor() uint16 {
+	if sv.id != SensorHeartRateMonitor {
+		panic("bno08x: HeartRateMonitor() called on wrong sensor type")
+	}
+	return sv.heartRateMonitor
+}

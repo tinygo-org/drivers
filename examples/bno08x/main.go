@@ -50,9 +50,14 @@ func main() {
 	// Main loop - read and display quaternion data
 	for {
 		event, ok := sensor.GetSensorEvent()
-		if ok && (event.ID == bno08x.SensorRotationVector || event.ID == bno08x.SensorGameRotationVector) {
-			q := event.Quaternion
-			println(q.Real, q.I, q.J, q.K, event.QuaternionAccuracy)
+		if ok && (event.ID() == bno08x.SensorRotationVector || event.ID() == bno08x.SensorGameRotationVector) {
+			q := event.Quaternion()
+			if event.ID() == bno08x.SensorRotationVector {
+				println(q.Real, q.I, q.J, q.K, event.QuaternionAccuracy())
+			} else {
+				// GameRotationVector doesn't have accuracy
+				println(q.Real, q.I, q.J, q.K)
+			}
 		}
 
 		// Arduino uses 10ms delay in loop
