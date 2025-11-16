@@ -127,6 +127,12 @@ type StepDetector struct {
 	Latency uint32
 }
 
+// StepCounter contains step count with latency.
+type StepCounter struct {
+	Count   uint16
+	Latency uint32
+}
+
 // SignificantMotion indicates significant motion was detected.
 type SignificantMotion struct {
 	Motion uint16
@@ -193,10 +199,11 @@ type SensorValue struct {
 
 	// Activity detection
 	tapDetector                TapDetector
-	stepCounter                uint32
+	stepCounter                StepCounter
 	stepDetector               StepDetector
 	significantMotion          SignificantMotion
 	shakeDetector              ShakeDetector
+	flipDetector               uint16
 	stabilityClassifier        StabilityClassifier
 	stabilityDetector          uint8
 	activityClassifier         ActivityClassification
@@ -443,7 +450,7 @@ func (sv SensorValue) TapDetector() TapDetector {
 
 // StepCounter returns the step counter value.
 // Panics if called on a sensor type other than SensorStepCounter.
-func (sv SensorValue) StepCounter() uint32 {
+func (sv SensorValue) StepCounter() StepCounter {
 	if sv.id != SensorStepCounter {
 		panic("bno08x: StepCounter() called on wrong sensor type")
 	}
@@ -475,6 +482,15 @@ func (sv SensorValue) ShakeDetector() ShakeDetector {
 		panic("bno08x: ShakeDetector() called on wrong sensor type")
 	}
 	return sv.shakeDetector
+}
+
+// FlipDetector returns the flip detector data.
+// Panics if called on a sensor type other than SensorFlipDetector.
+func (sv SensorValue) FlipDetector() uint16 {
+	if sv.id != SensorFlipDetector {
+		panic("bno08x: FlipDetector() called on wrong sensor type")
+	}
+	return sv.flipDetector
 }
 
 // StabilityClassifier returns the stability classifier data.

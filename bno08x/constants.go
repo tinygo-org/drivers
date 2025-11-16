@@ -126,8 +126,13 @@ const (
 
 // Tap detector flags
 const (
-	TapSingleTap = 0x01
-	TapDoubleTap = 0x02
+	TapX      = 0x01 // 1 - X axis tapped
+	TapXPos   = 0x02 // 2 - X positive direction
+	TapY      = 0x04 // 4 - Y axis tapped
+	TapYPos   = 0x08 // 8 - Y positive direction
+	TapZ      = 0x10 // 16 - Z axis tapped
+	TapZPos   = 0x20 // 32 - Z positive direction
+	TapDouble = 0x40 // 64 - Double tap occurred
 )
 
 // GUID values for SHTP

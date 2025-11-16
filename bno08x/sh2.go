@@ -19,20 +19,62 @@ func getReportLen(reportID byte) int {
 		return 5
 	case 0xFC: // GET_FEATURE_RESP
 		return 17
-	case 0x01, 0x04, 0x06: // Raw accelerometer, raw gyroscope, raw magnetometer
-		return 16
-	case 0x02, 0x03, 0x0A: // Accelerometer, linear accel, mag calibrated
+	case 0x01: // Accelerometer (calibrated)
 		return 10
-	case 0x05: // Gravity / Rotation vector
+	case 0x02: // Gyroscope (calibrated)
+		return 10
+	case 0x03: // Magnetic field (calibrated)
+		return 10
+	case 0x04: // Linear acceleration
+		return 10
+	case 0x05: // Rotation vector
 		return 14
+	case 0x06: // Gravity
+		return 10
 	case 0x07: // Gyroscope uncalibrated
 		return 16
-	case 0x0B: // Magnetic field uncalibrated
+	case 0x08: // Game rotation vector
+		return 12
+	case 0x09: // Geomagnetic rotation vector
+		return 14
+	case 0x0A: // Pressure
+		return 10
+	case 0x0B: // Ambient light
+		return 10
+	case 0x0C: // Humidity
+		return 10
+	case 0x0D: // Proximity
+		return 10
+	case 0x0E: // Temperature
+		return 10
+	case 0x0F: // Magnetic field uncalibrated
 		return 16
-	case 0x08, 0x09: // Game rotation vector, geomagnetic rotation vector
+	case 0x10: // Tap detector
+		return 5
+	case 0x11: // Step counter
 		return 12
-	case 0x10: // Step counter
-		return 12
+	case 0x12: // Significant motion
+		return 6
+	case 0x13: // Stability classifier
+		return 5
+	case 0x14: // Raw accelerometer
+		return 16
+	case 0x15: // Raw gyroscope
+		return 16
+	case 0x16: // Raw magnetometer
+		return 16
+	case 0x18: // Step detector
+		return 8
+	case 0x19: // Shake detector
+		return 6
+	case 0x1A: // Flip detector
+		return 6
+	case 0x1B: // Pickup detector
+		return 6
+	case 0x1C: // Stability detector
+		return 6
+	case 0x1E: // Personal activity classifier
+		return 16
 	default:
 		// For most sensor reports, they are typically 10-16 bytes
 		// If we don't know the exact length, return a safe default

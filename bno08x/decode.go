@@ -223,9 +223,11 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 		}
 
 	case SensorStepCounter:
-		if len(data) >= 4 {
-			// Detected steps are first 2 bytes, latency is next 4
-			value.stepCounter = uint32(binary.LittleEndian.Uint16(data[0:]))
+		if len(data) >= 8 {
+			value.stepCounter = StepCounter{
+				Count:   uint16(binary.LittleEndian.Uint32(data[4:8])),
+				Latency: binary.LittleEndian.Uint32(data[0:4]),
+			}
 		}
 
 	case SensorSignificantMotion:
@@ -256,7 +258,7 @@ func decodeSensor(payload []byte, timestamp uint32) (SensorValue, bool) {
 
 	case SensorFlipDetector:
 		if len(data) >= 2 {
-			// Flip detected at data[0:2]
+			value.flipDetector = binary.LittleEndian.Uint16(data[0:2])
 		}
 
 	case SensorPickupDetector:
