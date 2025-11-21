@@ -185,13 +185,6 @@ func (d *Device) sendCommand(command uint16) error {
 	return d.bus.Tx(uint16(d.Address), d.tx[0:2], nil)
 }
 
-func (d *Device) sendCommandWithValue(command, value uint16) error {
-	binary.BigEndian.PutUint16(d.tx[0:], command)
-	binary.BigEndian.PutUint16(d.tx[2:], value)
-	d.tx[4] = crc8(d.tx[2:4])
-	return d.bus.Tx(uint16(d.Address), d.tx[0:5], nil)
-}
-
 func (d *Device) sendCommandWithResult(command uint16, result []byte) error {
 	binary.BigEndian.PutUint16(d.tx[0:], command)
 	if err := d.bus.Tx(uint16(d.Address), d.tx[0:2], nil); err != nil {
