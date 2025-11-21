@@ -93,7 +93,18 @@ func (d *Device) ReadData() error {
 	return nil
 }
 
+// Update reads new data from the sensor (if new data is available) and caches
+// it for reading in the CO2, Temperature, and Humidity methods.
+func (d *Device) Update(measurements drivers.Measurement) error {
+	if measurements&(drivers.Temperature|drivers.Humidity|drivers.Concentration) != 0 {
+		return d.ReadData()
+	}
+	return nil
+}
+
 // ReadCO2 returns the CO2 concentration in PPM (parts per million).
+//
+// Deprecated: use Update() and CO2() instead.
 func (d *Device) ReadCO2() (co2 int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -105,7 +116,14 @@ func (d *Device) ReadCO2() (co2 int32, err error) {
 	return int32(d.co2), err
 }
 
+// CO2 returns last read the CO2 concentration in PPM (parts per million).
+func (d *Device) CO2() int32 {
+	return int32(d.co2)
+}
+
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
+//
+// Deprecated: use Update() and Temperature() instead.
 func (d *Device) ReadTemperature() (temperature int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -114,8 +132,14 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
+	return d.Temperature(), err
+}
+
+// Temperature returns the last read temperature in celsius milli degrees
+// (°C/1000).
+func (d *Device) Temperature() int32 {
 	// temp = -45 + 175 * value / 2¹⁶
-	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192), err
+	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192)
 }
 
 // ReadTempC returns the value in the temperature value in Celsius.
@@ -130,6 +154,11 @@ func (d *Device) ReadTempF() float32 {
 }
 
 // ReadHumidity returns the current relative humidity in %rH.
+//
+// Warning: the value returned here is less precise than the humidity returned
+// from Humidity()!
+//
+// Deprecated: use Update() and Temperature() instead.
 func (d *Device) ReadHumidity() (humidity int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -140,6 +169,15 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	}
 	// humidity = 100 * value / 2¹⁶
 	return (25 * int32(d.humidity)) / 16384, err
+}
+
+// Humidity returns the relative humidity in hundredths of a percent (in other
+// words, with a range 0..10_000).
+//
+// Warning: the value returned here is of a different scale (more precise) than
+// ReadHumidity()!
+func (d *Device) Humidity() int32 {
+	return (2500 * int32(d.humidity)) / 16384
 }
 
 func (d *Device) sendCommand(command uint16) error {
