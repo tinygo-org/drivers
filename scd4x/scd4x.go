@@ -82,6 +82,13 @@ func (d *Device) StartLowPowerPeriodicMeasurement() error {
 	return d.sendCommand(CmdStartLowPowerPeriodicMeasurement)
 }
 
+// MeasureSingleShot starts a single measurement cycle (SCD41 only). After this
+// command is complete, the caller should wait for 5000ms before trying to read
+// the result.
+func (d *Device) MeasureSingleShot() error {
+	return d.sendCommand(CmdMeasureSingleShot)
+}
+
 // ReadData reads the data from the sensor and caches it.
 func (d *Device) ReadData() error {
 	if err := d.sendCommandWithResult(CmdReadMeasurement, d.rx[0:9]); err != nil {

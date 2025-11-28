@@ -22,4 +22,5 @@ const (
 	CmdStartLowPowerPeriodicMeasurement = 0x21AC
 	CmdStartPeriodicMeasurement         = 0x21B1
 	CmdStopPeriodicMeasurement          = 0x3F86
+	CmdMeasureSingleShot                = 0x219D
 )
