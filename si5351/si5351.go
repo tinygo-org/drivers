@@ -134,6 +134,23 @@ func (d *Device) DisableOutputs() error {
 	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0xFF)
 }
 
+// packRegSet packs P1, P2, P3 values into the 8-byte register format
+// used by both PLL and Multisynth configuration.
+// For multisynth, rDivBits should contain the R divider value shifted left by 4.
+// For PLL, rDivBits should be 0.
+func packRegSet(p1, p2, p3 uint32, rDivBits uint8) [8]byte {
+	var data [8]byte
+	data[0] = uint8((p3 & 0xFF00) >> 8)
+	data[1] = uint8(p3 & 0xFF)
+	data[2] = uint8((p1&0x30000)>>16) | rDivBits
+	data[3] = uint8((p1 & 0xFF00) >> 8)
+	data[4] = uint8(p1 & 0xFF)
+	data[5] = uint8(((p3 & 0xF0000) >> 12) | ((p2 & 0xF0000) >> 16))
+	data[6] = uint8((p2 & 0xFF00) >> 8)
+	data[7] = uint8(p2 & 0xFF)
+	return data
+}
+
 // ConfigurePLL sets the multiplier for the specified PLL
 // pll   The PLL to configure, which must be one of the following:
 // - PLL_A
@@ -163,42 +180,24 @@ func (d *Device) DisableOutputs() error {
 // See: http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
 func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) error {
 	// Basic validation
-	if !d.initialised {
+	switch {
+	case !d.initialised:
 		return ErrNotInitialised
-	}
 	// mult = 15..90
-	if !((mult > 14) && (mult < 91)) {
+	case !((mult > 14) && (mult < 91)):
 		return ErrInvalidParameter
-	}
 	// Avoid divide by zero
-	if !(denom > 0) {
+	case !(denom > 0):
 		return ErrInvalidParameter
-	}
 	// 20-bit limit
-	if !(num <= 0xFFFFF) {
+	case !(num <= 0xFFFFF):
 		return ErrInvalidParameter
-	}
 	// 20-bit limit
-	if !(denom <= 0xFFFFF) {
+	case !(denom <= 0xFFFFF):
 		return ErrInvalidParameter
 	}
 
-	// PLL Multiplier Equations
-	//
-	// P1 register is an 18-bit value using following formula:
-	//
-	// 	P1[17:0] = 128 * mult + floor(128*(num/denom)) - 512
-	//
-	// P2 register is a 20-bit value using the following formula:
-	//
-	// 	P2[19:0] = 128 * num - denom * floor(128*(num/denom))
-	//
-	// P3 register is a 20-bit value using the following formula:
-	//
-	// 	P3[19:0] = denom
-	//
-
-	// Set PLL config registers
+	// Calculate PLL register values
 	var p1, p2, p3 uint32
 	if num == 0 {
 		// Integer mode
@@ -218,16 +217,8 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) e
 		baseaddr = 34
 	}
 
-	// The datasheet is a nightmare of typos and inconsistencies here!
-	data := [8]byte{}
-	data[0] = uint8((p3 & 0x0000FF00) >> 8)
-	data[1] = uint8(p3 & 0x000000FF)
-	data[2] = uint8((p1 & 0x00030000) >> 16)
-	data[3] = uint8((p1 & 0x0000FF00) >> 8)
-	data[4] = uint8(p1 & 0x000000FF)
-	data[5] = uint8(((p3 & 0x000F0000) >> 12) | ((p2 & 0x000F0000) >> 16))
-	data[6] = uint8((p2 & 0x0000FF00) >> 8)
-	data[7] = uint8(p2 & 0x000000FF)
+	// Pack and write registers
+	data := packRegSet(p1, p2, p3, 0)
 	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
 		return err
 	}
@@ -305,120 +296,58 @@ func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) e
 //	used, but this isn't currently implemented in the driver.
 func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num uint32, denom uint32) error {
 	// Basic validation
-	if !d.initialised {
+	switch {
+	case !d.initialised:
 		return ErrNotInitialised
-	}
 	// Channel range
-	if !(output < 3) {
+	case !(output < 3):
 		return fmt.Errorf("output channel must be between 0 and 2")
-	}
 	// Divider integer value
-	if !((div > 3) && (div < 2049)) {
+	case !((div > 3) && (div < 2049)):
 		return ErrInvalidParameter
-	}
 	// Avoid divide by zero
-	if !(denom > 0) {
+	case !(denom > 0):
 		return ErrInvalidParameter
-	}
 	// 20-bit limit
-	if !(num <= 0xFFFFF) {
+	case !(num <= 0xFFFFF):
 		return ErrInvalidParameter
-	}
 	// 20-bit limit
-	if !(denom <= 0xFFFFF) {
+	case !(denom <= 0xFFFFF):
+		return ErrInvalidParameter
+		// Make sure the requested PLL has been initialised
+	case pll == PLL_A && !d.pllaConfigured:
+		return ErrInvalidParameter
+	case pll == PLL_B && !d.pllbConfigured:
 		return ErrInvalidParameter
 	}
 
-	// Make sure the requested PLL has been initialised
-	if pll == PLL_A && !d.pllaConfigured {
-		return ErrInvalidParameter
-	}
-	if pll == PLL_B && !d.pllbConfigured {
-		return ErrInvalidParameter
-	}
-
-	// Output Multisynth Divider Equations
-	//
-	// where: a = div, b = num and c = denom
-	//
-	// P1 register is an 18-bit value using following formula:
-	//
-	//  P1[17:0] = 128 * a + floor(128*(b/c)) - 512
-	//
-	// P2 register is a 20-bit value using the following formula:
-	//
-	//  P2[19:0] = 128 * b - c * floor(128*(b/c))
-	//
-	// P3 register is a 20-bit value using the following formula:
-	//
-	//  P3[19:0] = c
-	//
-
-	// Set PLL config registers
-	var p1, p2, p3 uint32
-	if num == 0 {
+	// Calculate register values
+	var reg si5351RegSet
+	switch {
+	case num == 0:
 		// Integer mode
-		p1 = 128*div - 512
-		p2 = 0
-		p3 = denom
-	} else if denom == 1 {
+		reg.p1 = 128*div - 512
+		reg.p2 = 0
+		reg.p3 = denom
+	case denom == 1:
 		// Fractional mode, simplified calculations
-		p1 = 128*div + 128*num - 512
-		p2 = 128*num - 128
-		p3 = 1
-	} else {
+		reg.p1 = 128*div + 128*num - 512
+		reg.p2 = 128*num - 128
+		reg.p3 = 1
+	default:
 		// Fractional mode
-		p1 = uint32(128*float64(div) + math.Floor(128*(float64(num)/float64(denom))) - 512)
-		p2 = uint32(128*float64(num) - float64(denom)*math.Floor(128*(float64(num)/float64(denom))))
-		p3 = denom
+		reg.p1 = uint32(128*float64(div) + math.Floor(128*(float64(num)/float64(denom))) - 512)
+		reg.p2 = uint32(128*float64(num) - float64(denom)*math.Floor(128*(float64(num)/float64(denom))))
+		reg.p3 = denom
 	}
 
-	// Get the appropriate starting point for the PLL registers
-	baseaddr := uint8(0)
-	switch output {
-	case 0:
-		baseaddr = MULTISYNTH0_PARAMETERS_1
-	case 1:
-		baseaddr = MULTISYNTH1_PARAMETERS_1
-	case 2:
-		baseaddr = MULTISYNTH2_PARAMETERS_1
-	}
+	// Determine if we should use integer mode
+	intMode := num == 0
 
-	// Set the MSx config registers
-	data := [8]byte{}
-	data[0] = uint8((p3 & 0xFF00) >> 8)
-	data[1] = uint8(p3 & 0xFF)
-	data[2] = uint8(((p1 & 0x30000) >> 16)) | d.lastRdivValue[output]
-	data[3] = uint8((p1 & 0xFF00) >> 8)
-	data[4] = uint8(p1 & 0xFF)
-	data[5] = uint8(((p3 & 0xF0000) >> 12) | ((p2 & 0xF0000) >> 16))
-	data[6] = uint8((p2 & 0xFF00) >> 8)
-	data[7] = uint8(p2 & 0xFF)
-	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
-		return err
-	}
+	// Use existing R divider value (0 if not previously set)
+	rDiv := d.lastRdivValue[output] >> 4
 
-	// Configure the clk control and enable the output
-	// TODO: Check if the clk control byte needs to be updated.
-	clkControlReg := uint8(0x0F) // 8mA drive strength, MS0 as CLK0 source, Clock not inverted, powered up
-	if pll == PLL_B {
-		clkControlReg |= (1 << 5) // Uses PLLB
-	}
-	if num == 0 {
-		clkControlReg |= (1 << 6) // Integer mode
-	}
-
-	var register uint8
-	switch output {
-	case 0:
-		register = CLK0_CONTROL
-	case 1:
-		register = CLK1_CONTROL
-	case 2:
-		register = CLK2_CONTROL
-	}
-
-	return d.rw.Write8(register, clkControlReg)
+	return d.setMS(output, reg, intMode, rDiv, pll)
 }
 
 func (d *Device) ConfigureRdiv(output uint8, div uint8) error {
@@ -445,4 +374,256 @@ func (d *Device) ConfigureRdiv(output uint8, div uint8) error {
 	d.lastRdivValue[output] = (div & 0x07) << 4
 	data = (data & 0x0F) | d.lastRdivValue[output]
 	return d.rw.Write8(register, data)
+}
+
+// si5351RegSet holds the register values for multisynth configuration
+type si5351RegSet struct {
+	p1 uint32
+	p2 uint32
+	p3 uint32
+}
+
+var ErrFrequencyOutOfRange = errors.New("Si5351 frequency out of range")
+var ErrClockConflict = errors.New("Si5351 clock conflict with existing configuration")
+
+// SetFrequency sets the clock frequency of the specified CLK output.
+// Frequency range is 8 kHz to 150 MHz.
+//
+// freq - Output frequency in Hz
+// output - Clock output (0, 1, or 2 for this driver)
+// pll - The PLL to use (PLL_A or PLL_B)
+func (d *Device) SetFrequency(freq uint64, output uint8, pll uint8) error {
+	switch {
+	case !d.initialised:
+		return ErrNotInitialised
+	case output > 2:
+		return ErrInvalidParameter
+	}
+
+	switch {
+	// Lower bounds check
+	case freq < CLKOUT_MIN_FREQ:
+		freq = CLKOUT_MIN_FREQ
+	// Upper bounds check
+	case freq > MULTISYNTH_MAX_FREQ:
+		freq = MULTISYNTH_MAX_FREQ
+	}
+
+	// Select the proper R divider value for low frequencies
+	rDiv := d.selectRDiv(&freq)
+
+	// Calculate PLL and multisynth parameters
+	var pllFreq uint64
+	switch {
+	case pll == PLL_A && d.pllaConfigured:
+		pllFreq = uint64(d.pllaFreq)
+	case pll == PLL_B && d.pllbConfigured:
+		pllFreq = uint64(d.pllbFreq)
+	default:
+		// PLL not configured, calculate optimal PLL frequency
+		pllFreq = d.calculatePLLFreq(freq)
+	}
+
+	// Calculate multisynth divider parameters
+	msReg := d.multisynthCalc(freq, pllFreq)
+
+	// Determine if we should use integer mode
+	intMode := msReg.p2 == 0
+
+	// Configure PLL if not already configured or if we need a new frequency
+	if (pll == PLL_A && !d.pllaConfigured) || (pll == PLL_B && !d.pllbConfigured) {
+		if err := d.setPLL(pllFreq, pll); err != nil {
+			return err
+		}
+	}
+
+	// Set multisynth registers
+	if err := d.setMS(output, msReg, intMode, rDiv, pll); err != nil {
+		return err
+	}
+
+	// Enable output
+	return d.OutputEnable(output, true)
+}
+
+// selectRDiv selects the appropriate R divider for low frequencies
+// and modifies the frequency accordingly
+func (d *Device) selectRDiv(freq *uint64) uint8 {
+	var rDiv uint8 = 0
+
+	if *freq >= CLKOUT_MIN_FREQ && *freq < CLKOUT_MIN_FREQ*2 {
+		rDiv = R_DIV_128
+		*freq *= 128
+	} else if *freq >= CLKOUT_MIN_FREQ*2 && *freq < CLKOUT_MIN_FREQ*4 {
+		rDiv = R_DIV_64
+		*freq *= 64
+	} else if *freq >= CLKOUT_MIN_FREQ*4 && *freq < CLKOUT_MIN_FREQ*8 {
+		rDiv = R_DIV_32
+		*freq *= 32
+	} else if *freq >= CLKOUT_MIN_FREQ*8 && *freq < CLKOUT_MIN_FREQ*16 {
+		rDiv = R_DIV_16
+		*freq *= 16
+	} else if *freq >= CLKOUT_MIN_FREQ*16 && *freq < CLKOUT_MIN_FREQ*32 {
+		rDiv = R_DIV_8
+		*freq *= 8
+	} else if *freq >= CLKOUT_MIN_FREQ*32 && *freq < CLKOUT_MIN_FREQ*64 {
+		rDiv = R_DIV_4
+		*freq *= 4
+	} else if *freq >= CLKOUT_MIN_FREQ*64 && *freq < CLKOUT_MIN_FREQ*128 {
+		rDiv = R_DIV_2
+		*freq *= 2
+	}
+
+	return rDiv
+}
+
+// calculatePLLFreq calculates an optimal PLL frequency for the given output frequency
+func (d *Device) calculatePLLFreq(freq uint64) uint64 {
+	// Try to find an integer divider that puts PLL in valid range (600-900 MHz)
+	// Start with a divider that gives us a PLL freq near 750 MHz (middle of range)
+	targetPLL := uint64(750000000)
+	divider := targetPLL / freq
+
+	// Ensure divider is in valid range (8-900 for fractional, 4/6/8 for integer)
+
+	switch {
+	case divider < 8:
+		divider = 8
+	case divider > 900:
+		divider = 900
+	}
+
+	pllFreq := freq * divider
+
+	// Ensure PLL frequency is in valid range
+	switch {
+	case pllFreq < PLL_VCO_MIN:
+		pllFreq = PLL_VCO_MIN
+	case pllFreq > PLL_VCO_MAX:
+		pllFreq = PLL_VCO_MAX
+	}
+
+	return pllFreq
+}
+
+// multisynthCalc calculates the multisynth register values
+func (d *Device) multisynthCalc(freq, pllFreq uint64) si5351RegSet {
+	var reg si5351RegSet
+
+	// Calculate the division ratio
+	// divider = pllFreq / freq
+	a := uint32(pllFreq / freq)
+	remainder := pllFreq % freq
+
+	// Calculate b and c for fractional part
+	// We use c = SI5351_PLL_C_MAX (max 20-bit value) for best resolution
+	c := uint32(SI5351_PLL_C_MAX)
+	b := uint32((uint64(remainder) * uint64(c)) / freq)
+
+	// Calculate P1, P2, P3
+	// P1 = 128 * a + floor(128 * b / c) - 512
+	// P2 = 128 * b - c * floor(128 * b / c)
+	// P3 = c
+	floor128bc := uint32((128 * uint64(b)) / uint64(c))
+
+	reg.p1 = 128*a + floor128bc - 512
+	reg.p2 = 128*b - c*floor128bc
+	reg.p3 = c
+
+	return reg
+}
+
+// setPLL configures the PLL with the specified frequency
+func (d *Device) setPLL(pllFreq uint64, pll uint8) error {
+	// Calculate PLL multiplier from crystal frequency
+	// pllFreq = crystalFreq * (a + b/c)
+	xtalFreq := uint64(d.crystalFreq)
+
+	a := uint32(pllFreq / xtalFreq)
+	remainder := pllFreq % xtalFreq
+
+	// Use max denominator for best resolution
+	c := uint32(SI5351_PLL_C_MAX)
+	b := uint32((remainder * uint64(c)) / xtalFreq)
+
+	return d.ConfigurePLL(pll, uint8(a), b, c)
+}
+
+// setMS sets the multisynth registers for the specified output
+func (d *Device) setMS(output uint8, reg si5351RegSet, intMode bool, rDiv uint8, pll uint8) error {
+	// Get the appropriate starting point for the registers
+	var baseaddr uint8
+	switch output {
+	case 0:
+		baseaddr = MULTISYNTH0_PARAMETERS_1
+	case 1:
+		baseaddr = MULTISYNTH1_PARAMETERS_1
+	case 2:
+		baseaddr = MULTISYNTH2_PARAMETERS_1
+	default:
+		return ErrInvalidParameter
+	}
+
+	// Store R divider value
+	d.lastRdivValue[output] = (rDiv & 0x07) << 4
+
+	// Pack and write registers
+	data := packRegSet(reg.p1, reg.p2, reg.p3, d.lastRdivValue[output])
+	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
+		return err
+	}
+
+	// Configure the clk control register
+	clkControlReg := uint8(0x0F) // 8mA drive strength, powered up
+	if pll == PLL_B {
+		clkControlReg |= (1 << 5) // Use PLLB
+	}
+	if intMode {
+		clkControlReg |= (1 << 6) // Integer mode
+	}
+
+	var clkReg uint8
+	switch output {
+	case 0:
+		clkReg = CLK0_CONTROL
+	case 1:
+		clkReg = CLK1_CONTROL
+	case 2:
+		clkReg = CLK2_CONTROL
+	}
+
+	return d.rw.Write8(clkReg, clkControlReg)
+}
+
+// GetFreqStep returns the frequency step size of the radio in Hz.
+// This is the smallest frequency increment that can be achieved,
+// determined by the PLL frequency and denominator resolution.
+// If pll is PLL_A, uses PLLA settings; if PLL_B, uses PLLB settings.
+// Returns 0 if the specified PLL is not configured.
+func (d *Device) GetFreqStep(pll uint8) uint64 {
+	// The frequency step at the output is:
+	// step = pllFreq / (SI5351_PLL_C_MAX * multisynth_divider)
+	//
+	// However, since multisynth divider varies per output, we return
+	// the base step from the PLL, which is:
+	// step = pllFreq / SI5351_PLL_C_MAX
+
+	var pllFreq uint64
+
+	switch pll {
+	case PLL_A:
+		if !d.pllaConfigured {
+			return 0
+		}
+		pllFreq = uint64(d.pllaFreq)
+	case PLL_B:
+		if !d.pllbConfigured {
+			return 0
+		}
+		pllFreq = uint64(d.pllbFreq)
+	default:
+		return 0
+	}
+
+	return pllFreq / SI5351_PLL_C_MAX
 }

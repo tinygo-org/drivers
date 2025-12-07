@@ -97,11 +97,24 @@ func main() {
 	// After configuring PLLs and clocks, enable the outputs.
 	clockgen.EnableOutputs()
 
+	time.Sleep(time.Second)
+
+	clockgen.DisableOutputs()
+	println("All outputs disabled for 5 seconds")
+	time.Sleep(5 * time.Second)
+
+	// Now use SetFrequency to re-set the frequencies of the outputs
+	on := false
 	for {
+		if on {
+			println("Setting Clock 0 output off")
+			clockgen.OutputEnable(0, false)
+			on = false
+		} else {
+			println("Setting Clock 0 output to 100mhz")
+			clockgen.SetFrequency(100*machine.MHz, 0, si5351.PLL_A)
+			on = true
+		}
 		time.Sleep(5 * time.Second)
-		println()
-		println("Clock 0: 112.5mhz")
-		println("Clock 1: 13.5531mhz")
-		println("Clock 2: 10.706khz")
 	}
 }

@@ -62,3 +62,18 @@ const (
 	MULTISYNTH_DIV_6 = 6
 	MULTISYNTH_DIV_8 = 8
 )
+
+// Frequency constants (in Hz)
+const (
+	CLKOUT_MIN_FREQ        = 8000      // 8 kHz
+	CLKOUT_MAX_FREQ        = 150000000 // 150 MHz
+	MULTISYNTH_MAX_FREQ    = 150000000 // 150 MHz
+	MULTISYNTH_SHARE_MAX   = 100000000 // 100 MHz
+	MULTISYNTH_DIVBY4_FREQ = 150000000 // 150 MHz
+	PLL_VCO_MIN            = 600000000 // 600 MHz
+	PLL_VCO_MAX            = 900000000 // 900 MHz
+)
+
+const (
+	SI5351_PLL_C_MAX = 1048575
+)
