@@ -9,18 +9,23 @@ package bno08x
 import (
 	"time"
 
-	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/pin"
 )
 
+// Buser is the interface that wraps I2C or SPI bus operations.
+type Buser interface {
+	configure(address uint16, readChunk int) error
+	read(target []byte) (int, uint32, error)
+	write(data []byte) error
+	softReset() error
+}
+
 // Device represents a BNO08x sensor device.
 type Device struct {
-	bus       drivers.I2C
-	address   uint16
-	resetPin  pin.OutputFunc
-	readChunk int
+	bus      Buser
+	resetPin pin.OutputFunc
 
-	hal  *halI2C
+	hal  *hal
 	shtp *shtp
 	sh2  *sh2Protocol
 
@@ -35,41 +40,26 @@ type Device struct {
 
 // Config holds configuration options for the device.
 type Config struct {
-	// Address is the I2C address (default: 0x4A).
+	// Address is the I2C address (used only for I2C bus).
 	Address uint16
 
 	// ResetPin is the optional hardware reset pin.
 	ResetPin pin.OutputFunc
 
-	// ReadChunk is the I2C read chunk size (default: 32 bytes).
+	// ReadChunk is the I2C read chunk size (used only for I2C bus).
 	ReadChunk int
 
-	// StartupDelay is the delay after reset (default: 10ms).
+	// StartupDelay is the delay after reset (default: 100ms).
 	StartupDelay time.Duration
-}
-
-const (
-	// DefaultAddress is the default I2C address.
-	DefaultAddress = 0x4A
-)
-
-// New creates a new BNO08x device.
-func New(bus drivers.I2C) *Device {
-	return &Device{
-		bus:       bus,
-		address:   DefaultAddress,
-		readChunk: i2cDefaultChunk,
-	}
 }
 
 // Configure initializes the sensor and prepares it for use.
 func (d *Device) Configure(cfg Config) error {
-	if cfg.Address != 0 {
-		d.address = cfg.Address
+	// Configure bus-specific settings
+	if err := d.bus.configure(cfg.Address, cfg.ReadChunk); err != nil {
+		return err
 	}
-	if cfg.ReadChunk > 0 {
-		d.readChunk = cfg.ReadChunk
-	}
+
 	if cfg.ResetPin != nil {
 		d.resetPin = cfg.ResetPin
 	}
@@ -97,9 +87,8 @@ func (d *Device) Configure(cfg Config) error {
 		d.hardwareReset()
 		time.Sleep(cfg.StartupDelay)
 	} else {
-		// No hardware reset pin - try soft reset via I2C raw packet first
-		// This is what Adafruit does in hal_open
-		if err := d.softResetI2C(); err != nil {
+		// No hardware reset pin - try soft reset via bus
+		if err := d.bus.softReset(); err != nil {
 			// If that fails, try soft reset via SHTP protocol
 			_ = d.sh2.softReset()
 			time.Sleep(50 * time.Millisecond)
@@ -264,25 +253,4 @@ func (d *Device) hardwareReset() {
 	time.Sleep(10 * time.Millisecond)
 	d.resetPin.High()
 	time.Sleep(10 * time.Millisecond)
-}
-
-func (d *Device) softResetI2C() error {
-	// Send soft reset packet via I2C as per Adafruit implementation
-	// Format: [length_low, length_high, channel, sequence, command]
-	// This is: 5 bytes total, channel 1 (executable), command 1 (reset)
-	softResetPacket := []byte{5, 0, 1, 0, 1}
-
-	// Try up to 5 times
-	var err error
-	for attempts := 0; attempts < 5; attempts++ {
-		err = d.bus.Tx(d.address, softResetPacket, nil)
-		if err == nil {
-			// Success - wait for sensor to process reset
-			time.Sleep(300 * time.Millisecond)
-			return nil
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-
-	return err
 }

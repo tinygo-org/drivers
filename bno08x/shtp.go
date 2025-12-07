@@ -9,14 +9,14 @@ type shtpHandler func(payload []byte, timestamp uint32)
 
 // shtp implements the Sensor Hub Transport Protocol layer.
 type shtp struct {
-	hal      *halI2C
+	hal      *hal
 	handlers map[uint8]shtpHandler
 	seq      [8]uint8
-	rx       [maxTransferIn]byte
+	rx       [maxTransferIn]byte  // Reusable receive buffer
 	tx       [maxTransferOut]byte // Reusable transmit buffer
 }
 
-func newSHTP(hal *halI2C) *shtp {
+func newSHTP(hal *hal) *shtp {
 	return &shtp{
 		hal:      hal,
 		handlers: make(map[uint8]shtpHandler),

@@ -23,8 +23,8 @@ func main() {
 
 	println("Initializing BNO08x sensor...")
 
-	// Create and configure sensor
-	sensor := bno08x.New(i2c)
+	// Create and configure sensor using I2C
+	sensor := bno08x.NewI2C(i2c)
 	err = sensor.Configure(bno08x.Config{})
 	if err != nil {
 		println("Failed to configure sensor:", err.Error())
