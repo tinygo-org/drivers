@@ -25,9 +25,9 @@ type Device struct {
 	rstPin         machine.Pin          // GPIO for reset
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
-	controller     RadioController      // to manage interactions with the radio
+	controller     RadioController      // to manage interrupts with the radio
 	deepSleep      bool                 // Internal Sleep state
-	deviceType     int                  // sx1261,sx1262,sx1268 (defaults sx1261)
+	deviceType     int                  // sx1272, sx1273, sx1276, sx1279 (defaults sx1276)
 	spiTxBuf       []byte               // global Tx buffer to avoid heap allocations in interrupt
 	spiRxBuf       []byte               // global Rx buffer to avoid heap allocations in interrupt
 }
@@ -65,6 +65,11 @@ func (d *Device) SetRadioController(rc RadioController) error {
 	return nil
 }
 
+// Specify device type (sx1272, sx1273, sx1276, sx1279)
+func (d *Device) SetDeviceType(devType int) {
+	d.deviceType = devType
+}
+
 // Reset re-initialize the sx127x device
 func (d *Device) Reset() {
 	d.rstPin.Low()
@@ -81,9 +86,11 @@ func (d *Device) DetectDevice() bool {
 
 // ReadRegister reads register value
 func (d *Device) ReadRegister(reg uint8) uint8 {
-	d.controller.SetNss(false)
+	if d.controller != nil {
+		d.controller.SetNss(false)
+	}
+
 	// Send register
-	//d.spiTxBuf = []byte{reg & 0x7f}
 	d.spiTxBuf = d.spiTxBuf[:0]
 	d.spiTxBuf = append(d.spiTxBuf, byte(reg&0x7f))
 	d.spi.Tx(d.spiTxBuf, nil)
@@ -91,13 +98,19 @@ func (d *Device) ReadRegister(reg uint8) uint8 {
 	d.spiRxBuf = d.spiRxBuf[:0]
 	d.spiRxBuf = append(d.spiRxBuf, 0)
 	d.spi.Tx(nil, d.spiRxBuf)
-	d.controller.SetNss(true)
+	if d.controller != nil {
+		d.controller.SetNss(true)
+	}
+
 	return d.spiRxBuf[0]
 }
 
 // WriteRegister writes value to register
 func (d *Device) WriteRegister(reg uint8, value uint8) uint8 {
-	d.controller.SetNss(false)
+	if d.controller != nil {
+		d.controller.SetNss(false)
+	}
+
 	// Send register
 	d.spiTxBuf = d.spiTxBuf[:0]
 	d.spiTxBuf = append(d.spiTxBuf, byte(reg|0x80))
@@ -108,7 +121,10 @@ func (d *Device) WriteRegister(reg uint8, value uint8) uint8 {
 	d.spiRxBuf = d.spiRxBuf[:0]
 	d.spiRxBuf = append(d.spiRxBuf, 0)
 	d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
-	d.controller.SetNss(true)
+	if d.controller != nil {
+		d.controller.SetNss(true)
+	}
+
 	return d.spiRxBuf[0]
 }
 
@@ -119,9 +135,20 @@ func (d *Device) SetOpMode(mode uint8) {
 	d.WriteRegister(SX127X_REG_OP_MODE, new)
 }
 
-// SetOpMode changes the sx1276 mode
+// SetOpModeLora changes the sx1276 mode to lora.
 func (d *Device) SetOpModeLora() {
-	d.WriteRegister(SX127X_REG_OP_MODE, SX127X_OPMODE_LORA)
+	d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)|SX127X_OPMODE_LORA)
+}
+
+// SetOpModeFsk changes the sx1276 mode to fsk/ook.
+func (d *Device) SetOpModeFsk() {
+	d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)&^SX127X_OPMODE_LORA)
+}
+
+// SetModulationType changes the modulation type (SX127X_OPMODE_MODULATION_FSK, SX127X_OPMODE_MODULATION_OOK)
+func (d *Device) SetModulationType(typ uint8) {
+	cleared := d.ReadRegister(SX127X_REG_OP_MODE) &^ SX127X_OPMODE_MODULATION_MASK
+	d.WriteRegister(SX127X_REG_OP_MODE, cleared|typ)
 }
 
 // GetVersion returns hardware version of sx1276 chipset
@@ -244,9 +271,9 @@ func (d *Device) SetLowDataRateOptim(val uint8) {
 // SetLowFrequencyModeOn enables Low Data Rate Optimization
 func (d *Device) SetLowFrequencyModeOn(val bool) {
 	if val {
-		d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)|0x04)
+		d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)|SX127X_OPMODE_LOW_FREQUENCY)
 	} else {
-		d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)&0xfb)
+		d.WriteRegister(SX127X_REG_OP_MODE, d.ReadRegister(SX127X_REG_OP_MODE)&^SX127X_OPMODE_LOW_FREQUENCY)
 	}
 }
 

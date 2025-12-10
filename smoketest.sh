@@ -123,6 +123,7 @@ tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/xpt2046/mai
 tinygo build -size short -o ./build/test.elf -target=m5stack-core2 ./examples/ft6336/basic/
 tinygo build -size short -o ./build/test.elf -target=m5stack-core2 ./examples/ft6336/touchpaint/
 tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/sx126x/lora_rxtx/
+tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/sx127x/lora_rxtx/
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/ssd1289/main.go
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/main.go
 tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/uc8151/main.go
