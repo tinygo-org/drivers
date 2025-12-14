@@ -29,10 +29,10 @@ func main() {
 		Mode:      0,
 	})
 	display := st7789.New(machine.SPI0,
-		machine.P6, // TFT_RESET
-		machine.P7, // TFT_DC
-		machine.P8, // TFT_CS
-		machine.P9) // TFT_LITE
+		machine.TFT_RESET, // TFT_RESET
+		machine.TFT_DC,    // TFT_DC
+		machine.TFT_CS,    // TFT_CS
+		machine.TFT_LITE)  // TFT_LITE
 
 	display.Configure(st7789.Config{
 		Rotation:   st7789.NO_ROTATION,
