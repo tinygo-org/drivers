@@ -46,7 +46,7 @@ type Device = DeviceOf[pixel.RGB565BE]
 // DeviceOf is a generic version of Device. It supports multiple different pixel
 // formats.
 type DeviceOf[T Color] struct {
-	bus             drivers.SPI
+	bus             Bus
 	dcPin           pin.OutputFunc
 	resetPin        pin.OutputFunc
 	csPin           pin.OutputFunc
@@ -84,13 +84,13 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
+func New(bus Bus, resetPin, dcPin, csPin, blPin pin.Output) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
+func NewOf[T Color](bus Bus, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
 	// IMPORTANT: pin configuration should really be done outside of this
 	// driver, but for backwards compatibility with existing code, we do it
 	// here.
