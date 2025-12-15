@@ -11,13 +11,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/tinygo-org/tinygo-dev:latest
+    container:
+      image: ghcr.io/tinygo-org/tinygo:latest
+      options: --user root
     steps:
-      - name: Work around CVE-2022-24765
-        # We're not on a multi-user machine, so this is safe.
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: TinyGo version check
         run: tinygo version
       - name: Enforce Go Formatted Code
@@ -25,4 +24,6 @@ jobs:
       - name: Run unit tests
         run: make unit-test
       - name: Run build and smoke tests
-        run: make smoke-test
+        run: |
+          go env -w GOFLAGS=-buildvcs=false
+          make smoke-test
