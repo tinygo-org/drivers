@@ -1,3 +1,56 @@
+0.34.0
+---
+- **core**
+    - add regmap package to facilitate heapless driver development
+    - PinInput+PinOutput HAL (#753, reloaded) (#795)
+    - Add Device8I2C/SPI types and their logic (#801)
+
+- **new devices**
+    - **bno8x**
+        - Add support for CEVA BNO08x 9DoF sensor (#809)
+    - **hineyhsc**
+        - Add Honeywell HSC TruStability SPI+I2C pressure sensor driver (#799)
+    - **p25q16h**
+        - added support for P25Q16H flash chip for xiao-ble target
+    - **si5351**
+        - add support for si5351 (#810)
+    - **w25q80dv**
+        - added support for W25Q80DV flash chip for xiao-ble target
+    - **w5500**
+        - initial version the driver (#788)
+
+- **enhancements**
+    - **ds3231**
+        - DS3231 Alarm features (#805)
+    - **general**
+        - add simplest driver ports
+    - **lis3dh**
+        - add Update and Acceleration calls
+        - use correct error handling and make configurable
+    - **lsm9ds1**
+        - avoid unnecessary heap allocations
+    - **pixel**
+        - add Grayscale2bit color (#817)
+    - **scd4x**
+        - add support for SCD41 single-shot measurements
+        - remove dead code
+        - update package to use standard methods
+    - **si5351**
+        - add many missing functions needed for convenient use.
+    - **ssd1xxx**
+        - break dependency from machine package (#812)
+    - **test**
+        - Add TestImageRGB888 and TestImageRGB555
+
+- **bugfixes**
+    - **quadrature**
+        - add RP2350 to quadrature_interrupt.go
+    - **pixel**
+        - correct logic error in image size checks in pixel's tests
+        - correct logic error in image size checks in pixel's tests (Monochrome)
+        - correct RGB555 to RGBA conversion logic
+
+
 0.33.0
 ---
 - **new devices**
