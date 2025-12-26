@@ -18,6 +18,8 @@ var (
 	errInvalidGGASentence        = errors.New("invalid GGA NMEA sentence")
 	errInvalidRMCSentence        = errors.New("invalid RMC NMEA sentence")
 	errInvalidGLLSentence        = errors.New("invalid GLL NMEA sentence")
+	errGPSCommandRejected        = errors.New("GPS command rejected (NAK)")
+	errNoACKToGPSCommand         = errors.New("no ACK to GPS command")
 )
 
 type GPSError struct {
