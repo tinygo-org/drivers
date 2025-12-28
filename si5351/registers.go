@@ -28,6 +28,8 @@ const (
 	PLL_RESET = 177
 
 	CRYSTAL_INTERNAL_LOAD_CAPACITANCE = 183
+
+	FANOUT_ENABLE = 187
 )
 
 const (
@@ -76,4 +78,45 @@ const (
 
 const (
 	SI5351_PLL_C_MAX = 1048575
+)
+
+// Bit masks for FANOUT_ENABLE register
+const (
+	CLKIN_ENABLE      = (1 << 7)
+	XTAL_ENABLE       = (1 << 6)
+	MULTISYNTH_ENABLE = (1 << 4)
+)
+
+const (
+	FANOUT_CLKIN = iota
+	FANOUT_XO
+	FANOUT_MS
+)
+
+// Clock source selection masks for CLKx_CONTROL registers
+const (
+	CLK_INPUT_MASK           = 0x3 // Bits 0 and 1
+	CLK_INPUT_XTAL           = 0x0
+	CLK_INPUT_CLKIN          = 0x1
+	CLK_INPUT_MULTISYNTH_0_4 = 0x2
+	CLK_INPUT_MULTISYNTH_N   = 0x3
+)
+
+// Clock source selection
+const (
+	CLK_SRC_XTAL = iota
+	CLK_SRC_CLKIN
+	CLK_SRC_MS0
+	CLK_SRC_MS
+)
+
+const (
+	CLK_INVERT = 1 << 4
+)
+
+const (
+	CLK_DRIVE_STRENGTH_2MA = 0
+	CLK_DRIVE_STRENGTH_4MA = 1
+	CLK_DRIVE_STRENGTH_6MA = 2
+	CLK_DRIVE_STRENGTH_8MA = 3
 )

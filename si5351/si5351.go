@@ -627,3 +627,163 @@ func (d *Device) GetFreqStep(pll uint8) uint64 {
 
 	return pllFreq / SI5351_PLL_C_MAX
 }
+
+// SetClockFanout enables or disables the specified clock fanout.
+// fanout - The fanout to configure, which must be one of:
+//   - FANOUT_CLKIN
+//   - FANOUT_XO
+//   - FANOUT_MS
+//
+// enable - true to enable the fanout, false to disable it.
+func (d *Device) SetClockFanout(fanout int, enable bool) error {
+	if !d.initialised {
+		return ErrNotInitialised
+	}
+
+	// Read the current value of the FANOUT_ENABLE register
+	regVal, err := d.rw.Read8(FANOUT_ENABLE)
+	if err != nil {
+		return err
+	}
+	// Modify regVal based on fanout and enable
+	switch fanout {
+	case FANOUT_CLKIN:
+		if enable {
+			regVal |= CLKIN_ENABLE
+		} else {
+			regVal &^= CLKIN_ENABLE
+		}
+	case FANOUT_XO:
+		if enable {
+			regVal |= XTAL_ENABLE
+		} else {
+			regVal &^= XTAL_ENABLE
+		}
+	case FANOUT_MS:
+		if enable {
+			regVal |= MULTISYNTH_ENABLE
+		} else {
+			regVal &^= MULTISYNTH_ENABLE
+		}
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(FANOUT_ENABLE, regVal)
+}
+
+// SetClockSource sets the clock source for a multisynth output.
+// clk - Clock output (0..7)
+// src - Clock source (see constants below)
+func (d *Device) SetClockSource(clk uint8, src uint8) error {
+	if !d.initialised {
+		return ErrNotInitialised
+	}
+
+	clkReg := CLK0_CONTROL + clk
+	regVal, err := d.rw.Read8(clkReg)
+	if err != nil {
+		return err
+	}
+
+	// Clear the input source bits
+	regVal &^= CLK_INPUT_MASK
+
+	switch src {
+	case CLK_SRC_XTAL:
+		regVal |= CLK_INPUT_XTAL
+	case CLK_SRC_CLKIN:
+		regVal |= CLK_INPUT_CLKIN
+	case CLK_SRC_MS0:
+		if clk == 0 {
+			return nil // MS0 not valid for CLK0
+		}
+		regVal |= CLK_INPUT_MULTISYNTH_0_4
+	case CLK_SRC_MS:
+		regVal |= CLK_INPUT_MULTISYNTH_N
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(clkReg, regVal)
+}
+
+// SetClockInvert enables or disables inversion of the clock output waveform.
+// clk - Clock output (0..7)
+// invert - true to enable inversion, false to disable
+func (d *Device) SetClockInvert(clk uint8, invert bool) error {
+	if !d.initialised {
+		return ErrNotInitialised
+	}
+
+	clkReg := CLK0_CONTROL + clk
+	regVal, err := d.rw.Read8(clkReg)
+	if err != nil {
+		return err
+	}
+
+	if invert {
+		regVal |= CLK_INVERT
+	} else {
+		regVal &^= CLK_INVERT
+	}
+
+	return d.rw.Write8(clkReg, regVal)
+}
+
+// SetDriveStrength sets the drive strength of the specified clock output.
+// clk - Clock output (0..7)
+// drive - Desired drive level (use SI5351_CLK_DRIVE_STRENGTH_* constants)
+func (d *Device) SetDriveStrength(clk uint8, drive uint8) error {
+	if !d.initialised {
+		return ErrNotInitialised
+	}
+
+	const mask = 0x03
+	clkReg := CLK0_CONTROL + clk
+	regVal, err := d.rw.Read8(clkReg)
+	if err != nil {
+		return err
+	}
+
+	// Clear drive strength bits
+	regVal &^= mask
+
+	switch drive {
+	case CLK_DRIVE_STRENGTH_2MA:
+		regVal |= 0x00
+	case CLK_DRIVE_STRENGTH_4MA:
+		regVal |= 0x01
+	case CLK_DRIVE_STRENGTH_6MA:
+		regVal |= 0x02
+	case CLK_DRIVE_STRENGTH_8MA:
+		regVal |= 0x03
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(clkReg, regVal)
+}
+
+// SetClockPower enables or disables power to a clock output (power saving).
+// clk - Clock output (0..7)
+// enable - true to enable power, false to disable (power down)
+func (d *Device) SetClockPower(clk uint8, enable bool) error {
+	if !d.initialised {
+		return ErrNotInitialised
+	}
+
+	clkReg := CLK0_CONTROL + clk
+	regVal, err := d.rw.Read8(clkReg)
+	if err != nil {
+		return err
+	}
+
+	if enable {
+		regVal &^= 0x80 // Clear bit 7 to enable power
+	} else {
+		regVal |= 0x80 // Set bit 7 to disable power (power down)
+	}
+
+	return d.rw.Write8(clkReg, regVal)
+}
