@@ -20,29 +20,8 @@ var (
 	errInvalidGLLSentence        = errors.New("invalid GLL NMEA sentence")
 	errGPSCommandRejected        = errors.New("GPS command rejected (NAK)")
 	errNoACKToGPSCommand         = errors.New("no ACK to GPS command")
+	errInvalidNMEASentanceFormat = errors.New("invalid NMEA sentence format")
 )
-
-type GPSError struct {
-	Err      error
-	Info     string
-	Sentence string
-}
-
-func newGPSError(err error, sentence string, info string) GPSError {
-	return GPSError{
-		Info:     info,
-		Err:      err,
-		Sentence: sentence,
-	}
-}
-
-func (ge GPSError) Error() string {
-	return ge.Err.Error() + " " + ge.Info + " " + ge.Sentence
-}
-
-func (ge GPSError) Unwrap() error {
-	return ge.Err
-}
 
 const (
 	minimumNMEALength = 7
@@ -182,9 +161,7 @@ func validSentence(sentence string) error {
 	}
 	checksum := strings.ToUpper(hex.EncodeToString([]byte{cs}))
 	if checksum != sentence[len(sentence)-2:len(sentence)] {
-		return newGPSError(errInvalidNMEAChecksum, sentence,
-			"expected "+sentence[len(sentence)-2:len(sentence)]+
-				" got "+checksum)
+		return errInvalidNMEASentanceFormat
 	}
 
 	return nil

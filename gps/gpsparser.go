@@ -104,7 +104,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 		return fix, nil
 	}
 
-	return fix, newGPSError(errUnknownNMEASentence, sentence, typ)
+	return fix, errInvalidNMEASentanceFormat
 }
 
 // findTime returns the time from an NMEA sentence:
