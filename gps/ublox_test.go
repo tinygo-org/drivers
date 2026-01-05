@@ -67,41 +67,41 @@ func TestAppendChecksumPreservesOriginal(t *testing.T) {
 
 func TestFlightModeCmdConfig(t *testing.T) {
 	// Verify FlightModeCmd has expected values
-	if FlightModeCmd.DynModel != 6 {
-		t.Errorf("expected DynModel 6 (airborne <1g), got %d", FlightModeCmd.DynModel)
+	if flightModeCmd.DynModel != 6 {
+		t.Errorf("expected DynModel 6 (airborne <1g), got %d", flightModeCmd.DynModel)
 	}
 
-	if FlightModeCmd.FixMode != 3 {
-		t.Errorf("expected FixMode 3 (auto 2D/3D), got %d", FlightModeCmd.FixMode)
+	if flightModeCmd.FixMode != 3 {
+		t.Errorf("expected FixMode 3 (auto 2D/3D), got %d", flightModeCmd.FixMode)
 	}
 
 	expectedMask := CfgNav5Dyn | CfgNav5MinEl | CfgNav5PosFixMode
-	if FlightModeCmd.Mask != expectedMask {
-		t.Errorf("expected Mask 0x%04X, got 0x%04X", expectedMask, FlightModeCmd.Mask)
+	if flightModeCmd.Mask != expectedMask {
+		t.Errorf("expected Mask 0x%04X, got 0x%04X", expectedMask, flightModeCmd.Mask)
 	}
 
-	if FlightModeCmd.MinElev_deg != 5 {
-		t.Errorf("expected MinElev_deg 5, got %d", FlightModeCmd.MinElev_deg)
+	if flightModeCmd.MinElev_deg != 5 {
+		t.Errorf("expected MinElev_deg 5, got %d", flightModeCmd.MinElev_deg)
 	}
 }
 
 func TestGNSSDisableCmdConfig(t *testing.T) {
 	// Verify GNSSDisableCmd has expected structure
-	if GNSSDisableCmd.MsgVer != 0 {
-		t.Errorf("expected MsgVer 0, got %d", GNSSDisableCmd.MsgVer)
+	if gnssDisableCmd.MsgVer != 0 {
+		t.Errorf("expected MsgVer 0, got %d", gnssDisableCmd.MsgVer)
 	}
 
-	if GNSSDisableCmd.NumTrkChHw != 0x20 {
-		t.Errorf("expected NumTrkChHw 0x20, got 0x%02X", GNSSDisableCmd.NumTrkChHw)
+	if gnssDisableCmd.NumTrkChHw != 0x20 {
+		t.Errorf("expected NumTrkChHw 0x20, got 0x%02X", gnssDisableCmd.NumTrkChHw)
 	}
 
-	if len(GNSSDisableCmd.ConfigBlocks) != 5 {
-		t.Errorf("expected 5 config blocks, got %d", len(GNSSDisableCmd.ConfigBlocks))
+	if len(gnssDisableCmd.ConfigBlocks) != 5 {
+		t.Errorf("expected 5 config blocks, got %d", len(gnssDisableCmd.ConfigBlocks))
 		return
 	}
 
 	// Verify GPS is enabled
-	gpsBlock := GNSSDisableCmd.ConfigBlocks[0]
+	gpsBlock := gnssDisableCmd.ConfigBlocks[0]
 	if gpsBlock.GnssId != 0 {
 		t.Errorf("expected first block GnssId 0 (GPS), got %d", gpsBlock.GnssId)
 	}
@@ -110,8 +110,8 @@ func TestGNSSDisableCmdConfig(t *testing.T) {
 	}
 
 	// Verify other GNSS are disabled
-	for i := 1; i < len(GNSSDisableCmd.ConfigBlocks); i++ {
-		block := GNSSDisableCmd.ConfigBlocks[i]
+	for i := 1; i < len(gnssDisableCmd.ConfigBlocks); i++ {
+		block := gnssDisableCmd.ConfigBlocks[i]
 		if block.Flags&CfgGnssEnable != 0 {
 			t.Errorf("expected block %d (GnssId %d) to be disabled", i, block.GnssId)
 		}
@@ -120,15 +120,7 @@ func TestGNSSDisableCmdConfig(t *testing.T) {
 
 func TestFlightModeCmdWrite(t *testing.T) {
 	buf := make([]byte, 64)
-	n, err := FlightModeCmd.Write(buf)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if n != 42 {
-		t.Errorf("expected 42 bytes, got %d", n)
-	}
+	flightModeCmd.Put42Bytes(buf)
 
 	// Verify sync chars
 	if buf[0] != 0xB5 || buf[1] != 0x62 {
@@ -148,16 +140,16 @@ func TestFlightModeCmdWrite(t *testing.T) {
 
 func TestGNSSDisableCmdWrite(t *testing.T) {
 	buf := make([]byte, 64)
-	n, err := GNSSDisableCmd.Write(buf)
-
+	err := gnssDisableCmd.Put(buf)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Errorf("unexpected error, likely buffer too short for data: %v", err)
 	}
 
 	// 6 header + 4 payload header + 5*8 blocks = 50 bytes
-	expectedLen := 6 + 4 + 5*8
-	if n != expectedLen {
-		t.Errorf("expected %d bytes, got %d", expectedLen, n)
+	const expectedLen = 6 + 4 + 5*8
+	sz := gnssDisableCmd.Size()
+	if sz != expectedLen {
+		t.Errorf("expected %d bytes, got %d", expectedLen, sz)
 	}
 
 	// Verify sync chars
@@ -204,14 +196,14 @@ func TestMessageRateCmdConfigs(t *testing.T) {
 		msgID    byte
 		rate     byte
 	}{
-		{"GGA", MessageRateGGACmd, 0xF0, 0x00, 1},
-		{"GLL", MessageRateGLLCmd, 0xF0, 0x01, 0},
-		{"GSA", MessageRateGSACmd, 0xF0, 0x02, 1},
-		{"GSV", MessageRateGSVCmd, 0xF0, 0x03, 1},
-		{"RMC", MessageRateRMCCmd, 0xF0, 0x04, 1},
-		{"VTG", MessageRateVTGCmd, 0xF0, 0x05, 0},
-		{"ZDA", MessageRateZDACmd, 0xF0, 0x08, 0},
-		{"TXT", MessageRateTXTCmd, 0xF0, 0x41, 0},
+		{"GGA", messageRateGGACmd, 0xF0, 0x00, 1},
+		{"GLL", messageRateGLLCmd, 0xF0, 0x01, 0},
+		{"GSA", messageRateGSACmd, 0xF0, 0x02, 1},
+		{"GSV", messageRateGSVCmd, 0xF0, 0x03, 1},
+		{"RMC", messageRateRMCCmd, 0xF0, 0x04, 1},
+		{"VTG", messageRateVTGCmd, 0xF0, 0x05, 0},
+		{"ZDA", messageRateZDACmd, 0xF0, 0x08, 0},
+		{"TXT", messageRateTXTCmd, 0xF0, 0x41, 0},
 	}
 
 	for _, tc := range testCases {
@@ -237,16 +229,7 @@ func TestCfgMsg1Write(t *testing.T) {
 	}
 
 	buf := make([]byte, 16)
-	n, err := cmd.Write(buf)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if n != 9 {
-		t.Errorf("expected 9 bytes, got %d", n)
-	}
-
+	cmd.Put9Bytes(buf)
 	// Verify sync chars
 	if buf[0] != 0xB5 || buf[1] != 0x62 {
 		t.Errorf("expected sync 0xB5 0x62, got 0x%02X 0x%02X", buf[0], buf[1])
@@ -296,14 +279,14 @@ func TestMinimalMessageRatesConfig(t *testing.T) {
 	}
 
 	commands := []CfgMsg1{
-		MessageRateGGACmd,
-		MessageRateGLLCmd,
-		MessageRateGSACmd,
-		MessageRateGSVCmd,
-		MessageRateRMCCmd,
-		MessageRateVTGCmd,
-		MessageRateZDACmd,
-		MessageRateTXTCmd,
+		messageRateGGACmd,
+		messageRateGLLCmd,
+		messageRateGSACmd,
+		messageRateGSVCmd,
+		messageRateRMCCmd,
+		messageRateVTGCmd,
+		messageRateZDACmd,
+		messageRateTXTCmd,
 	}
 
 	for _, cmd := range commands {
@@ -321,28 +304,19 @@ func TestMinimalMessageRatesConfig(t *testing.T) {
 func TestAllMessageRatesWriteCorrectBytes(t *testing.T) {
 	// Test that each message rate command writes the correct bytes
 	commands := []CfgMsg1{
-		MessageRateGGACmd,
-		MessageRateGLLCmd,
-		MessageRateGSACmd,
-		MessageRateGSVCmd,
-		MessageRateRMCCmd,
-		MessageRateVTGCmd,
-		MessageRateZDACmd,
-		MessageRateTXTCmd,
+		messageRateGGACmd,
+		messageRateGLLCmd,
+		messageRateGSACmd,
+		messageRateGSVCmd,
+		messageRateRMCCmd,
+		messageRateVTGCmd,
+		messageRateZDACmd,
+		messageRateTXTCmd,
 	}
 
 	for _, cmd := range commands {
 		buf := make([]byte, 16)
-		n, err := cmd.Write(buf)
-
-		if err != nil {
-			t.Errorf("MsgID 0x%02X: unexpected error: %v", cmd.MsgID, err)
-			continue
-		}
-
-		if n != 9 {
-			t.Errorf("MsgID 0x%02X: expected 9 bytes, got %d", cmd.MsgID, n)
-		}
+		cmd.Put9Bytes(buf)
 
 		// Verify MsgClass in payload
 		if buf[6] != 0xF0 {
@@ -363,7 +337,7 @@ func TestAllMessageRatesWriteCorrectBytes(t *testing.T) {
 
 func TestSetMessageRatesAllEnabledModifiesRate(t *testing.T) {
 	// Verify that when we copy a command and set Rate=1, it works correctly
-	cmd := MessageRateGLLCmd // This one is disabled by default
+	cmd := messageRateGLLCmd // This one is disabled by default
 	if cmd.Rate != 0 {
 		t.Errorf("expected GLL default rate 0, got %d", cmd.Rate)
 	}
@@ -372,8 +346,7 @@ func TestSetMessageRatesAllEnabledModifiesRate(t *testing.T) {
 	cmd.Rate = 1
 
 	buf := make([]byte, 16)
-	_, _ = cmd.Write(buf)
-
+	cmd.Put9Bytes(buf)
 	if buf[8] != 1 {
 		t.Errorf("expected Rate 1 in buffer, got %d", buf[8])
 	}

@@ -6,7 +6,7 @@ import (
 
 // FlightModeCmd is a UBX-CFG-NAV5 command to set the GPS into
 // flight mode (airborne <1g)
-var FlightModeCmd = CfgNav5{
+var flightModeCmd = CfgNav5{
 	Mask:                  CfgNav5Dyn | CfgNav5MinEl | CfgNav5PosFixMode,
 	DynModel:              DynModeAirborne1g, // Airborne with <1g acceleration
 	FixMode:               FixModeAuto,       // Auto 2D/3D
@@ -28,59 +28,56 @@ var FlightModeCmd = CfgNav5{
 }
 
 // SetFlightMode sends UBX-CFG-NAV5 command to set GPS into flight mode
-func SetFlightMode(d Device) (err error) {
-	if _, err = FlightModeCmd.Write(d.buffer[:]); err != nil {
-		return err
-	}
-	err = SendCommand(d, d.buffer[:])
-	return err
+func (d *Device) SetFlightMode() (err error) {
+	flightModeCmd.Put42Bytes(d.buffer[:])
+	return d.SendCommand(d.buffer[:42])
 }
 
 var (
 	// GGA (time, lat/lng, altitude)
-	MessageRateGGACmd = CfgMsg1{
+	messageRateGGACmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x00,
 		Rate:     1, // Every position fix
 	}
 	// GLL (time, lat/lng)
-	MessageRateGLLCmd = CfgMsg1{
+	messageRateGLLCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x01,
 		Rate:     0, // Disabled
 	}
 	// GSA (satellite id list)
-	MessageRateGSACmd = CfgMsg1{
+	messageRateGSACmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x02,
 		Rate:     1, // Every position fix
 	}
 	// GSV (satellite locations)
-	MessageRateGSVCmd = CfgMsg1{
+	messageRateGSVCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x03,
 		Rate:     1, // Every position fix
 	}
 	// RMC (time, lat/lng, speed, course)
-	MessageRateRMCCmd = CfgMsg1{
+	messageRateRMCCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x04,
 		Rate:     1, // Every position fix
 	}
 	// VTG (speed, course)
-	MessageRateVTGCmd = CfgMsg1{
+	messageRateVTGCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x05,
 		Rate:     0, // Disabled
 	}
 	// ZDA (time, timezone)
-	MessageRateZDACmd = CfgMsg1{
+	messageRateZDACmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x08,
 		Rate:     0, // Disabled
 	}
 	// TXT (text transmission)
-	MessageRateTXTCmd = CfgMsg1{
+	messageRateTXTCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x41,
 		Rate:     0, // Disabled
@@ -88,63 +85,53 @@ var (
 )
 
 // SetMessageRatesMinimal configures the GPS to output a minimal set of NMEA sentences
-func SetMessageRatesMinimal(d Device) (err error) {
+func SetMessageRatesMinimal(d *Device) (err error) {
 	commands := []CfgMsg1{
-		MessageRateGSACmd,
-		MessageRateGGACmd,
-		MessageRateGLLCmd,
-		MessageRateGSVCmd,
-		MessageRateRMCCmd,
-		MessageRateVTGCmd,
-		MessageRateZDACmd,
-		MessageRateTXTCmd,
+		messageRateGSACmd,
+		messageRateGGACmd,
+		messageRateGLLCmd,
+		messageRateGSVCmd,
+		messageRateRMCCmd,
+		messageRateVTGCmd,
+		messageRateZDACmd,
+		messageRateTXTCmd,
 	}
-
-	for _, cmd := range commands {
-		if _, err = cmd.Write(d.buffer[:]); err != nil {
-			return err
-		}
-		if err = SendCommand(d, d.buffer[:]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return setCfg1s(d, commands)
 }
 
 // SetMessageRatesAllEnabled configures the GPS to output all NMEA sentences
-func SetMessageRatesAllEnabled(d Device) (err error) {
+func SetMessageRatesAllEnabled(d *Device) (err error) {
 	commands := []CfgMsg1{
-		MessageRateGSACmd,
-		MessageRateGGACmd,
-		MessageRateGLLCmd,
-		MessageRateGSVCmd,
-		MessageRateRMCCmd,
-		MessageRateVTGCmd,
-		MessageRateZDACmd,
-		MessageRateTXTCmd,
+		messageRateGSACmd,
+		messageRateGGACmd,
+		messageRateGLLCmd,
+		messageRateGSVCmd,
+		messageRateRMCCmd,
+		messageRateVTGCmd,
+		messageRateZDACmd,
+		messageRateTXTCmd,
 	}
+	return setCfg1s(d, commands)
+}
 
+func setCfg1s(d *Device, commands []CfgMsg1) (err error) {
+	var buf [9]byte
 	for _, cmd := range commands {
-		cmd.Rate = 1 // Enable all messages at 1 Hz
-		if _, err = cmd.Write(d.buffer[:]); err != nil {
-			return err
-		}
-		if err = SendCommand(d, d.buffer[:]); err != nil {
+		cmd.Put9Bytes(buf[:9])
+		if err = d.SendCommand(buf[:9]); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-// GNSSDisableCmd is a UBX-CFG-GNSS command to disable all GNSS but GPS
+// gnssDisableCmd is a UBX-CFG-GNSS command to disable all GNSS but GPS
 // Needed for MAX8's, not needed for MAX7
-var GNSSDisableCmd = CfgGnss{
+var gnssDisableCmd = CfgGnss{
 	MsgVer:      0x00,
 	NumTrkChHw:  0x20, // 32 channels
 	NumTrkChUse: 0x20,
-	ConfigBlocks: []*CfgGnssConfigBlocksType{
+	ConfigBlocks: []CfgGnssConfigBlocksType{
 		{GnssId: 0, ResTrkCh: 8, MaxTrkCh: 16, Flags: CfgGnssEnable | 0x010000}, // GPS enabled
 		{GnssId: 1, ResTrkCh: 1, MaxTrkCh: 3, Flags: 0x010000},                  // SBAS disabled
 		{GnssId: 3, ResTrkCh: 8, MaxTrkCh: 16, Flags: 0x010000},                 // BeiDou disabled
@@ -154,15 +141,16 @@ var GNSSDisableCmd = CfgGnss{
 }
 
 // SetGNSSDisable sends UBX-CFG-GNSS command to disable all GNSS but GPS
-func SetGNSSDisable(d Device) (err error) {
-	if _, err = GNSSDisableCmd.Write(d.buffer[:]); err != nil {
+func (d *Device) SetGNSSDisable() (err error) {
+	err = gnssDisableCmd.Put(d.buffer[:])
+	if err != nil {
 		return err
 	}
-	return SendCommand(d, d.buffer[:])
+	return d.SendCommand(d.buffer[:])
 }
 
 // SendCommand sends a UBX command and waits for ACK/NAK response
-func SendCommand(d Device, command []byte) error {
+func (d *Device) SendCommand(command []byte) error {
 	// Calculate and append checksum
 	checksummed := appendChecksum(command)
 	d.WriteBytes(checksummed)
