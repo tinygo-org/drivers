@@ -191,7 +191,7 @@ const (
 // Write CfgGnss message to buffer
 func (cfg CfgGnss) Put(buf []byte) error {
 	sz := cfg.Size()
-	if len(buf) > sz {
+	if sz > len(buf) {
 		return io.ErrShortBuffer
 	}
 	copy(buf, []byte{0xb5, 0x62, byte(cfg.classID()), byte(cfg.classID() >> 8), 4 + byte(len(cfg.ConfigBlocks))*8, 0})
