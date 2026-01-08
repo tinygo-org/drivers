@@ -35,14 +35,7 @@ func TestCfgNav5Write(t *testing.T) {
 	}
 
 	buf := make([]byte, 64)
-	n, err := cfg.Write(buf)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if n != 42 {
-		t.Errorf("expected 42 bytes written, got %d", n)
-	}
+	cfg.Put42Bytes(buf)
 
 	// Check sync chars
 	if buf[0] != 0xb5 || buf[1] != 0x62 {
@@ -113,7 +106,7 @@ func TestCfgGnssWrite(t *testing.T) {
 				MsgVer:      0,
 				NumTrkChHw:  32,
 				NumTrkChUse: 32,
-				ConfigBlocks: []*CfgGnssConfigBlocksType{
+				ConfigBlocks: []CfgGnssConfigBlocksType{
 					{GnssId: 0, ResTrkCh: 8, MaxTrkCh: 16, Flags: CfgGnssEnable | 0x010000},
 				},
 			},
@@ -126,7 +119,7 @@ func TestCfgGnssWrite(t *testing.T) {
 				MsgVer:      0,
 				NumTrkChHw:  32,
 				NumTrkChUse: 32,
-				ConfigBlocks: []*CfgGnssConfigBlocksType{
+				ConfigBlocks: []CfgGnssConfigBlocksType{
 					{GnssId: 0, ResTrkCh: 8, MaxTrkCh: 16, Flags: CfgGnssEnable | 0x010000},
 					{GnssId: 6, ResTrkCh: 8, MaxTrkCh: 14, Flags: CfgGnssEnable | 0x010000},
 				},
@@ -139,15 +132,10 @@ func TestCfgGnssWrite(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf := make([]byte, 64)
-			n, err := tc.cfg.Write(buf)
-
+			err := tc.cfg.Put(buf)
 			if err != nil {
-				t.Errorf("unexpected error: %v", err)
+				t.Errorf("unexpected error, data too long?: %v", err)
 			}
-			if n != tc.expectedLen {
-				t.Errorf("expected %d bytes written, got %d", tc.expectedLen, n)
-			}
-
 			// Check sync chars
 			if buf[0] != 0xb5 || buf[1] != 0x62 {
 				t.Errorf("expected sync chars 0xb5 0x62, got 0x%02x 0x%02x", buf[0], buf[1])
@@ -171,14 +159,16 @@ func TestCfgGnssWriteBlockContent(t *testing.T) {
 		MsgVer:      0,
 		NumTrkChHw:  32,
 		NumTrkChUse: 32,
-		ConfigBlocks: []*CfgGnssConfigBlocksType{
+		ConfigBlocks: []CfgGnssConfigBlocksType{
 			{GnssId: 0, ResTrkCh: 8, MaxTrkCh: 16, Reserved1: 0, Flags: CfgGnssEnable | 0x010000},
 		},
 	}
 
 	buf := make([]byte, 64)
-	_, _ = cfg.Write(buf)
-
+	err := cfg.Put(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Check first block at offset 10
 	if buf[10] != 0 {
 		t.Errorf("expected GnssId 0, got %d", buf[10])

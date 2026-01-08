@@ -31,19 +31,18 @@ const (
 
 // Device wraps a connection to a GPS device.
 type Device struct {
-	buffer   []byte
 	bufIdx   int
 	sentence strings.Builder
 	uart     drivers.UART
 	bus      drivers.I2C
 	address  uint16
+	buffer   [bufferSize]byte
 }
 
 // NewUART creates a new UART GPS connection. The UART must already be configured.
 func NewUART(uart drivers.UART) Device {
 	return Device{
 		uart:     uart,
-		buffer:   make([]byte, bufferSize),
 		bufIdx:   bufferSize,
 		sentence: strings.Builder{},
 	}
@@ -60,7 +59,6 @@ func NewI2CWithAddress(bus drivers.I2C, i2cAddress uint16) Device {
 	return Device{
 		bus:      bus,
 		address:  i2cAddress,
-		buffer:   make([]byte, bufferSize),
 		bufIdx:   bufferSize,
 		sentence: strings.Builder{},
 	}

@@ -1,5 +1,7 @@
 package gps
 
+import "io"
+
 // UBX message classes
 const (
 	ubxClassACK = 0x05
@@ -69,6 +71,8 @@ func (CfgNav5) classID() uint16 { return 0x2406 }
 
 type CfgNav5Mask uint16
 
+var _ io.WriterTo = CfgNav5{} // compile time guarantee of interface implementation.
+
 const (
 	CfgNav5Dyn            CfgNav5Mask = 0x1   // Apply dynamic model settings
 	CfgNav5MinEl          CfgNav5Mask = 0x2   // Apply minimum elevation settings
@@ -82,8 +86,23 @@ const (
 	CfgNav5Utc            CfgNav5Mask = 0x400 // Apply UTC settings (not supported in protocol versions less than 16).
 )
 
+func (cfg CfgNav5) Append(dst []byte) []byte {
+	var buf [42]byte
+	cfg.Put42Bytes(buf[:])
+	dst = append(dst, buf[:]...)
+	return dst
+}
+
+func (cfg CfgNav5) WriteTo(w io.Writer) (int64, error) {
+	var buf [42]byte
+	cfg.Put42Bytes(buf[:])
+	n, err := w.Write(buf[:])
+	return int64(n), err
+}
+
 // Write CfgNav5 message to buffer
-func (cfg CfgNav5) Write(buf []byte) (int, error) {
+func (cfg CfgNav5) Put42Bytes(buf []byte) {
+	_ = buf[41]
 	copy(buf, []byte{0xb5, 0x62, byte(cfg.classID()), byte(cfg.classID() >> 8), 36, 0})
 
 	buf[6] = byte(cfg.Mask)
@@ -117,8 +136,6 @@ func (cfg CfgNav5) Write(buf []byte) (int, error) {
 	buf[35] = byte(cfg.StaticHoldMaxDist_m >> 8)
 	buf[36] = cfg.UtcStandard
 	copy(buf[37:42], cfg.Reserved2[:])
-
-	return 42, nil
 }
 
 // Message ubx-cfg-msg
@@ -134,14 +151,11 @@ type CfgMsg1 struct {
 
 func (CfgMsg1) classID() uint16 { return 0x0106 }
 
-func (cfg CfgMsg1) Write(buf []byte) (int, error) {
+func (cfg CfgMsg1) Put9Bytes(buf []byte) {
 	copy(buf, []byte{0xb5, 0x62, byte(cfg.classID()), byte(cfg.classID() >> 8), 3, 0})
-
 	buf[6] = cfg.MsgClass
 	buf[7] = cfg.MsgID
 	buf[8] = cfg.Rate
-
-	return 9, nil
 }
 
 // Message ubx-cfg-gnss
@@ -150,11 +164,11 @@ func (cfg CfgMsg1) Write(buf []byte) (int, error) {
 // Class/Id 0x06 0x3e (4 + N*8 bytes)
 // Gets or sets the GNSS system channel sharing configuration. If the receiver is sent a valid new configuration, it will respond with a UBX-ACK- ACK message and immediately change to the new configuration. Otherwise the receiver will reject the request, by issuing a UBX-ACK-NAK and continuing operation with the previous configuration. Configuration requirements:  It is necessary for at least one major GNSS to be enabled, after applying the  new configuration to the current one.  It is also required that at least 4 tracking channels are available to each  enabled major GNSS, i.e. maxTrkCh must have a minimum value of 4 for each  enabled major GNSS.  The number of tracking channels in use must not exceed the number of  tracking channels available in hardware, and the sum of all reserved tracking  channels needs to be less than or equal to the number of tracking channels in  use. Notes:  To avoid cross-correlation issues, it is recommended that GPS and QZSS are  always both enabled or both disabled.  Polling this message returns the configuration of all supported GNSS, whether  enabled or not; it may also include GNSS unsupported by the particular  product, but in such cases the enable flag will always be unset.  See section GNSS Configuration for a discussion of the use of this message.  See section Satellite Numbering for a description of the GNSS IDs available.  Configuration specific to the GNSS system can be done via other messages (e.  g. UBX-CFG-SBAS).
 type CfgGnss struct {
-	MsgVer          byte                       // Message version (0x00 for this version)
-	NumTrkChHw      byte                       // Number of tracking channels available in hardware (read only)
-	NumTrkChUse     byte                       // (Read only in protocol versions greater than 23) Number of tracking channels to use. Must be > 0, <= numTrkChHw. If 0xFF, then number of tracking channels to use will be set to numTrkChHw.
-	NumConfigBlocks byte                       `len:"ConfigBlocks"` // Number of configuration blocks following
-	ConfigBlocks    []*CfgGnssConfigBlocksType // len: NumConfigBlocks
+	MsgVer          byte                      // Message version (0x00 for this version)
+	NumTrkChHw      byte                      // Number of tracking channels available in hardware (read only)
+	NumTrkChUse     byte                      // (Read only in protocol versions greater than 23) Number of tracking channels to use. Must be > 0, <= numTrkChHw. If 0xFF, then number of tracking channels to use will be set to numTrkChHw.
+	NumConfigBlocks byte                      `len:"ConfigBlocks"` // Number of configuration blocks following
+	ConfigBlocks    []CfgGnssConfigBlocksType // len: NumConfigBlocks
 }
 
 func (CfgGnss) classID() uint16 { return 0x3e06 }
@@ -175,14 +189,16 @@ const (
 )
 
 // Write CfgGnss message to buffer
-func (cfg CfgGnss) Write(buf []byte) (int, error) {
+func (cfg CfgGnss) Put(buf []byte) error {
+	sz := cfg.Size()
+	if sz > len(buf) {
+		return io.ErrShortBuffer
+	}
 	copy(buf, []byte{0xb5, 0x62, byte(cfg.classID()), byte(cfg.classID() >> 8), 4 + byte(len(cfg.ConfigBlocks))*8, 0})
-
 	buf[6] = cfg.MsgVer
 	buf[7] = cfg.NumTrkChHw
 	buf[8] = cfg.NumTrkChUse
 	buf[9] = byte(len(cfg.ConfigBlocks))
-
 	offset := 10
 	for _, block := range cfg.ConfigBlocks {
 		buf[offset] = block.GnssId
@@ -195,6 +211,10 @@ func (cfg CfgGnss) Write(buf []byte) (int, error) {
 		buf[offset+7] = byte(block.Flags >> 24)
 		offset += 8
 	}
+	return nil
+}
 
-	return offset, nil
+// Size returns length of CfgGnss in bytes when sent over the wire.
+func (cfg CfgGnss) Size() int {
+	return 10 + 8*len(cfg.ConfigBlocks)
 }
