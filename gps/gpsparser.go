@@ -46,10 +46,10 @@ func NewParser() Parser {
 func (parser *Parser) Parse(sentence string) (Fix, error) {
 	var fix Fix
 	if sentence == "" {
-		return fix, errEmptyNMEASentence
+		return fix, ErrEmptyNMEASentence
 	}
 	if len(sentence) < 6 {
-		return fix, errInvalidNMEASentenceLength
+		return fix, ErrInvalidNMEASentenceLength
 	}
 	typ := sentence[3:6]
 	switch typ {
@@ -104,7 +104,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 		return fix, nil
 	}
 
-	return fix, errInvalidNMEASentanceFormat
+	return fix, ErrUnknownNMEASentence
 }
 
 // findTime returns the time from an NMEA sentence:
