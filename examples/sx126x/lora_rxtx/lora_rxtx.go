@@ -27,9 +27,10 @@ func main() {
 	println("\n# TinyGo Lora RX/TX test")
 	println("# ----------------------")
 	machine.LED.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	// Create the driver
-	loraRadio = sx126x.New(spi)
+	loraRadio = sx126x.New(spi, rstPin)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
 	// Create radio controller for target

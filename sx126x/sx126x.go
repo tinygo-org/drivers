@@ -54,9 +54,10 @@ type Device struct {
 }
 
 // New creates a new SX126x connection.
-func New(spi drivers.SPI) *Device {
+func New(spi drivers.SPI, rstPin machine.Pin) *Device {
 	return &Device{
 		spi:            spi,
+		rstPin:         rstPin,
 		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
 		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
 		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
