@@ -8,6 +8,7 @@ import (
 )
 
 // Device wraps a GPIO connection to a buzzer.
+// this is helping in device details storege
 type Device struct {
 	pin  pin.OutputFunc
 	High bool
