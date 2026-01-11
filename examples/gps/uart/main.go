@@ -52,7 +52,10 @@ func main() {
 			}
 			println()
 		} else {
-			println("Waiting for fix...")
+			if fix.Type == gps.GSV {
+				// GSV sentence provides satellite count even if no fix yet
+				println(fix.Satellites, "satellites visible")
+			}
 		}
 		time.Sleep(200 * time.Millisecond)
 	}

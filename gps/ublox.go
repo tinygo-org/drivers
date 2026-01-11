@@ -4,9 +4,8 @@ import (
 	"time"
 )
 
-// FlightModeCmd is a UBX-CFG-NAV5 command to set the GPS into
-// flight mode (airborne <1g)
-var flightModeCmd = CfgNav5{
+// FlightModeCmd is a UBX-CFG-NAV5 command
+var nav5Cmd = CfgNav5{
 	Mask:                  CfgNav5Dyn | CfgNav5MinEl | CfgNav5PosFixMode,
 	DynModel:              DynModeAirborne1g, // Airborne with <1g acceleration
 	FixMode:               FixModeAuto,       // Auto 2D/3D
@@ -29,7 +28,37 @@ var flightModeCmd = CfgNav5{
 
 // SetFlightMode sends UBX-CFG-NAV5 command to set GPS into flight mode
 func (d *Device) SetFlightMode() (err error) {
-	flightModeCmd.Put42Bytes(d.buffer[:])
+	nav5Cmd.DynModel = DynModeAirborne1g
+	nav5Cmd.FixMode = FixModeAuto
+	nav5Cmd.Put42Bytes(d.buffer[:])
+
+	return d.SendCommand(d.buffer[:42])
+}
+
+// SetPedestrianMode sends UBX-CFG-NAV5 command to set GPS into pedestrian mode
+func (d *Device) SetPedestrianMode() (err error) {
+	nav5Cmd.DynModel = DynModePedestrian
+	nav5Cmd.FixMode = FixModeAuto
+	nav5Cmd.Put42Bytes(d.buffer[:])
+
+	return d.SendCommand(d.buffer[:42])
+}
+
+// SetAutomotiveMode sends UBX-CFG-NAV5 command to set GPS into automotive mode
+func (d *Device) SetAutomotiveMode() (err error) {
+	nav5Cmd.DynModel = DynModeAutomotive
+	nav5Cmd.FixMode = FixModeAuto
+	nav5Cmd.Put42Bytes(d.buffer[:])
+
+	return d.SendCommand(d.buffer[:42])
+}
+
+// SetBikeMode sends UBX-CFG-NAV5 command to set GPS into bike mode
+func (d *Device) SetBikeMode() (err error) {
+	nav5Cmd.DynModel = DynModeBike
+	nav5Cmd.FixMode = FixModeAuto
+	nav5Cmd.Put42Bytes(d.buffer[:])
+
 	return d.SendCommand(d.buffer[:42])
 }
 
@@ -44,19 +73,19 @@ var (
 	messageRateGLLCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x01,
-		Rate:     0, // Disabled
+		Rate:     1, // Every position fix
 	}
 	// GSA (satellite id list)
 	messageRateGSACmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x02,
-		Rate:     1, // Every position fix
+		Rate:     0, // Disabled
 	}
 	// GSV (satellite locations)
 	messageRateGSVCmd = CfgMsg1{
 		MsgClass: 0xF0,
 		MsgID:    0x03,
-		Rate:     1, // Every position fix
+		Rate:     0, // Every position fix
 	}
 	// RMC (time, lat/lng, speed, course)
 	messageRateRMCCmd = CfgMsg1{
@@ -84,17 +113,18 @@ var (
 	}
 )
 
-// SetMessageRatesMinimal configures the GPS to output a minimal set of NMEA sentences
+// SetMessageRatesMinimal configures the GPS to output a minimal set of NMEA sentences:
+// GSV, GGA, GLL, and RMC only.
 func SetMessageRatesMinimal(d *Device) (err error) {
 	commands := []CfgMsg1{
 		messageRateGSACmd,
-		messageRateGGACmd,
 		messageRateGLLCmd,
-		messageRateGSVCmd,
-		messageRateRMCCmd,
 		messageRateVTGCmd,
 		messageRateZDACmd,
 		messageRateTXTCmd,
+	}
+	for i := range commands {
+		commands[i].Rate = 0 // Disable
 	}
 	return setCfg1s(d, commands)
 }
@@ -111,18 +141,26 @@ func SetMessageRatesAllEnabled(d *Device) (err error) {
 		messageRateZDACmd,
 		messageRateTXTCmd,
 	}
+	for i := range commands {
+		commands[i].Rate = 1 // Enable
+	}
 	return setCfg1s(d, commands)
 }
 
 func setCfg1s(d *Device, commands []CfgMsg1) (err error) {
 	var buf [9]byte
 	for _, cmd := range commands {
-		cmd.Put9Bytes(buf[:9])
-		if err = d.SendCommand(buf[:9]); err != nil {
-			return err
-		}
+		cmd.Put9Bytes(buf[:])
+		// TODO handle errors differently here?
+		// This implementation just saves the last error and continues.
+		// Due to the GPS modules sending updates asynchronously
+		// the response is interleaved along with regular ASCII
+		// NMEA messages.
+		err = d.SendCommand(buf[:])
+		time.Sleep(100 * time.Millisecond)
 	}
-	return nil
+
+	return
 }
 
 // gnssDisableCmd is a UBX-CFG-GNSS command to disable all GNSS but GPS
@@ -146,6 +184,7 @@ func (d *Device) SetGNSSDisable() (err error) {
 	if err != nil {
 		return err
 	}
+
 	return d.SendCommand(d.buffer[:])
 }
 

@@ -10,11 +10,27 @@ import (
 func TestParseUnknownSentence(t *testing.T) {
 	p := NewParser()
 
-	val := "$GPGSV,3,1,09,07,14,317,22,08,31,284,25,10,32,133,39,16,85,232,29*7F"
+	val := "$GPVTG,89.68,T,,M,0.00,N,0.0,K*5F"
 	_, err := p.Parse(val)
 	if err == nil {
 		t.Error("should have unknown sentence err")
 	}
+}
+
+func TestParseGSV(t *testing.T) {
+	c := qt.New(t)
+
+	p := NewParser()
+
+	val := "$GPGSV,3,1,09,07,14,317,22,08,31,284,25,10,32,133,39,16,85,232,29*7F"
+	fix, err := p.Parse(val)
+	if err != nil {
+		t.Error("should have parsed")
+	}
+
+	c.Assert(fix.Type, qt.Equals, GSV)
+	c.Assert(fix.Satellites, qt.Equals, int16(9))
+	c.Assert(fix.Valid, qt.Equals, false)
 }
 
 func TestParseGGA(t *testing.T) {

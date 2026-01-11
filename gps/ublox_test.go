@@ -65,23 +65,23 @@ func TestAppendChecksumPreservesOriginal(t *testing.T) {
 	}
 }
 
-func TestFlightModeCmdConfig(t *testing.T) {
-	// Verify FlightModeCmd has expected values
-	if flightModeCmd.DynModel != 6 {
-		t.Errorf("expected DynModel 6 (airborne <1g), got %d", flightModeCmd.DynModel)
+func TestNav5CmdConfig(t *testing.T) {
+	// Verify nav5Cmd has expected values
+	if nav5Cmd.DynModel != 6 {
+		t.Errorf("expected DynModel 6 (airborne <1g), got %d", nav5Cmd.DynModel)
 	}
 
-	if flightModeCmd.FixMode != 3 {
-		t.Errorf("expected FixMode 3 (auto 2D/3D), got %d", flightModeCmd.FixMode)
+	if nav5Cmd.FixMode != 3 {
+		t.Errorf("expected FixMode 3 (auto 2D/3D), got %d", nav5Cmd.FixMode)
 	}
 
 	expectedMask := CfgNav5Dyn | CfgNav5MinEl | CfgNav5PosFixMode
-	if flightModeCmd.Mask != expectedMask {
-		t.Errorf("expected Mask 0x%04X, got 0x%04X", expectedMask, flightModeCmd.Mask)
+	if nav5Cmd.Mask != expectedMask {
+		t.Errorf("expected Mask 0x%04X, got 0x%04X", expectedMask, nav5Cmd.Mask)
 	}
 
-	if flightModeCmd.MinElev_deg != 5 {
-		t.Errorf("expected MinElev_deg 5, got %d", flightModeCmd.MinElev_deg)
+	if nav5Cmd.MinElev_deg != 5 {
+		t.Errorf("expected MinElev_deg 5, got %d", nav5Cmd.MinElev_deg)
 	}
 }
 
@@ -118,9 +118,9 @@ func TestGNSSDisableCmdConfig(t *testing.T) {
 	}
 }
 
-func TestFlightModeCmdWrite(t *testing.T) {
+func TestNav5CmdWrite(t *testing.T) {
 	buf := make([]byte, 64)
-	flightModeCmd.Put42Bytes(buf)
+	nav5Cmd.Put42Bytes(buf)
 
 	// Verify sync chars
 	if buf[0] != 0xB5 || buf[1] != 0x62 {
@@ -197,9 +197,9 @@ func TestMessageRateCmdConfigs(t *testing.T) {
 		rate     byte
 	}{
 		{"GGA", messageRateGGACmd, 0xF0, 0x00, 1},
-		{"GLL", messageRateGLLCmd, 0xF0, 0x01, 0},
-		{"GSA", messageRateGSACmd, 0xF0, 0x02, 1},
-		{"GSV", messageRateGSVCmd, 0xF0, 0x03, 1},
+		{"GLL", messageRateGLLCmd, 0xF0, 0x01, 1},
+		{"GSA", messageRateGSACmd, 0xF0, 0x02, 0},
+		{"GSV", messageRateGSVCmd, 0xF0, 0x03, 0},
 		{"RMC", messageRateRMCCmd, 0xF0, 0x04, 1},
 		{"VTG", messageRateVTGCmd, 0xF0, 0x05, 0},
 		{"ZDA", messageRateZDACmd, 0xF0, 0x08, 0},
@@ -269,9 +269,9 @@ func TestMinimalMessageRatesConfig(t *testing.T) {
 	// GGA and RMC should be enabled (rate=1), others disabled (rate=0)
 	expectedRates := map[byte]byte{
 		0x00: 1, // GGA - enabled
-		0x01: 0, // GLL - disabled
-		0x02: 1, // GSA - enabled
-		0x03: 1, // GSV - enabled
+		0x01: 1, // GLL - enabled
+		0x02: 0, // GSA - disabled
+		0x03: 0, // GSV - disabled
 		0x04: 1, // RMC - enabled
 		0x05: 0, // VTG - disabled
 		0x08: 0, // ZDA - disabled
@@ -337,9 +337,9 @@ func TestAllMessageRatesWriteCorrectBytes(t *testing.T) {
 
 func TestSetMessageRatesAllEnabledModifiesRate(t *testing.T) {
 	// Verify that when we copy a command and set Rate=1, it works correctly
-	cmd := messageRateGLLCmd // This one is disabled by default
+	cmd := messageRateGSACmd // This one is disabled by default
 	if cmd.Rate != 0 {
-		t.Errorf("expected GLL default rate 0, got %d", cmd.Rate)
+		t.Errorf("expected GSA default rate 0, got %d", cmd.Rate)
 	}
 
 	// Simulate what SetMessageRatesAllEnabled does

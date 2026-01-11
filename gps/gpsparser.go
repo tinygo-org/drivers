@@ -6,12 +6,28 @@ import (
 	"time"
 )
 
+type NMEASentenceType string
+
+const (
+	GSA NMEASentenceType = "GSA"
+	GGA NMEASentenceType = "GGA"
+	GLL NMEASentenceType = "GLL"
+	GSV NMEASentenceType = "GSV"
+	RMC NMEASentenceType = "RMC"
+	VTG NMEASentenceType = "VTG"
+	ZDA NMEASentenceType = "ZDA"
+	TXT NMEASentenceType = "TXT"
+)
+
 // Parser for GPS NMEA sentences.
 type Parser struct {
 }
 
 // Fix is a GPS location fix
 type Fix struct {
+	// Type is the NMEA sentence type that provided this fix.
+	Type NMEASentenceType
+
 	// Valid if the fix was valid.
 	Valid bool
 
@@ -53,6 +69,23 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 	}
 	typ := sentence[3:6]
 	switch typ {
+	case "GSV":
+		// https://docs.novatel.com/OEM7/Content/Logs/GPGSV.htm
+		fields := strings.Split(sentence, ",")
+		// GSV sentences have at least 4 fields, but typically 8, 12, 16, or 20 depending on satellites in view
+		if len(fields) < 4 {
+			return fix, errInvalidGSVSentence
+		}
+
+		fix.Type = GSV
+
+		// Number of satellites in view is always field 3
+		fix.Satellites = findSatellites(fields[3])
+
+		// GSV does not provide position, time, or fix validity
+		fix.Valid = false
+
+		return fix, nil
 	case "GGA":
 		// https://docs.novatel.com/OEM7/Content/Logs/GPGGA.htm
 		fields := strings.Split(sentence, ",")
@@ -60,6 +93,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidGGASentence
 		}
 
+		fix.Type = GGA
 		fix.Time = findTime(fields[1])
 		fix.Latitude = findLatitude(fields[2], fields[3])
 		fix.Longitude = findLongitude(fields[4], fields[5])
@@ -75,6 +109,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidGLLSentence
 		}
 
+		fix.Type = GLL
 		fix.Latitude = findLatitude(fields[1], fields[2])
 		fix.Longitude = findLongitude(fields[3], fields[4])
 		fix.Time = findTime(fields[5])
@@ -89,6 +124,7 @@ func (parser *Parser) Parse(sentence string) (Fix, error) {
 			return fix, errInvalidRMCSentence
 		}
 
+		fix.Type = RMC
 		fix.Time = findTime(fields[1])
 		fix.Valid = (fields[2] == "A")
 		fix.Latitude = findLatitude(fields[3], fields[4])

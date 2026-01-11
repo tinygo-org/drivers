@@ -15,6 +15,7 @@ var (
 	ErrInvalidNMEASentence       = errors.New("invalid NMEA sentence format")
 	ErrEmptyNMEASentence         = errors.New("cannot parse empty NMEA sentence")
 	ErrUnknownNMEASentence       = errors.New("unsupported NMEA sentence type")
+	errInvalidGSVSentence        = errors.New("invalid GSV NMEA sentence")
 	errInvalidGGASentence        = errors.New("invalid GGA NMEA sentence")
 	errInvalidRMCSentence        = errors.New("invalid RMC NMEA sentence")
 	errInvalidGLLSentence        = errors.New("invalid GLL NMEA sentence")
