@@ -309,6 +309,33 @@ func (d *Device) SetDioIrqParams(irqMask, dio1Mask, dio2Mask, dio3Mask uint16) {
 	d.ExecSetCommand(SX126X_CMD_SET_DIO_IRQ_PARAMS, p[:])
 }
 
+// SetDio2AsRfSwitchCtrl configures if DIO2 is used to control an external RF switch.
+// When controlling the external RX switch, the pin DIO2 will toggle according to
+// the internal state machine (DIO2 = 0 in SLEEP, STDBY_RX, STDBY_XOSC, FS and RX modes,
+// DIO2 = 1 in TX mode). Otherwise DIO2 is free to be used as an IRQ.
+func (d *Device) SetDio2AsRfSwitchCtrl(enable bool) {
+	p := [1]uint8{SX126X_DIO2_AS_IRQ}
+	if enable {
+		p[0] = SX126X_DIO2_AS_RF_SWITCH
+	}
+	d.ExecSetCommand(SX126X_CMD_SET_DIO2_AS_RF_SWITCH_CTRL, p[:])
+}
+
+// SetDio3AsTcxoCtrl configures the DIO3 as an external TCXO voltage reference.
+// After TCXO control is set, it is recommended to perform full calibration (CALIBRATE_ALL command).
+// voltage: output voltage on DIO3 pin
+// delay: time for the TCXO to stabilize
+func (d *Device) SetDio3AsTcxoCtrl(voltage Dio3OutputVoltage, delay time.Duration) {
+	timeout := delay / (15625 * time.Nanosecond)
+	var p [5]uint8
+	p[0] = uint8(voltage)
+	p[1] = uint8((timeout >> 24) & 0xFF)
+	p[2] = uint8((timeout >> 16) & 0xFF)
+	p[3] = uint8((timeout >> 8) & 0xFF)
+	p[4] = uint8((timeout >> 0) & 0xFF)
+	d.ExecSetCommand(SX126X_CMD_SET_DIO3_AS_TCXO_CTRL, p[:])
+}
+
 // GetIrqStatus returns IRQ status
 func (d *Device) GetIrqStatus() (irqStatus uint16) {
 	r := d.ExecGetCommand(SX126X_CMD_GET_IRQ_STATUS, 2)
