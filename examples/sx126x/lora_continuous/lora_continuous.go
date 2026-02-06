@@ -30,6 +30,9 @@ func main() {
 	// Create radio controller for target
 	loraRadio.SetRadioController(newRadioControl())
 
+	loraRadio.Reset()
+	time.Sleep(100 * time.Millisecond)
+
 	state := loraRadio.DetectDevice()
 	if !state {
 		panic("sx126x not detected. ")
