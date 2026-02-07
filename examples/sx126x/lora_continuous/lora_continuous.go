@@ -13,7 +13,6 @@ const FREQ = 868100000
 
 var (
 	loraRadio *sx126x.Device
-	rstPin    = machine.GP10
 )
 
 func main() {

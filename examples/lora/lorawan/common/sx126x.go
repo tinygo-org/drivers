@@ -23,6 +23,7 @@ var (
 	spi                        = machine.SPI0
 	nssPin, busyPin, dio1Pin   = machine.GP17, machine.GP10, machine.GP11
 	rxPin, txLowPin, txHighPin = machine.GP13, machine.GP12, machine.GP12
+	rstPin                     = machine.GP10
 )
 
 func newRadioControl() sx126x.RadioController {
@@ -31,7 +32,8 @@ func newRadioControl() sx126x.RadioController {
 
 // do sx126x setup here
 func SetupLora() (lora.Radio, error) {
-	loraRadio = sx126x.New(spi)
+	rstPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	loraRadio = sx126x.New(spi, rstPin)
 	loraRadio.SetDeviceType(sx126x.DEVICE_TYPE_SX1262)
 
 	// Create radio controller for target
