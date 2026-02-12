@@ -8,6 +8,9 @@ This package provides a collection of over 130 different hardware drivers for de
 For the complete list, please see:
 https://tinygo.org/docs/reference/devices/
 
+> [!IMPORTANT]
+> You can help TinyGo with a financial contribution using OpenCollective. Please see https://opencollective.com/tinygo for more information. Thank you!
+
 ## Installing
 
 ```shell
