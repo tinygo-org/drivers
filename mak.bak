@@ -1,13 +1,14 @@
-# sub-directory used for build
-BUILD_DIR := build
 # find all packages without any dependency to underlying tiny-go packages, e.g. "machine" or "device/arm"
+# also exclude anything found in build output directory and "image" folder
 BUILD_TAGS_CHECK := m5stack_core2,microbit,xiao_ble
-ALL_WITHOUT_MACHINE := $(shell go list -e -tags $(BUILD_TAGS_CHECK) -f '{{.Dir}},{{.Deps}}' ./... | awk -F, '$$2 !~ /machine/ && $$2 !~ /device\/arm/ {print $$1}')
-# exclude anything found in build output and "image" directory, and exclude some further folders, which contains problematic dependencies in sub-folders
-EXCLUDE_PACKAGES = $(CURDIR)/$(BUILD_DIR)/% $(CURDIR)/image/% $(CURDIR)/touch $(CURDIR)/waveshare-epd
-ALL_TO_CHECK := $(filter-out $(EXCLUDE_PACKAGES),$(ALL_WITHOUT_MACHINE))
+ALL_WITHOUT_MACHINE := $(shell go list -e -tags $(BUILD_TAGS_CHECK) -f '{{.Dir}},{{.Deps}}' ./... | awk -F, '$$1 !~ /build/ && $$1 !~ /image/ && $$2 !~ /machine/ && $$2 !~ /device\/arm/ {print $$1}')
+# create a list of sub-dirs, relative to the root
+ALL_DIRS_TO_CHECK := $(subst $(CURDIR),.,$(ALL_WITHOUT_MACHINE))
 
-.PHONY: clean fmt-check smoke-test unit-test test check fmt_check fmt_fix $(ALL_TO_CHECK)
+BUILD_DIR := build
+LINTER_DIR := $(BUILD_DIR)/linter/drivers
+
+.PHONY: clean fmt-check smoke-test unit-test test check fmt_check fmt_fix $(ALL_DIRS_TO_CHECK)
 
 clean:
 	@rm -rf $(BUILD_DIR)
@@ -51,19 +52,29 @@ fmt_quick_check:
 	@#tmc5160/registers.go:1996:60: m.W2 (8 bits) too small for shift of 16
 	@#tmc5160/registers.go:1996:71: m.W1 (8 bits) too small for shift of 14
 	@#tmc5160/registers.go:1996:82: m.W0 (8 bits) too small for shift of 12
-	go vet -tags $(BUILD_TAGS_CHECK) -stdmethods=false -shift=false $(ALL_TO_CHECK)
+	go vet -tags $(BUILD_TAGS_CHECK) -stdmethods=false -shift=false $(ALL_DIRS_TO_CHECK)	
 
 fmt_check:
 	@# a complete format check, but depends on accessibility of all imports
-	golangci-lint -v run $(ALL_TO_CHECK)
+	@$(MAKE) linter_workspace
+	cd $(LINTER_DIR) && golangci-lint -v run
 
 fmt_fix:
-	@# an automatic reformat and complete format check, but depends on accessibility of all imports
+	@# an automatic reformat and complete format check, but depends on accessibility of all imports	
 	@#TODO: activate when ready 
-	@#gofumpt -l -w $(ALL_TO_CHECK)
-	golangci-lint -v run $(ALL_TO_CHECK) --fix
+	@#gofumpt -l -w $(ALL_DIRS_TO_CHECK) # TODO: test for all files, not only for filtered ones	
+	golangci-lint -v run $(ALL_DIRS_TO_CHECK) --fix
 
-print_collected_packages:
-	@#this target is used to unify mechanism in CI with the local one, see ".github/workflows/golangci-lint.yml"
-	@#we need additional exclude the root folder here, because will be checked recursive when used as working directory
-	@echo $(filter-out $(CURDIR),$(ALL_TO_CHECK))
+linter_workspace:
+	@# creates the workspace for running the linter in one step, which is especially used for CI workflow, see ".github/workflows/golangci-lint.yml"
+	@$(MAKE) FUNC=COPY $(filter-out .,$(ALL_DIRS_TO_CHECK))
+	@# additionally copy go files from root for checking
+	@cp -f $(CURDIR)/*.go $(LINTER_DIR)
+
+$(ALL_DIRS_TO_CHECK):
+ifeq ($(FUNC),COPY)
+	@mkdir -p $(LINTER_DIR)/$@
+	@cp -f $(addprefix ./,$@)/*.* $(LINTER_DIR)/$@
+else
+	@echo $@
+endif

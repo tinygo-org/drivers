@@ -1,0 +1,59 @@
+name: golangci-lint
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - dev
+  pull_request:
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read
+jobs:
+  collectpackages:
+    name: "Collect all packages to a list"
+    runs-on: ubuntu-latest
+    outputs:
+        packages: "${{ steps.create-package-list.outputs.packages }}"
+    steps:
+      - uses: actions/checkout@v5
+      - name: "Collect by calling 'make print_collected_packages'"
+        id: create-package-list
+        run: |
+          pkgs=$(make print_collected_packages)
+          # replace space by comma, add double quotes and copy to output
+          echo "packages=[\"${pkgs// /\",\"}\"]" >> $GITHUB_OUTPUT
+      - name: "Debug the collected packages as JSON array"
+        run: echo "The collected packages are ${{ steps.create-package-list.outputs.packages }}"
+
+  golangci:
+    needs: collectpackages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: "${{ fromJson(needs.collectpackages.outputs.packages) }}"
+    name: "Lint ${{ matrix.package }}"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.22'
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+          working-directory: ${{ matrix.package }}
+
+          # Optional: golangci-lint command line arguments.
+          # Note: exclude arguments, e.g. --exclude-files="my_file", will not affect the "typecheck" linter,
+          # at least since v1.61.0 - use build tags instead.
+          #args: --exclude-files="platforms/digispark/digispark_adaptor.go"
+
+          # Optional: show only new issues if it's a pull request. The default value is `false`.
+          # only-new-issues: true
+
+          # Optional: if set to true then the all caching functionality will be complete disabled,
+          #           takes precedence over all other caching options.
+          # skip-cache: true
