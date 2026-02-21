@@ -26,3 +26,17 @@ unit-test:
 	@go test -v $(addprefix ./,$(TESTS))
 
 test: clean fmt-check unit-test smoke-test
+
+EXCLUDE_DIRS = build cmd examples internal lora ndir netdev netlink tester
+
+drivers-count:
+	@root_count=$$(find . -mindepth 1 -maxdepth 1 -type d | grep -vE '^\./($(subst $(space),|,$(EXCLUDE_DIRS)))$$' | wc -l); \
+	epd_count=$$(find ./waveshare-epd -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l); \
+	total=$$((root_count + epd_count)); \
+	echo "Total drivers: $$total (root: $$root_count, waveshare-epd: $$epd_count)"
+
+drivers-list:
+	@{ \
+		find . -mindepth 1 -maxdepth 1 -type d | grep -vE '^\./($(subst $(space),|,$(EXCLUDE_DIRS)))$$'; \
+		if [ -d ./waveshare-epd ]; then find ./waveshare-epd -mindepth 1 -maxdepth 1 -type d; fi; \
+	} | sed 's|^\./||' | sort
