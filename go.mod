@@ -12,6 +12,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/orsinium-labs/tinymath v1.1.0
 	github.com/soypat/natiu-mqtt v0.5.1
+	github.com/stianeikeland/go-rpio/v4 v4.6.0
 	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
 	golang.org/x/net v0.33.0
 	tinygo.org/x/tinyfont v0.3.0
