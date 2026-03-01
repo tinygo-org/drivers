@@ -7,13 +7,14 @@ package st7789 // import "tinygo.org/x/drivers/st7789"
 
 import (
 	"image/color"
-	"machine"
 	"math"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -45,11 +46,11 @@ type Device = DeviceOf[pixel.RGB565BE]
 // DeviceOf is a generic version of Device. It supports multiple different pixel
 // formats.
 type DeviceOf[T Color] struct {
-	bus             drivers.SPI
-	dcPin           machine.Pin
-	resetPin        machine.Pin
-	csPin           machine.Pin
-	blPin           machine.Pin
+	bus             Bus
+	dcPin           pin.OutputFunc
+	resetPin        pin.OutputFunc
+	csPin           pin.OutputFunc
+	blPin           pin.OutputFunc
 	width           int16
 	height          int16
 	columnOffsetCfg int16
@@ -68,13 +69,15 @@ type DeviceOf[T Color] struct {
 
 // Config is the configuration for the display
 type Config struct {
-	Width        int16
-	Height       int16
-	Rotation     drivers.Rotation
-	RowOffset    int16
-	ColumnOffset int16
-	FrameRate    FrameRate
-	VSyncLines   int16
+	Width            int16
+	Height           int16
+	Rotation         drivers.Rotation
+	RowOffset        int16
+	ColumnOffset     int16
+	FrameRate        FrameRate
+	VSyncLines       int16
+	IdleModePorch    byte
+	PartialModePorch byte
 
 	// Gamma control. Look in the LCD panel datasheet or provided example code
 	// to find these values. If not set, the defaults will be used.
@@ -83,23 +86,27 @@ type Config struct {
 }
 
 // New creates a new ST7789 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus Bus, resetPin, dcPin, csPin, blPin pin.Output) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7789 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewOf[T Color](bus Bus, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
+	// IMPORTANT: pin configuration should really be done outside of this
+	// driver, but for backwards compatibility with existing code, we do it
+	// here.
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
+
 	return DeviceOf[T]{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
+		blPin:    blPin.Set,
 	}
 }
 
@@ -129,7 +136,7 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	if cfg.VSyncLines >= 2 && cfg.VSyncLines <= 254 {
 		d.vSyncLines = cfg.VSyncLines
 	} else {
-		d.vSyncLines = 16
+		d.vSyncLines = 0 // Default: no VSYNC pause
 	}
 
 	d.batchLength = int32(d.width)
@@ -139,21 +146,18 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 	d.batchLength += d.batchLength & 1
 
 	// Reset the device
-	d.resetPin.High()
-	time.Sleep(50 * time.Millisecond)
-	d.resetPin.Low()
-	time.Sleep(50 * time.Millisecond)
-	d.resetPin.High()
-	time.Sleep(50 * time.Millisecond)
+	d.Reset()
 
 	// Common initialization
 	d.startWrite()
 	d.sendCommand(SWRESET, nil) // Soft reset
 	d.endWrite()
-	time.Sleep(150 * time.Millisecond) //
-	d.startWrite()
 
-	d.sendCommand(SLPOUT, nil) // Exit sleep mode
+	time.Sleep(150 * time.Millisecond) //
+
+	d.startWrite()
+	// enable frame sync signal if used
+	d.sendCommand(TEON, nil)
 
 	// Memory initialization
 	var zeroColor T
@@ -164,52 +168,119 @@ func (d *DeviceOf[T]) Configure(cfg Config) {
 		// Use default RGB565 color format.
 		d.setColorFormat(ColorRGB565) // 16 bits per pixel
 	}
-	time.Sleep(10 * time.Millisecond)
-
-	d.setRotation(d.rotation) // Memory orientation
-
-	d.setWindow(0, 0, d.width, d.height)   // Full draw window
-	d.fillScreen(color.RGBA{0, 0, 0, 255}) // Clear screen
-
-	// Framerate
-	d.sendCommand(FRCTRL2, []byte{byte(d.frameRate)}) // Frame rate for normal mode (default 60Hz)
 
 	// Frame vertical sync and "porch"
 	//
 	// Front and back porch controls vertical scanline sync time before and after
 	// a frame, where memory can be safely written without tearing.
 	//
-	fp := uint8(d.vSyncLines / 2)         // Split the desired pause half and half
-	bp := uint8(d.vSyncLines - int16(fp)) // between front and back porch.
+	// TODO: is this correct? fp := uint8(d.vSyncLines / 2)         // Split the desired pause half and half
+	fp := byte(0x0c)
+	// TODO: is this correct? bp := uint8(d.vSyncLines - int16(fp)) // between front and back porch.
+	bp := byte(0x0c)
+	if cfg.IdleModePorch == 0 {
+		cfg.IdleModePorch = 0x22 // Default value
+	}
+	if cfg.PartialModePorch == 0 {
+		cfg.PartialModePorch = 0x22 // Default value
+	}
 
 	d.sendCommand(PORCTRL, []byte{
-		bp,   // Back porch 5bit     (0x7F max 0x08 default)
-		fp,   // Front porch 5bit    (0x7F max 0x08 default)
-		0x00, // Seprarate porch     (TODO: what is this?)
-		0x22, // Idle mode porch     (4bit-back 4bit-front 0x22 default)
-		0x22, // Partial mode porch  (4bit-back 4bit-front 0x22 default)
+		bp,                   // Back porch 5bit     (0x7F max 0x08 default)
+		fp,                   // Front porch 5bit    (0x7F max 0x08 default)
+		0x00,                 // Separate porch      (TODO: what is this?)
+		cfg.IdleModePorch,    // Idle mode porch     (4bit-back 4bit-front 0x22 default)
+		cfg.PartialModePorch, // Partial mode porch  (4bit-back 4bit-front 0x22 default)
 	})
 
-	// Ready to display
-	d.sendCommand(INVON, nil)         // Inversion ON
-	time.Sleep(10 * time.Millisecond) //
+	// LCM control, power on sequence
+	d.sendCommand(LCMCTRL, []byte{0x2C})
+
+	// VDV and VRH Command Enable - 0x01 power on sequence
+	d.sendCommand(VDVVRHEN, []byte{0x01})
+
+	// VRH Set - 0x12 5.3+( vcom+vcom offset+vdv)
+	d.sendCommand(VRHS, []byte{0x12})
+
+	// VDV Set - 0x20 0V
+	d.sendCommand(VDVS, []byte{0x20})
+
+	// PWCTRL1 Power control 1 - power on sequence
+	d.sendCommand(PWCTRL1, []byte{0xA4, 0xA1})
+
+	// Framerate
+	d.sendCommand(FRCTRL2, []byte{byte(d.frameRate)}) // Frame rate for normal mode (default 60Hz)
+
+	// As noted in https://github.com/pimoroni/pimoroni-pico/issues/1040
+	// this is required to avoid a weird light grey banding issue with low brightness green.
+	// The banding is not visible without tweaking gamma settings (GMCTRP1 & GMCTRN1) but
+	// it makes sense to fix it anyway.
+	d.sendCommand(RAMCTRL, []byte{0x00, 0xC0})
 
 	// Set gamma tables, if configured.
 	if len(cfg.PVGAMCTRL) == 14 {
-		d.sendCommand(GMCTRP1, cfg.PVGAMCTRL) // PVGAMCTRL: Positive Voltage Gamma Control
+		d.sendCommand(PVGAMCTRL, cfg.PVGAMCTRL) // PVGAMCTRL: Positive Voltage Gamma Control
 	}
 	if len(cfg.NVGAMCTRL) == 14 {
-		d.sendCommand(GMCTRN1, cfg.NVGAMCTRL) // NVGAMCTRL: Negative Voltage Gamma Control
+		d.sendCommand(NVGAMCTRL, cfg.NVGAMCTRL) // NVGAMCTRL: Negative Voltage Gamma Control
 	}
 
-	d.sendCommand(NORON, nil)         // Normal mode ON
-	time.Sleep(10 * time.Millisecond) //
+	switch {
+	case d.width == 240 && d.height == 240:
+		// 	command(reg::GCTRL, 1, "\x14");
+		// Gate Control - power on sequence for 240x240
+		d.sendCommand(GCTRL, []byte{0x35})
 
-	d.sendCommand(DISPON, nil)        // Screen ON
-	time.Sleep(10 * time.Millisecond) //
+		// command(reg::VCOMS, 1, "\x37");
+		// VCOM Setting
+		d.sendCommand(VCOMS, []byte{0x37})
 
+		// command(reg::GMCTRP1, 14, "\xD0\x04\x0D\x11\x13\x2B\x3F\x54\x4C\x18\x0D\x0B\x1F\x23");
+		d.sendCommand(PVGAMCTRL, []byte{0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F, 0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23})
+
+		// command(reg::GMCTRN1, 14, "\xD0\x04\x0C\x11\x13\x2C\x3F\x44\x51\x2F\x1F\x1F\x20\x23");
+		d.sendCommand(NVGAMCTRL, []byte{0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F, 0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23})
+	case d.width == 320 && d.height == 240:
+		// Gate Control - power on sequence for 320x240
+		d.sendCommand(GCTRL, []byte{0x35})
+
+		// VCOM Setting - 0.875V
+		d.sendCommand(VCOMS, []byte{0x1f})
+
+		// command(reg::GMCTRP1, 14, "\xD0\x08\x11\x08\x0C\x15\x39\x33\x50\x36\x13\x14\x29\x2D");
+		d.sendCommand(PVGAMCTRL, []byte{0xD0, 0x08, 0x11, 0x08, 0x0C, 0x15, 0x39, 0x33, 0x50, 0x36, 0x13, 0x14, 0x29, 0x2D})
+
+		// command(reg::GMCTRN1, 14, "\xD0\x08\x10\x08\x06\x06\x39\x44\x51\x0B\x16\x14\x2F\x31");
+		d.sendCommand(NVGAMCTRL, []byte{0xD0, 0x08, 0x10, 0x08, 0x06, 0x06, 0x39, 0x44, 0x51, 0x0B, 0x16, 0x14, 0x2F, 0x31})
+	}
+
+	// Ready to display
+	d.sendCommand(INVON, nil)  // Inversion ON
+	d.sendCommand(SLPOUT, nil) // Exit sleep mode
+	d.sendCommand(DISPON, nil) // Screen ON
 	d.endWrite()
+
+	time.Sleep(100 * time.Millisecond)
+
+	d.startWrite()
+	d.setRotation(d.rotation)              // Memory orientation
+	d.setWindow(0, 0, d.width, d.height)   // Full draw window
+	d.fillScreen(color.RGBA{0, 0, 0, 255}) // Clear screen
+	d.endWrite()
+
+	time.Sleep(50 * time.Millisecond)
+
 	d.blPin.High() // Backlight ON
+}
+
+// Reset performs a hardware reset of the display.
+func (d *DeviceOf[T]) Reset() {
+	d.resetPin.High()
+	time.Sleep(50 * time.Millisecond)
+	d.resetPin.Low()
+	time.Sleep(50 * time.Millisecond)
+	d.resetPin.High()
+	time.Sleep(50 * time.Millisecond)
 }
 
 // Send a command with data to the display. It does not change the chip select
@@ -229,7 +300,7 @@ func (d *DeviceOf[T]) sendCommand(command uint8, data []byte) error {
 // startWrite must be called at the beginning of all exported methods to set the
 // chip select pin low.
 func (d *DeviceOf[T]) startWrite() {
-	if d.csPin != machine.NoPin {
+	if d.csPin != nil {
 		d.csPin.Low()
 	}
 }
@@ -237,7 +308,7 @@ func (d *DeviceOf[T]) startWrite() {
 // endWrite must be called at the end of all exported methods to set the chip
 // select pin high.
 func (d *DeviceOf[T]) endWrite() {
-	if d.csPin != machine.NoPin {
+	if d.csPin != nil {
 		d.csPin.High()
 	}
 }
@@ -509,18 +580,20 @@ func (d *DeviceOf[T]) setRotation(rotation Rotation) error {
 	madctl := uint8(0)
 	switch rotation % 4 {
 	case drivers.Rotation0:
+		madctl = MADCTL_COLORDER
+		madctl |= MADCTL_SWAPXY | MADCTL_SCANORDER
 		d.rowOffset = 0
 		d.columnOffset = 0
 	case drivers.Rotation90:
-		madctl = MADCTL_MX | MADCTL_MV
+		madctl = MADCTL_COLORDER | MADCTL_SWAPXY
 		d.rowOffset = 0
 		d.columnOffset = 0
 	case drivers.Rotation180:
-		madctl = MADCTL_MX | MADCTL_MY
+		madctl = MADCTL_COLORDER | MADCTL_ROWORDER
 		d.rowOffset = d.rowOffsetCfg
 		d.columnOffset = d.columnOffsetCfg
 	case drivers.Rotation270:
-		madctl = MADCTL_MY | MADCTL_MV
+		madctl = MADCTL_ROWORDER | MADCTL_SWAPXY
 		d.rowOffset = d.columnOffsetCfg
 		d.columnOffset = d.rowOffsetCfg
 	}
