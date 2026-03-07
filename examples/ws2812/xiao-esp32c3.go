@@ -1,4 +1,4 @@
-//go:build !digispark && !arduino && !arduino_uno && !xiao_esp32c3
+//go:build xiao_esp32c3
 
 package main
 
@@ -7,5 +7,5 @@ import "machine"
 func init() {
 	// Replace neo in the code below to match the pin
 	// that you are using if different.
-	neo = machine.WS2812
+	neo = machine.D6
 }
