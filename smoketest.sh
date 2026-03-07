@@ -93,6 +93,7 @@ tinygo build -size short -o ./build/test.bin -target=m5stamp-c3          ./examp
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples/is31fl3731/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino   ./examples/ws2812
 tinygo build -size short -o ./build/test.hex -target=digispark ./examples/ws2812
+tinygo build -size short -o ./build/test.bin -target=xiao-esp32c3 ./examples/ws2812
 tinygo build -size short -o ./build/test.hex -target=trinket-m0 ./examples/bme280/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/microphone/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/buzzer/main.go
