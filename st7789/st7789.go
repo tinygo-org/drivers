@@ -513,8 +513,8 @@ func (d *DeviceOf[T]) setRotation(rotation Rotation) error {
 		d.columnOffset = 0
 	case drivers.Rotation90:
 		madctl = MADCTL_MX | MADCTL_MV
-		d.rowOffset = 0
-		d.columnOffset = 0
+		d.rowOffset = d.columnOffsetCfg
+		d.columnOffset = d.rowOffsetCfg
 	case drivers.Rotation180:
 		madctl = MADCTL_MX | MADCTL_MY
 		d.rowOffset = d.rowOffsetCfg
