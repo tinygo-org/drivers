@@ -1,0 +1,50 @@
+package epd2in9v2
+
+// Commands from SSD1680 datasheet
+const (
+	EPD_WIDTH  = 128
+	EPD_HEIGHT = 296
+
+	DRIVER_OUTPUT_CONTROL     = 0x01
+	GATE_DRIVING_VOLTAGE      = 0x03
+	SOURCE_DRIVING_VOLTAGE    = 0x04
+	DEEP_SLEEP_MODE           = 0x10
+	DATA_ENTRY_MODE           = 0x11
+	SW_RESET                  = 0x12
+	MASTER_ACTIVATION         = 0x20
+	DISPLAY_UPDATE_CONTROL_1  = 0x21
+	DISPLAY_UPDATE_CONTROL_2  = 0x22
+	WRITE_RAM_BW              = 0x24
+	WRITE_RAM_RED             = 0x26
+	VCOM_SENSE                = 0x28
+	VCOM_SENSE_DURATION       = 0x29
+	PROGRAM_VCOM_OTP          = 0x2A
+	WRITE_VCOM_CONTROL        = 0x2B
+	WRITE_VCOM_REGISTER       = 0x2C
+	OTP_READ_DISPLAY_OPTION   = 0x2D
+	USER_ID_READ              = 0x2E
+	PROGRAM_WS_OTP            = 0x30
+	LOAD_WS_OTP               = 0x31
+	WRITE_LUT_REGISTER        = 0x32
+	PROGRAM_OTP_SELECTION     = 0x36
+	OTP_SELECTION_CONTROL     = 0x37
+	WRITE_USER_ID             = 0x38
+	OTP_PROGRAM_MODE          = 0x39
+	BORDER_WAVEFORM_CONTROL   = 0x3C
+	END_OPTION                = 0x3F
+	SET_RAM_X_ADDRESS         = 0x44
+	SET_RAM_Y_ADDRESS         = 0x45
+	SET_RAM_X_COUNTER         = 0x4E
+	SET_RAM_Y_COUNTER         = 0x4F
+	SET_ANALOG_BLOCK_CONTROL  = 0x74
+	SET_DIGITAL_BLOCK_CONTROL = 0x7E
+
+	NO_ROTATION  Rotation = 0
+	ROTATION_90  Rotation = 1
+	ROTATION_180 Rotation = 2
+	ROTATION_270 Rotation = 3
+
+	SPEED_DEFAULT Speed = 0
+	SPEED_FAST    Speed = 1
+	SPEED_PARTIAL Speed = 2
+)
