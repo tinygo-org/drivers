@@ -1,4 +1,7 @@
 // Package ws2812 implements a driver for WS2812 and SK6812 RGB LED strips.
+//
+// On most platforms NewWS2812 uses bit-banging.
+// On RP2040/RP2350 it uses PIO for hardware-timed control.
 package ws2812 // import "tinygo.org/x/drivers/ws2812"
 
 //go:generate go run gen-ws2812.go -arch=cortexm 16 48 64 120 125 150 168 200
@@ -24,14 +27,11 @@ func New(pin machine.Pin) Device {
 	return NewWS2812(pin)
 }
 
-// New returns a new WS2812(RGB) driver.
-// It does not touch the pin object: you have
-// to configure it as an output pin before calling New.
+// NewWS2812 returns a new WS2812(RGB) driver.
+// On RP2040/RP2350, it uses PIO for hardware-timed control.
+// On other platforms, you must configure the pin as output before calling this.
 func NewWS2812(pin machine.Pin) Device {
-	return Device{
-		Pin:            pin,
-		writeColorFunc: writeColorsRGB,
-	}
+	return newWS2812Device(pin)
 }
 
 // New returns a new SK6812(RGBA) driver.
