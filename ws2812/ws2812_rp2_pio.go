@@ -22,10 +22,12 @@ func newWS2812Device(pin machine.Pin) Device {
 		return Device{Pin: pin, writeColorFunc: writeColorsRGB}
 	}
 	return Device{
-		Pin: pin,
-		writeColorFunc: func(_ Device, buf []color.RGBA) error {
+		Pin:        pin,
+		brightness: 255,
+		writeColorFunc: func(_ Device, buf []color.RGBA, brightness uint8) error {
 			for _, c := range buf {
-				ws.PutRGB(c.R, c.G, c.B)
+				r, g, b := applyBrightness(c, brightness)
+				ws.PutRGB(r, g, b)
 			}
 			return nil
 		},
