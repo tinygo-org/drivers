@@ -60,16 +60,20 @@ const (
 )
 
 const (
-	Bandwidth_7_8   = iota // 7.8 kHz
-	Bandwidth_10_4         // 10.4 kHz
-	Bandwidth_15_6         // 15.6 kHz
-	Bandwidth_20_8         // 20.8 kHz
-	Bandwidth_31_25        // 31.25 kHz
-	Bandwidth_41_7         // 41.7 kHz
-	Bandwidth_62_5         // 62.5 kHz
-	Bandwidth_125_0        // 125.0 kHz
-	Bandwidth_250_0        // 250.0 kHz
-	Bandwidth_500_0        // 500.0 kHz
+	Bandwidth_7_8     = iota // 7.8 kHz
+	Bandwidth_10_4           // 10.4 kHz
+	Bandwidth_15_6           // 15.6 kHz
+	Bandwidth_20_8           // 20.8 kHz
+	Bandwidth_31_25          // 31.25 kHz
+	Bandwidth_41_7           // 41.7 kHz
+	Bandwidth_62_5           // 62.5 kHz
+	Bandwidth_125_0          // 125.0 kHz
+	Bandwidth_203_125        // 203.125 kHz
+	Bandwidth_250_0          // 250.0 kHz
+	Bandwidth_406_25         // 406.25 kHz
+	Bandwidth_500_0          // 500.0 kHz
+	Bandwidth_812_5          // 812.5 kHz
+	Bandwidth_1625_0         // 1625 kHz
 )
 
 const (

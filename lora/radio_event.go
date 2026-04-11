@@ -6,6 +6,9 @@ const (
 	RadioEventTimeout
 	RadioEventWatchdog
 	RadioEventCrcError
+	RadioEventValidHeader
+	RadioEventCadDone
+	RadioEventCadDetected
 	RadioEventUnhandled
 )
 
