@@ -593,8 +593,18 @@ func (d *DeviceOf[T]) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 		// The screen doesn't use the full 320 pixel height.
 		// Enlarge the bottom fixed area to fill the 320 pixel height, so that
 		// bottomFixedArea starts from the visible bottom of the screen.
-		topFixedArea += d.rowOffset
-		bottomFixedArea += (320 - d.height) - d.rowOffset
+		//
+		// VSCRDEF/VSCRSADD always operate on physical frame memory rows (0-319),
+		// regardless of MADCTL. For rotations with MV set (90°/270°), CASET
+		// addresses physical rows due to row/column exchange, so the physical row
+		// offset is d.columnOffset (= rowOffsetCfg). For other rotations,
+		// d.rowOffset is the physical row offset.
+		physRowOffset := d.rowOffset
+		if d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270 {
+			physRowOffset = d.columnOffset
+		}
+		topFixedArea += physRowOffset
+		bottomFixedArea += (320 - d.height) - physRowOffset
 	}
 	if d.rotation == drivers.Rotation180 {
 		// The screen is rotated by 180°, so we have to switch the top and
@@ -613,10 +623,20 @@ func (d *DeviceOf[T]) SetScrollArea(topFixedArea, bottomFixedArea int16) {
 
 // SetScroll sets the vertical scroll address of the display.
 func (d *DeviceOf[T]) SetScroll(line int16) {
-	if d.rotation == drivers.Rotation180 {
+	switch d.rotation {
+	case drivers.Rotation90:
+		// With MV set, hardware scroll operates on physical rows, which map to the
+		// visual X axis. Add the physical row offset (d.columnOffset = rowOffsetCfg)
+		// so that line=0 addresses the first visible physical row.
+		line = line + d.columnOffset
+	case drivers.Rotation180:
 		// The screen is rotated by 180°, so we have to invert the scroll line
 		// (taking care of the RowOffset).
 		line = (319 - d.rowOffset) - line
+	case drivers.Rotation270:
+		// With MV+MY, physical rows map to the visual X axis in reverse direction.
+		// line=0 addresses the last physical row of the visible area.
+		line = (d.columnOffset + d.height - 1) - line
 	}
 	d.buf[0] = uint8(line >> 8)
 	d.buf[1] = uint8(line)
