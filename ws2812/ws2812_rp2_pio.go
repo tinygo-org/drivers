@@ -15,11 +15,11 @@ import (
 func newWS2812Device(pin machine.Pin) Device {
 	sm, err := pio.PIO0.ClaimStateMachine()
 	if err != nil {
-		return Device{Pin: pin, writeColorFunc: writeColorsRGB}
+		return Device{Pin: pin, brightness: 255, writeColorFunc: writeColorsRGB}
 	}
 	ws, err := piolib.NewWS2812B(sm, pin)
 	if err != nil {
-		return Device{Pin: pin, writeColorFunc: writeColorsRGB}
+		return Device{Pin: pin, brightness: 255, writeColorFunc: writeColorsRGB}
 	}
 	return Device{
 		Pin:        pin,

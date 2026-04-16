@@ -6,5 +6,5 @@ import "machine"
 
 // newWS2812Device creates a WS2812 device using the bit-bang driver.
 func newWS2812Device(pin machine.Pin) Device {
-	return Device{Pin: pin, writeColorFunc: writeColorsRGB}
+	return Device{Pin: pin, brightness: 255, writeColorFunc: writeColorsRGB}
 }

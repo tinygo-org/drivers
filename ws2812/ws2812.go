@@ -35,9 +35,10 @@ func NewWS2812(pin machine.Pin) Device {
 	return newWS2812Device(pin)
 }
 
-// New returns a new SK6812(RGBA) driver.
-// It does not touch the pin object: you have
-// to configure it as an output pin before calling New.
+// NewSK6812 returns a new SK6812W/RGBW driver (4 channels, GRBW order, 32-bit protocol), for the 3 channels version use NewWS2812
+// Use this for SK6812W strips that have a dedicated white channel controlled via color.A.
+// It does not touch the pin object: you have to configure it as an output pin before
+// calling this.
 func NewSK6812(pin machine.Pin) Device {
 	return Device{
 		Pin:            pin,
