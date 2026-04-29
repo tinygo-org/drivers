@@ -49,6 +49,7 @@ func (d *Device) WaitWhileBusy(timeout time.Duration) error {
 }
 
 // Get tranceiver status, returns circuit mode and command status
+func (d *Device) GetStatus() (CircuitMode, CommandStatus, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, 0, err
@@ -136,6 +137,7 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 }
 
 // Set the device into sleep mode with the given configuration: 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)
+func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 	if sleepConfig > 3 {
 		return errors.New("sleep config must be 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)")
 	}
@@ -152,6 +154,7 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 }
 
 // Put device into standby mode, 0 (RC) or 1 (XOSC)
+func (d *Device) SetStandby(standbyConfig StandbyConfig) error {
 	if standbyConfig != STANDBY_RC && standbyConfig != STANDBY_XOSC {
 		return errors.New("standby config must be 0 (RC) or 1 (XOSC)")
 	}
@@ -181,7 +184,7 @@ func (d *Device) SetFs() error {
 	return err
 }
 
-func checkPeriodBase(periodBase uint8) error {
+func checkPeriodBase(periodBase PeriodBase) error {
 	if periodBase != PERIOD_BASE_15_625_US && periodBase != PERIOD_BASE_62_5_US && periodBase != PERIOD_BASE_1_MS && periodBase != PERIOD_BASE_4_MS {
 		return errors.New("period base must be 0, 1, 2 or 4")
 	}
@@ -190,6 +193,7 @@ func checkPeriodBase(periodBase uint8) error {
 
 // Sets the device in transmit mode, the IRQ status should be cleared before using this command
 // timout is determined by periodBase * periodBaseCount
+func (d *Device) SetTx(periodBase PeriodBase, periodBaseCount uint16) error {
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -208,6 +212,7 @@ func checkPeriodBase(periodBase uint8) error {
 
 // Sets the device in receive mode, the IRQ status should be cleared before using this command
 // timeout is determined by periodBase * periodBaseCount
+func (d *Device) SetRx(periodBase PeriodBase, periodBaseCount uint16) error {
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -227,6 +232,7 @@ func checkPeriodBase(periodBase uint8) error {
 // Sets the device in a continuous receive mode, it enters receive mode with a timeout of periodBase * rxPeriodBaseCount.
 // If no packet is received it will enter sleep mode for periodBase * sleepPeriodBaseCount before re-entering receive mode.
 // The loop is exited when a packet is received or the device is put into standby mode.
+func (d *Device) SetRxDutyCycle(periodBase PeriodBase, rxPeriodBaseCount uint16, sleepPeriodBaseCount uint16) error {
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -310,13 +316,14 @@ func (d *Device) SetTxContinuousPreamble() error {
 
 // This command allows the transceiver to send a packet at a user programmable time after the end of a packet reception.
 // This is useful for Bluetooth Low Energy (BLE) compatibility which requires the transceiver to be able to send back a response 150µs after a packet reception.
+func (d *Device) SetAutoTx(timeUs uint16) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_AUTO_TX, uint8((time&0xFF00)>>8), uint8(time&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_AUTO_TX, uint8((timeUs&0xFF00)>>8), uint8(timeUs&0x00FF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -343,6 +350,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 }
 
 // Choose between GFSK, LoRa, Ranging, FLRC or BLE packet types, this will affect the available configuration parameters and the structure of the packet
+func (d *Device) SetPacketType(packetType PacketType) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -356,6 +364,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 }
 
 // Get the currently configured packet type, this will be 0 (GFSK), 1 (LoRa), 2 (Ranging), 3 (FLRC) or 4 (BLE)
+func (d *Device) GetPacketType() (PacketType, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
@@ -373,9 +382,11 @@ func (d *Device) SetAutoFs(enable bool) error {
 }
 
 // Set the RF frequency in Hz, must be between 2.4 GHz and 2.5 GHz
+func (d *Device) SetRfFrequency(frequencyHz uint32) error {
+	if frequencyHz < 2400000000 {
 		return errors.New("frequency must be greater than or equal to 2.4 GHz")
 	}
-	if frequency > 2500000000 {
+	if frequencyHz > 2500000000 {
 		return errors.New("frequency must be less than or equal to 2.5 GHz")
 	}
 	err := d.WaitWhileBusy(time.Second)
@@ -384,7 +395,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	freq := uint32((uint64(frequency) << 18) / 52000000)
+	freq := uint32((uint64(frequencyHz) << 18) / 52000000)
 	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RF_FREQUENCY, uint8((freq>>16)&0xFF), uint8((freq>>8)&0xFF), uint8(freq&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -392,6 +403,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 }
 
 // Set the output power in dBm, must be between -18 and 13 dBm, and the ramp time
+func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 	if powerdBm < -18 {
 		return errors.New("power in dBm must be greater than or equal to -18")
 	}
@@ -470,7 +482,7 @@ func (d *Device) SetModulationParamsFLRC(bitrateBandwidth uint8, codingRate uint
 	return d.SetModulationParams(bitrateBandwidth, codingRate, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsLoRa(spreadingFactor uint8, bandwidth uint8, codingRate uint8) error {
+func (d *Device) SetModulationParamsLoRa(spreadingFactor SpreadingFactor, bandwidth Bandwidth, codingRate CodingRate) error {
 	return d.SetModulationParams(spreadingFactor, bandwidth, codingRate)
 }
 
@@ -631,6 +643,7 @@ func (d *Device) ClearIrqStatus(irqMask uint16) error {
 }
 
 // Switch between the low-dropout regulator (LDO) and the DC-DC converter for internal power regulation.
+func (d *Device) SetRegulatorMode(mode RegulatorMode) error {
 	if mode != REGULATOR_LDO && mode != REGULATOR_DC_DC {
 		return errors.New("regulator mode must be 0 (LDO) or 1 (DC-DC)")
 	}

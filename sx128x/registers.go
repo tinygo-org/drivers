@@ -1,5 +1,19 @@
 package sx128x
 
+type SleepConfig = uint8
+type StandbyConfig = uint8
+type PeriodBase = uint8
+type PacketType = uint8
+type RadioRampTime = uint8
+type CadSymbolNum = uint8
+type SpreadingFactor = uint8
+type Bandwidth = uint8
+type CodingRate = uint8
+type RegulatorMode = uint8
+
+type CircuitMode = uint8
+type CommandStatus = uint8
+
 const (
 	// SX128X SPI commands
 	CMD_NOP = uint8(0x00)
@@ -55,33 +69,33 @@ const (
 
 	// GetStatus
 	CIRCUIT_MODE_MASK       = uint8(0b11100000)
-	CIRCUIT_MODE_STDBY_RC   = uint8(0x2)
-	CIRCUIT_MODE_STDBY_XOSC = uint8(0x3)
-	CIRCUIT_MODE_FS         = uint8(0x4)
-	CIRCUIT_MODE_RX         = uint8(0x5)
-	CIRCUIT_MODE_TX         = uint8(0x6)
+	CIRCUIT_MODE_STDBY_RC   = CircuitMode(0x2)
+	CIRCUIT_MODE_STDBY_XOSC = CircuitMode(0x3)
+	CIRCUIT_MODE_FS         = CircuitMode(0x4)
+	CIRCUIT_MODE_RX         = CircuitMode(0x5)
+	CIRCUIT_MODE_TX         = CircuitMode(0x6)
 
 	COMMAND_STATUS_MASK             = uint8(0b00011100)
-	COMMAND_STATUS_SUCCESS          = uint8(0x1)
-	COMMAND_STATUS_DATA_AVAILABLE   = uint8(0x2)
-	COMMAND_STATUS_TIMEOUT          = uint8(0x3)
-	COMMAND_STATUS_PROCESSING_ERROR = uint8(0x4)
-	COMMAND_STATUS_EXECUTION_ERROR  = uint8(0x5)
-	COMMAND_STATUS_TX_DONE          = uint8(0x6)
+	COMMAND_STATUS_SUCCESS          = CommandStatus(0x1)
+	COMMAND_STATUS_DATA_AVAILABLE   = CommandStatus(0x2)
+	COMMAND_STATUS_TIMEOUT          = CommandStatus(0x3)
+	COMMAND_STATUS_PROCESSING_ERROR = CommandStatus(0x4)
+	COMMAND_STATUS_EXECUTION_ERROR  = CommandStatus(0x5)
+	COMMAND_STATUS_TX_DONE          = CommandStatus(0x6)
 
 	// SleepConfig
-	SLEEP_DATA_BUFFER_RETAIN = uint8(2)
-	SLEEP_DATA_RAM_RETAIN    = uint8(1)
+	SLEEP_DATA_BUFFER_RETAIN = SleepConfig(2)
+	SLEEP_DATA_RAM_RETAIN    = SleepConfig(1)
 
 	// StandbyConfig
-	STANDBY_RC   = uint8(0)
-	STANDBY_XOSC = uint8(1)
+	STANDBY_RC   = StandbyConfig(0)
+	STANDBY_XOSC = StandbyConfig(1)
 
 	// PeriodBase
-	PERIOD_BASE_15_625_US = uint8(0)
-	PERIOD_BASE_62_5_US   = uint8(1)
-	PERIOD_BASE_1_MS      = uint8(2)
-	PERIOD_BASE_4_MS      = uint8(3)
+	PERIOD_BASE_15_625_US = PeriodBase(0)
+	PERIOD_BASE_62_5_US   = PeriodBase(1)
+	PERIOD_BASE_1_MS      = PeriodBase(2)
+	PERIOD_BASE_4_MS      = PeriodBase(3)
 
 	RX_CONTINUOUS_MODE = uint16(0xFFFF)
 
@@ -94,53 +108,53 @@ const (
 	AUTO_FS_DISABLE = uint8(0)
 
 	// PacketType
-	PACKET_TYPE_GFSK    = uint8(0x00) // default
-	PACKET_TYPE_LORA    = uint8(0x01)
-	PACKET_TYPE_RANGING = uint8(0x02)
-	PACKET_TYPE_FLRC    = uint8(0x03)
-	PACKET_TYPE_BLE     = uint8(0x04)
+	PACKET_TYPE_GFSK    = PacketType(0x00) // default
+	PACKET_TYPE_LORA    = PacketType(0x01)
+	PACKET_TYPE_RANGING = PacketType(0x02)
+	PACKET_TYPE_FLRC    = PacketType(0x03)
+	PACKET_TYPE_BLE     = PacketType(0x04)
 
 	// RampTime
-	RADIO_RAMP_02_US = uint8(0x00)
-	RADIO_RAMP_04_US = uint8(0x20)
-	RADIO_RAMP_06_US = uint8(0x40)
-	RADIO_RAMP_08_US = uint8(0x60)
-	RADIO_RAMP_10_US = uint8(0x80)
-	RADIO_RAMP_12_US = uint8(0xA0)
-	RADIO_RAMP_16_US = uint8(0xC0)
-	RADIO_RAMP_20_US = uint8(0xE0)
+	RADIO_RAMP_02_US = RadioRampTime(0x00)
+	RADIO_RAMP_04_US = RadioRampTime(0x20)
+	RADIO_RAMP_06_US = RadioRampTime(0x40)
+	RADIO_RAMP_08_US = RadioRampTime(0x60)
+	RADIO_RAMP_10_US = RadioRampTime(0x80)
+	RADIO_RAMP_12_US = RadioRampTime(0xA0)
+	RADIO_RAMP_16_US = RadioRampTime(0xC0)
+	RADIO_RAMP_20_US = RadioRampTime(0xE0)
 
 	// CadSymbolNum
-	LORA_CAD_01_SYMBOL  = uint8(0x00)
-	LORA_CAD_02_SYMBOLS = uint8(0x20)
-	LORA_CAD_04_SYMBOLS = uint8(0x40)
-	LORA_CAD_08_SYMBOLS = uint8(0x60)
-	LORA_CAD_16_SYMBOLS = uint8(0x80)
+	LORA_CAD_01_SYMBOL  = CadSymbolNum(0x00)
+	LORA_CAD_02_SYMBOLS = CadSymbolNum(0x20)
+	LORA_CAD_04_SYMBOLS = CadSymbolNum(0x40)
+	LORA_CAD_08_SYMBOLS = CadSymbolNum(0x60)
+	LORA_CAD_16_SYMBOLS = CadSymbolNum(0x80)
 
 	// SpreadingFactor
-	LORA_SF_5  = uint8(0x50)
-	LORA_SF_6  = uint8(0x60)
-	LORA_SF_7  = uint8(0x70)
-	LORA_SF_8  = uint8(0x80)
-	LORA_SF_9  = uint8(0x90)
-	LORA_SF_10 = uint8(0xA0)
-	LORA_SF_11 = uint8(0xB0)
-	LORA_SF_12 = uint8(0xC0)
+	LORA_SF_5  = SpreadingFactor(0x50)
+	LORA_SF_6  = SpreadingFactor(0x60)
+	LORA_SF_7  = SpreadingFactor(0x70)
+	LORA_SF_8  = SpreadingFactor(0x80)
+	LORA_SF_9  = SpreadingFactor(0x90)
+	LORA_SF_10 = SpreadingFactor(0xA0)
+	LORA_SF_11 = SpreadingFactor(0xB0)
+	LORA_SF_12 = SpreadingFactor(0xC0)
 
 	// Bandwidth
-	LORA_BW_1600 = uint8(0x0A)
-	LORA_BW_800  = uint8(0x18)
-	LORA_BW_400  = uint8(0x26)
-	LORA_BW_200  = uint8(0x34)
+	LORA_BW_1600 = Bandwidth(0x0A)
+	LORA_BW_800  = Bandwidth(0x18)
+	LORA_BW_400  = Bandwidth(0x26)
+	LORA_BW_200  = Bandwidth(0x34)
 
 	// CodingRate
-	LORA_CR_4_5    = uint8(0x01)
-	LORA_CR_4_6    = uint8(0x02)
-	LORA_CR_4_7    = uint8(0x03)
-	LORA_CR_4_8    = uint8(0x04)
-	LORA_CR_LI_4_5 = uint8(0x05)
-	LORA_CR_LI_4_6 = uint8(0x06)
-	LORA_CR_LI_4_8 = uint8(0x07)
+	LORA_CR_4_5    = CodingRate(0x01)
+	LORA_CR_4_6    = CodingRate(0x02)
+	LORA_CR_4_7    = CodingRate(0x03)
+	LORA_CR_4_8    = CodingRate(0x04)
+	LORA_CR_LI_4_5 = CodingRate(0x05)
+	LORA_CR_LI_4_6 = CodingRate(0x06)
+	LORA_CR_LI_4_8 = CodingRate(0x07)
 
 	// LoraPacketParams
 	LORA_EXPLICIT_HEADER = uint8(0x00)
@@ -153,8 +167,8 @@ const (
 	LORA_IQ_STD      = uint8(0x40)
 
 	// RegulatorMode
-	REGULATOR_LDO   = uint8(0)
-	REGULATOR_DC_DC = uint8(1)
+	REGULATOR_LDO   = RegulatorMode(0)
+	REGULATOR_DC_DC = RegulatorMode(1)
 
 	// IRQ masks
 	IRQ_ALL_MASK                            = uint16(0xFFFF)
