@@ -1,7 +1,6 @@
 package sx128x
 
 import (
-	"errors"
 	"runtime"
 	"time"
 
@@ -24,8 +23,8 @@ func New(spi drivers.SPI, nssPin pin.Output, resetPin pin.Output, busyPin pin.In
 		nssPin:   nssPin,
 		resetPin: resetPin,
 		busyPin:  busyPin,
-		spiTxBuf: make([]byte, 255), // TODO: optimize buffer size
-		spiRxBuf: make([]byte, 255),
+		spiTxBuf: make([]byte, 256), // TODO: optimize buffer size
+		spiRxBuf: make([]byte, 256),
 	}
 }
 
@@ -41,7 +40,7 @@ func (d *Device) WaitWhileBusy(timeout time.Duration) error {
 	now := time.Now()
 	for d.busyPin.Get() {
 		if time.Since(now) > timeout {
-			return errors.New("busy pin timeout")
+			return ErrBusyPinTimeout
 		}
 		runtime.Gosched()
 	}
@@ -99,8 +98,8 @@ func (d *Device) ReadRegister(addr uint16) (uint8, error) {
 }
 
 func (d *Device) WriteBuffer(offset uint8, data []byte) error {
-	if len(data) > 255 {
-		return errors.New("length of data over max length of 255")
+	if len(data) > 256 {
+		return ErrDataTooLong
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -138,8 +137,8 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 
 // Set the device into sleep mode with the given configuration: 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)
 func (d *Device) SetSleep(sleepConfig SleepConfig) error {
-	if sleepConfig > 3 {
-		return errors.New("sleep config must be 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)")
+	if sleepConfig > (SLEEP_DATA_BUFFER_RETAIN | SLEEP_DATA_RAM_RETAIN) {
+		return ErrInvalidSleepConfig
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -155,8 +154,8 @@ func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 
 // Put device into standby mode, 0 (RC) or 1 (XOSC)
 func (d *Device) SetStandby(standbyConfig StandbyConfig) error {
-	if standbyConfig != STANDBY_RC && standbyConfig != STANDBY_XOSC {
-		return errors.New("standby config must be 0 (RC) or 1 (XOSC)")
+	if standbyConfig > STANDBY_XOSC { // XOSC is the highest standby config anything higher is invalid
+		return ErrInvalidStandbyConfig
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -185,8 +184,8 @@ func (d *Device) SetFs() error {
 }
 
 func checkPeriodBase(periodBase PeriodBase) error {
-	if periodBase != PERIOD_BASE_15_625_US && periodBase != PERIOD_BASE_62_5_US && periodBase != PERIOD_BASE_1_MS && periodBase != PERIOD_BASE_4_MS {
-		return errors.New("period base must be 0, 1, 2 or 4")
+	if periodBase > PERIOD_BASE_4_MS { // 4ms is the highest period base anything higher is invalid
+		return ErrInvalidPeriodBase
 	}
 	return nil
 }
@@ -260,9 +259,9 @@ func (d *Device) SetLongPreamble(enable bool) error {
 	d.spiTxBuf = d.spiTxBuf[:0]
 	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_LONG_PREAMBLE)
 	if enable {
-		d.spiTxBuf = append(d.spiTxBuf, LONG_PREAMBLE_ENABLE)
+		d.spiTxBuf = append(d.spiTxBuf, 1)
 	} else {
-		d.spiTxBuf = append(d.spiTxBuf, LONG_PREAMBLE_DISABLE)
+		d.spiTxBuf = append(d.spiTxBuf, 0)
 	}
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -340,9 +339,9 @@ func (d *Device) SetAutoFs(enable bool) error {
 	d.spiTxBuf = d.spiTxBuf[:0]
 	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_AUTO_FS)
 	if enable {
-		d.spiTxBuf = append(d.spiTxBuf, AUTO_FS_ENABLE)
+		d.spiTxBuf = append(d.spiTxBuf, 1)
 	} else {
-		d.spiTxBuf = append(d.spiTxBuf, AUTO_FS_DISABLE)
+		d.spiTxBuf = append(d.spiTxBuf, 0)
 	}
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -351,6 +350,9 @@ func (d *Device) SetAutoFs(enable bool) error {
 
 // Choose between GFSK, LoRa, Ranging, FLRC or BLE packet types, this will affect the available configuration parameters and the structure of the packet
 func (d *Device) SetPacketType(packetType PacketType) error {
+	if packetType > PACKET_TYPE_BLE { // BLE is the highest packet type anything higher is invalid.
+		return ErrInvalidPacketType
+	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -384,10 +386,10 @@ func (d *Device) GetPacketType() (PacketType, error) {
 // Set the RF frequency in Hz, must be between 2.4 GHz and 2.5 GHz
 func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 	if frequencyHz < 2400000000 {
-		return errors.New("frequency must be greater than or equal to 2.4 GHz")
+		return ErrFrequencyTooLow
 	}
 	if frequencyHz > 2500000000 {
-		return errors.New("frequency must be less than or equal to 2.5 GHz")
+		return ErrFrequencyTooHigh
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -395,8 +397,8 @@ func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	freq := uint32((uint64(frequencyHz) << 18) / 52000000)
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RF_FREQUENCY, uint8((freq>>16)&0xFF), uint8((freq>>8)&0xFF), uint8(freq&0xFF))
+	rfFrequency := uint32((uint64(frequencyHz) << 18) / 52000000)
+	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RF_FREQUENCY, uint8((rfFrequency>>16)&0xFF), uint8((rfFrequency>>8)&0xFF), uint8(rfFrequency&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -405,10 +407,10 @@ func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 // Set the output power in dBm, must be between -18 and 13 dBm, and the ramp time
 func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 	if powerdBm < -18 {
-		return errors.New("power in dBm must be greater than or equal to -18")
+		return ErrPowerTooLow
 	}
 	if powerdBm > 13 {
-		return errors.New("power in dBm must be less than or equal to 13")
+		return ErrPowerTooHigh
 	}
 
 	err := d.WaitWhileBusy(time.Second)
@@ -454,6 +456,7 @@ func (d *Device) SetBufferBaseAddress(txBase uint8, rxBase uint8) error {
 	return err
 }
 
+// The arguments to this function depend on the packet type. It is recommended to use the mode specific functions for a better experience.
 // BLE & GFSK: BitrateBandwidth, ModulationIndex, ModulationShaping
 // FLRC: BitrateBandwidth, CodingRate, ModulationShaping
 // LoRa & Ranging: SpreadingFactor, Bandwidth, CodingRate
@@ -470,22 +473,23 @@ func (d *Device) SetModulationParams(modParam1, modParam2, modParam3 uint8) erro
 	return err
 }
 
-func (d *Device) SetModulationParamsBLE(bitrateBandwidth uint8, modulationIndex uint8, modulationShaping uint8) error {
+func (d *Device) SetModulationParamsBLE(bitrateBandwidth BLEBitrateBandwidth, modulationIndex BLEModulationIndex, modulationShaping BLEModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsGFSK(bitrateBandwidth uint8, modulationIndex uint8, modulationShaping uint8) error {
+func (d *Device) SetModulationParamsGFSK(bitrateBandwidth GFSKBitrateBandwidth, modulationIndex GFSKModulationIndex, modulationShaping GFSKModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsFLRC(bitrateBandwidth uint8, codingRate uint8, modulationShaping uint8) error {
+func (d *Device) SetModulationParamsFLRC(bitrateBandwidth FLRCBitrateBandwidth, codingRate FLRCCodingRate, modulationShaping FLRCModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, codingRate, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsLoRa(spreadingFactor SpreadingFactor, bandwidth Bandwidth, codingRate CodingRate) error {
+func (d *Device) SetModulationParamsLoRa(spreadingFactor LoRaSpreadingFactor, bandwidth LoRaBandwidth, codingRate LoRaCodingRate) error {
 	return d.SetModulationParams(spreadingFactor, bandwidth, codingRate)
 }
 
+// The arguments to this function depend on the packet type. It is recommended to use the mode specific functions for a better experience.
 // GFSK & FLRC: PreambleLength, SyncWordLength, SyncWordMatch, HeaderType, PayloadLength, CrcLength, Whitening
 // BLE: ConnectionState, CrcLength, BleTestPayload, Whitening
 // LoRa & Ranging: PreambleLength, HeaderType, PayloadLength, CRC, InvertIQ/chirp invert
@@ -502,19 +506,47 @@ func (d *Device) SetPacketParams(param1, param2, param3, param4, param5, param6,
 	return err
 }
 
-func (d *Device) SetPacketParamsGFSK(preambleLength uint8, syncWordLength uint8, syncWordMatch uint8, headerType uint8, payloadLength uint8, crcLength uint8, whitening uint8) error {
-	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whitening)
+// Set GFSK related packet parameters, this assumes the packet type is already set to GFSK.
+// - payloadLength:  range of 0-255
+func (d *Device) SetPacketParamsGFSK(preambleLength GFSKPreambleLength, syncWordLength GFSKSyncWordLength, syncWordMatch GFSKSyncWordMatch, headerType GFSKHeaderType, payloadLength uint8, crcLength GFSKCrcType, whitening bool) error {
+	var whiteningVal uint8
+	if whitening {
+		whiteningVal = WHITENING_ENABLE
+	} else {
+		whiteningVal = WHITENING_DISABLE
+	}
+	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningVal)
 }
 
-func (d *Device) SetPacketParamsFLRC(preambleLength uint8, syncWordLength uint8, syncWordMatch uint8, headerType uint8, payloadLength uint8, crcLength uint8, whitening uint8) error {
-	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whitening)
+// Set FLRC related packet parameters, this assumes the packet type is already set to FLRC.
+// - payloadLength: range of 6-127
+func (d *Device) SetPacketParamsFLRC(preambleLength FLRCPreambleLength, syncWordLength FLRCSyncWordLength, syncWordMatch FLRCSyncWordMatch, headerType FLRCHeaderType, payloadLength uint8, crcLength FLRCCrcType) error {
+	if payloadLength < 6 {
+		return ErrPayloadLengthTooShort
+	}
+	if payloadLength > 127 {
+		return ErrPayloadLengthTooLong
+	}
+	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, WHITENING_DISABLE)
 }
 
-func (d *Device) SetPacketParamsBLE(connectionState uint8, crcLength uint8, bleTestPayload uint8, whitening uint8) error {
-	return d.SetPacketParams(connectionState, crcLength, bleTestPayload, whitening, 0, 0, 0)
+// Set BLE related packet parameters, this assumes the packet type is already set to BLE.
+func (d *Device) SetPacketParamsBLE(connectionState BLEConnectionState, crcLength BLECrcType, bleTestPayload BLETestPayload, whitening bool) error {
+	var whiteningVal uint8
+	if whitening {
+		whiteningVal = WHITENING_ENABLE
+	} else {
+		whiteningVal = WHITENING_DISABLE
+	}
+	return d.SetPacketParams(connectionState, crcLength, bleTestPayload, whiteningVal, 0, 0, 0)
 }
 
-func (d *Device) SetPacketParamsLoRa(preambleLength uint32, headerType uint8, payloadLength uint8, crcType uint8, iqType uint8) error {
+// Set LoRa related packet parameters, this assumes the packet type is already set to LoRa.
+// - payloadLength: range of 1-255
+func (d *Device) SetPacketParamsLoRa(preambleLength uint32, headerType LoRaHeaderType, payloadLength uint8, crcType LoRaCrcType, iqType LoRaIqType) error {
+	if payloadLength == 0 {
+		return ErrPayloadLengthTooShort
+	}
 	exponent, mantissa := getExponentAndMantissa(preambleLength)
 	return d.SetPacketParams(uint8(exponent<<4)|mantissa, headerType, payloadLength, crcType, iqType, 0, 0)
 }
@@ -558,6 +590,9 @@ func (d *Device) GetRxBufferStatus() (uint8, uint8, error) {
 	return d.spiRxBuf[2], d.spiRxBuf[3], nil
 }
 
+// The return type of this function depends on the packet type. Use mode specific function for typed returns.
+// BLE, GFSK & FLRC: unused, rssiSync, errors, status, sync
+// LoRa & Ranging: rssiSync, SNR
 func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -575,8 +610,67 @@ func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
 	return d.spiRxBuf[2], d.spiRxBuf[3], d.spiRxBuf[4], d.spiRxBuf[5], d.spiRxBuf[6], nil
 }
 
+// Get information about the most recent GFSK packet received or transmitted:
+// - RSSI of last received packet
+// - packet information (each bit represents a different error or status flag)
+// - whether the last packet transmission has ended
+// - the sync word that was used for the last packet reception (0-3)
+func (d *Device) GetPacketStatusGFSK() (float32, GFSKPacketInfo, bool, uint8, error) {
+	_, rssiSync, packetInfo, status, sync, err := d.GetPacketStatus()
+	if err != nil {
+		return 0, 0, false, 0, err
+	}
+	return float32(int8(rssiSync)) / 2 * -1, GFSKPacketInfo(packetInfo), status != 0, sync, nil
+}
+
+// Get information about the most recent BLE packet received or transmitted:
+// - RSSI of last received packet
+// - packet information (each bit represents a different error or status flag)
+// - whether the last packet transmission has ended
+// - the sync word that was used for the last packet reception (0-1)
+func (d *Device) GetPacketStatusBLE() (float32, BLEPacketInfo, bool, uint8, error) {
+	_, rssiSync, packetInfo, status, sync, err := d.GetPacketStatus()
+	if err != nil {
+		return 0, 0, false, 0, err
+	}
+	return float32(int8(rssiSync)) / 2 * -1, BLEPacketInfo(packetInfo), status != 0, sync, nil
+}
+
+// Get information about the most recent BLE packet received or transmitted:
+// - RSSI of last received packet
+// - packet information (each bit represents a different error or status flag)
+// - PID field of the received packet
+// - NO_ACK field of the received packet
+// - PID check status of the current packet
+// - whether the last packet transmission has ended
+// - the sync word that was used for the last packet reception (0-1)
+func (d *Device) GetPacketStatusFLRC() (float32, FLRCPacketInfo, uint8, bool, bool, bool, uint8, error) {
+	_, rawRSSI, packetInfo, rxTxInfo, sync, err := d.GetPacketStatus()
+
+	rxPid := (rxTxInfo & 0b11000000) >> 6
+	noAck := (rxTxInfo & 0b00100000) != 0
+	pidCheck := (rxTxInfo & 0b00010000) != 0
+	txDone := (rxTxInfo & 0b00000001) != 0
+
+	if err != nil {
+		return 0, 0, 0, false, false, false, 0, err
+	}
+	return float32(int8(rawRSSI)) / 2 * -1, FLRCPacketInfo(packetInfo), rxPid, noAck, pidCheck, txDone, sync, nil
+}
+
+// Get information about the most recent LoRa packet received:
+// - RSSI of last received packet
+// - signal-to-noise ratio (SNR) of last received packet
+func (d *Device) GetPacketStatusLoRa() (float32, float32, error) {
+	rawRSSI, rawSnr, _, _, _, err := d.GetPacketStatus()
+	if err != nil {
+		return 0, 0, err
+	}
+	return float32(int8(rawRSSI)) / 2 * -1, float32(int8(rawSnr)) / 4, nil
+}
+
 // Get the instantaneous RSSI value during reception of the packet
-func (d *Device) GetRssiInst() (int8, error) {
+func (d *Device) GetRssiInst() (float32, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
@@ -590,11 +684,11 @@ func (d *Device) GetRssiInst() (int8, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int8(d.spiRxBuf[2]/2) * -1, nil
+	return float32(int8(d.spiRxBuf[2])) / 2 * -1, nil
 }
 
 // Configure the overall IRQ mask and the mapping of individual IRQs to the DIO1, DIO2 and DIO3 pins
-func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint16, dio3Mask uint16) error {
+func (d *Device) SetDioIrqParams(irqMask IRQMask, dio1Mask IRQMask, dio2Mask IRQMask, dio3Mask IRQMask) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -611,7 +705,7 @@ func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint1
 }
 
 // Get the current IRQ status.
-func (d *Device) GetIrqStatus() (uint16, error) {
+func (d *Device) GetIrqStatus() (IRQMask, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
@@ -629,7 +723,7 @@ func (d *Device) GetIrqStatus() (uint16, error) {
 }
 
 // Clear the IRQ bits specified in the irqMask.
-func (d *Device) ClearIrqStatus(irqMask uint16) error {
+func (d *Device) ClearIrqStatus(irqMask IRQMask) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -644,8 +738,8 @@ func (d *Device) ClearIrqStatus(irqMask uint16) error {
 
 // Switch between the low-dropout regulator (LDO) and the DC-DC converter for internal power regulation.
 func (d *Device) SetRegulatorMode(mode RegulatorMode) error {
-	if mode != REGULATOR_LDO && mode != REGULATOR_DC_DC {
-		return errors.New("regulator mode must be 0 (LDO) or 1 (DC-DC)")
+	if mode > REGULATOR_DC_DC { // DC-DC is the highest regulator mode anything higher is invalid
+		return ErrInvalidRegulatorMode
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
