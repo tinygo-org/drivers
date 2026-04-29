@@ -48,6 +48,7 @@ func (d *Device) WaitWhileBusy(timeout time.Duration) error {
 	return nil
 }
 
+// Get tranceiver status, returns circuit mode and command status
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, 0, err
@@ -113,6 +114,7 @@ func (d *Device) WriteBuffer(offset uint8, data []byte) error {
 	return err
 }
 
+// Read data from the payload buffer starting at the given offset with the given length
 func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -133,7 +135,7 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 	return d.spiRxBuf[3:], nil
 }
 
-func (d *Device) SetSleep(sleepConfig uint8) error {
+// Set the device into sleep mode with the given configuration: 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)
 	if sleepConfig > 3 {
 		return errors.New("sleep config must be 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)")
 	}
@@ -149,7 +151,7 @@ func (d *Device) SetSleep(sleepConfig uint8) error {
 	return err
 }
 
-func (d *Device) SetStandby(standbyConfig uint8) error {
+// Put device into standby mode, 0 (RC) or 1 (XOSC)
 	if standbyConfig != STANDBY_RC && standbyConfig != STANDBY_XOSC {
 		return errors.New("standby config must be 0 (RC) or 1 (XOSC)")
 	}
@@ -165,6 +167,7 @@ func (d *Device) SetStandby(standbyConfig uint8) error {
 	return err
 }
 
+// Set the device into Frequency Synthesizer mode
 func (d *Device) SetFs() error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -185,7 +188,8 @@ func checkPeriodBase(periodBase uint8) error {
 	return nil
 }
 
-func (d *Device) SetTx(periodBase uint8, periodBaseCount uint16) error {
+// Sets the device in transmit mode, the IRQ status should be cleared before using this command
+// timout is determined by periodBase * periodBaseCount
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -202,7 +206,8 @@ func (d *Device) SetTx(periodBase uint8, periodBaseCount uint16) error {
 	return err
 }
 
-func (d *Device) SetRx(periodBase uint8, periodBaseCount uint16) error {
+// Sets the device in receive mode, the IRQ status should be cleared before using this command
+// timeout is determined by periodBase * periodBaseCount
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -219,7 +224,9 @@ func (d *Device) SetRx(periodBase uint8, periodBaseCount uint16) error {
 	return err
 }
 
-func (d *Device) SetRxDutyCycle(periodBase uint8, rxPeriodBaseCount uint16, sleepPeriodBaseCount uint16) error {
+// Sets the device in a continuous receive mode, it enters receive mode with a timeout of periodBase * rxPeriodBaseCount.
+// If no packet is received it will enter sleep mode for periodBase * sleepPeriodBaseCount before re-entering receive mode.
+// The loop is exited when a packet is received or the device is put into standby mode.
 	err := checkPeriodBase(periodBase)
 	if err != nil {
 		return err
@@ -237,6 +244,7 @@ func (d *Device) SetRxDutyCycle(periodBase uint8, rxPeriodBaseCount uint16, slee
 	return err
 }
 
+// Sets the transceiver into Long Preamble mode, and can only be used with either the LoRa mode and GFSK mode
 func (d *Device) SetLongPreamble(enable bool) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -255,6 +263,8 @@ func (d *Device) SetLongPreamble(enable bool) error {
 	return err
 }
 
+// Channel activity detection (CAD) is a LoRa specific mode of operation where the device searches for a LoRa signal.
+// After search has completed, the device returns to STDBY_RC mode. The length of the search is configured via the SetCadParams() command.
 func (d *Device) SetCAD() error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -268,6 +278,8 @@ func (d *Device) SetCAD() error {
 	return err
 }
 
+// Test command to generate a Continuous Wave (RF tone) at a selected frequency and output power
+// The device remains in Tx Continuous Wave until the host sends a mode configuration command.
 func (d *Device) SetTxContinuousWave() error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -281,6 +293,8 @@ func (d *Device) SetTxContinuousWave() error {
 	return err
 }
 
+// Test command to generate an infinite sequence of alternating ‘0’s and ‘1’s in
+// GFSK modulation and symbol 0 in LoRa. The device remains in transmit until the host sends a mode configuration command.
 func (d *Device) SetTxContinuousPreamble() error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -294,6 +308,8 @@ func (d *Device) SetTxContinuousPreamble() error {
 	return err
 }
 
+// This command allows the transceiver to send a packet at a user programmable time after the end of a packet reception.
+// This is useful for Bluetooth Low Energy (BLE) compatibility which requires the transceiver to be able to send back a response 150µs after a packet reception.
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -306,6 +322,8 @@ func (d *Device) SetTxContinuousPreamble() error {
 	return err
 }
 
+// Modifies the chip behavior so that the state following a Rx or Tx operation is FS and not standby.
+// This allows for faster transitions between Rx and/or Tx.
 func (d *Device) SetAutoFs(enable bool) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -324,6 +342,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	return err
 }
 
+// Choose between GFSK, LoRa, Ranging, FLRC or BLE packet types, this will affect the available configuration parameters and the structure of the packet
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
@@ -336,6 +355,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	return err
 }
 
+// Get the currently configured packet type, this will be 0 (GFSK), 1 (LoRa), 2 (Ranging), 3 (FLRC) or 4 (BLE)
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
@@ -352,8 +372,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	return d.spiRxBuf[2], nil
 }
 
-func (d *Device) SetRfFrequency(frequency uint32) error {
-	if frequency < 2400000000 {
+// Set the RF frequency in Hz, must be between 2.4 GHz and 2.5 GHz
 		return errors.New("frequency must be greater than or equal to 2.4 GHz")
 	}
 	if frequency > 2500000000 {
@@ -372,7 +391,7 @@ func (d *Device) SetRfFrequency(frequency uint32) error {
 	return err
 }
 
-func (d *Device) SetTxParams(powerdBm int8, rampTime uint8) error {
+// Set the output power in dBm, must be between -18 and 13 dBm, and the ramp time
 	if powerdBm < -18 {
 		return errors.New("power in dBm must be greater than or equal to -18")
 	}
@@ -393,6 +412,8 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime uint8) error {
 	return err
 }
 
+// Set the number of symbols used for channel activity detection which determines the sensitivity of the detection.
+// This is only applicable in LoRa mode.
 func (d *Device) SetCadParams(cadSymbolNum uint8) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -406,6 +427,8 @@ func (d *Device) SetCadParams(cadSymbolNum uint8) error {
 	return err
 }
 
+// Set the base address for the internal buffer for Tx and Rx operations.
+// When transmitting or receiving data is read from or written to the buffer starting at the given offset.
 func (d *Device) SetBufferBaseAddress(txBase uint8, rxBase uint8) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -504,7 +527,8 @@ func getExponentAndMantissa(value uint32) (uint8, uint8) {
 	return e, m
 }
 
-// RxBufferStatus: payloadLength, bufferStartPointer
+// Get information about the most recent packet received.
+// Return the payload length, the offset in the buffer where the payload starts.
 func (d *Device) GetRxBufferStatus() (uint8, uint8, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -539,6 +563,7 @@ func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
 	return d.spiRxBuf[2], d.spiRxBuf[3], d.spiRxBuf[4], d.spiRxBuf[5], d.spiRxBuf[6], nil
 }
 
+// Get the instantaneous RSSI value during reception of the packet
 func (d *Device) GetRssiInst() (int8, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -556,6 +581,7 @@ func (d *Device) GetRssiInst() (int8, error) {
 	return int8(d.spiRxBuf[2]/2) * -1, nil
 }
 
+// Configure the overall IRQ mask and the mapping of individual IRQs to the DIO1, DIO2 and DIO3 pins
 func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint16, dio3Mask uint16) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -572,6 +598,7 @@ func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint1
 	return err
 }
 
+// Get the current IRQ status.
 func (d *Device) GetIrqStatus() (uint16, error) {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -589,6 +616,7 @@ func (d *Device) GetIrqStatus() (uint16, error) {
 	return uint16(d.spiRxBuf[2])<<8 | uint16(d.spiRxBuf[3]), err
 }
 
+// Clear the IRQ bits specified in the irqMask.
 func (d *Device) ClearIrqStatus(irqMask uint16) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -602,7 +630,7 @@ func (d *Device) ClearIrqStatus(irqMask uint16) error {
 	return err
 }
 
-func (d *Device) SetRegulatorMode(mode uint8) error {
+// Switch between the low-dropout regulator (LDO) and the DC-DC converter for internal power regulation.
 	if mode != REGULATOR_LDO && mode != REGULATOR_DC_DC {
 		return errors.New("regulator mode must be 0 (LDO) or 1 (DC-DC)")
 	}
@@ -618,6 +646,7 @@ func (d *Device) SetRegulatorMode(mode uint8) error {
 	return err
 }
 
+// Stores the present context of the radio register values to the Data RAM which will be restored when the device wakes up from sleep mode.
 func (d *Device) SetSaveContext() error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
