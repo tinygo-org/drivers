@@ -36,21 +36,19 @@ func (d *Device) Reset() {
 	time.Sleep(10 * time.Millisecond)
 }
 
-func (d *Device) WaitWhileBusy() error {
+func (d *Device) WaitWhileBusy(timeout time.Duration) error {
 	// largest busy period is on boot with around ~400ish this should be more than enough
-	retries := 1000
-	for retries > 0 && d.busyPin.Get() {
+	now := time.Now()
+	for d.busyPin.Get() {
+		if time.Since(now) > timeout {
+			return errors.New("busy pin timeout")
+		}
 		runtime.Gosched()
-		retries--
-	}
-	if retries == 0 {
-		return errors.New("busy pin timeout")
 	}
 	return nil
 }
 
-func (d *Device) GetStatus() (uint8, uint8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -68,7 +66,7 @@ func (d *Device) GetStatus() (uint8, uint8, error) {
 }
 
 func (d *Device) WriteRegister(addr uint16, data []byte) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -82,7 +80,7 @@ func (d *Device) WriteRegister(addr uint16, data []byte) error {
 }
 
 func (d *Device) ReadRegister(addr uint16) (uint8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
 	}
@@ -102,7 +100,7 @@ func (d *Device) WriteBuffer(offset uint8, data []byte) error {
 	if len(data) > 255 {
 		return errors.New("length of data over max length of 255")
 	}
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -116,7 +114,7 @@ func (d *Device) WriteBuffer(offset uint8, data []byte) error {
 }
 
 func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +137,7 @@ func (d *Device) SetSleep(sleepConfig uint8) error {
 	if sleepConfig > 3 {
 		return errors.New("sleep config must be 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)")
 	}
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -155,7 +153,7 @@ func (d *Device) SetStandby(standbyConfig uint8) error {
 	if standbyConfig != STANDBY_RC && standbyConfig != STANDBY_XOSC {
 		return errors.New("standby config must be 0 (RC) or 1 (XOSC)")
 	}
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -168,7 +166,7 @@ func (d *Device) SetStandby(standbyConfig uint8) error {
 }
 
 func (d *Device) SetFs() error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -192,7 +190,7 @@ func (d *Device) SetTx(periodBase uint8, periodBaseCount uint16) error {
 	if err != nil {
 		return err
 	}
-	err = d.WaitWhileBusy()
+	err = d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -209,7 +207,7 @@ func (d *Device) SetRx(periodBase uint8, periodBaseCount uint16) error {
 	if err != nil {
 		return err
 	}
-	err = d.WaitWhileBusy()
+	err = d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -226,7 +224,7 @@ func (d *Device) SetRxDutyCycle(periodBase uint8, rxPeriodBaseCount uint16, slee
 	if err != nil {
 		return err
 	}
-	err = d.WaitWhileBusy()
+	err = d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -240,7 +238,7 @@ func (d *Device) SetRxDutyCycle(periodBase uint8, rxPeriodBaseCount uint16, slee
 }
 
 func (d *Device) SetLongPreamble(enable bool) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -258,7 +256,7 @@ func (d *Device) SetLongPreamble(enable bool) error {
 }
 
 func (d *Device) SetCAD() error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -271,7 +269,7 @@ func (d *Device) SetCAD() error {
 }
 
 func (d *Device) SetTxContinuousWave() error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -284,7 +282,7 @@ func (d *Device) SetTxContinuousWave() error {
 }
 
 func (d *Device) SetTxContinuousPreamble() error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -296,8 +294,7 @@ func (d *Device) SetTxContinuousPreamble() error {
 	return err
 }
 
-func (d *Device) SetAutoTx(time uint16) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -310,7 +307,7 @@ func (d *Device) SetAutoTx(time uint16) error {
 }
 
 func (d *Device) SetAutoFs(enable bool) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -327,8 +324,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	return err
 }
 
-func (d *Device) SetPacketType(packetType uint8) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -340,8 +336,7 @@ func (d *Device) SetPacketType(packetType uint8) error {
 	return err
 }
 
-func (d *Device) GetPacketType() (uint8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
 	}
@@ -364,7 +359,7 @@ func (d *Device) SetRfFrequency(frequency uint32) error {
 	if frequency > 2500000000 {
 		return errors.New("frequency must be less than or equal to 2.5 GHz")
 	}
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -385,7 +380,7 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime uint8) error {
 		return errors.New("power in dBm must be less than or equal to 13")
 	}
 
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -399,7 +394,7 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime uint8) error {
 }
 
 func (d *Device) SetCadParams(cadSymbolNum uint8) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -412,7 +407,7 @@ func (d *Device) SetCadParams(cadSymbolNum uint8) error {
 }
 
 func (d *Device) SetBufferBaseAddress(txBase uint8, rxBase uint8) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -428,7 +423,7 @@ func (d *Device) SetBufferBaseAddress(txBase uint8, rxBase uint8) error {
 // FLRC: BitrateBandwidth, CodingRate, ModulationShaping
 // LoRa & Ranging: SpreadingFactor, Bandwidth, CodingRate
 func (d *Device) SetModulationParams(modParam1, modParam2, modParam3 uint8) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -460,7 +455,7 @@ func (d *Device) SetModulationParamsLoRa(spreadingFactor uint8, bandwidth uint8,
 // BLE: ConnectionState, CrcLength, BleTestPayload, Whitening
 // LoRa & Ranging: PreambleLength, HeaderType, PayloadLength, CRC, InvertIQ/chirp invert
 func (d *Device) SetPacketParams(param1, param2, param3, param4, param5, param6, param7 uint8) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -511,7 +506,7 @@ func getExponentAndMantissa(value uint32) (uint8, uint8) {
 
 // RxBufferStatus: payloadLength, bufferStartPointer
 func (d *Device) GetRxBufferStatus() (uint8, uint8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -528,7 +523,7 @@ func (d *Device) GetRxBufferStatus() (uint8, uint8, error) {
 }
 
 func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, 0, 0, 0, 0, err
 	}
@@ -545,7 +540,7 @@ func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
 }
 
 func (d *Device) GetRssiInst() (int8, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
 	}
@@ -562,7 +557,7 @@ func (d *Device) GetRssiInst() (int8, error) {
 }
 
 func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint16, dio3Mask uint16) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -578,7 +573,7 @@ func (d *Device) SetDioIrqParams(irqMask uint16, dio1Mask uint16, dio2Mask uint1
 }
 
 func (d *Device) GetIrqStatus() (uint16, error) {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return 0, err
 	}
@@ -595,7 +590,7 @@ func (d *Device) GetIrqStatus() (uint16, error) {
 }
 
 func (d *Device) ClearIrqStatus(irqMask uint16) error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -611,7 +606,7 @@ func (d *Device) SetRegulatorMode(mode uint8) error {
 	if mode != REGULATOR_LDO && mode != REGULATOR_DC_DC {
 		return errors.New("regulator mode must be 0 (LDO) or 1 (DC-DC)")
 	}
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
@@ -624,7 +619,7 @@ func (d *Device) SetRegulatorMode(mode uint8) error {
 }
 
 func (d *Device) SetSaveContext() error {
-	err := d.WaitWhileBusy()
+	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
