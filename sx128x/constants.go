@@ -8,9 +8,9 @@ type RadioRampTime = uint8
 type CadSymbolNum = uint8
 
 // GFSK Modulation Params
-type GFSKBitrateBandwidth = uint8
-type GFSKModulationIndex = uint8
-type GFSKModulationShaping = uint8
+type GFSKBLEBitrateBandwidth = uint8
+type ModulationIndex = uint8
+type ModulationShaping = uint8
 
 // GFSK Packet Params
 type GFSKPreambleLength = uint8
@@ -18,11 +18,6 @@ type GFSKSyncWordLength = uint8
 type GFSKSyncWordMatch = uint8
 type GFSKHeaderType = uint8
 type GFSKCrcType = uint8
-
-// BLE Modulation Params
-type BLEBitrateBandwidth = uint8
-type BLEModulationIndex = uint8
-type BLEModulationShaping = uint8
 
 // BLE Packet Params
 type BLEConnectionState = uint8
@@ -32,7 +27,6 @@ type BLETestPayload = uint8
 // FLRC Modulation Params
 type FLRCBitrateBandwidth = uint8
 type FLRCCodingRate = uint8
-type FLRCModulationShaping = uint8
 
 // FLRC Packet Params
 type FLRCPreambleLength = uint8
@@ -53,9 +47,7 @@ type LoRaIqType = uint8
 
 // Misc
 type RegulatorMode = uint8
-
 type IRQMask = uint16
-
 type CircuitMode = uint8
 type CommandStatus = uint8
 
@@ -99,8 +91,6 @@ const (
 	PERIOD_BASE_1_MS      = PeriodBase(2)
 	PERIOD_BASE_4_MS      = PeriodBase(3)
 
-	RX_CONTINUOUS_MODE = uint16(0xFFFF)
-
 	// PacketType
 	PACKET_TYPE_GFSK    = PacketType(0x00) // default
 	PACKET_TYPE_LORA    = PacketType(0x01)
@@ -126,43 +116,43 @@ const (
 	LORA_CAD_16_SYMBOLS = CadSymbolNum(0x80)
 
 	// GFSK Modulation Params
-	// Bitrate + Bandwidth
-	GFSK_BR_2_000_BW_2_4 = GFSKBitrateBandwidth(0x04)
-	GFSK_BR_1_600_BW_2_4 = GFSKBitrateBandwidth(0x28)
-	GFSK_BR_1_000_BW_2_4 = GFSKBitrateBandwidth(0x4C)
-	GFSK_BR_1_000_BW_1_2 = GFSKBitrateBandwidth(0x45)
-	GFSK_BR_0_800_BW_2_4 = GFSKBitrateBandwidth(0x70)
-	GFSK_BR_0_800_BW_1_2 = GFSKBitrateBandwidth(0x69)
-	GFSK_BR_0_500_BW_1_2 = GFSKBitrateBandwidth(0x8D)
-	GFSK_BR_0_500_BW_0_6 = GFSKBitrateBandwidth(0x86)
-	GFSK_BR_0_400_BW_1_2 = GFSKBitrateBandwidth(0xB1)
-	GFSK_BR_0_400_BW_0_6 = GFSKBitrateBandwidth(0xAA)
-	GFSK_BR_0_250_BW_0_6 = GFSKBitrateBandwidth(0xCE)
-	GFSK_BR_0_250_BW_0_3 = GFSKBitrateBandwidth(0xC7)
-	GFSK_BR_0_125_BW_0_3 = GFSKBitrateBandwidth(0xEF)
+	// Bitrate + Bandwidth - same for BLE
+	GFSK_BLE_BR_2_000_BW_2_4 = GFSKBLEBitrateBandwidth(0x04)
+	GFSK_BLE_BR_1_600_BW_2_4 = GFSKBLEBitrateBandwidth(0x28)
+	GFSK_BLE_BR_1_000_BW_2_4 = GFSKBLEBitrateBandwidth(0x4C)
+	GFSK_BLE_BR_1_000_BW_1_2 = GFSKBLEBitrateBandwidth(0x45)
+	GFSK_BLE_BR_0_800_BW_2_4 = GFSKBLEBitrateBandwidth(0x70)
+	GFSK_BLE_BR_0_800_BW_1_2 = GFSKBLEBitrateBandwidth(0x69)
+	GFSK_BLE_BR_0_500_BW_1_2 = GFSKBLEBitrateBandwidth(0x8D)
+	GFSK_BLE_BR_0_500_BW_0_6 = GFSKBLEBitrateBandwidth(0x86)
+	GFSK_BLE_BR_0_400_BW_1_2 = GFSKBLEBitrateBandwidth(0xB1)
+	GFSK_BLE_BR_0_400_BW_0_6 = GFSKBLEBitrateBandwidth(0xAA)
+	GFSK_BLE_BR_0_250_BW_0_6 = GFSKBLEBitrateBandwidth(0xCE)
+	GFSK_BLE_BR_0_250_BW_0_3 = GFSKBLEBitrateBandwidth(0xC7)
+	GFSK_BLE_BR_0_125_BW_0_3 = GFSKBLEBitrateBandwidth(0xEF)
 
-	// Modulation Index
-	GFS_MOD_IND_0_35 = GFSKModulationIndex(0x00)
-	GFS_MOD_IND_0_5  = GFSKModulationIndex(0x01)
-	GFS_MOD_IND_0_75 = GFSKModulationIndex(0x02)
-	GFS_MOD_IND_1_00 = GFSKModulationIndex(0x03)
-	GFS_MOD_IND_1_25 = GFSKModulationIndex(0x04)
-	GFS_MOD_IND_1_50 = GFSKModulationIndex(0x05)
-	GFS_MOD_IND_1_75 = GFSKModulationIndex(0x06)
-	GFS_MOD_IND_2_00 = GFSKModulationIndex(0x07)
-	GFS_MOD_IND_2_25 = GFSKModulationIndex(0x08)
-	GFS_MOD_IND_2_50 = GFSKModulationIndex(0x09)
-	GFS_MOD_IND_2_75 = GFSKModulationIndex(0x0A)
-	GFS_MOD_IND_3_00 = GFSKModulationIndex(0x0B)
-	GFS_MOD_IND_3_25 = GFSKModulationIndex(0x0C)
-	GFS_MOD_IND_3_50 = GFSKModulationIndex(0x0D)
-	GFS_MOD_IND_3_75 = GFSKModulationIndex(0x0E)
-	GFS_MOD_IND_4_00 = GFSKModulationIndex(0x0F)
+	// Modulation Index - same for BLE
+	MOD_IND_0_35 = ModulationIndex(0x00)
+	MOD_IND_0_5  = ModulationIndex(0x01)
+	MOD_IND_0_75 = ModulationIndex(0x02)
+	MOD_IND_1_00 = ModulationIndex(0x03)
+	MOD_IND_1_25 = ModulationIndex(0x04)
+	MOD_IND_1_50 = ModulationIndex(0x05)
+	MOD_IND_1_75 = ModulationIndex(0x06)
+	MOD_IND_2_00 = ModulationIndex(0x07)
+	MOD_IND_2_25 = ModulationIndex(0x08)
+	MOD_IND_2_50 = ModulationIndex(0x09)
+	MOD_IND_2_75 = ModulationIndex(0x0A)
+	MOD_IND_3_00 = ModulationIndex(0x0B)
+	MOD_IND_3_25 = ModulationIndex(0x0C)
+	MOD_IND_3_50 = ModulationIndex(0x0D)
+	MOD_IND_3_75 = ModulationIndex(0x0E)
+	MOD_IND_4_00 = ModulationIndex(0x0F)
 
-	// GFSK Modulation Shaping
-	GFSK_MOD_SHAPING_OFF = GFSKModulationShaping(0x00)
-	GFSK_MOD_SHAPING_1_0 = GFSKModulationShaping(0x10)
-	GFSK_MOD_SHAPING_0_5 = GFSKModulationShaping(0x20)
+	// Modulation Shaping - same for BLE and FLRC
+	MOD_SHAPING_OFF = ModulationShaping(0x00)
+	MOD_SHAPING_1_0 = ModulationShaping(0x10)
+	MOD_SHAPING_0_5 = ModulationShaping(0x20)
 
 	// GFSK Packet Params
 	// Preamble Length
@@ -201,45 +191,6 @@ const (
 	GFSK_CRC_1_BYTE  = GFSKCrcType(0x10)
 	GFSK_CRC_2_BYTES = GFSKCrcType(0x20)
 
-	// BLE Modulation Params
-	// Bitrate + Bandwidth
-	BLE_BR_2_000_BW_2_4 = BLEBitrateBandwidth(0x04)
-	BLE_BR_1_600_BW_2_4 = BLEBitrateBandwidth(0x28)
-	BLE_BR_1_000_BW_2_4 = BLEBitrateBandwidth(0x4C)
-	BLE_BR_1_000_BW_1_2 = BLEBitrateBandwidth(0x45)
-	BLE_BR_0_800_BW_2_4 = BLEBitrateBandwidth(0x70)
-	BLE_BR_0_800_BW_1_2 = BLEBitrateBandwidth(0x69)
-	BLE_BR_0_500_BW_1_2 = BLEBitrateBandwidth(0x8D)
-	BLE_BR_0_500_BW_0_6 = BLEBitrateBandwidth(0x86)
-	BLE_BR_0_400_BW_1_2 = BLEBitrateBandwidth(0xB1)
-	BLE_BR_0_400_BW_0_6 = BLEBitrateBandwidth(0xAA)
-	BLE_BR_0_250_BW_0_6 = BLEBitrateBandwidth(0xCE)
-	BLE_BR_0_250_BW_0_3 = BLEBitrateBandwidth(0xC7)
-	BLE_BR_0_125_BW_0_3 = BLEBitrateBandwidth(0xEF)
-
-	// Modulation Index
-	BLE_MOD_IND_0_35 = BLEModulationIndex(0x00)
-	BLE_MOD_IND_0_5  = BLEModulationIndex(0x01)
-	BLE_MOD_IND_0_75 = BLEModulationIndex(0x02)
-	BLE_MOD_IND_1    = BLEModulationIndex(0x03)
-	BLE_MOD_IND_1_25 = BLEModulationIndex(0x04)
-	BLE_MOD_IND_1_5  = BLEModulationIndex(0x05)
-	BLE_MOD_IND_1_75 = BLEModulationIndex(0x06)
-	BLE_MOD_IND_2    = BLEModulationIndex(0x07)
-	BLE_MOD_IND_2_25 = BLEModulationIndex(0x08)
-	BLE_MOD_IND_2_5  = BLEModulationIndex(0x09)
-	BLE_MOD_IND_2_75 = BLEModulationIndex(0x0A)
-	BLE_MOD_IND_3    = BLEModulationIndex(0x0B)
-	BLE_MOD_IND_3_25 = BLEModulationIndex(0x0C)
-	BLE_MOD_IND_3_5  = BLEModulationIndex(0x0D)
-	BLE_MOD_IND_3_75 = BLEModulationIndex(0x0E)
-	BLE_MOD_IND_4    = BLEModulationIndex(0x0F)
-
-	// Modulation Shaping
-	BLE_MOD_SHAPING_OFF = BLEModulationShaping(0x00)
-	BLE_MOD_SHAPING_1_0 = BLEModulationShaping(0x10)
-	BLE_MOD_SHAPING_0_5 = BLEModulationShaping(0x20)
-
 	// BLE Packet Params
 	// Connection State
 	BLE_MASTER_SLAVE   = BLEConnectionState(0x00)
@@ -275,11 +226,6 @@ const (
 	FLRC_CR_1_2 = FLRCCodingRate(0x00) // 1/2
 	FLRC_CR_3_4 = FLRCCodingRate(0x02) // 3/4
 	FLRC_CR_1_0 = FLRCCodingRate(0x04) // 1
-
-	// Modulation Shaping
-	FLRC_MOD_SHAPING_OFF = FLRCModulationShaping(0x00)
-	FLRC_MOD_SHAPING_1_0 = FLRCModulationShaping(0x10) // 1
-	FLRC_MOD_SHAPING_0_5 = FLRCModulationShaping(0x20) // 0.5
 
 	// FLRC Packet Params
 	// Preamble Length

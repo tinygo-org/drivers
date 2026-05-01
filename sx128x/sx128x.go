@@ -473,15 +473,15 @@ func (d *Device) SetModulationParams(modParam1, modParam2, modParam3 uint8) erro
 	return err
 }
 
-func (d *Device) SetModulationParamsBLE(bitrateBandwidth BLEBitrateBandwidth, modulationIndex BLEModulationIndex, modulationShaping BLEModulationShaping) error {
+func (d *Device) SetModulationParamsBLE(bitrateBandwidth GFSKBLEBitrateBandwidth, modulationIndex ModulationIndex, modulationShaping ModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsGFSK(bitrateBandwidth GFSKBitrateBandwidth, modulationIndex GFSKModulationIndex, modulationShaping GFSKModulationShaping) error {
+func (d *Device) SetModulationParamsGFSK(bitrateBandwidth GFSKBLEBitrateBandwidth, modulationIndex ModulationIndex, modulationShaping ModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
 }
 
-func (d *Device) SetModulationParamsFLRC(bitrateBandwidth FLRCBitrateBandwidth, codingRate FLRCCodingRate, modulationShaping FLRCModulationShaping) error {
+func (d *Device) SetModulationParamsFLRC(bitrateBandwidth FLRCBitrateBandwidth, codingRate FLRCCodingRate, modulationShaping ModulationShaping) error {
 	return d.SetModulationParams(bitrateBandwidth, codingRate, modulationShaping)
 }
 
