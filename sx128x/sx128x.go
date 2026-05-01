@@ -99,7 +99,7 @@ func (d *Device) ReadRegister(addr uint16) (uint8, error) {
 
 func (d *Device) WriteBuffer(offset uint8, data []byte) error {
 	if len(data) > 256 {
-		return ErrDataTooLong
+		return errDataTooLong
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -138,7 +138,7 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 // Set the device into sleep mode with the given configuration: 0 (no retention), 1 (ram retentation), 2 (buffer retention) or 3 (ram and buffer retention)
 func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 	if sleepConfig > (SLEEP_DATA_BUFFER_RETAIN | SLEEP_DATA_RAM_RETAIN) {
-		return ErrInvalidSleepConfig
+		return errInvalidSleepConfig
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -155,7 +155,7 @@ func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 // Put device into standby mode, 0 (RC) or 1 (XOSC)
 func (d *Device) SetStandby(standbyConfig StandbyConfig) error {
 	if standbyConfig > STANDBY_XOSC { // XOSC is the highest standby config anything higher is invalid
-		return ErrInvalidStandbyConfig
+		return errInvalidStandbyConfig
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -185,7 +185,7 @@ func (d *Device) SetFs() error {
 
 func checkPeriodBase(periodBase PeriodBase) error {
 	if periodBase > PERIOD_BASE_4_MS { // 4ms is the highest period base anything higher is invalid
-		return ErrInvalidPeriodBase
+		return errInvalidPeriodBase
 	}
 	return nil
 }
@@ -351,7 +351,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 // Choose between GFSK, LoRa, Ranging, FLRC or BLE packet types, this will affect the available configuration parameters and the structure of the packet
 func (d *Device) SetPacketType(packetType PacketType) error {
 	if packetType > PACKET_TYPE_BLE { // BLE is the highest packet type anything higher is invalid.
-		return ErrInvalidPacketType
+		return errInvalidPacketType
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -386,10 +386,10 @@ func (d *Device) GetPacketType() (PacketType, error) {
 // Set the RF frequency in Hz, must be between 2.4 GHz and 2.5 GHz
 func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 	if frequencyHz < 2400000000 {
-		return ErrFrequencyTooLow
+		return errFrequencyTooLow
 	}
 	if frequencyHz > 2500000000 {
-		return ErrFrequencyTooHigh
+		return errFrequencyTooHigh
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
@@ -407,10 +407,10 @@ func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 // Set the output power in dBm, must be between -18 and 13 dBm, and the ramp time
 func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 	if powerdBm < -18 {
-		return ErrPowerTooLow
+		return errPowerTooLow
 	}
 	if powerdBm > 13 {
-		return ErrPowerTooHigh
+		return errPowerTooHigh
 	}
 
 	err := d.WaitWhileBusy(time.Second)
@@ -522,10 +522,10 @@ func (d *Device) SetPacketParamsGFSK(preambleLength GFSKPreambleLength, syncWord
 // - payloadLength: range of 6-127
 func (d *Device) SetPacketParamsFLRC(preambleLength FLRCPreambleLength, syncWordLength FLRCSyncWordLength, syncWordMatch FLRCSyncWordMatch, headerType FLRCHeaderType, payloadLength uint8, crcLength FLRCCrcType) error {
 	if payloadLength < 6 {
-		return ErrPayloadLengthTooShort
+		return errPayloadLengthTooShort
 	}
 	if payloadLength > 127 {
-		return ErrPayloadLengthTooLong
+		return errPayloadLengthTooLong
 	}
 	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningDisable)
 }
@@ -545,7 +545,7 @@ func (d *Device) SetPacketParamsBLE(connectionState BLEConnectionState, crcLengt
 // - payloadLength: range of 1-255
 func (d *Device) SetPacketParamsLoRa(preambleLength uint32, headerType LoRaHeaderType, payloadLength uint8, crcType LoRaCrcType, iqType LoRaIqType) error {
 	if payloadLength == 0 {
-		return ErrPayloadLengthTooShort
+		return errPayloadLengthTooShort
 	}
 	exponent, mantissa := getExponentAndMantissa(preambleLength)
 	return d.SetPacketParams(uint8(exponent<<4)|mantissa, headerType, payloadLength, crcType, iqType, 0, 0)
@@ -739,7 +739,7 @@ func (d *Device) ClearIrqStatus(irqMask IRQMask) error {
 // Switch between the low-dropout regulator (LDO) and the DC-DC converter for internal power regulation.
 func (d *Device) SetRegulatorMode(mode RegulatorMode) error {
 	if mode > REGULATOR_DC_DC { // DC-DC is the highest regulator mode anything higher is invalid
-		return ErrInvalidRegulatorMode
+		return errInvalidRegulatorMode
 	}
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
