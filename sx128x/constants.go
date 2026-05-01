@@ -65,11 +65,11 @@ type BLEPacketInfo = uint8
 type FLRCPacketInfo = uint8
 
 const (
-	WHITENING_DISABLE = 0x00
-	WHITENING_ENABLE  = 0x08
+	whiteningDisable = 0x00
+	whiteningEnable  = 0x08
 
 	// Circuit Mode
-	CIRCUIT_MODE_MASK       = uint8(0b11100000)
+	circuitModeMask         = uint8(0b11100000)
 	CIRCUIT_MODE_STDBY_RC   = CircuitMode(0x2)
 	CIRCUIT_MODE_STDBY_XOSC = CircuitMode(0x3)
 	CIRCUIT_MODE_FS         = CircuitMode(0x4)
@@ -77,7 +77,7 @@ const (
 	CIRCUIT_MODE_TX         = CircuitMode(0x6)
 
 	// Command Status
-	COMMAND_STATUS_MASK             = uint8(0b00011100)
+	commandStatusMask               = uint8(0b00011100)
 	COMMAND_STATUS_SUCCESS          = CommandStatus(0x1)
 	COMMAND_STATUS_DATA_AVAILABLE   = CommandStatus(0x2)
 	COMMAND_STATUS_TIMEOUT          = CommandStatus(0x3)

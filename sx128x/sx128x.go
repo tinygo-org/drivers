@@ -54,15 +54,15 @@ func (d *Device) GetStatus() (CircuitMode, CommandStatus, error) {
 		return 0, 0, err
 	}
 	d.nssPin.Set(false)
-	status, err := d.spi.Transfer(CMD_GET_STATUS)
+	status, err := d.spi.Transfer(cmdGetStatus)
 	d.nssPin.Set(true)
 
 	if err != nil {
 		return 0, 0, err
 	}
 
-	circuitMode := (status & CIRCUIT_MODE_MASK) >> 5
-	commandStatus := (status & COMMAND_STATUS_MASK) >> 2
+	circuitMode := (status & circuitModeMask) >> 5
+	commandStatus := (status & commandStatusMask) >> 2
 	return circuitMode, commandStatus, nil
 }
 
@@ -73,7 +73,7 @@ func (d *Device) WriteRegister(addr uint16, data []byte) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_WRITE_REGISTER, uint8((addr>>8)&0xFF), uint8(addr&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdWriteRegister, uint8((addr>>8)&0xFF), uint8(addr&0xFF))
 	d.spiTxBuf = append(d.spiTxBuf, data...)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -87,7 +87,7 @@ func (d *Device) ReadRegister(addr uint16) (uint8, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_READ_REGISTER, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF), 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdReadRegister, uint8((addr&0xFF00)>>8), uint8(addr&0x00FF), 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:5]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -107,7 +107,7 @@ func (d *Device) WriteBuffer(offset uint8, data []byte) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_WRITE_BUFFER, offset)
+	d.spiTxBuf = append(d.spiTxBuf, cmdWriteBuffer, offset)
 	d.spiTxBuf = append(d.spiTxBuf, data...)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -122,7 +122,7 @@ func (d *Device) ReadBuffer(offset uint8, length uint8) ([]byte, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_READ_BUFFER, offset, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdReadBuffer, offset, 0x00)
 	for i := uint8(0); i < length; i++ {
 		d.spiTxBuf = append(d.spiTxBuf, 0x00)
 	}
@@ -146,7 +146,7 @@ func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_SLEEP, sleepConfig)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetSleep, sleepConfig)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -163,7 +163,7 @@ func (d *Device) SetStandby(standbyConfig StandbyConfig) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_STANDBY, standbyConfig)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetStandby, standbyConfig)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -177,7 +177,7 @@ func (d *Device) SetFs() error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_FS)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetFS)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -203,7 +203,7 @@ func (d *Device) SetTx(periodBase PeriodBase, periodBaseCount uint16) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_TX, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetTx, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -222,7 +222,7 @@ func (d *Device) SetRx(periodBase PeriodBase, periodBaseCount uint16) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RX, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRx, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -242,7 +242,7 @@ func (d *Device) SetRxDutyCycle(periodBase PeriodBase, rxPeriodBaseCount uint16,
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RX_DUTY_CYCLE, periodBase, uint8((rxPeriodBaseCount&0xFF00)>>8), uint8(rxPeriodBaseCount&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRxDutyCycle, periodBase, uint8((rxPeriodBaseCount&0xFF00)>>8), uint8(rxPeriodBaseCount&0x00FF))
 	d.spiTxBuf = append(d.spiTxBuf, uint8((sleepPeriodBaseCount&0xFF00)>>8), uint8(sleepPeriodBaseCount&0x00FF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -257,7 +257,7 @@ func (d *Device) SetLongPreamble(enable bool) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_LONG_PREAMBLE)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetLongPreamble)
 	if enable {
 		d.spiTxBuf = append(d.spiTxBuf, 1)
 	} else {
@@ -277,7 +277,7 @@ func (d *Device) SetCAD() error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_CAD)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetCAD)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -292,7 +292,7 @@ func (d *Device) SetTxContinuousWave() error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_TX_CONTINUOUS_WAVE)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetTxContinuousWave)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -307,7 +307,7 @@ func (d *Device) SetTxContinuousPreamble() error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_TX_CONTINUOUS_PREAMBLE)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetContinuousPreamble)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -322,7 +322,7 @@ func (d *Device) SetAutoTx(timeUs uint16) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_AUTO_TX, uint8((timeUs&0xFF00)>>8), uint8(timeUs&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetAutoTx, uint8((timeUs&0xFF00)>>8), uint8(timeUs&0x00FF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -337,7 +337,7 @@ func (d *Device) SetAutoFs(enable bool) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_AUTO_FS)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetAutoFS)
 	if enable {
 		d.spiTxBuf = append(d.spiTxBuf, 1)
 	} else {
@@ -359,7 +359,7 @@ func (d *Device) SetPacketType(packetType PacketType) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_PACKET_TYPE, packetType)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetPacketType, packetType)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -373,7 +373,7 @@ func (d *Device) GetPacketType() (PacketType, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_GET_PACKET_TYPE, 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdGetPacketType, 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:3]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -398,7 +398,7 @@ func (d *Device) SetRfFrequency(frequencyHz uint32) error {
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
 	rfFrequency := uint32((uint64(frequencyHz) << 18) / 52000000)
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_RF_FREQUENCY, uint8((rfFrequency>>16)&0xFF), uint8((rfFrequency>>8)&0xFF), uint8(rfFrequency&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRFFrequency, uint8((rfFrequency>>16)&0xFF), uint8((rfFrequency>>8)&0xFF), uint8(rfFrequency&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -420,7 +420,7 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
 	adjustedPower := uint8(powerdBm + 18)
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_TX_PARAMS, adjustedPower, rampTime)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetTxParams, adjustedPower, rampTime)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -435,7 +435,7 @@ func (d *Device) SetCadParams(cadSymbolNum uint8) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_CAD_PARAMS, cadSymbolNum)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetCADParams, cadSymbolNum)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -450,7 +450,7 @@ func (d *Device) SetBufferBaseAddress(txBase uint8, rxBase uint8) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_BUFFER_BASE_ADDRESS, txBase, rxBase)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetBufferBaseAddress, txBase, rxBase)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -467,7 +467,7 @@ func (d *Device) SetModulationParams(modParam1, modParam2, modParam3 uint8) erro
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_MODULATION_PARAMS, modParam1, modParam2, modParam3)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetModulationParams, modParam1, modParam2, modParam3)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -500,7 +500,7 @@ func (d *Device) SetPacketParams(param1, param2, param3, param4, param5, param6,
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_PACKET_PARAMS, param1, param2, param3, param4, param5, param6, param7)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetPacketParams, param1, param2, param3, param4, param5, param6, param7)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -511,9 +511,9 @@ func (d *Device) SetPacketParams(param1, param2, param3, param4, param5, param6,
 func (d *Device) SetPacketParamsGFSK(preambleLength GFSKPreambleLength, syncWordLength GFSKSyncWordLength, syncWordMatch GFSKSyncWordMatch, headerType GFSKHeaderType, payloadLength uint8, crcLength GFSKCrcType, whitening bool) error {
 	var whiteningVal uint8
 	if whitening {
-		whiteningVal = WHITENING_ENABLE
+		whiteningVal = whiteningEnable
 	} else {
-		whiteningVal = WHITENING_DISABLE
+		whiteningVal = whiteningDisable
 	}
 	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningVal)
 }
@@ -527,16 +527,16 @@ func (d *Device) SetPacketParamsFLRC(preambleLength FLRCPreambleLength, syncWord
 	if payloadLength > 127 {
 		return ErrPayloadLengthTooLong
 	}
-	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, WHITENING_DISABLE)
+	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningDisable)
 }
 
 // Set BLE related packet parameters, this assumes the packet type is already set to BLE.
 func (d *Device) SetPacketParamsBLE(connectionState BLEConnectionState, crcLength BLECrcType, bleTestPayload BLETestPayload, whitening bool) error {
 	var whiteningVal uint8
 	if whitening {
-		whiteningVal = WHITENING_ENABLE
+		whiteningVal = whiteningEnable
 	} else {
-		whiteningVal = WHITENING_DISABLE
+		whiteningVal = whiteningDisable
 	}
 	return d.SetPacketParams(connectionState, crcLength, bleTestPayload, whiteningVal, 0, 0, 0)
 }
@@ -580,7 +580,7 @@ func (d *Device) GetRxBufferStatus() (uint8, uint8, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_GET_RX_BUFFER_STATUS, 0x00, 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdGetRxBufferStatus, 0x00, 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:4]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -600,7 +600,7 @@ func (d *Device) GetPacketStatus() (uint8, uint8, uint8, uint8, uint8, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_GET_PACKET_STATUS, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdGetPacketStatus, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:7]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -677,7 +677,7 @@ func (d *Device) GetRssiInst() (float32, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_GET_RSSI_INST, 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdGetRSSIInst, 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:3]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -695,7 +695,7 @@ func (d *Device) SetDioIrqParams(irqMask IRQMask, dio1Mask IRQMask, dio2Mask IRQ
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_DIO_IRQ_PARAMS, uint8((irqMask&0xFF00)>>8), uint8(irqMask&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetDIOIRQParams, uint8((irqMask&0xFF00)>>8), uint8(irqMask&0x00FF))
 	d.spiTxBuf = append(d.spiTxBuf, uint8((dio1Mask&0xFF00)>>8), uint8(dio1Mask&0x00FF))
 	d.spiTxBuf = append(d.spiTxBuf, uint8((dio2Mask&0xFF00)>>8), uint8(dio2Mask&0x00FF))
 	d.spiTxBuf = append(d.spiTxBuf, uint8((dio3Mask&0xFF00)>>8), uint8(dio3Mask&0x00FF))
@@ -712,7 +712,7 @@ func (d *Device) GetIrqStatus() (IRQMask, error) {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_GET_IRQ_STATUS, 0x00, 0x00, 0x00)
+	d.spiTxBuf = append(d.spiTxBuf, cmdGetIRQStatus, 0x00, 0x00, 0x00)
 	d.spiRxBuf = d.spiRxBuf[:4]
 	err = d.spi.Tx(d.spiTxBuf, d.spiRxBuf)
 	d.nssPin.Set(true)
@@ -730,7 +730,7 @@ func (d *Device) ClearIrqStatus(irqMask IRQMask) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_CLEAR_IRQ_STATUS, uint8((irqMask&0xFF00)>>8), uint8(irqMask&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdClearIRQStatus, uint8((irqMask&0xFF00)>>8), uint8(irqMask&0x00FF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -747,7 +747,7 @@ func (d *Device) SetRegulatorMode(mode RegulatorMode) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_REGULATOR_MODE, mode)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRegulatorMode, mode)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -761,7 +761,7 @@ func (d *Device) SetSaveContext() error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, CMD_SET_SAVE_CONTEXT)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetSaveContext)
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
