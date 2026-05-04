@@ -63,7 +63,7 @@ func (d *Device) GetStatus() (CircuitMode, CommandStatus, error) {
 
 	circuitMode := (status & circuitModeMask) >> 5
 	commandStatus := (status & commandStatusMask) >> 2
-	return circuitMode, commandStatus, nil
+	return CircuitMode(circuitMode), CommandStatus(commandStatus), nil
 }
 
 func (d *Device) WriteRegister(addr uint16, data []byte) error {
@@ -146,7 +146,7 @@ func (d *Device) SetSleep(sleepConfig SleepConfig) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetSleep, sleepConfig)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetSleep, uint8(sleepConfig))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -163,7 +163,7 @@ func (d *Device) SetStandby(standbyConfig StandbyConfig) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetStandby, standbyConfig)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetStandby, uint8(standbyConfig))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -203,7 +203,7 @@ func (d *Device) SetTx(periodBase PeriodBase, periodBaseCount uint16) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetTx, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetTx, uint8(periodBase), uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -222,7 +222,7 @@ func (d *Device) SetRx(periodBase PeriodBase, periodBaseCount uint16) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetRx, periodBase, uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRx, uint8(periodBase), uint8((periodBaseCount>>8)&0xFF), uint8(periodBaseCount&0xFF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -242,7 +242,7 @@ func (d *Device) SetRxDutyCycle(periodBase PeriodBase, rxPeriodBaseCount uint16,
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetRxDutyCycle, periodBase, uint8((rxPeriodBaseCount&0xFF00)>>8), uint8(rxPeriodBaseCount&0x00FF))
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRxDutyCycle, uint8(periodBase), uint8((rxPeriodBaseCount&0xFF00)>>8), uint8(rxPeriodBaseCount&0x00FF))
 	d.spiTxBuf = append(d.spiTxBuf, uint8((sleepPeriodBaseCount&0xFF00)>>8), uint8(sleepPeriodBaseCount&0x00FF))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
@@ -359,7 +359,7 @@ func (d *Device) SetPacketType(packetType PacketType) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetPacketType, packetType)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetPacketType, uint8(packetType))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -380,7 +380,7 @@ func (d *Device) GetPacketType() (PacketType, error) {
 	if err != nil {
 		return 0, err
 	}
-	return d.spiRxBuf[2], nil
+	return PacketType(d.spiRxBuf[2]), nil
 }
 
 // Set the RF frequency in Hz, must be between 2.4 GHz and 2.5 GHz
@@ -420,7 +420,7 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
 	adjustedPower := uint8(powerdBm + 18)
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetTxParams, adjustedPower, rampTime)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetTxParams, adjustedPower, uint8(rampTime))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
@@ -474,19 +474,19 @@ func (d *Device) SetModulationParams(modParam1, modParam2, modParam3 uint8) erro
 }
 
 func (d *Device) SetModulationParamsBLE(bitrateBandwidth GFSKBLEBitrateBandwidth, modulationIndex ModulationIndex, modulationShaping ModulationShaping) error {
-	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
+	return d.SetModulationParams(uint8(bitrateBandwidth), uint8(modulationIndex), uint8(modulationShaping))
 }
 
 func (d *Device) SetModulationParamsGFSK(bitrateBandwidth GFSKBLEBitrateBandwidth, modulationIndex ModulationIndex, modulationShaping ModulationShaping) error {
-	return d.SetModulationParams(bitrateBandwidth, modulationIndex, modulationShaping)
+	return d.SetModulationParams(uint8(bitrateBandwidth), uint8(modulationIndex), uint8(modulationShaping))
 }
 
 func (d *Device) SetModulationParamsFLRC(bitrateBandwidth FLRCBitrateBandwidth, codingRate FLRCCodingRate, modulationShaping ModulationShaping) error {
-	return d.SetModulationParams(bitrateBandwidth, codingRate, modulationShaping)
+	return d.SetModulationParams(uint8(bitrateBandwidth), uint8(codingRate), uint8(modulationShaping))
 }
 
 func (d *Device) SetModulationParamsLoRa(spreadingFactor LoRaSpreadingFactor, bandwidth LoRaBandwidth, codingRate LoRaCodingRate) error {
-	return d.SetModulationParams(spreadingFactor, bandwidth, codingRate)
+	return d.SetModulationParams(uint8(spreadingFactor), uint8(bandwidth), uint8(codingRate))
 }
 
 // The arguments to this function depend on the packet type. It is recommended to use the mode specific functions for a better experience.
@@ -515,7 +515,7 @@ func (d *Device) SetPacketParamsGFSK(preambleLength GFSKPreambleLength, syncWord
 	} else {
 		whiteningVal = whiteningDisable
 	}
-	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningVal)
+	return d.SetPacketParams(uint8(preambleLength), uint8(syncWordLength), uint8(syncWordMatch), uint8(headerType), payloadLength, uint8(crcLength), whiteningVal)
 }
 
 // Set FLRC related packet parameters, this assumes the packet type is already set to FLRC.
@@ -527,7 +527,7 @@ func (d *Device) SetPacketParamsFLRC(preambleLength FLRCPreambleLength, syncWord
 	if payloadLength > 127 {
 		return errPayloadLengthTooLong
 	}
-	return d.SetPacketParams(preambleLength, syncWordLength, syncWordMatch, headerType, payloadLength, crcLength, whiteningDisable)
+	return d.SetPacketParams(uint8(preambleLength), uint8(syncWordLength), uint8(syncWordMatch), uint8(headerType), payloadLength, uint8(crcLength), whiteningDisable)
 }
 
 // Set BLE related packet parameters, this assumes the packet type is already set to BLE.
@@ -538,7 +538,7 @@ func (d *Device) SetPacketParamsBLE(connectionState BLEConnectionState, crcLengt
 	} else {
 		whiteningVal = whiteningDisable
 	}
-	return d.SetPacketParams(connectionState, crcLength, bleTestPayload, whiteningVal, 0, 0, 0)
+	return d.SetPacketParams(uint8(connectionState), uint8(crcLength), uint8(bleTestPayload), whiteningVal, 0, 0, 0)
 }
 
 // Set LoRa related packet parameters, this assumes the packet type is already set to LoRa.
@@ -548,7 +548,7 @@ func (d *Device) SetPacketParamsLoRa(preambleLength uint32, headerType LoRaHeade
 		return errPayloadLengthTooShort
 	}
 	exponent, mantissa := getExponentAndMantissa(preambleLength)
-	return d.SetPacketParams(uint8(exponent<<4)|mantissa, headerType, payloadLength, crcType, iqType, 0, 0)
+	return d.SetPacketParams(uint8(exponent<<4)|mantissa, uint8(headerType), payloadLength, uint8(crcType), uint8(iqType), 0, 0)
 }
 
 func getExponentAndMantissa(value uint32) (uint8, uint8) {
@@ -747,7 +747,7 @@ func (d *Device) SetRegulatorMode(mode RegulatorMode) error {
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetRegulatorMode, mode)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetRegulatorMode, uint8(mode))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err

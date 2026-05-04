@@ -1,60 +1,60 @@
 package sx128x
 
-type SleepConfig = uint8
-type StandbyConfig = uint8
-type PeriodBase = uint8
-type PacketType = uint8
-type RadioRampTime = uint8
-type CadSymbolNum = uint8
+type SleepConfig uint8
+type StandbyConfig uint8
+type PeriodBase uint8
+type PacketType uint8
+type RadioRampTime uint8
+type CadSymbolNum uint8
 
 // GFSK Modulation Params
-type GFSKBLEBitrateBandwidth = uint8
-type ModulationIndex = uint8
-type ModulationShaping = uint8
+type GFSKBLEBitrateBandwidth uint8
+type ModulationIndex uint8
+type ModulationShaping uint8
 
 // GFSK Packet Params
-type GFSKPreambleLength = uint8
-type GFSKSyncWordLength = uint8
-type GFSKSyncWordMatch = uint8
-type GFSKHeaderType = uint8
-type GFSKCrcType = uint8
+type GFSKPreambleLength uint8
+type GFSKSyncWordLength uint8
+type GFSKSyncWordMatch uint8
+type GFSKHeaderType uint8
+type GFSKCrcType uint8
 
 // BLE Packet Params
-type BLEConnectionState = uint8
-type BLECrcType = uint8
-type BLETestPayload = uint8
+type BLEConnectionState uint8
+type BLECrcType uint8
+type BLETestPayload uint8
 
 // FLRC Modulation Params
-type FLRCBitrateBandwidth = uint8
-type FLRCCodingRate = uint8
+type FLRCBitrateBandwidth uint8
+type FLRCCodingRate uint8
 
 // FLRC Packet Params
-type FLRCPreambleLength = uint8
-type FLRCSyncWordLength = uint8
-type FLRCSyncWordMatch = uint8
-type FLRCHeaderType = uint8
-type FLRCCrcType = uint8
+type FLRCPreambleLength uint8
+type FLRCSyncWordLength uint8
+type FLRCSyncWordMatch uint8
+type FLRCHeaderType uint8
+type FLRCCrcType uint8
 
 // LoRa Modulation Params
-type LoRaSpreadingFactor = uint8
-type LoRaBandwidth = uint8
-type LoRaCodingRate = uint8
+type LoRaSpreadingFactor uint8
+type LoRaBandwidth uint8
+type LoRaCodingRate uint8
 
 // LoRa Packet Params
-type LoRaHeaderType = uint8
-type LoRaCrcType = uint8
-type LoRaIqType = uint8
+type LoRaHeaderType uint8
+type LoRaCrcType uint8
+type LoRaIqType uint8
 
 // Misc
-type RegulatorMode = uint8
+type RegulatorMode uint8
 type IRQMask = uint16
-type CircuitMode = uint8
-type CommandStatus = uint8
+type CircuitMode uint8
+type CommandStatus uint8
 
 // Packet Status
-type GFSKPacketInfo = uint8
-type BLEPacketInfo = uint8
-type FLRCPacketInfo = uint8
+type GFSKPacketInfo uint8
+type BLEPacketInfo uint8
+type FLRCPacketInfo uint8
 
 const (
 	whiteningDisable = 0x00
