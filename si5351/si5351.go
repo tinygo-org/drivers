@@ -3,8 +3,7 @@ package si5351
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"math"
+	"time"
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/regmap"
@@ -15,615 +14,1056 @@ type Device struct {
 	bus     drivers.I2C
 	Address uint8
 
-	rw             regmap.Device8I2C
-	initialised    bool
-	crystalFreq    uint32
-	crystalLoad    uint8
-	pllaConfigured bool
-	pllaFreq       uint32
-	pllbConfigured bool
-	pllbFreq       uint32
-	lastRdivValue  [3]uint8
+	rw            regmap.Device8I2C
+	initialized   bool
+	crystalFreq   [2]CrystalFrequency
+	pllaRefOsc    PLLReferenceOscillator
+	pllbRefOsc    PLLReferenceOscillator
+	clkinDiv      uint8
+	pllaFreq      Frequency
+	pllbFreq      Frequency
+	pllAssignment [8]PLLType
+	clkFreq       [8]Frequency
+	clkFirstSet   [8]bool
+	refCorrection [2]int32
 }
 
-var ErrNotInitialised = errors.New("Si5351 not initialised")
-var ErrInvalidParameter = errors.New("Si5351 invalid parameter")
+var (
+	ErrInitTimeout            = errors.New("si5351: init timeout")
+	ErrNotInitialized         = errors.New("si5351: not initialized")
+	ErrInvalidParameter       = errors.New("si5351: invalid parameter")
+	ErrDeviceNotFound         = errors.New("si5351: device not found")
+	ErrInvalidPLLClockSetting = errors.New("si5351: cannot set >100MHz with other >100MHz on same PLL")
+	ErrInvalidPLLDivision     = errors.New("si5351: CLK6/7 requires integer division ratio")
+)
 
-// New creates a new SI5351 connection. The I2C bus must already be configured.
-//
-// This function only creates the Device object, it does not touch the device.
-func New(bus drivers.I2C) Device {
-	rw := regmap.Device8I2C{}
-	rw.SetBus(bus, AddressDefault, binary.BigEndian)
+// Frequency in Hz
+type Frequency uint64
 
-	return Device{
-		bus:         bus,
-		rw:          rw,
-		Address:     AddressDefault,
-		crystalFreq: CRYSTAL_FREQ_25MHZ,
-		crystalLoad: CRYSTAL_LOAD_10PF,
-	}
-}
+// CrystalFrequency in Hz
+type CrystalFrequency uint32
 
-// Configure sets up the device for communication
-// TODO error handling
-func (d *Device) Configure() error {
-	// // Disable all outputs setting CLKx_DIS high
-	d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0xFF)
+// CrystalLoad options
+type CrystalLoad uint8
 
-	// Set the load capacitance for the XTAL
-	d.rw.Write8(CRYSTAL_INTERNAL_LOAD_CAPACITANCE, d.crystalLoad)
+const (
+	CrystalLoad0PF CrystalLoad = iota
+	CrystalLoad6PF
+	CrystalLoad8PF
+	CrystalLoad10PF
+)
 
-	// Power down all output drivers
-	buf := []byte{CLK0_CONTROL, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}
-	d.bus.Tx(uint16(d.Address), buf, nil)
+// PLL identifiers
+type PLLType uint8
 
-	// Disable spread spectrum output.
-	if err := d.DisableSpreadSpectrum(); err != nil {
-		return err
-	}
+const (
+	PLL_A PLLType = iota
+	PLL_B
+)
 
-	d.initialised = true
+// Reference oscillator identifiers
+type PLLReferenceOscillator uint8
 
-	return nil
-}
+const (
+	PLLInputXO PLLReferenceOscillator = iota
+	PLLInputClockIn
+)
 
-// Connected returns whether a device at SI5351 address has been found.
-func (d *Device) Connected() (bool, error) {
-	if err := d.bus.Tx(uint16(d.Address), []byte{}, []byte{0}); err != nil {
-		return false, err
-	}
-	return true, nil
-}
+// Clock output identifiers
+type Clock uint8
 
-// EnableSpreadSpectrum enables spread spectrum modulation to reduce EMI.
-func (d *Device) EnableSpreadSpectrum() error {
-	data, err := d.rw.Read8(SPREAD_SPECTRUM_PARAMETERS)
-	if err != nil {
-		return err
-	}
+const (
+	Clock0 Clock = iota
+	Clock1
+	Clock2
+	Clock3
+	Clock4
+	Clock5
+	Clock6
+	Clock7
+)
 
-	data |= 0x80
-	return d.rw.Write8(SPREAD_SPECTRUM_PARAMETERS, data)
-}
+const rfracDenominator = Frequency(PLL_C_MAX)
 
-func (d *Device) DisableSpreadSpectrum() error {
-	data, err := d.rw.Read8(SPREAD_SPECTRUM_PARAMETERS)
-	if err != nil {
-		return err
-	}
-
-	data &^= 0x80
-	return d.rw.Write8(SPREAD_SPECTRUM_PARAMETERS, data)
-}
-
-func (d *Device) OutputEnable(output uint8, enable bool) error {
-	if !d.initialised {
-		return ErrNotInitialised
-	}
-
-	// Read the current value of the OUTPUT_ENABLE_CONTROL register
-	regVal, err := d.rw.Read8(OUTPUT_ENABLE_CONTROL)
-	if err != nil {
-		return err
-	}
-
-	// Modify regVal based on clk and enable
-	if enable {
-		regVal &= ^(1 << output)
-	} else {
-		regVal |= (1 << output)
-	}
-
-	// Write the modified value back to the OUTPUT_ENABLE_CONTROL register
-	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, regVal)
-}
-
-func (d *Device) EnableOutputs() error {
-	if !d.initialised {
-		return ErrNotInitialised
-	}
-
-	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0x00)
-}
-
-func (d *Device) DisableOutputs() error {
-	if !d.initialised {
-		return ErrNotInitialised
-	}
-	return d.rw.Write8(OUTPUT_ENABLE_CONTROL, 0xFF)
-}
-
-// packRegSet packs P1, P2, P3 values into the 8-byte register format
-// used by both PLL and Multisynth configuration.
-// For multisynth, rDivBits should contain the R divider value shifted left by 4.
-// For PLL, rDivBits should be 0.
-func packRegSet(p1, p2, p3 uint32, rDivBits uint8) [8]byte {
-	var data [8]byte
-	data[0] = uint8((p3 & 0xFF00) >> 8)
-	data[1] = uint8(p3 & 0xFF)
-	data[2] = uint8((p1&0x30000)>>16) | rDivBits
-	data[3] = uint8((p1 & 0xFF00) >> 8)
-	data[4] = uint8(p1 & 0xFF)
-	data[5] = uint8(((p3 & 0xF0000) >> 12) | ((p2 & 0xF0000) >> 16))
-	data[6] = uint8((p2 & 0xFF00) >> 8)
-	data[7] = uint8(p2 & 0xFF)
-	return data
-}
-
-// ConfigurePLL sets the multiplier for the specified PLL
-// pll   The PLL to configure, which must be one of the following:
-// - PLL_A
-// - PLL_B
-//
-// mult  The PLL integer multiplier (must be between 15 and 90)
-//
-// num   The 20-bit numerator for fractional output (0..1,048,575).
-// Set this to '0' for integer output.
-//
-// denom The 20-bit denominator for fractional output (1..1,048,575).
-// Set this to '1' or higher to avoid divider by zero errors.
-//
-// PLL Configuration
-// fVCO is the PLL output, and must be between 600..900MHz, where:
-//
-// fVCO = fXTAL * (a+(b/c))
-//
-// fXTAL = the crystal input frequency
-// a     = an integer between 15 and 90
-// b     = the fractional numerator (0..1,048,575)
-// c     = the fractional denominator (1..1,048,575)
-//
-// NOTE: Try to use integers whenever possible to avoid clock jitter
-// (only use the a part, setting b to '0' and c to '1').
-//
-// See: http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
-func (d *Device) ConfigurePLL(pll uint8, mult uint8, num uint32, denom uint32) error {
-	// Basic validation
-	switch {
-	case !d.initialised:
-		return ErrNotInitialised
-	// mult = 15..90
-	case !((mult > 14) && (mult < 91)):
-		return ErrInvalidParameter
-	// Avoid divide by zero
-	case !(denom > 0):
-		return ErrInvalidParameter
-	// 20-bit limit
-	case !(num <= 0xFFFFF):
-		return ErrInvalidParameter
-	// 20-bit limit
-	case !(denom <= 0xFFFFF):
-		return ErrInvalidParameter
-	}
-
-	// Calculate PLL register values
-	var p1, p2, p3 uint32
-	if num == 0 {
-		// Integer mode
-		p1 = 128*uint32(mult) - 512
-		p2 = num
-		p3 = denom
-	} else {
-		// Fractional mode
-		p1 = uint32(128*float64(mult) + math.Floor(128*(float64(num)/float64(denom))) - 512)
-		p2 = uint32(128*float64(num) - float64(denom)*math.Floor(128*(float64(num)/float64(denom))))
-		p3 = denom
-	}
-
-	// Get the appropriate starting point for the PLL registers
-	baseaddr := uint8(26)
-	if pll == PLL_B {
-		baseaddr = 34
-	}
-
-	// Pack and write registers
-	data := packRegSet(p1, p2, p3, 0)
-	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
-		return err
-	}
-
-	// Reset both PLLs
-	if err := d.rw.Write8(PLL_RESET, (1<<7)|(1<<5)); err != nil {
-		return err
-	}
-
-	// Store the frequency settings for use with the Multisynth helper
-	fvco := float64(d.crystalFreq) * (float64(mult) + (float64(num) / float64(denom)))
-	if pll == PLL_A {
-		d.pllaConfigured = true
-		d.pllaFreq = uint32(math.Floor(fvco))
-	} else {
-		d.pllbConfigured = true
-		d.pllbFreq = uint32(math.Floor(fvco))
-	}
-	return nil
-}
-
-// ConfigureMultisynth divider, which determines the
-// output clock frequency based on the specified PLL input.
-//
-// output    The output channel to use (0..2)
-//
-// pll       The PLL input source to use, which must be one of:
-//   - PLL_A
-//   - PLL_B
-//
-// div       The integer divider for the Multisynth output.
-//
-//	If pure integer values are used, this value must be one of:
-//	- MULTISYNTH_DIV_4
-//	- MULTISYNTH_DIV_6
-//	- MULTISYNTH_DIV_8
-//	If fractional output is used, this value must be between 8 and 900.
-//
-// num       The 20-bit numerator for fractional output (0..1,048,575).
-//
-//	Set this to '0' for integer output.
-//
-// denom     The 20-bit denominator for fractional output (1..1,048,575).
-//
-//	Set this to '1' or higher to avoid divide by zero errors.
-//
-// # Output Clock Configuration
-//
-// The multisynth dividers are applied to the specified PLL output,
-// and are used to reduce the PLL output to a valid range (500kHz
-// to 160MHz). The relationship can be seen in this formula, where
-// fVCO is the PLL output frequency and MSx is the multisynth divider:
-//
-// fOUT = fVCO / MSx
-//
-// Valid multisynth dividers are 4, 6, or 8 when using integers,
-// or any fractional values between 8 + 1/1,048,575 and 900 + 0/1
-// The following formula is used for the fractional mode divider:
-//
-// a + b / c
-//
-// a = The integer value, which must be 4, 6 or 8 in integer mode (MSx_INT=1) or 8..900 in fractional mode (MSx_INT=0).
-// b = The fractional numerator (0..1,048,575)
-// c = The fractional denominator (1..1,048,575)
-//
-// NOTE: Try to use integers whenever possible to avoid clock jitter
-// NOTE: For output frequencies > 150MHz, you must set the divider
-//
-//	to 4 and adjust to PLL to generate the frequency (for example
-//	a PLL of 640 to generate a 160MHz output clock). This is not
-//	yet supported in the driver, which limits frequencies to 500kHz .. 150MHz.
-//
-// NOTE: For frequencies below 500kHz (down to 8kHz) Rx_DIV must be
-//
-//	used, but this isn't currently implemented in the driver.
-func (d *Device) ConfigureMultisynth(output uint8, pll uint8, div uint32, num uint32, denom uint32) error {
-	// Basic validation
-	switch {
-	case !d.initialised:
-		return ErrNotInitialised
-	// Channel range
-	case !(output < 3):
-		return fmt.Errorf("output channel must be between 0 and 2")
-	// Divider integer value
-	case !((div > 3) && (div < 2049)):
-		return ErrInvalidParameter
-	// Avoid divide by zero
-	case !(denom > 0):
-		return ErrInvalidParameter
-	// 20-bit limit
-	case !(num <= 0xFFFFF):
-		return ErrInvalidParameter
-	// 20-bit limit
-	case !(denom <= 0xFFFFF):
-		return ErrInvalidParameter
-		// Make sure the requested PLL has been initialised
-	case pll == PLL_A && !d.pllaConfigured:
-		return ErrInvalidParameter
-	case pll == PLL_B && !d.pllbConfigured:
-		return ErrInvalidParameter
-	}
-
-	// Calculate register values
-	var reg si5351RegSet
-	switch {
-	case num == 0:
-		// Integer mode
-		reg.p1 = 128*div - 512
-		reg.p2 = 0
-		reg.p3 = denom
-	case denom == 1:
-		// Fractional mode, simplified calculations
-		reg.p1 = 128*div + 128*num - 512
-		reg.p2 = 128*num - 128
-		reg.p3 = 1
-	default:
-		// Fractional mode
-		reg.p1 = uint32(128*float64(div) + math.Floor(128*(float64(num)/float64(denom))) - 512)
-		reg.p2 = uint32(128*float64(num) - float64(denom)*math.Floor(128*(float64(num)/float64(denom))))
-		reg.p3 = denom
-	}
-
-	// Determine if we should use integer mode
-	intMode := num == 0
-
-	// Use existing R divider value (0 if not previously set)
-	rDiv := d.lastRdivValue[output] >> 4
-
-	return d.setMS(output, reg, intMode, rDiv, pll)
-}
-
-func (d *Device) ConfigureRdiv(output uint8, div uint8) error {
-	// Channel range
-	if !(output < 3) {
-		return ErrInvalidParameter
-	}
-
-	var register uint8
-	switch output {
-	case 0:
-		register = MULTISYNTH0_PARAMETERS_3
-	case 1:
-		register = MULTISYNTH1_PARAMETERS_3
-	case 2:
-		register = MULTISYNTH2_PARAMETERS_3
-	}
-
-	data, err := d.rw.Read8(register)
-	if err != nil {
-		return err
-	}
-
-	d.lastRdivValue[output] = (div & 0x07) << 4
-	data = (data & 0x0F) | d.lastRdivValue[output]
-	return d.rw.Write8(register, data)
-}
-
-// si5351RegSet holds the register values for multisynth configuration
-type si5351RegSet struct {
+// RegisterSet holds PLL/multisynth register values
+type RegisterSet struct {
 	p1 uint32
 	p2 uint32
 	p3 uint32
 }
 
-var ErrFrequencyOutOfRange = errors.New("Si5351 frequency out of range")
-var ErrClockConflict = errors.New("Si5351 clock conflict with existing configuration")
+// New creates a new SI5351 connection. The I2C bus must already be configured.
+func New(bus drivers.I2C) *Device {
+	rw := regmap.Device8I2C{}
+	rw.SetBus(bus, AddressDefault, binary.BigEndian)
 
-// SetFrequency sets the clock frequency of the specified CLK output.
-// Frequency range is 8 kHz to 150 MHz.
-//
-// freq - Output frequency in Hz
-// output - Clock output (0, 1, or 2 for this driver)
-// pll - The PLL to use (PLL_A or PLL_B)
-func (d *Device) SetFrequency(freq uint64, output uint8, pll uint8) error {
-	switch {
-	case !d.initialised:
-		return ErrNotInitialised
-	case output > 2:
-		return ErrInvalidParameter
+	d := Device{
+		bus:        bus,
+		rw:         rw,
+		Address:    AddressDefault,
+		pllaRefOsc: PLLInputXO,
+		pllbRefOsc: PLLInputXO,
+		clkinDiv:   CLKIN_DIV_1,
+	}
+	d.crystalFreq[0] = XTAL_FREQ
+
+	return &d
+}
+
+// Config holds configuration parameters for the SI5351.
+type Config struct {
+	Capacitance   CrystalLoad
+	CrystalOutput CrystalFrequency
+	Correction    int32
+}
+
+// Configure initializes the SI5351 with the specified crystal load capacitance,
+// reference oscillator frequency, and frequency correction.
+func (d *Device) Configure(cfg Config) error {
+	// Check for device on bus
+	if err := d.bus.Tx(uint16(d.Address), []byte{}, []byte{0}); err != nil {
+		return ErrDeviceNotFound
 	}
 
-	switch {
-	// Lower bounds check
-	case freq < CLKOUT_MIN_FREQ:
-		freq = CLKOUT_MIN_FREQ
-	// Upper bounds check
-	case freq > MULTISYNTH_MAX_FREQ:
-		freq = MULTISYNTH_MAX_FREQ
+	// Wait for SYS_INIT flag to clear
+	timeout := time.Now().Add(100 * time.Millisecond)
+	for {
+		status, err := d.rw.Read8(DEVICE_STATUS)
+		if err != nil {
+			return err
+		}
+		if (status >> 7) == 0 {
+			break
+		}
+		if time.Now().After(timeout) {
+			return ErrInitTimeout
+		}
+		time.Sleep(time.Millisecond)
 	}
 
-	// Select the proper R divider value for low frequencies
-	rDiv := d.selectRDiv(&freq)
-
-	// Calculate PLL and multisynth parameters
-	var pllFreq uint64
-	switch {
-	case pll == PLL_A && d.pllaConfigured:
-		pllFreq = uint64(d.pllaFreq)
-	case pll == PLL_B && d.pllbConfigured:
-		pllFreq = uint64(d.pllbFreq)
+	// Set crystal load capacitance
+	var xtalLoadC uint8
+	switch cfg.Capacitance {
+	case CrystalLoad0PF:
+		xtalLoadC = CRYSTAL_LOAD_0PF
+	case CrystalLoad6PF:
+		xtalLoadC = CRYSTAL_LOAD_6PF
+	case CrystalLoad8PF:
+		xtalLoadC = CRYSTAL_LOAD_8PF
+	case CrystalLoad10PF:
+		xtalLoadC = CRYSTAL_LOAD_10PF
 	default:
-		// PLL not configured, calculate optimal PLL frequency
-		pllFreq = d.calculatePLLFreq(freq)
+		xtalLoadC = CRYSTAL_LOAD_10PF
+	}
+	if err := d.rw.Write8(CRYSTAL_LOAD, uint8(xtalLoadC&CRYSTAL_LOAD_MASK)|0x12); err != nil {
+		return err
 	}
 
-	// Calculate multisynth divider parameters
-	msReg := d.multisynthCalc(freq, pllFreq)
+	// Set up the XO reference frequency
+	if cfg.CrystalOutput == 0 {
+		cfg.CrystalOutput = XTAL_FREQ
+	}
+	d.SetReferenceFrequency(PLLInputXO, cfg.CrystalOutput)
 
-	// Determine if we should use integer mode
-	intMode := msReg.p2 == 0
+	// Set frequency calibration for XO
+	if err := d.SetCorrection(PLLInputXO, cfg.Correction); err != nil {
+		return err
+	}
 
-	// Configure PLL if not already configured or if we need a new frequency
-	if (pll == PLL_A && !d.pllaConfigured) || (pll == PLL_B && !d.pllbConfigured) {
-		if err := d.setPLL(pllFreq, pll); err != nil {
+	// Reset device
+	if err := d.Reset(); err != nil {
+		return err
+	}
+
+	d.initialized = true
+	return nil
+}
+
+// Reset resets the Si5351.
+func (d *Device) Reset() error {
+	// Power down all outputs
+	for i := range uint8(8) {
+		if err := d.rw.Write8(CLK0_CTRL+i, 0x80); err != nil {
 			return err
 		}
 	}
 
-	// Set multisynth registers
-	if err := d.setMS(output, msReg, intMode, rDiv, pll); err != nil {
+	time.Sleep(100 * time.Millisecond)
+
+	// Turn clocks back on with default settings
+	for i := range uint8(8) {
+		if err := d.rw.Write8(CLK0_CTRL+i, 0x0C); err != nil {
+			return err
+		}
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Set PLLA and PLLB to 800 MHz
+	if err := d.SetPLL(PLL_A, PLL_FIXED); err != nil {
+		return err
+	}
+	if err := d.SetPLL(PLL_B, PLL_FIXED); err != nil {
 		return err
 	}
 
-	// Enable output
-	return d.OutputEnable(output, true)
-}
+	// Make PLL to CLK assignments
+	for i := range 6 {
+		d.pllAssignment[i] = PLL_A
+		d.SetMultisynthSource(Clock(i), PLL_A)
+	}
+	d.pllAssignment[6] = PLL_B
+	d.pllAssignment[7] = PLL_B
+	d.SetMultisynthSource(Clock(6), PLL_B)
+	d.SetMultisynthSource(Clock(7), PLL_B)
 
-// selectRDiv selects the appropriate R divider for low frequencies
-// and modifies the frequency accordingly
-func (d *Device) selectRDiv(freq *uint64) uint8 {
-	var rDiv uint8 = 0
+	// Reset VCXO parameters
+	d.rw.Write8(VXCO_PARAMETERS_LOW, 0)
+	d.rw.Write8(VXCO_PARAMETERS_MID, 0)
+	d.rw.Write8(VXCO_PARAMETERS_HIGH, 0)
 
-	if *freq >= CLKOUT_MIN_FREQ && *freq < CLKOUT_MIN_FREQ*2 {
-		rDiv = R_DIV_128
-		*freq *= 128
-	} else if *freq >= CLKOUT_MIN_FREQ*2 && *freq < CLKOUT_MIN_FREQ*4 {
-		rDiv = R_DIV_64
-		*freq *= 64
-	} else if *freq >= CLKOUT_MIN_FREQ*4 && *freq < CLKOUT_MIN_FREQ*8 {
-		rDiv = R_DIV_32
-		*freq *= 32
-	} else if *freq >= CLKOUT_MIN_FREQ*8 && *freq < CLKOUT_MIN_FREQ*16 {
-		rDiv = R_DIV_16
-		*freq *= 16
-	} else if *freq >= CLKOUT_MIN_FREQ*16 && *freq < CLKOUT_MIN_FREQ*32 {
-		rDiv = R_DIV_8
-		*freq *= 8
-	} else if *freq >= CLKOUT_MIN_FREQ*32 && *freq < CLKOUT_MIN_FREQ*64 {
-		rDiv = R_DIV_4
-		*freq *= 4
-	} else if *freq >= CLKOUT_MIN_FREQ*64 && *freq < CLKOUT_MIN_FREQ*128 {
-		rDiv = R_DIV_2
-		*freq *= 2
+	// Reset PLLs
+	d.PLLReset(PLL_A)
+	d.PLLReset(PLL_B)
+
+	// Initialize clock state
+	for i := range 8 {
+		d.clkFreq[i] = 0
+		d.EnableOutput(Clock(i), false)
+		d.clkFirstSet[i] = false
 	}
 
-	return rDiv
+	return nil
 }
 
-// calculatePLLFreq calculates an optimal PLL frequency for the given output frequency
-func (d *Device) calculatePLLFreq(freq uint64) uint64 {
-	// Try to find an integer divider that puts PLL in valid range (600-900 MHz)
-	// Start with a divider that gives us a PLL freq near 750 MHz (middle of range)
-	targetPLL := uint64(750000000)
-	divider := targetPLL / freq
+// SetPLL programs the specified PLL with the given frequency.
+func (d *Device) SetPLL(pll PLLType, pllFreq Frequency) error {
+	var refOsc PLLReferenceOscillator
+	var baseAddr uint8
 
-	// Ensure divider is in valid range (8-900 for fractional, 4/6/8 for integer)
-
-	switch {
-	case divider < 8:
-		divider = 8
-	case divider > 900:
-		divider = 900
-	}
-
-	pllFreq := freq * divider
-
-	// Ensure PLL frequency is in valid range
-	switch {
-	case pllFreq < PLL_VCO_MIN:
-		pllFreq = PLL_VCO_MIN
-	case pllFreq > PLL_VCO_MAX:
-		pllFreq = PLL_VCO_MAX
-	}
-
-	return pllFreq
-}
-
-// multisynthCalc calculates the multisynth register values
-func (d *Device) multisynthCalc(freq, pllFreq uint64) si5351RegSet {
-	var reg si5351RegSet
-
-	// Calculate the division ratio
-	// divider = pllFreq / freq
-	a := uint32(pllFreq / freq)
-	remainder := pllFreq % freq
-
-	// Calculate b and c for fractional part
-	// We use c = SI5351_PLL_C_MAX (max 20-bit value) for best resolution
-	c := uint32(SI5351_PLL_C_MAX)
-	b := uint32((uint64(remainder) * uint64(c)) / freq)
-
-	// Calculate P1, P2, P3
-	// P1 = 128 * a + floor(128 * b / c) - 512
-	// P2 = 128 * b - c * floor(128 * b / c)
-	// P3 = c
-	floor128bc := uint32((128 * uint64(b)) / uint64(c))
-
-	reg.p1 = 128*a + floor128bc - 512
-	reg.p2 = 128*b - c*floor128bc
-	reg.p3 = c
-
-	return reg
-}
-
-// setPLL configures the PLL with the specified frequency
-func (d *Device) setPLL(pllFreq uint64, pll uint8) error {
-	// Calculate PLL multiplier from crystal frequency
-	// pllFreq = crystalFreq * (a + b/c)
-	xtalFreq := uint64(d.crystalFreq)
-
-	a := uint32(pllFreq / xtalFreq)
-	remainder := pllFreq % xtalFreq
-
-	// Use max denominator for best resolution
-	c := uint32(SI5351_PLL_C_MAX)
-	b := uint32((remainder * uint64(c)) / xtalFreq)
-
-	return d.ConfigurePLL(pll, uint8(a), b, c)
-}
-
-// setMS sets the multisynth registers for the specified output
-func (d *Device) setMS(output uint8, reg si5351RegSet, intMode bool, rDiv uint8, pll uint8) error {
-	// Get the appropriate starting point for the registers
-	var baseaddr uint8
-	switch output {
-	case 0:
-		baseaddr = MULTISYNTH0_PARAMETERS_1
-	case 1:
-		baseaddr = MULTISYNTH1_PARAMETERS_1
-	case 2:
-		baseaddr = MULTISYNTH2_PARAMETERS_1
+	switch pll {
+	case PLL_A:
+		refOsc = d.pllaRefOsc
+		baseAddr = PLLA_PARAMETERS
+		d.pllaFreq = pllFreq
+	case PLL_B:
+		refOsc = d.pllbRefOsc
+		baseAddr = PLLB_PARAMETERS
+		d.pllbFreq = pllFreq
 	default:
 		return ErrInvalidParameter
 	}
 
-	// Store R divider value
-	d.lastRdivValue[output] = (rDiv & 0x07) << 4
+	_, reg := d.CalculatePLL(pll, pllFreq, d.refCorrection[refOsc], false)
 
-	// Pack and write registers
-	data := packRegSet(reg.p1, reg.p2, reg.p3, d.lastRdivValue[output])
-	if err := d.bus.Tx(uint16(baseaddr), data[:], nil); err != nil {
+	params := make([]byte, 8)
+	params[0] = byte((reg.p3 >> 8) & 0xFF)
+	params[1] = byte(reg.p3 & 0xFF)
+	params[2] = byte((reg.p1 >> 16) & 0x03)
+	params[3] = byte((reg.p1 >> 8) & 0xFF)
+	params[4] = byte(reg.p1 & 0xFF)
+	params[5] = byte(((reg.p3 >> 12) & 0xF0) | ((reg.p2 >> 16) & 0x0F))
+	params[6] = byte((reg.p2 >> 8) & 0xFF)
+	params[7] = byte(reg.p2 & 0xFF)
+
+	for i := range params {
+		if err := d.rw.Write8(baseAddr+uint8(i), params[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetFrequency sets the clock frequency of the specified CLK output.
+// Frequency range is 8 kHz to 150 MHz for CLK0-5, up to 150 MHz for CLK6-7.
+func (d *Device) SetFrequency(clk Clock, freq Frequency) error {
+	if !d.initialized {
+		return ErrNotInitialized
+	}
+
+	freqMult := freq * FREQ_MULT
+
+	switch {
+	case clk <= 5:
+		return d.setFreqCLK0to5(clk, freqMult)
+	case clk <= 7:
+		return d.setFreqCLK6to7(clk, freqMult)
+	default:
+		return ErrInvalidParameter
+	}
+}
+
+// SetRawFrequency sets the clock frequency of the specified CLK output without
+// applying the frequency multiplier.
+// Frequency range is 8 kHz to 150 MHz for CLK0-5, up to 150 MHz for CLK6-7.
+func (d *Device) SetRawFrequency(clk Clock, freq Frequency) error {
+	if !d.initialized {
+		return ErrNotInitialized
+	}
+
+	switch {
+	case clk <= 5:
+		return d.setFreqCLK0to5(clk, freq)
+	case clk <= 7:
+		return d.setFreqCLK6to7(clk, freq)
+	default:
+		return ErrInvalidParameter
+	}
+}
+
+// SetMultisynthSource sets the PLL source for a multisynth.
+func (d *Device) SetMultisynthSource(clk Clock, pll PLLType) error {
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
 		return err
 	}
 
-	// Configure the clk control register
-	clkControlReg := uint8(0x0F) // 8mA drive strength, powered up
-	if pll == PLL_B {
-		clkControlReg |= (1 << 5) // Use PLLB
-	}
-	if intMode {
-		clkControlReg |= (1 << 6) // Integer mode
-	}
-
-	var clkReg uint8
-	switch output {
-	case 0:
-		clkReg = CLK0_CONTROL
-	case 1:
-		clkReg = CLK1_CONTROL
-	case 2:
-		clkReg = CLK2_CONTROL
-	}
-
-	return d.rw.Write8(clkReg, clkControlReg)
-}
-
-// GetFreqStep returns the frequency step size of the radio in Hz.
-// This is the smallest frequency increment that can be achieved,
-// determined by the PLL frequency and denominator resolution.
-// If pll is PLL_A, uses PLLA settings; if PLL_B, uses PLLB settings.
-// Returns 0 if the specified PLL is not configured.
-func (d *Device) GetFreqStep(pll uint8) uint64 {
-	// The frequency step at the output is:
-	// step = pllFreq / (SI5351_PLL_C_MAX * multisynth_divider)
-	//
-	// However, since multisynth divider varies per output, we return
-	// the base step from the PLL, which is:
-	// step = pllFreq / SI5351_PLL_C_MAX
-
-	var pllFreq uint64
-
 	switch pll {
 	case PLL_A:
-		if !d.pllaConfigured {
-			return 0
-		}
-		pllFreq = uint64(d.pllaFreq)
+		regVal &^= CLK_PLL_SELECT
 	case PLL_B:
-		if !d.pllbConfigured {
-			return 0
-		}
-		pllFreq = uint64(d.pllbFreq)
+		regVal |= CLK_PLL_SELECT
 	default:
-		return 0
+		return ErrInvalidParameter
 	}
 
-	return pllFreq / SI5351_PLL_C_MAX
+	if err := d.rw.Write8(CLK0_CTRL+uint8(clk), regVal); err != nil {
+		return err
+	}
+
+	d.pllAssignment[clk] = pll
+	return nil
+}
+
+// SetCorrection sets the oscillator correction factor in parts-per-billion.
+func (d *Device) SetCorrection(refOsc PLLReferenceOscillator, corr int32) error {
+	d.refCorrection[refOsc] = corr
+
+	if err := d.SetPLL(PLL_A, d.pllaFreq); err != nil {
+		return err
+	}
+	if err := d.SetPLL(PLL_B, d.pllbFreq); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetCorrection returns the oscillator correction factor in parts-per-billion.
+func (d *Device) GetCorrection(refOsc PLLReferenceOscillator) int32 {
+	return d.refCorrection[refOsc]
+}
+
+// PLLReset applies a reset to the indicated PLL.
+func (d *Device) PLLReset(pll PLLType) error {
+	switch pll {
+	case PLL_A:
+		return d.rw.Write8(PLL_RESET, PLL_RESET_A)
+	case PLL_B:
+		return d.rw.Write8(PLL_RESET, PLL_RESET_B)
+	}
+	return ErrInvalidParameter
+}
+
+// SetReferenceFrequency sets the reference frequency for the specified reference oscillator.
+func (d *Device) SetReferenceFrequency(refOsc PLLReferenceOscillator, refFreq CrystalFrequency) {
+	switch {
+	case refFreq <= 30_000_000:
+		d.crystalFreq[refOsc] = refFreq
+		if refOsc == PLLInputClockIn {
+			d.clkinDiv = CLKIN_DIV_1
+		}
+	case refFreq <= 60_000_000:
+		d.crystalFreq[refOsc] = refFreq / 2
+		if refOsc == PLLInputClockIn {
+			d.clkinDiv = CLKIN_DIV_2
+		}
+	case refFreq <= 100_000_000:
+		d.crystalFreq[refOsc] = refFreq / 4
+		if refOsc == PLLInputClockIn {
+			d.clkinDiv = CLKIN_DIV_4
+		}
+	}
+}
+
+// EnableOutput enables or disables a clock output.
+func (d *Device) EnableOutput(clk Clock, enable bool) error {
+	if clk > Clock7 {
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(OUTPUT_ENABLE_CTRL)
+	if err != nil {
+		return err
+	}
+
+	if enable {
+		regVal &^= (1 << clk)
+	} else {
+		regVal |= (1 << clk)
+	}
+
+	return d.rw.Write8(OUTPUT_ENABLE_CTRL, regVal)
+}
+
+type DriveStrength uint8
+
+const (
+	DriveStrength2MA DriveStrength = iota
+	DriveStrength4MA
+	DriveStrength6MA
+	DriveStrength8MA
+)
+
+// SetDriveStrength sets the drive strength of the specified clock output.
+func (d *Device) SetDriveStrength(clk Clock, drive DriveStrength) error {
+	if clk > Clock7 {
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
+		return err
+	}
+
+	regVal &^= 0x03
+
+	switch drive {
+	case DriveStrength2MA: // 2mA
+		regVal |= CLK_DRIVE_STRENGTH_2MA
+	case DriveStrength4MA: // 4mA
+		regVal |= CLK_DRIVE_STRENGTH_4MA
+	case DriveStrength6MA: // 6mA
+		regVal |= CLK_DRIVE_STRENGTH_6MA
+	case DriveStrength8MA: // 8mA
+		regVal |= CLK_DRIVE_STRENGTH_8MA
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(CLK0_CTRL+uint8(clk), regVal)
+}
+
+// SetPhase sets the 7-bit phase register for the specified clock.
+func (d *Device) SetPhase(clk Clock, phase uint8) error {
+	phase &= 0x7F // Mask upper bit
+	return d.rw.Write8(CLK0_PHASE_OFFSET+uint8(clk), phase)
+}
+
+// Fanout options for clock signals
+type Fanout uint8
+
+const (
+	FanoutClockIn Fanout = iota
+	FanoutXO
+	FanoutMultisynth
+)
+
+// SetClockFanout enables or disables the clock fanout options for individual clock outputs.
+// If you intend to output the XO or CLKIN on the clock outputs, enable this first.
+// By default, only the Multisynth fanout is enabled at startup.
+func (d *Device) SetClockFanout(fanout Fanout, enable bool) error {
+	regVal, err := d.rw.Read8(FANOUT_ENABLE)
+	if err != nil {
+		return err
+	}
+
+	switch fanout {
+	case FanoutClockIn:
+		if enable {
+			regVal |= CLKIN_ENABLE
+		} else {
+			regVal &^= CLKIN_ENABLE
+		}
+	case FanoutXO:
+		if enable {
+			regVal |= XTAL_ENABLE
+		} else {
+			regVal &^= XTAL_ENABLE
+		}
+	case FanoutMultisynth:
+		if enable {
+			regVal |= MULTISYNTH_ENABLE
+		} else {
+			regVal &^= MULTISYNTH_ENABLE
+		}
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(FANOUT_ENABLE, regVal)
+}
+
+// Clock source options
+type ClockSource uint8
+
+const (
+	ClockSourceXTAL ClockSource = iota
+	ClockSourceClockIn
+	ClockSourceMS0
+	ClockSourceMS
+)
+
+// SetClockSource sets the clock source for a multisynth (based on the options
+// presented for Registers 16-23 in the Silicon Labs AN619 document).
+// Choices are XTAL, CLKIN, MS0, or the multisynth associated with the clock output.
+func (d *Device) SetClockSource(clk Clock, src ClockSource) error {
+	if clk > Clock7 {
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
+		return err
+	}
+
+	// Clear the input mask bits first
+	regVal &^= CLK_INPUT_MASK
+
+	switch src {
+	case ClockSourceXTAL:
+		regVal |= CLK_INPUT_XTAL
+	case ClockSourceClockIn:
+		regVal |= CLK_INPUT_CLKIN
+	case ClockSourceMS0:
+		if clk == Clock0 {
+			return ErrInvalidParameter
+		}
+		regVal |= CLK_INPUT_MULTISYNTH_0_4
+	case ClockSourceMS:
+		regVal |= CLK_INPUT_MULTISYNTH_N
+	default:
+		return ErrInvalidParameter
+	}
+
+	return d.rw.Write8(CLK0_CTRL+uint8(clk), regVal)
+}
+
+// SetClockPower enables or disables power to a clock output (a power saving feature).
+func (d *Device) SetClockPower(clk Clock, enable bool) error {
+	if clk > Clock7 {
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
+		return err
+	}
+
+	if enable {
+		regVal &= 0x7F // Clear bit 7 (power on)
+	} else {
+		regVal |= 0x80 // Set bit 7 (power off)
+	}
+
+	return d.rw.Write8(CLK0_CTRL+uint8(clk), regVal)
+}
+
+// SetClockInvert inverts the clock output waveform.
+func (d *Device) SetClockInvert(clk Clock, invert bool) error {
+	if clk > Clock7 {
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
+		return err
+	}
+
+	if invert {
+		regVal |= CLK_INVERT
+	} else {
+		regVal &^= CLK_INVERT
+	}
+
+	return d.rw.Write8(CLK0_CTRL+uint8(clk), regVal)
+}
+
+// CalculatePLL calculates the PLL register values for the specified frequency
+func (d *Device) CalculatePLL(pll PLLType, freq Frequency, correction int32, vcxo bool) (Frequency, RegisterSet) {
+	var refFreq Frequency
+	if pll == PLL_A {
+		refFreq = Frequency(d.crystalFreq[d.pllaRefOsc]) * FREQ_MULT
+	} else {
+		refFreq = Frequency(d.crystalFreq[d.pllbRefOsc]) * FREQ_MULT
+	}
+
+	// Apply correction
+	refFreq = refFreq + Frequency(((int64(correction)<<31)/1000000000)*int64(refFreq)>>31)
+
+	// Bounds checking
+	switch {
+	case freq < PLL_VCO_MIN*FREQ_MULT:
+		freq = PLL_VCO_MIN * FREQ_MULT
+	case freq > PLL_VCO_MAX*FREQ_MULT:
+		freq = PLL_VCO_MAX * FREQ_MULT
+	}
+
+	a := uint32(freq / refFreq)
+
+	switch {
+	case a < PLL_A_MIN:
+		freq = refFreq * PLL_A_MIN
+	case a > PLL_A_MAX:
+		freq = refFreq * PLL_A_MAX
+	}
+
+	var b, c uint32
+	if vcxo {
+		b = uint32(((freq % refFreq) * 1000000) / refFreq)
+		c = 1000000
+	} else {
+		b = uint32(((freq % refFreq) * rfracDenominator) / refFreq)
+		if b != 0 {
+			c = uint32(rfracDenominator)
+		} else {
+			c = 1
+		}
+	}
+
+	p1 := 128*a + ((128 * b) / c) - 512
+	p2 := 128*b - c*((128*b)/c)
+	p3 := c
+
+	lltmp := (refFreq * Frequency(b)) / Frequency(c)
+	freqOut := lltmp + refFreq*Frequency(a)
+
+	reg := RegisterSet{p1: p1, p2: p2, p3: p3}
+
+	if vcxo {
+		return Frequency(128*a*1000000 + b), reg
+	}
+	return freqOut, reg
+}
+
+// CalculateMultisynth calculates the multisynth register values for the specified frequency
+func (d *Device) CalculateMultisynth(freq, pllFreq Frequency) (Frequency, RegisterSet) {
+	divby4 := false
+	retVal := uint8(0)
+
+	// Bounds checking
+	switch {
+	case freq > MULTISYNTH_MAX_FREQ*FREQ_MULT:
+		freq = MULTISYNTH_MAX_FREQ * FREQ_MULT
+	case freq < MULTISYNTH_MIN_FREQ*FREQ_MULT:
+		freq = MULTISYNTH_MIN_FREQ * FREQ_MULT
+	}
+
+	if freq >= MULTISYNTH_DIVBY4_FREQ*FREQ_MULT {
+		divby4 = true
+	}
+
+	var a, b, c uint32
+
+	if pllFreq == 0 {
+		if !divby4 {
+			lltmp := Frequency(PLL_VCO_MAX * FREQ_MULT)
+			lltmp = lltmp / freq
+			switch lltmp {
+			case 5:
+				lltmp = 4
+			case 7:
+				lltmp = 6
+			}
+			a = uint32(lltmp)
+		} else {
+			a = 4
+		}
+		b = 0
+		c = 1
+		pllFreq = Frequency(a) * freq
+	} else {
+		retVal = 1
+		a = uint32(pllFreq / freq)
+
+		switch {
+		case a < MULTISYNTH_A_MIN:
+			freq = pllFreq / MULTISYNTH_A_MIN
+			a = MULTISYNTH_A_MIN
+		case a > MULTISYNTH_A_MAX:
+			freq = pllFreq / MULTISYNTH_A_MAX
+			a = MULTISYNTH_A_MAX
+		}
+
+		b = uint32(((pllFreq % freq) * rfracDenominator) / freq)
+		if b != 0 {
+			c = uint32(rfracDenominator)
+		} else {
+			c = 1
+		}
+	}
+
+	var p1, p2, p3 uint32
+	if divby4 {
+		p3 = 1
+		p2 = 0
+		p1 = 0
+	} else {
+		p1 = 128*a + ((128 * b) / c) - 512
+		p2 = 128*b - c*((128*b)/c)
+		p3 = c
+	}
+
+	reg := RegisterSet{p1: p1, p2: p2, p3: p3}
+
+	if retVal == 0 {
+		return pllFreq, reg
+	}
+	return freq, reg
+}
+
+// SetMultisynth programs the multisynth registers for the specified clock.
+// For CLK0-5, reg contains p1, p2, p3 values. For CLK6/7, only p1 is used.
+func (d *Device) SetMultisynth(clk Clock, reg RegisterSet, intMode, rDiv, divBy4 uint8) error {
+	switch {
+	case clk <= 5:
+		params := make([]byte, 8)
+		params[0] = byte((reg.p3 >> 8) & 0xFF)
+		params[1] = byte(reg.p3 & 0xFF)
+
+		regVal, err := d.rw.Read8(CLK0_PARAMETERS + 2 + uint8(clk)*8)
+		if err != nil {
+			return err
+		}
+		regVal &^= 0x03
+		params[2] = regVal | byte((reg.p1>>16)&0x03)
+
+		params[3] = byte((reg.p1 >> 8) & 0xFF)
+		params[4] = byte(reg.p1 & 0xFF)
+		params[5] = byte(((reg.p3 >> 12) & 0xF0) | ((reg.p2 >> 16) & 0x0F))
+		params[6] = byte((reg.p2 >> 8) & 0xFF)
+		params[7] = byte(reg.p2 & 0xFF)
+
+		baseAddr := CLK0_PARAMETERS + uint8(clk)*8
+		for i := range params {
+			if err := d.rw.Write8(baseAddr+uint8(i), params[i]); err != nil {
+				return err
+			}
+		}
+
+		d.setInt(clk, intMode)
+		return d.msDiv(clk, rDiv, divBy4)
+	case clk <= 7:
+		// CLK6/7
+		baseAddr := CLK6_PARAMETERS
+		if clk == 7 {
+			baseAddr = CLK7_PARAMETERS
+		}
+		if err := d.rw.Write8(uint8(baseAddr), byte(reg.p1)); err != nil {
+			return err
+		}
+		return d.msDiv(clk, rDiv, divBy4)
+	default:
+		return ErrInvalidParameter
+	}
+}
+
+func (d *Device) setFreqCLK0to5(clk Clock, freq Frequency) error {
+	var rDiv uint8
+	var divBy4 uint8
+	var intMode uint8
+
+	// Bounds checking
+	switch {
+	case freq < CLKOUT_MIN_FREQ*FREQ_MULT:
+		freq = CLKOUT_MIN_FREQ * FREQ_MULT
+	case freq > MULTISYNTH_MAX_FREQ*FREQ_MULT:
+		freq = MULTISYNTH_MAX_FREQ * FREQ_MULT
+	}
+
+	// Check if frequency requires PLL recalculation
+	if freq > MULTISYNTH_SHARE_MAX*FREQ_MULT {
+		// Check other clocks on same PLL
+		for i := range Clock(6) {
+			if d.clkFreq[i] > MULTISYNTH_SHARE_MAX*FREQ_MULT {
+				if i != clk && d.pllAssignment[i] == d.pllAssignment[clk] {
+					return ErrInvalidPLLClockSetting
+				}
+			}
+		}
+
+		// Enable output on first set
+		if !d.clkFirstSet[clk] {
+			d.EnableOutput(clk, true)
+			d.clkFirstSet[clk] = true
+		}
+
+		d.clkFreq[clk] = freq
+
+		// Calculate PLL frequency
+		pllFreq, _ := d.CalculateMultisynth(freq, 0)
+		d.SetPLL(d.pllAssignment[clk], pllFreq)
+
+		// Recalculate other synths on same PLL
+		for i := range Clock(6) {
+			if d.clkFreq[i] != 0 && d.pllAssignment[i] == d.pllAssignment[clk] {
+				tempFreq := d.clkFreq[i]
+				tempFreq, rDiv = d.selectRDiv(tempFreq)
+
+				_, tempReg := d.CalculateMultisynth(tempFreq, pllFreq)
+
+				if tempFreq >= MULTISYNTH_DIVBY4_FREQ*FREQ_MULT {
+					divBy4 = 1
+					intMode = 1
+				} else {
+					divBy4 = 0
+					intMode = 0
+				}
+
+				d.SetMultisynth(i, tempReg, intMode, rDiv, divBy4)
+			}
+		}
+
+		d.PLLReset(d.pllAssignment[clk])
+	} else {
+		d.clkFreq[clk] = freq
+
+		if !d.clkFirstSet[clk] {
+			d.EnableOutput(clk, true)
+			d.clkFirstSet[clk] = true
+		}
+
+		freq, rDiv = d.selectRDiv(freq)
+
+		var pllFreq Frequency
+		if d.pllAssignment[clk] == PLL_A {
+			pllFreq = d.pllaFreq
+		} else {
+			pllFreq = d.pllbFreq
+		}
+
+		_, msReg := d.CalculateMultisynth(freq, pllFreq)
+		d.SetMultisynth(clk, msReg, intMode, rDiv, divBy4)
+	}
+
+	return nil
+}
+
+func (d *Device) setFreqCLK6to7(clk Clock, freq Frequency) error {
+	var rDiv uint8
+	var divBy4 uint8
+	var intMode uint8
+
+	// Bounds checking for CLK6/7
+	if freq > 0 && freq < CLKOUT67_MIN_FREQ*FREQ_MULT {
+		freq = CLKOUT_MIN_FREQ * FREQ_MULT
+	}
+	if freq >= MULTISYNTH_DIVBY4_FREQ*FREQ_MULT {
+		freq = MULTISYNTH_DIVBY4_FREQ*FREQ_MULT - 1
+	}
+
+	var msReg RegisterSet
+	var pllFreq Frequency
+
+	otherClk := uint8(7)
+	if clk == 7 {
+		otherClk = 6
+	}
+
+	if d.clkFreq[otherClk] != 0 {
+		// Other CLK6/7 already set, must use integer division
+		if d.pllbFreq%freq != 0 || (d.pllbFreq/freq)%2 != 0 {
+			return ErrInvalidPLLDivision
+		}
+
+		d.clkFreq[clk] = freq
+		freq, rDiv = d.selectRDivMS67(freq)
+		_, msReg = d.multisynth67Calc(freq, d.pllbFreq)
+	} else {
+		// Set PLLB based on this clock
+		d.clkFreq[clk] = freq
+		freq, rDiv = d.selectRDivMS67(freq)
+		pllFreq, msReg = d.multisynth67Calc(freq, 0)
+
+		d.SetPLL(d.pllAssignment[clk], pllFreq)
+	}
+
+	divBy4 = 0
+	intMode = 0
+
+	return d.SetMultisynth(clk, msReg, intMode, rDiv, divBy4)
+}
+
+func (d *Device) setInt(clk Clock, enable uint8) error {
+	regVal, err := d.rw.Read8(CLK0_CTRL + uint8(clk))
+	if err != nil {
+		return err
+	}
+
+	if enable == 1 {
+		regVal |= CLK_INTEGER_MODE
+	} else {
+		regVal &^= CLK_INTEGER_MODE
+	}
+
+	return d.rw.Write8(CLK0_CTRL+uint8(clk), regVal)
+}
+
+func (d *Device) msDiv(clk Clock, rDiv, divBy4 uint8) error {
+	var regAddr uint8
+
+	switch clk {
+	case 0:
+		regAddr = CLK0_PARAMETERS + 2
+	case 1:
+		regAddr = CLK1_PARAMETERS + 2
+	case 2:
+		regAddr = CLK2_PARAMETERS + 2
+	case 3:
+		regAddr = CLK3_PARAMETERS + 2
+	case 4:
+		regAddr = CLK4_PARAMETERS + 2
+	case 5:
+		regAddr = CLK5_PARAMETERS + 2
+	case 6, 7:
+		regAddr = CLK6_7_OUTPUT_DIVIDER
+	default:
+		return ErrInvalidParameter
+	}
+
+	regVal, err := d.rw.Read8(regAddr)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case clk <= 5:
+		regVal &^= 0x7C
+
+		if divBy4 == 0 {
+			regVal &^= OUTPUT_CLK_DIVBY4
+		} else {
+			regVal |= OUTPUT_CLK_DIVBY4
+		}
+
+		regVal |= (rDiv << OUTPUT_CLK_DIV_SHIFT)
+	case clk == 6:
+		regVal &^= 0x07
+		regVal |= rDiv
+	case clk == 7:
+		regVal &^= 0x70
+		regVal |= (rDiv << OUTPUT_CLK_DIV_SHIFT)
+	}
+
+	return d.rw.Write8(regAddr, regVal)
+}
+
+func (d *Device) selectRDiv(freq Frequency) (Frequency, uint8) {
+	rDiv := OUTPUT_CLK_DIV_1
+
+	switch {
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT && freq < CLKOUT_MIN_FREQ*FREQ_MULT*2:
+		rDiv = OUTPUT_CLK_DIV_128
+		freq *= 128
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*2 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*4:
+		rDiv = OUTPUT_CLK_DIV_64
+		freq *= 64
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*4 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*8:
+		rDiv = OUTPUT_CLK_DIV_32
+		freq *= 32
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*8 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*16:
+		rDiv = OUTPUT_CLK_DIV_16
+		freq *= 16
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*16 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*32:
+		rDiv = OUTPUT_CLK_DIV_8
+		freq *= 8
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*32 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*64:
+		rDiv = OUTPUT_CLK_DIV_4
+		freq *= 4
+	case freq >= CLKOUT_MIN_FREQ*FREQ_MULT*64 && freq < CLKOUT_MIN_FREQ*FREQ_MULT*128:
+		rDiv = OUTPUT_CLK_DIV_2
+		freq *= 2
+	}
+
+	return freq, uint8(rDiv)
+}
+
+func (d *Device) selectRDivMS67(freq Frequency) (Frequency, uint8) {
+	rDiv := OUTPUT_CLK_DIV_1
+
+	// The minimum frequency for MS67 with max divider is lower than the calculated constant
+	// We use the same ranges as selectRDiv for consistency
+	minFreq := Frequency(CLKOUT_MIN_FREQ * FREQ_MULT)
+
+	switch {
+	case freq >= minFreq && freq < minFreq*2:
+		rDiv = OUTPUT_CLK_DIV_128
+		freq *= 128
+	case freq >= minFreq*2 && freq < minFreq*4:
+		rDiv = OUTPUT_CLK_DIV_64
+		freq *= 64
+	case freq >= minFreq*4 && freq < minFreq*8:
+		rDiv = OUTPUT_CLK_DIV_32
+		freq *= 32
+	case freq >= minFreq*8 && freq < minFreq*16:
+		rDiv = OUTPUT_CLK_DIV_16
+		freq *= 16
+	case freq >= minFreq*16 && freq < minFreq*32:
+		rDiv = OUTPUT_CLK_DIV_8
+		freq *= 8
+	case freq >= minFreq*32 && freq < minFreq*64:
+		rDiv = OUTPUT_CLK_DIV_4
+		freq *= 4
+	case freq >= minFreq*64 && freq < minFreq*128:
+		rDiv = OUTPUT_CLK_DIV_2
+		freq *= 2
+	}
+
+	return freq, uint8(rDiv)
+}
+
+func (d *Device) multisynth67Calc(freq, pllFreq Frequency) (Frequency, RegisterSet) {
+	// Bounds checking
+	if freq > MULTISYNTH67_MAX_FREQ*FREQ_MULT {
+		freq = MULTISYNTH67_MAX_FREQ * FREQ_MULT
+	}
+	if freq < MULTISYNTH_MIN_FREQ*FREQ_MULT {
+		freq = MULTISYNTH_MIN_FREQ * FREQ_MULT
+	}
+
+	var a uint32
+
+	if pllFreq == 0 {
+		lltmp := Frequency(PLL_VCO_MAX*FREQ_MULT - MULTISYNTH_SHARE_MAX)
+		lltmp = lltmp / freq
+		a = uint32(lltmp)
+
+		// Must be even
+		if a%2 != 0 {
+			a++
+		}
+
+		// Bounds check
+		if a < MULTISYNTH_A_MIN {
+			a = MULTISYNTH_A_MIN
+		}
+		if a > MULTISYNTH67_A_MAX {
+			a = MULTISYNTH67_A_MAX
+		}
+
+		pllFreq = Frequency(a) * freq
+
+		// PLL bounds
+		if pllFreq > PLL_VCO_MAX*FREQ_MULT {
+			a -= 2
+			pllFreq = Frequency(a) * freq
+		} else if pllFreq < PLL_VCO_MIN*FREQ_MULT {
+			a += 2
+			pllFreq = Frequency(a) * freq
+		}
+
+		return pllFreq, RegisterSet{p1: a, p2: 0, p3: 0}
+	} else {
+		if pllFreq%freq != 0 {
+			return 0, RegisterSet{}
+		}
+
+		a = uint32(pllFreq / freq)
+
+		if a < MULTISYNTH_A_MIN || a > MULTISYNTH67_A_MAX {
+			return 0, RegisterSet{}
+		}
+
+		return 1, RegisterSet{p1: a, p2: 0, p3: 0}
+	}
 }

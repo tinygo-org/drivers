@@ -1,3 +1,40 @@
+0.35.0
+---
+- **new devices**
+    - **unoqmatrix**
+        - LED matrix on the Arduino Uno Q
+    - **waveshare-epd (ssd1680)**
+        - Add driver for Waveshare 2.9 inch v2 e-paper display
+
+- **enhancements**
+    - **gps**
+        - add UBX config command support (#831)
+        - improve implementation for UBX config commands
+        - revamp validSentence() to avoid heap allocation for errors
+        - export some errors for checking/suppression from client
+        - improvements and corrections for config commands
+    - **lora**
+        - fill out more constants for lora device
+    - **mcp2515**
+        - add support for extended CAN IDs (#857)
+    - **si5351**
+        - complete refactor for more complete interface
+    - **st7735**
+        - remove dependency on the machine package
+    - **sx127x**
+        - add functions used for FSK radio communication
+    - **ws2812**
+        - add brightness control
+        - add PIO support for RP2040/RP2350
+
+- **bugfixes**
+    - **st7789**
+        - fix scroll on rotated displays
+        - fix driver when rotated 90º
+    - **ws2812**
+        - fix brightness control issues (#858)
+
+
 0.34.0
 ---
 - **core**

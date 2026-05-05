@@ -6,6 +6,7 @@
 package mcp2515 // import "tinygo.org/x/drivers/mcp2515"
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -15,13 +16,28 @@ import (
 	"tinygo.org/x/drivers/internal/pin"
 )
 
+var (
+	ErrNothingIsReceived          = errors.New("readMsg: nothing is received")
+	ErrRequestNewModeMaxTimeEx    = errors.New("requestNewMode max time expired")
+	ErrLengthIsLongerThanCapacity = errors.New("length is longer than capacity")
+	ErrTxTimeout                  = errors.New("Tx: Tx timeout")
+	ErrInvalidDirection           = errors.New("invalid direction")
+	ErrInvalidParameter           = errors.New("invalid parameter")
+	ErrCannotExpandBuffer         = errors.New("cannot expand buffer (to avoid memory allocation)")
+)
+
 // Device wraps MCP2515 SPI CAN Module.
 type Device struct {
 	spi           SPI
 	cs            pin.OutputFunc
 	msg           *CANMsg
+	extended      bool
 	mcpMode       byte
 	configurePins func()
+}
+
+type Configuration struct {
+	Extended bool
 }
 
 // CANMsg stores CAN message fields.
@@ -56,10 +72,11 @@ func New(b drivers.SPI, csPin pin.Output) *Device {
 }
 
 // Configure sets up the device for communication.
-func (d *Device) Configure() {
+func (d *Device) Configure(cfg Configuration) {
 	if d.configurePins == nil {
 		panic(legacy.ErrConfigBeforeInstantiated)
 	}
+	d.extended = cfg.Extended
 	d.configurePins()
 }
 
@@ -117,9 +134,13 @@ func (d *Device) Tx(canid uint32, dlc uint8, data []byte) error {
 		timeoutCount++
 	}
 	if timeoutCount == timeoutvalue {
-		return fmt.Errorf("Tx: Tx timeout")
+		return ErrTxTimeout
 	}
-	err = d.writeCANMsg(bufNum, canid, 0, 0, dlc, data)
+	ext := byte(0)
+	if d.extended {
+		ext = 1
+	}
+	err = d.writeCANMsg(bufNum, canid, ext, 0, dlc, data)
 	if err != nil {
 		return err
 	}
@@ -389,7 +410,7 @@ func (d *Device) configRate(speed, clock byte) error {
 		set = false
 	}
 	if !set {
-		return errors.New("invalid parameter")
+		return ErrInvalidParameter
 	}
 	if err := d.setRegister(mcpCNF1, cfg1); err != nil {
 		return err
@@ -449,7 +470,7 @@ func (d *Device) readMsg() error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("readMsg: nothing is received")
+		return ErrNothingIsReceived
 	}
 
 	return nil
@@ -556,39 +577,22 @@ func (d *Device) writeCANMsg(bufNum uint8, canid uint32, ext, rtrBit, dlc uint8,
 }
 
 func (s *SPI) setTxBufData(canid uint32, ext, rtrBit, dlc uint8, data []byte) error {
-	canid = canid & 0x0FFFF
+	var id [4]byte
 	if ext == 1 {
-		// TODO: add Extended ID
-		err := s.setTxData(0)
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(0)
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(0)
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(0)
-		if err != nil {
-			return err
-		}
+		canid = canid & extidBottom29Mask
+		extended_id := canid
+		high_11 := extended_id & extidTop11WriteMask
+		low_18 := extended_id & extidBottom18Mask
+		high_11 <<= 3
+		extended_id_shifted := high_11 | low_18
+		canid = extended_id_shifted | extidFlagMask
 	} else {
-		err := s.setTxData(byte(canid >> 3))
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(byte((canid & 0x07) << 5))
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(0)
-		if err != nil {
-			return err
-		}
-		err = s.setTxData(0)
+		canid = canid & stdidBottom11Mask
+		canid <<= 16 + 5
+	}
+	binary.BigEndian.PutUint32(id[:], canid)
+	for _, b := range id {
+		err := s.setTxData(b)
 		if err != nil {
 			return err
 		}
@@ -785,7 +789,7 @@ func (d *Device) requestNewMode(newMode byte) error {
 		if r&modeMask == newMode {
 			return nil
 		} else if e := time.Now(); e.Sub(s) > 200*time.Millisecond {
-			return errors.New("requestNewMode max time expired")
+			return ErrRequestNewModeMaxTimeEx
 		}
 	}
 }
@@ -861,23 +865,23 @@ func (s *SPI) clearBuffer(dir int) error { return s.setBufferLength(0, dir) }
 func (s *SPI) setBufferLength(length int, dir int) error {
 	if dir == tx {
 		if length > cap(s.tx) {
-			return fmt.Errorf("length is longer than capacity")
+			return ErrLengthIsLongerThanCapacity
 		}
 		s.tx = s.tx[:length]
 	} else if dir == rx {
 		if length > cap(s.rx) {
-			return fmt.Errorf("length is longer than capacity")
+			return ErrLengthIsLongerThanCapacity
 		}
 		s.rx = s.rx[:length]
 	} else {
-		return fmt.Errorf("invalid direction")
+		return ErrInvalidDirection
 	}
 	return nil
 }
 
 func (s *SPI) setTxData(data byte) error {
 	if len(s.tx) >= bufferSize {
-		return fmt.Errorf("cannot expand buffer (to avoid memory allocation)")
+		return ErrCannotExpandBuffer
 	}
 	s.tx = append(s.tx, data)
 

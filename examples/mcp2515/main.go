@@ -21,7 +21,7 @@ func main() {
 		SDI:       machine.SPI0_SDI_PIN,
 		Mode:      0})
 	can := mcp2515.New(spi, csPin)
-	can.Configure()
+	can.Configure(mcp2515.Configuration{})
 	err := can.Begin(mcp2515.CAN500kBps, mcp2515.Clock8MHz)
 	if err != nil {
 		failMessage(err.Error())
