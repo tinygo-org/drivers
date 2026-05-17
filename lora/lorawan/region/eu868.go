@@ -3,8 +3,8 @@ package region
 import "tinygo.org/x/drivers/lora"
 
 const (
-	EU868_DEFAULT_PREAMBLE_LEN = 8
-	EU868_DEFAULT_TX_POWER_DBM = 20
+	EU868_DEFAULT_PREAMBLE_LEN = 8  // page 103 RP002-1.0.5
+	EU868_DEFAULT_TX_POWER_DBM = 16 // page 36 RP002-1.0.5, 16 is the max
 )
 
 type ChannelEU struct {
