@@ -17,16 +17,8 @@ import (
 // the new assembly implementation - no fiddly timings to calculate and no nops
 // to count!
 //
-// Right now this is specific to Cortex-M chips and assume the following things:
-// - Arithmetic operations (shift, add, sub) take up 1 clock cycle.
-// - The nop instruction also takes up 1 clock cycle.
-// - Store instructions (to the GPIO pins) take up 2 clock cycles.
-// - Branch instructions can take up 1 to 3 clock cycles. On the Cortex-M0, this
-//   depends on whether the branch is taken or not. On the M4, the documentation
-//   is less clear but it appears the instruction is still 1 to 3 cycles
-//   (possibly including some branch prediction).
-// It is certainly possible to extend this to other architectures, such as AVR
-// and RISC-V if needed.
+// Using templates, this code targets various microcontroller architectures: ARM
+// (Cortex-M), RISC-V, and Xtensa.
 //
 // Here are two important resources. For the timings:
 // https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
@@ -103,6 +95,34 @@ var architectures = map[string]architectureImpl{
   @DELAY3
   addi  %[i], %[i], -1             // [1]
   bnez  %[i], 1b                   // [1/3] send_bit
+`,
+	},
+	"xtensa": {
+		// ESP8266 and ESP32
+		// Because I do not know the exact instruction timings, I'm going to
+		// assume that every instruction executes in one cycle. Branches and
+		// load/stores will probably be slower than that, but as long as all
+		// timings are only increased a little bit this should not be a problem.
+		buildTag:         "xtensa",
+		minBaseCyclesT0H: 1 + 1 + 1, // shift + branch (not taken) + store
+		maxBaseCyclesT0H: 1 + 1 + 1, // shift + branch (not taken) + store
+		minBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
+		maxBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
+		minBaseCyclesTLD: 1 + 1 + 1, // subtraction + branch + store (in next cycle)
+		valueTemplate:    "(uint32_t)c",
+		template: `
+1: // send_bit
+  s32i  %[maskSet], %[portSet]     // [1]  T0H and T1H start here
+  @DELAY1
+  slli  %[value], %[value], 1      // [1]  shift value to the left by 1
+  bbsi  %[value], 8, 2f            // [1]  branch to skip_store if bit 8 is set
+  s32i  %[maskClear], %[portClear] // [1]  T0H -> T0L transition
+2: // skip_store
+  @DELAY2
+  s32i  %[maskClear], %[portClear] // [1]  T1H -> T1L transition
+  @DELAY3
+  addi  %[i], %[i], -1             // [1]
+  bnez  %[i], 1b                   // [1]  send_bit, T1H and T1L end here
 `,
 	},
 }
