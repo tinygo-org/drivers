@@ -203,3 +203,4 @@ tinygo build -size short -o ./build/test.hex -target=arduino-uno-r4-wifi ./examp
 # network examples (unor4wifi)
 tinygo build -size short -o ./build/test.hex -target=arduino-uno-r4-wifi -stack-size 4kb ./examples/net/tcpclient/
 tinygo build -size short -o ./build/test.hex -target=arduino-uno-r4-wifi -stack-size 4kb ./examples/net/ntpclient/
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/bme688
