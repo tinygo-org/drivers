@@ -5,12 +5,15 @@ import (
 	"time"
 )
 
-// initialize a new NRF24L01 Module
-func Module(config Config) (NRF24L01, error) {
+// initialize a new NRF24L01 New
+func New(config Config) (NRF24L01, error) {
 	if len(config.SPIConfig.SenderAddress) != 5 || len(config.SPIConfig.ListenerAddress) != 5 {
 		return nil, errors.New("error: len(address) != 5")
 	}
-
+	// make sure that adresses can be written
+	if config.SPIConfig.PackageSize < 5 {
+		config.SPIConfig.PackageSize = 5
+	}
 	s := nrf24l01{
 		packageSize:     int(config.SPIConfig.PackageSize),
 		channel:         config.SPIConfig.Channel,
@@ -28,7 +31,8 @@ func Module(config Config) (NRF24L01, error) {
 	}
 
 	s.ce.Low()
-	s.csn.High()
+	s.up()
+	defer s.down()
 	// RESET
 	s.WriteRegister(CONFIG, 0x00)
 	time.Sleep(time.Millisecond * 10)

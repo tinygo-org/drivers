@@ -5,6 +5,9 @@ import (
 	"strconv"
 )
 
+// Opinionated read method.
+// Fist bit is the length of data, therefore data is smaller than set package size
+// Use ReadMultiRegister() for custom framing
 func (s *nrf24l01) ReadPayload() ([]uint8, error) {
 	s.ce.Low()
 	defer s.ce.High()

@@ -5,8 +5,9 @@ import (
 	"time"
 )
 
-// Opinionated send method with the first bit indicating the data length.
+// Opinionated send method.
 // Fist bit is the length of data, therefore data must be smaller than set package size
+// Use WritePayload() for custom framing
 func (s *nrf24l01) Send(data []uint8) error {
 	if len(data) > s.packageSize-1 {
 		return errors.New("package size too big")
