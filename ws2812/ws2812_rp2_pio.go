@@ -5,6 +5,7 @@ package ws2812
 import (
 	"image/color"
 	"machine"
+	"runtime"
 
 	pio "github.com/tinygo-org/pio/rp2-pio"
 	"github.com/tinygo-org/pio/rp2-pio/piolib"
@@ -27,6 +28,9 @@ func newWS2812Device(pin machine.Pin) Device {
 		writeColorFunc: func(_ Device, buf []color.RGBA, brightness uint8) error {
 			for _, c := range buf {
 				r, g, b := applyBrightness(c, brightness)
+				for ws.IsQueueFull() {
+					runtime.Gosched()
+				}
 				ws.PutRGB(r, g, b)
 			}
 			return nil
