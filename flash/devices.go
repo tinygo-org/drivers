@@ -46,6 +46,10 @@ var DefaultDeviceIdentifier = DeviceIdentifierFunc(func(id JedecID) Attrs {
 		return GD25Q16C()
 	case 0xC84017:
 		return GD25Q64C()
+	case 0x856015:
+		return P25Q16H()
+	case 0xEF4014:
+		return W25Q80DV()
 	case 0xEF4015:
 		return W25Q16JVIQ()
 	case 0xEF4016:
@@ -239,6 +243,24 @@ func GD25Q64C() Attrs {
 	}
 }
 
+// Settings for the Puya P25Q16H 2MiB SPI flash.
+// Datasheet: https://files.seeedstudio.com/wiki/github_weiruanexample/Flash_P25Q16H-UXH-IR_Datasheet.pdf
+func P25Q16H() Attrs {
+	return Attrs{
+		TotalSize:           1 << 21, // 2 MiB
+		StartUp:             5000 * time.Microsecond,
+		JedecID:             JedecID{0x85, 0x60, 0x15},
+		MaxClockSpeedMHz:    55,
+		QuadEnableBitMask:   0x02,
+		HasSectorProtection: true,
+		SupportsFastRead:    true,
+		SupportsQSPI:        true,
+		SupportsQSPIWrites:  true,
+		WriteStatusSplit:    true,
+		SingleStatusByte:    false,
+	}
+}
+
 // Settings for the Winbond W25Q16JV-IQ 2MiB SPI flash. Note that JV-IM has a
 // different .memory_type (0x70) Datasheet:
 // https://www.winbond.com/resource-files/w25q16jv%20spi%20revf%2005092017.pdf
@@ -380,6 +402,25 @@ func W25Q80DL() Attrs {
 		TotalSize:           1 << 20, // 1 MiB
 		StartUp:             5000 * time.Microsecond,
 		JedecID:             JedecID{0xEF, 0x60, 0x14},
+		MaxClockSpeedMHz:    80,
+		QuadEnableBitMask:   0x02,
+		HasSectorProtection: false,
+		SupportsFastRead:    true,
+		SupportsQSPI:        true,
+		SupportsQSPIWrites:  false,
+		WriteStatusSplit:    false,
+		SingleStatusByte:    false,
+	}
+}
+
+// Settings for the Winbond W25Q80DV 2MiB SPI flash.
+// Datasheet:
+// https://www.winbond.com/resource-files/w25q80dv%20dl_revh_10022015.pdf
+func W25Q80DV() Attrs {
+	return Attrs{
+		TotalSize:           1 << 21, // 2 MiB
+		StartUp:             5000 * time.Microsecond,
+		JedecID:             JedecID{0xEF, 0x40, 0x14},
 		MaxClockSpeedMHz:    104,
 		QuadEnableBitMask:   0x02,
 		HasSectorProtection: false,

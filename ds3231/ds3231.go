@@ -5,10 +5,12 @@
 package ds3231 // import "tinygo.org/x/drivers/ds3231"
 
 import (
+	"encoding/binary"
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/regmap"
 )
 
 type Mode uint8
@@ -17,6 +19,7 @@ type Mode uint8
 type Device struct {
 	bus     drivers.I2C
 	Address uint16
+	d       regmap.Device8I2C
 }
 
 // New creates a new DS3231 connection. The I2C bus must already be
@@ -24,54 +27,50 @@ type Device struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) Device {
-	return Device{
+	d := Device{
 		bus:     bus,
 		Address: Address,
 	}
+	d.Configure()
+	return d
 }
 
 // Configure sets up the device for communication
 func (d *Device) Configure() bool {
+	d.d.SetBus(d.bus, d.Address, binary.BigEndian)
 	return true
 }
 
 // IsTimeValid return true/false is the time in the device is valid
 func (d *Device) IsTimeValid() bool {
-	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	status, err := d.d.Read8(REG_STATUS)
 	if err != nil {
 		return false
 	}
-	return (data[0] & (1 << OSF)) == 0x00
+	return (status & (1 << OSF)) == 0x00
 }
 
 // IsRunning returns if the oscillator is running
 func (d *Device) IsRunning() bool {
-	data := []uint8{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	control, err := d.d.Read8(REG_CONTROL)
 	if err != nil {
 		return false
 	}
-	return (data[0] & (1 << EOSC)) == 0x00
+	return (control & (1 << EOSC)) == 0x00
 }
 
 // SetRunning starts the internal oscillator
 func (d *Device) SetRunning(isRunning bool) error {
-	data := []uint8{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
+	control, err := d.d.Read8(REG_CONTROL)
 	if err != nil {
 		return err
 	}
 	if isRunning {
-		data[0] &^= uint8(1 << EOSC)
+		control &^= uint8(1 << EOSC)
 	} else {
-		data[0] |= 1 << EOSC
+		control |= 1 << EOSC
 	}
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONTROL, data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.d.Write8(REG_CONTROL, control)
 }
 
 // SetTime sets the date and time in the DS3231. The DS3231 hardware supports
@@ -86,18 +85,16 @@ func (d *Device) SetRunning(isRunning bool) error {
 // 2100 as a leap year, causing it to increment from 2100-02-28 to 2100-02-29
 // instead of 2100-03-01.
 func (d *Device) SetTime(dt time.Time) error {
-	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_STATUS, data)
+	status, err := d.d.Read8(REG_STATUS)
 	if err != nil {
 		return err
 	}
-	data[0] &^= 1 << OSF
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_STATUS, data)
-	if err != nil {
+	status &^= 1 << OSF
+	if err = d.d.Write8(REG_STATUS, status); err != nil {
 		return err
 	}
 
-	data = make([]uint8, 7)
+	data := make([]uint8, 7)
 	data[0] = uint8ToBCD(uint8(dt.Second()))
 	data[1] = uint8ToBCD(uint8(dt.Minute()))
 	data[2] = uint8ToBCD(uint8(dt.Hour()))
@@ -118,21 +115,16 @@ func (d *Device) SetTime(dt time.Time) error {
 	data[5] = uint8ToBCD(uint8(dt.Month()) | centuryFlag)
 	data[6] = uint8ToBCD(year)
 
-	err = legacy.WriteRegister(d.bus, uint8(d.Address), REG_TIMEDATE, data)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.bus.Tx(d.Address, append([]byte{REG_TIMEDATE}, data...), nil)
 }
 
 // ReadTime returns the date and time
 func (d *Device) ReadTime() (dt time.Time, err error) {
 	data := make([]uint8, 7)
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_TIMEDATE, data)
-	if err != nil {
+	if err = d.d.ReadData(REG_TIMEDATE, data); err != nil {
 		return
 	}
+
 	second := bcdToInt(data[0] & 0x7F)
 	minute := bcdToInt(data[1])
 	hour := hoursBCDToInt(data[2])
@@ -150,12 +142,264 @@ func (d *Device) ReadTime() (dt time.Time, err error) {
 
 // ReadTemperature returns the temperature in millicelsius (mC)
 func (d *Device) ReadTemperature() (int32, error) {
-	data := make([]uint8, 2)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP, data)
+	temp, err := d.d.Read16(REG_TEMP)
 	if err != nil {
 		return 0, err
 	}
-	return milliCelsius(data[0], data[1]), nil
+	return milliCelsius(temp), nil
+}
+
+// GetSqwPinMode returns the current square wave output frequency
+func (d *Device) GetSqwPinMode() SqwPinMode {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return SQW_OFF
+	}
+
+	control &= 0x1C // turn off INTCON
+	if control&0x04 != 0 {
+		return SQW_OFF
+	}
+
+	return SqwPinMode(control)
+}
+
+// SetSqwPinMode sets the square wave output mode to the given frequency
+func (d *Device) SetSqwPinMode(mode SqwPinMode) error {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return err
+	}
+
+	control &^= 0x04 // turn off INTCON
+	control &^= 0x18 // set freq bits to 0
+
+	control |= uint8(mode)
+
+	return d.d.Write8(REG_CONTROL, control)
+}
+
+// SetAlarm1 sets alarm1 to the given time and mode
+func (d *Device) SetAlarm1(dt time.Time, mode Alarm1Mode) error {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return err
+	}
+	if control&(1<<INTCN) == 0x00 {
+		return errors.New("INTCN has to be disabled")
+	}
+
+	A1M1 := uint8((mode & 0x01) << 7)
+	A1M2 := uint8((mode & 0x02) << 6)
+	A1M3 := uint8((mode & 0x04) << 5)
+	A1M4 := uint8((mode & 0x08) << 4)
+	DY_DT := uint8((mode & 0x10) << 2)
+
+	day := dt.Day()
+	if DY_DT > 0 {
+		day = dowToDS3231(int(dt.Weekday()))
+	}
+
+	alarm1 := uint32(uint8ToBCD(uint8(dt.Second()))|A1M1) << 24
+	alarm1 |= uint32(uint8ToBCD(uint8(dt.Minute()))|A1M2) << 16
+	alarm1 |= uint32(uint8ToBCD(uint8(dt.Hour()))|A1M3) << 8
+	alarm1 |= uint32(uint8ToBCD(uint8(day)) | A1M4 | DY_DT)
+
+	if err := d.d.Write32(REG_ALARMONE, alarm1); err != nil {
+		return err
+	}
+
+	control |= AlarmFlag_Alarm1
+	return d.d.Write8(REG_CONTROL, control)
+}
+
+// ReadAlarm1 returns the alarm1 time
+func (d *Device) ReadAlarm1() (dt time.Time, err error) {
+	data := make([]uint8, 4)
+	if err = d.d.ReadData(REG_ALARMONE, data); err != nil {
+		return
+	}
+	second := bcdToInt(data[0] & 0x7F)
+	minute := bcdToInt(data[1] & 0x7F)
+	hour := hoursBCDToInt(data[2] & 0x3F)
+
+	isDayOfWeek := (data[3] & 0x40) >> 6
+	var day int
+	if isDayOfWeek > 0 {
+		day = bcdToInt(data[3] & 0x0F)
+	} else {
+		day = bcdToInt(data[3] & 0x3F)
+	}
+
+	dt = time.Date(2000, 5, day, hour, minute, second, 0, time.UTC)
+	return
+}
+
+// SetAlarm2 sets alarm2 to the given time and mode
+func (d *Device) SetAlarm2(dt time.Time, mode Alarm2Mode) error {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return err
+	}
+	if control&(1<<INTCN) == 0x00 {
+		return errors.New("INTCN has to be disabled")
+	}
+
+	A2M2 := uint8((mode & 0x01) << 7)
+	A2M3 := uint8((mode & 0x02) << 6)
+	A2M4 := uint8((mode & 0x04) << 5)
+	DY_DT := uint8((mode & 0x08) << 3)
+
+	day := dt.Day()
+	if DY_DT > 0 {
+		day = dowToDS3231(int(dt.Weekday()))
+	}
+
+	data := make([]uint8, 4)
+	data[0] = uint8ToBCD(uint8(dt.Minute())) | A2M2
+	data[1] = uint8ToBCD(uint8(dt.Hour())) | A2M3
+	data[2] = uint8ToBCD(uint8(day)) | A2M4 | DY_DT
+	if err = d.bus.Tx(d.Address, append([]byte{REG_ALARMTWO}, data...), nil); err != nil {
+		return err
+	}
+
+	control |= AlarmFlag_Alarm2
+	return d.d.Write8(REG_CONTROL, control)
+}
+
+// ReadAlarm2 returns the alarm2 time
+func (d *Device) ReadAlarm2() (dt time.Time, err error) {
+	data := make([]uint8, 3)
+	if err = d.d.ReadData(REG_ALARMTWO, data); err != nil {
+		return
+	}
+	minute := bcdToInt(data[0] & 0x7F)
+	hour := hoursBCDToInt(data[1] & 0x3F)
+
+	isDayOfWeek := (data[2] & 0x40) >> 6
+	var day int
+	if isDayOfWeek > 0 {
+		day = bcdToInt(data[2] & 0x0F)
+	} else {
+		day = bcdToInt(data[2] & 0x3F)
+	}
+
+	dt = time.Date(2000, 5, day, hour, minute, 0, 0, time.UTC)
+	return
+}
+
+// IsEnabledAlarm1 returns true when alarm1 is enabled
+func (d *Device) IsEnabledAlarm1() bool {
+	return d.isEnabledAlarm(1)
+}
+
+// SetEnabledAlarm1 sets the enabled status of alarm1
+func (d *Device) SetEnabledAlarm1(enable bool) error {
+	if enable {
+		return d.enableAlarm(1)
+	}
+	return d.disableAlarm(1)
+}
+
+// IsEnabledAlarm2 returns true when alarm2 is enabled
+func (d *Device) IsEnabledAlarm2() bool {
+	return d.isEnabledAlarm(2)
+}
+
+// SetEnabledAlarm2 sets the enabled status of alarm2
+func (d *Device) SetEnabledAlarm2(enable bool) error {
+	if enable {
+		return d.enableAlarm(2)
+	}
+	return d.disableAlarm(2)
+}
+
+// ClearAlarm1 clears status of alarm1
+func (d *Device) ClearAlarm1() error {
+	return d.clearAlarm(1)
+}
+
+// ClearAlarm2 clears status of alarm2
+func (d *Device) ClearAlarm2() error {
+	return d.clearAlarm(2)
+}
+
+// IsAlarm1Fired returns true when alarm1 is firing
+func (d *Device) IsAlarm1Fired() bool {
+	return d.isAlarmFired(1)
+}
+
+// IsAlarm2Fired returns true when alarm2 is firing
+func (d *Device) IsAlarm2Fired() bool {
+	return d.isAlarmFired(2)
+}
+
+// SetEnabled32K sets the enabled status of the 32KHz output
+func (d *Device) SetEnabled32K(enable bool) error {
+	status, err := d.d.Read8(REG_STATUS)
+	if err != nil {
+		return err
+	}
+
+	if enable {
+		status |= 1 << EN32KHZ
+	} else {
+		status &^= 1 << EN32KHZ
+	}
+
+	return d.d.Write8(REG_STATUS, status)
+}
+
+// IsEnabled32K returns true when the 32KHz output is enabled
+func (d *Device) IsEnabled32K() bool {
+	status, err := d.d.Read8(REG_STATUS)
+	if err != nil {
+		return false
+	}
+	return (status & (1 << EN32KHZ)) != 0x00
+}
+
+func (d *Device) disableAlarm(alarm_num uint8) error {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return err
+	}
+	control &^= (1 << (alarm_num - 1))
+	return d.d.Write8(REG_CONTROL, control)
+}
+
+func (d *Device) enableAlarm(alarm_num uint8) error {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return err
+	}
+	control |= (1 << (alarm_num - 1))
+	return d.d.Write8(REG_CONTROL, control)
+}
+
+func (d *Device) isEnabledAlarm(alarm_num uint8) bool {
+	control, err := d.d.Read8(REG_CONTROL)
+	if err != nil {
+		return false
+	}
+	return (control & (1 << (alarm_num - 1))) != 0x00
+}
+
+func (d *Device) clearAlarm(alarm_num uint8) error {
+	status, err := d.d.Read8(REG_STATUS)
+	if err != nil {
+		return err
+	}
+	status &^= (1 << (alarm_num - 1))
+	return d.d.Write8(REG_STATUS, status)
+}
+
+func (d *Device) isAlarmFired(alarm_num uint8) bool {
+	status, err := d.d.Read8(REG_STATUS)
+	if err != nil {
+		return false
+	}
+	return (status & (1 << (alarm_num - 1))) != 0x00
 }
 
 // milliCelsius converts the raw temperature bytes (msb and lsb) from the DS3231
@@ -172,8 +416,8 @@ func (d *Device) ReadTemperature() (int32, error) {
 // 16-bit signed integer in units of centi Celsius (1/100 deg C) with no loss of
 // precision or dynamic range. But for backwards compatibility, let's instead
 // convert this into a 32-bit signed integer in units of milli Celsius.
-func milliCelsius(msb uint8, lsb uint8) int32 {
-	t256 := int16(uint16(msb)<<8 | uint16(lsb))
+func milliCelsius(tempBytes uint16) int32 {
+	t256 := int16(uint16(tempBytes>>8)<<8 | uint16(tempBytes&0xFF))
 	t1000 := int32(t256) / 64 * 250
 	return t1000
 }
@@ -199,4 +443,12 @@ func hoursBCDToInt(value uint8) (hour int) {
 		hour = bcdToInt(value)
 	}
 	return
+}
+
+// dowToDS3231 converts the day of the week to internal DS3231 format
+func dowToDS3231(d int) int {
+	if d == 0 {
+		return 7
+	}
+	return d
 }

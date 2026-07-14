@@ -8,13 +8,29 @@ import (
 )
 
 func TestParseUnknownSentence(t *testing.T) {
+	p := NewParser()
+
+	val := "$GPVTG,89.68,T,,M,0.00,N,0.0,K*5F"
+	_, err := p.Parse(val)
+	if err == nil {
+		t.Error("should have unknown sentence err")
+	}
+}
+
+func TestParseGSV(t *testing.T) {
 	c := qt.New(t)
 
 	p := NewParser()
 
 	val := "$GPGSV,3,1,09,07,14,317,22,08,31,284,25,10,32,133,39,16,85,232,29*7F"
-	_, err := p.Parse(val)
-	c.Assert(err.Error(), qt.Contains, "unsupported NMEA sentence type")
+	fix, err := p.Parse(val)
+	if err != nil {
+		t.Error("should have parsed")
+	}
+
+	c.Assert(fix.Type, qt.Equals, GSV)
+	c.Assert(fix.Satellites, qt.Equals, int16(9))
+	c.Assert(fix.Valid, qt.Equals, false)
 }
 
 func TestParseGGA(t *testing.T) {
@@ -70,15 +86,15 @@ func TestParseRMC(t *testing.T) {
 		t.Error("should have errInvalidRMCSentence error")
 	}
 
-	val = "$GPRMC,203522.00,A,5109.0262308,N,11401.8407342,W,0.004,133.4,130522,0.0,E,D*2B"
+	val = "$GPRMC,203522.00,A,5109.0262308,N,11401.8407342,W,0.004,133.4,010622,0.0,E,D*2B"
 	fix, err := p.Parse(val)
 	if err != nil {
 		t.Error("should have parsed")
 	}
 
 	c.Assert(fix.Time.Year(), qt.Equals, 2022)
-	c.Assert(fix.Time.Month(), qt.Equals, time.May)
-	c.Assert(fix.Time.Day(), qt.Equals, 13)
+	c.Assert(fix.Time.Month(), qt.Equals, time.June)
+	c.Assert(fix.Time.Day(), qt.Equals, 1)
 	c.Assert(fix.Time.Hour(), qt.Equals, 20)
 	c.Assert(fix.Time.Minute(), qt.Equals, 35)
 	c.Assert(fix.Time.Second(), qt.Equals, 22)

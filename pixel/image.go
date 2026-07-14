@@ -22,17 +22,52 @@ func NewImage[T Color](width, height int) Image[T] {
 	}
 	var zeroColor T
 	var data unsafe.Pointer
-	if zeroColor.BitsPerPixel()%8 == 0 {
+	switch {
+	case zeroColor.BitsPerPixel()%8 == 0:
 		// Typical formats like RGB888 and RGB565.
 		// Each color starts at a whole byte offset from the start.
 		buf := make([]T, width*height)
 		data = unsafe.Pointer(&buf[0])
-	} else {
+	default:
 		// Formats like RGB444 that have 12 bits per pixel.
 		// We access these as bytes, so allocate the buffer as a byte slice.
 		bufBits := width * height * zeroColor.BitsPerPixel()
 		bufBytes := (bufBits + 7) / 8
 		buf := make([]byte, bufBytes)
+		data = unsafe.Pointer(&buf[0])
+	}
+	return Image[T]{
+		width:  int16(width),
+		height: int16(height),
+		data:   data,
+	}
+}
+
+// NewImageFromBytes creates a new image of the given size using an existing data slice of bytes.
+func NewImageFromBytes[T Color](width, height int, buf []byte) Image[T] {
+	if width < 0 || height < 0 || int(int16(width)) != width || int(int16(height)) != height {
+		// The width/height are stored as 16-bit integers and should never be
+		// negative.
+		panic("NewImageFromBytes: width/height out of bounds")
+	}
+	var zeroColor T
+	var data unsafe.Pointer
+	switch {
+	case zeroColor.BitsPerPixel()%8 == 0:
+		// Typical formats like RGB888 and RGB565.
+		// Each color starts at a whole byte offset from the start.
+		if len(buf) != width*height*int(unsafe.Sizeof(zeroColor)) {
+			panic("NewImageFromBytes: data slice size mismatch")
+		}
+		data = unsafe.Pointer(&buf[0])
+	default:
+		// Formats like RGB444 that have 12 bits per pixel.
+		// We access these as bytes, so allocate the buffer as a byte slice.
+		bufBits := width * height * zeroColor.BitsPerPixel()
+		bufBytes := (bufBits + 7) / 8
+		if len(buf) != bufBytes {
+			panic("NewImageFromBytes: data slice size mismatch")
+		}
 		data = unsafe.Pointer(&buf[0])
 	}
 	return Image[T]{
@@ -80,10 +115,11 @@ func (img Image[T]) Len() int {
 func (img Image[T]) RawBuffer() []uint8 {
 	var zeroColor T
 	var numBytes int
-	if zeroColor.BitsPerPixel()%8 == 0 {
+	switch {
+	case zeroColor.BitsPerPixel()%8 == 0:
 		// Each color starts at a whole byte offset.
 		numBytes = int(unsafe.Sizeof(zeroColor)) * int(img.width) * int(img.height)
-	} else {
+	default:
 		// Formats like RGB444 that aren't a whole number of bytes.
 		numBits := zeroColor.BitsPerPixel() * int(img.width) * int(img.height)
 		numBytes = (numBits + 7) / 8 // round up (see NewImage)
@@ -99,7 +135,35 @@ func (img Image[T]) Size() (int, int) {
 func (img Image[T]) setPixel(index int, c T) {
 	var zeroColor T
 
-	if zeroColor.BitsPerPixel()%8 == 0 {
+	switch {
+	case zeroColor.BitsPerPixel() == 1:
+		// Monochrome.
+		offset := index / 8
+		bits := index % 8
+
+		ptr := (*byte)(unsafe.Add(img.data, offset))
+		if c != zeroColor {
+			*((*byte)(ptr)) |= (1 << (7 - uint8(bits)))
+		} else {
+			*((*byte)(ptr)) &^= (1 << (7 - uint8(bits)))
+		}
+
+		return
+	case zeroColor.BitsPerPixel() == 2:
+		// Grayscale2bit.
+		offset := index / 4      // 4 pixels per byte
+		shift := 6 - (index%4)*2 // bits: 6, 4, 2, 0
+
+		ptr := (*byte)(unsafe.Add(img.data, offset))
+
+		raw := *(*uint8)(unsafe.Pointer(&c))
+		gray := raw & 0b11
+
+		mask := byte(0b11 << shift)
+		*ptr = (*ptr &^ mask) | (gray << shift)
+		return
+
+	case zeroColor.BitsPerPixel()%8 == 0:
 		// Each color starts at a whole byte offset.
 		// This is the easy case.
 		offset := index * int(unsafe.Sizeof(zeroColor))
@@ -147,7 +211,23 @@ func (img Image[T]) Get(x, y int) T {
 	var zeroColor T
 	index := y*int(img.width) + x // index into img.data
 
-	if zeroColor.BitsPerPixel()%8 == 0 {
+	switch {
+	case zeroColor.BitsPerPixel() == 1:
+		// Monochrome.
+		var c Monochrome
+		offset := index / 8
+		bits := index % 8
+		ptr := (*byte)(unsafe.Add(img.data, offset))
+		c = ((*ptr >> (7 - uint8(bits))) & 0x1) > 0
+		return any(c).(T)
+	case zeroColor.BitsPerPixel() == 2:
+		// Grayscale2bit.
+		offset := index / 4      // 4 pixels per byte
+		shift := 6 - (index%4)*2 // bits: 6, 4, 2, 0
+		ptr := (*byte)(unsafe.Add(img.data, offset))
+		value := ((*ptr) >> shift) & 0b11
+		return any(Grayscale2bit(value)).(T)
+	case zeroColor.BitsPerPixel()%8 == 0:
 		// Colors like RGB565, RGB888, etc.
 		offset := index * int(unsafe.Sizeof(zeroColor))
 		ptr := unsafe.Add(img.data, offset)
@@ -181,8 +261,26 @@ func (img Image[T]) Get(x, y int) T {
 func (img Image[T]) FillSolidColor(color T) {
 	var zeroColor T
 
-	// Fast pass for colors of 8, 16, 24, etc bytes in size.
-	if zeroColor.BitsPerPixel()%8 == 0 {
+	switch {
+	case zeroColor.BitsPerPixel() == 1:
+		// Monochrome.
+		var colorByte uint8
+		if color != zeroColor {
+			colorByte = 0xff
+		}
+		numBytes := int(img.width) * int(img.height) / 8
+		for i := 0; i < numBytes; i++ {
+			// TODO: this can be optimized a lot.
+			// - The store can be done as a 32-bit integer, after checking for
+			//   alignment.
+			// - Perhaps the loop can be unrolled to improve copy performance.
+			ptr := (*byte)(unsafe.Add(img.data, i))
+			*((*byte)(ptr)) = colorByte
+		}
+		return
+
+	case zeroColor.BitsPerPixel()%8 == 0:
+		// Fast pass for colors of 8, 16, 24, etc bytes in size.
 		ptr := img.data
 		for i := 0; i < img.Len(); i++ {
 			// TODO: this can be optimized a lot.

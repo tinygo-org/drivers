@@ -5,12 +5,13 @@ package st7735 // import "tinygo.org/x/drivers/st7735"
 
 import (
 	"image/color"
-	"machine"
 	"time"
 
 	"errors"
 
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/pixel"
 )
 
@@ -39,10 +40,10 @@ type Device = DeviceOf[pixel.RGB565BE]
 // formats.
 type DeviceOf[T Color] struct {
 	bus          drivers.SPI
-	dcPin        machine.Pin
-	resetPin     machine.Pin
-	csPin        machine.Pin
-	blPin        machine.Pin
+	dcPin        pin.OutputFunc
+	resetPin     pin.OutputFunc
+	csPin        pin.OutputFunc
+	blPin        pin.OutputFunc
 	width        int16
 	height       int16
 	columnOffset int16
@@ -65,23 +66,25 @@ type Config struct {
 }
 
 // New creates a new ST7735 connection. The SPI wire must already be configured.
-func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) Device {
+func New(bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) Device {
 	return NewOf[pixel.RGB565BE](bus, resetPin, dcPin, csPin, blPin)
 }
 
 // NewOf creates a new ST7735 connection with a particular pixel format. The SPI
 // wire must already be configured.
-func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin machine.Pin) DeviceOf[T] {
-	dcPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	resetPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	csPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	blPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+func NewOf[T Color](bus drivers.SPI, resetPin, dcPin, csPin, blPin pin.Output) DeviceOf[T] {
+	// IMPORTANT: pin configuration should really be done outside of this driver,
+	// but for backwards compatibility with existing code, we do it here.
+	legacy.ConfigurePinOut(dcPin)
+	legacy.ConfigurePinOut(resetPin)
+	legacy.ConfigurePinOut(csPin)
+	legacy.ConfigurePinOut(blPin)
 	return DeviceOf[T]{
 		bus:      bus,
-		dcPin:    dcPin,
-		resetPin: resetPin,
-		csPin:    csPin,
-		blPin:    blPin,
+		dcPin:    dcPin.Set,
+		resetPin: resetPin.Set,
+		csPin:    csPin.Set,
+		blPin:    blPin.Set,
 	}
 }
 
@@ -423,7 +426,7 @@ func (d *DeviceOf[T]) Data(data uint8) {
 
 // Tx sends data to the display
 func (d *DeviceOf[T]) Tx(data []byte, isCommand bool) {
-	d.dcPin.Set(!isCommand)
+	d.dcPin(!isCommand)
 	d.bus.Tx(data, nil)
 }
 

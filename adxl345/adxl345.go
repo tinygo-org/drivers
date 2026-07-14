@@ -95,16 +95,16 @@ func (d *Device) Restart() {
 func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	rx, ry, rz := d.ReadRawAcceleration()
 
-	x = d.dataFormat.convertToIS(rx)
-	y = d.dataFormat.convertToIS(ry)
-	z = d.dataFormat.convertToIS(rz)
+	x = int32(d.dataFormat.convertToIS(rx))
+	y = int32(d.dataFormat.convertToIS(ry))
+	z = int32(d.dataFormat.convertToIS(rz))
 
 	return
 }
 
 // ReadRawAcceleration reads the sensor values and returns the raw x, y and z axis
 // from the adxl345.
-func (d *Device) ReadRawAcceleration() (x int32, y int32, z int32) {
+func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
 	data := []byte{0, 0, 0, 0, 0, 0}
 	legacy.ReadRegister(d.bus, uint8(d.Address), REG_DATAX0, data)
 
@@ -140,7 +140,7 @@ func (d *Device) SetRange(sensorRange Range) bool {
 }
 
 // convertToIS adjusts the raw values from the adxl345 with the range configuration
-func (d *dataFormat) convertToIS(rawValue int32) int32 {
+func (d *dataFormat) convertToIS(rawValue int16) int16 {
 	switch d.sensorRange {
 	case RANGE_2G:
 		return rawValue * 4 // rawValue * 2 * 1000 / 512
@@ -190,6 +190,6 @@ func (b *bwRate) toByte() (bits uint8) {
 }
 
 // readInt converts two bytes to int16
-func readIntLE(msb byte, lsb byte) int32 {
-	return int32(uint16(msb) | uint16(lsb)<<8)
+func readIntLE(msb byte, lsb byte) int16 {
+	return int16(uint16(msb) | uint16(lsb)<<8)
 }

@@ -1,5 +1,4 @@
-// L2 data link layer
-
+// package netlink provides an interface for L2 data link layer operations.
 package netlink
 
 import (
@@ -20,6 +19,7 @@ var (
 	ErrNotSupported      = errors.New("Not supported")
 )
 
+// Event is a network event type passed to the callback registered with NetNotify.
 type Event int
 
 // Network events
@@ -38,6 +38,7 @@ const (
 	ConnectModeAP         // Connect as Wifi Access Point
 )
 
+// AuthType is the type of WiFi authorization to use when connecting to an access point.
 type AuthType int
 
 // Wifi authorization types.  Used when setting up an access point, or
@@ -49,10 +50,11 @@ const (
 	AuthTypeWPA2Mixed        // WPA2/WPA mixed authorization
 )
 
+// DefaultConnectTimeout is the default timeout for connection attempts.  This is used when ConnectParams.ConnectTimeout is zero.
 const DefaultConnectTimeout = 10 * time.Second
 
+// ConnectParams is the set of parameters used to connect a Netlinker device to a network.
 type ConnectParams struct {
-
 	// Connect mode
 	ConnectMode
 
@@ -81,22 +83,23 @@ type ConnectParams struct {
 	// downed connection or hardware fault and try to recover the
 	// connection.  Set to zero to disable watchodog.
 	WatchdogTimeout time.Duration
+
+	// Hostname to use for this device.
+	Hostname string
 }
 
 // Netlinker is TinyGo's OSI L2 data link layer interface.  Network device
 // drivers implement Netlinker to expose the device's L2 functionality.
-
 type Netlinker interface {
-
-	// Connect device to network
+	// NetConnect connects the device to a network
 	NetConnect(params *ConnectParams) error
 
-	// Disconnect device from network
+	// NetDisconnect disconnects the device from the network
 	NetDisconnect()
 
-	// Notify to register callback for network events
+	// NetNotify registers a callback for network events
 	NetNotify(cb func(Event))
 
-	// GetHardwareAddr returns device MAC address
+	// GetHardwareAddr returns the device's MAC address
 	GetHardwareAddr() (net.HardwareAddr, error)
 }

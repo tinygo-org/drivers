@@ -23,6 +23,7 @@ type Filter uint
 type Device struct {
 	bus         drivers.I2C
 	Address     uint16
+	buf         [6]byte
 	cali        calibrationCoefficients
 	Temperature Oversampling
 	Pressure    Oversampling
@@ -134,8 +135,8 @@ func (d *Device) PrintCali() {
 
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
 func (d *Device) ReadTemperature() (temperature int32, err error) {
-	data, err := d.readData(REG_TEMP, 3)
-	if err != nil {
+	data := d.buf[:3]
+	if err = d.readData(REG_TEMP, data); err != nil {
 		return
 	}
 
@@ -158,8 +159,8 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 // ReadPressure returns the pressure in milli pascals (mPa).
 func (d *Device) ReadPressure() (pressure int32, err error) {
 	// First 3 bytes are Pressure, last 3 bytes are Temperature
-	data, err := d.readData(REG_PRES, 6)
-	if err != nil {
+	data := d.buf[:6]
+	if err = d.readData(REG_PRES, data); err != nil {
 		return
 	}
 
@@ -203,7 +204,7 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 }
 
 // readData reads n number of bytes of the specified register
-func (d *Device) readData(register int, n int) ([]byte, error) {
+func (d *Device) readData(register int, data []byte) error {
 	// If not in normal mode, set the mode to FORCED mode, to prevent incorrect measurements
 	// After the measurement in FORCED mode, the sensor will return to SLEEP mode
 	if d.Mode != MODE_NORMAL {
@@ -218,9 +219,7 @@ func (d *Device) readData(register int, n int) ([]byte, error) {
 	}
 
 	// Read the requested register
-	data := make([]byte, n)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), uint8(register), data[:])
-	return data, err
+	return legacy.ReadRegister(d.bus, uint8(d.Address), uint8(register), data[:])
 }
 
 // convert3Bytes converts three bytes to int32

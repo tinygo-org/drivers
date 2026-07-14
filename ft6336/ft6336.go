@@ -1,3 +1,6 @@
+// Guarded because still unsure of how to deal with interrupt drivers.
+//go:build tinygo
+
 // Package ft6336 provides a driver for the FT6336 I2C Self-Capacitive touch
 // panel controller.
 //
@@ -80,7 +83,8 @@ func (d *Device) Read() []byte {
 func (d *Device) ReadTouchPoint() touch.Point {
 	d.Read()
 	z := 0xFFFFF
-	if d.buf[0] == 0 {
+	switch d.buf[0] {
+	case 0, 255:
 		z = 0
 	}
 

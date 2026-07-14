@@ -11,36 +11,17 @@ import (
 )
 
 var (
-	errInvalidNMEASentenceLength = errors.New("invalid NMEA sentence length")
-	errInvalidNMEAChecksum       = errors.New("invalid NMEA sentence checksum")
-	errEmptyNMEASentence         = errors.New("cannot parse empty NMEA sentence")
-	errUnknownNMEASentence       = errors.New("unsupported NMEA sentence type")
+	ErrInvalidNMEASentenceLength = errors.New("invalid NMEA sentence length")
+	ErrInvalidNMEASentence       = errors.New("invalid NMEA sentence format")
+	ErrEmptyNMEASentence         = errors.New("cannot parse empty NMEA sentence")
+	ErrUnknownNMEASentence       = errors.New("unsupported NMEA sentence type")
+	errInvalidGSVSentence        = errors.New("invalid GSV NMEA sentence")
 	errInvalidGGASentence        = errors.New("invalid GGA NMEA sentence")
 	errInvalidRMCSentence        = errors.New("invalid RMC NMEA sentence")
 	errInvalidGLLSentence        = errors.New("invalid GLL NMEA sentence")
+	errGPSCommandRejected        = errors.New("GPS command rejected (NAK)")
+	errNoACKToGPSCommand         = errors.New("no ACK to GPS command")
 )
-
-type GPSError struct {
-	Err      error
-	Info     string
-	Sentence string
-}
-
-func newGPSError(err error, sentence string, info string) GPSError {
-	return GPSError{
-		Info:     info,
-		Err:      err,
-		Sentence: sentence,
-	}
-}
-
-func (ge GPSError) Error() string {
-	return ge.Err.Error() + " " + ge.Info + " " + ge.Sentence
-}
-
-func (ge GPSError) Unwrap() error {
-	return ge.Err
-}
 
 const (
 	minimumNMEALength = 7
@@ -50,30 +31,34 @@ const (
 
 // Device wraps a connection to a GPS device.
 type Device struct {
-	buffer   []byte
 	bufIdx   int
 	sentence strings.Builder
 	uart     drivers.UART
 	bus      drivers.I2C
 	address  uint16
+	buffer   [bufferSize]byte
 }
 
 // NewUART creates a new UART GPS connection. The UART must already be configured.
 func NewUART(uart drivers.UART) Device {
 	return Device{
 		uart:     uart,
-		buffer:   make([]byte, bufferSize),
 		bufIdx:   bufferSize,
 		sentence: strings.Builder{},
 	}
 }
 
 // NewI2C creates a new I2C GPS connection.
+// Uses the default i2c address (0x42) for backward compatibility reasons.
 func NewI2C(bus drivers.I2C) Device {
+	return NewI2CWithAddress(bus, I2C_ADDRESS)
+}
+
+// NewI2CWithAddress creates a new I2C GPS connection on the provided address
+func NewI2CWithAddress(bus drivers.I2C, i2cAddress uint16) Device {
 	return Device{
 		bus:      bus,
-		address:  I2C_ADDRESS,
-		buffer:   make([]byte, bufferSize),
+		address:  i2cAddress,
 		bufIdx:   bufferSize,
 		sentence: strings.Builder{},
 	}
@@ -166,17 +151,15 @@ func (gps *Device) WriteBytes(bytes []byte) {
 // It has to end with a '*' character following by a checksum.
 func validSentence(sentence string) error {
 	if len(sentence) < minimumNMEALength || sentence[0] != startingDelimiter || sentence[len(sentence)-3] != checksumDelimiter {
-		return errInvalidNMEASentenceLength
+		return ErrInvalidNMEASentenceLength
 	}
 	var cs byte = 0
 	for i := 1; i < len(sentence)-3; i++ {
 		cs ^= sentence[i]
 	}
 	checksum := strings.ToUpper(hex.EncodeToString([]byte{cs}))
-	if checksum != sentence[len(sentence)-2:len(sentence)] {
-		return newGPSError(errInvalidNMEAChecksum, sentence,
-			"expected "+sentence[len(sentence)-2:len(sentence)]+
-				" got "+checksum)
+	if checksum != sentence[len(sentence)-2:] {
+		return ErrInvalidNMEASentence
 	}
 
 	return nil

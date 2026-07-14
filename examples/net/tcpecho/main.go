@@ -7,7 +7,7 @@
 //
 // $ nc 10.0.0.2 8080 <file >copy ; cmp file copy
 
-//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || arduino_mkrwifi1010 || matrixportal_m4 || wioterminal
+//go:build ninafw || wioterminal
 
 package main
 

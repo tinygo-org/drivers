@@ -7,7 +7,6 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 type AccelRange uint8
@@ -28,7 +27,7 @@ type Device struct {
 	accelMultiplier int32
 	gyroMultiplier  int32
 	magMultiplier   int32
-	buf             [6]uint8
+	buf             [7]uint8 // up to 6 bytes for read + 1 byte for the register address
 }
 
 // Configuration for LSM9DS1 device.
@@ -61,10 +60,15 @@ func New(bus drivers.I2C) *Device {
 // Case of boolean false and error nil means I2C is up,
 // but "who am I" responses have unexpected values.
 func (d *Device) Connected() bool {
-	data1, data2 := d.buf[:1], d.buf[1:2]
-	legacy.ReadRegister(d.bus, d.AccelAddress, WHO_AM_I, data1)
-	legacy.ReadRegister(d.bus, d.MagAddress, WHO_AM_I_M, data2)
-	return data1[0] == 0x68 && data2[0] == 0x3D
+	data, err := d.readBytes(d.AccelAddress, WHO_AM_I, 1)
+	if err != nil || data[0] != 0x68 {
+		return false
+	}
+	data, err = d.readBytes(d.MagAddress, WHO_AM_I_M, 1)
+	if err != nil || data[0] != 0x3D {
+		return false
+	}
+	return true
 }
 
 // ReadAcceleration reads the current acceleration from the device and returns
@@ -72,8 +76,7 @@ func (d *Device) Connected() bool {
 // and the sensor is not moving the returned value will be around 1000000 or
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_X_L_XL, data)
+	data, err := d.readBytes(d.AccelAddress, OUT_X_L_XL, 6)
 	if err != nil {
 		return
 	}
@@ -88,8 +91,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // rotation along one axis and while doing so integrate all values over time,
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_X_L_G, data)
+	data, err := d.readBytes(d.AccelAddress, OUT_X_L_G, 6)
 	if err != nil {
 		return
 	}
@@ -102,8 +104,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 // ReadMagneticField reads the current magnetic field from the device and returns
 // it in nT (nanotesla). 1 G (gauss) = 100_000 nT (nanotesla).
 func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
-	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.MagAddress), OUT_X_L_M, data)
+	data, err := d.readBytes(d.MagAddress, OUT_X_L_M, 6)
 	if err != nil {
 		return
 	}
@@ -115,8 +116,7 @@ func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 
 // ReadTemperature returns the temperature in Celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
-	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_TEMP_L, data)
+	data, err := d.readBytes(d.AccelAddress, OUT_TEMP_L, 2)
 	if err != nil {
 		return
 	}
@@ -167,20 +167,16 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 		d.magMultiplier = 58
 	}
 
-	data := d.buf[:1]
-
 	// Configure accelerometer
 	// Sample rate & measurement range
-	data[0] = uint8(cfg.AccelSampleRate)<<5 | uint8(cfg.AccelRange)<<3
-	err = legacy.WriteRegister(d.bus, d.AccelAddress, CTRL_REG6_XL, data)
+	err = d.writeByte(d.AccelAddress, CTRL_REG6_XL, uint8(cfg.AccelSampleRate)<<5|uint8(cfg.AccelRange)<<3)
 	if err != nil {
 		return
 	}
 
 	// Configure gyroscope
 	// Sample rate & measurement range
-	data[0] = uint8(cfg.GyroSampleRate)<<5 | uint8(cfg.GyroRange)<<3
-	err = legacy.WriteRegister(d.bus, d.AccelAddress, CTRL_REG1_G, data)
+	err = d.writeByte(d.AccelAddress, CTRL_REG1_G, uint8(cfg.GyroSampleRate)<<5|uint8(cfg.GyroRange)<<3)
 	if err != nil {
 		return
 	}
@@ -190,33 +186,44 @@ func (d *Device) doConfigure(cfg Configuration) (err error) {
 	// Temperature compensation enabled
 	// High-performance mode XY axis
 	// Sample rate
-	data[0] = 0b10000000 | 0b01000000 | uint8(cfg.MagSampleRate)<<2
-	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG1_M, data)
+	err = d.writeByte(d.MagAddress, CTRL_REG1_M, 0b10000000|0b01000000|uint8(cfg.MagSampleRate)<<2)
 	if err != nil {
 		return
 	}
 
 	// Measurement range
-	data[0] = uint8(cfg.MagRange) << 5
-	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG2_M, data)
+	err = d.writeByte(d.MagAddress, CTRL_REG2_M, uint8(cfg.MagRange)<<5)
 	if err != nil {
 		return
 	}
 
 	// Continuous-conversion mode
 	// https://electronics.stackexchange.com/questions/237397/continuous-conversion-vs-single-conversion-mode
-	data[0] = 0b00000000
-	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG3_M, data)
+	err = d.writeByte(d.MagAddress, CTRL_REG3_M, 0b00000000)
 	if err != nil {
 		return
 	}
 
 	// High-performance mode Z axis
-	data[0] = 0b00001000
-	err = legacy.WriteRegister(d.bus, d.MagAddress, CTRL_REG4_M, data)
+	err = d.writeByte(d.MagAddress, CTRL_REG4_M, 0b00001000)
 	if err != nil {
 		return
 	}
 
 	return nil
+}
+
+func (d *Device) readBytes(addr, reg, size uint8) ([]byte, error) {
+	d.buf[0] = reg
+	err := d.bus.Tx(uint16(addr), d.buf[0:1], d.buf[1:size+1])
+	if err != nil {
+		return nil, err
+	}
+	return d.buf[1 : size+1], nil
+}
+
+func (d *Device) writeByte(addr, reg, value uint8) error {
+	d.buf[0] = reg
+	d.buf[1] = value
+	return d.bus.Tx(uint16(addr), d.buf[0:2], nil)
 }

@@ -1,3 +1,336 @@
+0.35.0
+---
+- **new devices**
+    - **unoqmatrix**
+        - LED matrix on the Arduino Uno Q
+    - **waveshare-epd (ssd1680)**
+        - Add driver for Waveshare 2.9 inch v2 e-paper display
+
+- **enhancements**
+    - **gps**
+        - add UBX config command support (#831)
+        - improve implementation for UBX config commands
+        - revamp validSentence() to avoid heap allocation for errors
+        - export some errors for checking/suppression from client
+        - improvements and corrections for config commands
+    - **lora**
+        - fill out more constants for lora device
+    - **mcp2515**
+        - add support for extended CAN IDs (#857)
+    - **si5351**
+        - complete refactor for more complete interface
+    - **st7735**
+        - remove dependency on the machine package
+    - **sx127x**
+        - add functions used for FSK radio communication
+    - **ws2812**
+        - add brightness control
+        - add PIO support for RP2040/RP2350
+
+- **bugfixes**
+    - **st7789**
+        - fix scroll on rotated displays
+        - fix driver when rotated 90º
+    - **ws2812**
+        - fix brightness control issues (#858)
+
+
+0.34.0
+---
+- **core**
+    - add regmap package to facilitate heapless driver development
+    - PinInput+PinOutput HAL (#753, reloaded) (#795)
+    - Add Device8I2C/SPI types and their logic (#801)
+
+- **new devices**
+    - **bno8x**
+        - Add support for CEVA BNO08x 9DoF sensor (#809)
+    - **hineyhsc**
+        - Add Honeywell HSC TruStability SPI+I2C pressure sensor driver (#799)
+    - **p25q16h**
+        - added support for P25Q16H flash chip for xiao-ble target
+    - **si5351**
+        - add support for si5351 (#810)
+    - **w25q80dv**
+        - added support for W25Q80DV flash chip for xiao-ble target
+    - **w5500**
+        - initial version the driver (#788)
+
+- **enhancements**
+    - **ds3231**
+        - DS3231 Alarm features (#805)
+    - **general**
+        - add simplest driver ports
+    - **lis3dh**
+        - add Update and Acceleration calls
+        - use correct error handling and make configurable
+    - **lsm9ds1**
+        - avoid unnecessary heap allocations
+    - **pixel**
+        - add Grayscale2bit color (#817)
+    - **scd4x**
+        - add support for SCD41 single-shot measurements
+        - remove dead code
+        - update package to use standard methods
+    - **si5351**
+        - add many missing functions needed for convenient use.
+    - **ssd1xxx**
+        - break dependency from machine package (#812)
+    - **test**
+        - Add TestImageRGB888 and TestImageRGB555
+
+- **bugfixes**
+    - **quadrature**
+        - add RP2350 to quadrature_interrupt.go
+    - **pixel**
+        - correct logic error in image size checks in pixel's tests
+        - correct logic error in image size checks in pixel's tests (Monochrome)
+        - correct RGB555 to RGBA conversion logic
+
+
+0.33.0
+---
+- **new devices**
+    - **ens160**
+        - Add ens160 i2c driver
+    - **lsm303dlhc**
+        - added support for LSM303DLHC e-Compass; (#783)
+    - **seesaw**
+        - add support for Adafruit Seesaw encoders
+
+- **enhancements**
+    - **ws2812**
+        - add RP2350 support
+    - **ssd1306**
+        - avoid unnecessary heap allocations (#767)
+    - **gps**
+        - allow gps init with address
+    - **lsm6ds3tr**
+        - avoid unnecessary heap allocations (#766)
+
+- **bugfixes**
+    - **gps**
+        - Fix gps time calculation (#785)
+
+
+0.32.0
+---
+- **enhancements**
+    - **bmp280**
+        - remove alloc on read sensor data
+    - **ws2812**
+        - add 200MHz support for the Cortex-M0/rp2040
+
+- **bugfixes**
+    - **ssd1306**
+        - remove time.Sleep from SSD1306 SPI transfer code
+    - **tmc2209**
+        - tmc2209 bug fixes (#755)
+
+- **docs**
+    - **contributing**
+        - add driver design pointer to CONTRIBUTING.md
+
+
+0.31.0
+---
+---
+- **enhancements**
+    - **spi**
+        - update all SPI usage to use either *machine.SPI or drivers.SPI
+
+
+0.30.0
+---
+- **new devices**
+    - **comboat**
+        - Add wifi driver comboat for Elecrow W5 rp2040 and rp2350 devices (#741)
+    - **max6675**
+        - Add MAX6675 device
+    - **TMC2209**
+        - Added TMC2209 support (#727)
+    - **TMC5160**
+        - Added TMC5160 support (#725)
+    - **sharpmem**
+        - Add sharpmem (#724)
+
+- **enhancements**
+    - **net**
+        - move to latest golang.org/x/net v0.33.0 (#732)
+    - **microphone**
+        - update microphone driver to use latest i2s interface
+
+- **bugfixes**
+    - **net**
+        - fix typo in DHCP error message
+    - **aht20**
+        - Fixed bug in aht20 driver
+    - **hub75**
+        - fix data buffering
+
+
+0.29.0
+---
+- **new devices**
+    - **epd1in54**
+        - Waveshare 1.54inch B/W e-Paper display (#704)
+    - **touch**
+        - add capacitive touch sensing on normal GPIO pins
+    - **INA219**
+        - I2C INA219 driver (#705)
+    - **pcf8591**
+        - add ADC only implementation for I2C ADC/DAC (#690)
+
+- **enhancements**
+    - **pixel**
+        - add NewImageFromBytes() function to allow creating image from existing slice
+    - **servo**
+        - Add function `SetAngleWithMicroseconds` (#695)
+    - **onewire**
+        - onewire improvements
+    - **ssd1306**
+        - Add function `SetFlip` and `GetFlip` (#702)
+    - **uc8151**
+        - add FillRectangle() and SetScroll() functions to satisfy tinyterm.Displayer interface
+    - **ssd1306**
+        - add FillRectangle() and SetScroll() functions to satisfy tinyterm.Displayer interface
+
+- **bugfixes**
+    - **pixel**
+        - fix Monochrome setPixel
+
+- **docs**
+    - **readme**
+        - discuss need to change variables in examples
+    - **sponsor**
+        - Add sponsor button to key repositories
+
+
+0.28.0
+---
+- **new devices**
+    - **epd2in66b**
+        - Waveshare 2.66inch E-Paper Display Module (B) for Raspberry Pi Pico (#673)
+    - **mcp9808**
+        - Add driver for MCP9808 i2c temperature sensor (#676)
+
+- **enhancements**
+    - **encoders**
+        - add atsamd21, atsamd51, atsame5x
+    - **pixel**
+        - add support for Monochrome types such as the SSD1306 display
+    - **rtl8720dn**
+        - implement ConnectModeAP
+    - **servo**
+        - add function SetAngle() to simplify API for most common use case
+    - **ssd1306**
+        - add DrawBitmap() function to complete Displayer interface
+        - add rotation functions for Displayer interface
+        - add Sleep() function for Displayer interface
+    - **uc8151**
+        - improvements to speed and also add flicker-free mode based on @antirez code example
+        - update to support all functions needed by tinygl and board package Displayer interface
+    - **wifinina**
+        - implement ConnectModeAP
+
+- **bugfixes**
+    - **ft6336**
+        - ignore bogus touch events
+    - **pixel**
+        - fix Image[Monochrome].Set for larger images
+    - **uc8151**
+        - correct DrawBitmap() also refactor SendCommand() and SendData() for clarity
+    - **ws2812**
+        - Fix typo and move initialization of neo to init()
+
+- **examples**
+    - **ws2812**
+        - Simplify examples/ws2812
+
+
+0.27.0
+---
+- **core**
+    - prepare for CGo changes in TinyGo
+
+- **new devices**
+    - **adafruit4650**
+        - support for Adafruit 4650 feather OLED
+    - **net**
+        - new networking support based on tinygo net package
+    - **pixel**
+        - add package for efficiently working with raw pixel buffers
+    - **rotary**
+        - Adding driver for rotary encoder support
+    - **seesaw**
+        - Adding support for Adafruit Seesaw platform
+    - **sgp30**
+        - add SGP30 air quality sensor
+    - **sk6812**
+        - added support for SK6812 to WS2812 device (#610)
+
+- **enhancements**
+    - **epd2in13**
+        - add Sleep method like other displays
+        - unify rotation configuration with other displays
+        - use better black/white approximation
+    - **ili9341**
+        - add DrawBitmap method
+    - **lora/lorawan**
+        - LoRa WAN US915 Support
+        - LoRa WAN add setter functions
+        - refactor shared functionality for channels/regions
+    - **mcp2515**
+        - Add more line speeds to mcp2515.go (#626)
+    - **rtl8720dn**
+        - use drivers package version as the driver version
+    - **ssd1306**
+        - improvements needed for Thumby SPI display
+    - **st7735**
+        - make the display generic over RGB565 and RGB444
+    - **st7789**
+        - add DrawBitmap method
+        - make the display generic over RGB565 and RGB444
+    - **wifinina**
+        - add ResetIsHigh cfg switch for MKR 1010 (copied from #561)
+        - maintenence. Also see PR #4085 in the main TinyGo repo
+        - use drivers package version as the driver version
+
+- **bugfixes**
+    - **adxl345**
+        - Use int16 for ADXL345 readings (#656)
+    - **at24cx**
+        - fixed the description of the device struct
+    - **rtl8720dn**
+        - allow connecting to open wifi access points
+        - fix check for bad Wifi connect
+    - **sh1106**
+        - fix I2C interface and add smoketest
+        - fixed the description of the device struct
+    - **wifinina**
+        - add 'unknown failure' reason code for AP connect
+        - fix concurrency issues with multiple sockets
+        - fix wifinina UDP send
+ 
+- **examples**
+    - **ds3231**
+        - fix the description in the example
+    - **lorawan**
+        - add missing functions for simulated interface
+        - modify atcmd and basic demo to support choosing any one of the supported regions at compile time by using ldflags
+    - **net**
+        - all networking examples now using netdev and netlink.
+
+- **build**
+    - **all**
+        - fix broken testrunner
+        - migrated legacy I2C
+        - add natiu package for tests
+    - **smoketest**
+        - add stack-size param for net tests.
+        - allow stack-size flag as it is needed for net examples
+
+
 0.26.0
 ---
 - **core**

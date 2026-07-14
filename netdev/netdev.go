@@ -35,10 +35,12 @@ var (
 var (
 	ErrFamilyNotSupported   = errors.New("Address family not supported")
 	ErrProtocolNotSupported = errors.New("Socket protocol/type not supported")
-	ErrStartingDHCPClient   = errors.New("Error starting DHPC client")
+	ErrStartingDHCPClient   = errors.New("Error starting DHCP client")
+	ErrStartingDHCPServer   = errors.New("Error starting DHCP server")
 	ErrNoMoreSockets        = errors.New("No more sockets")
 	ErrClosingSocket        = errors.New("Error closing socket")
 	ErrNotSupported         = errors.New("Not supported")
+	ErrInvalidSocketFd      = errors.New("Invalid socket fd")
 )
 
 // Duplicate of non-exported net.errTimeout

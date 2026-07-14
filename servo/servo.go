@@ -1,6 +1,12 @@
 package servo
 
-import "machine"
+import (
+	"machine"
+
+	"errors"
+)
+
+var ErrInvalidAngle = errors.New("servo: invalid angle")
 
 // PWM is the interface necessary for controlling typical servo motors.
 type PWM interface {
@@ -79,4 +85,33 @@ func New(pwm PWM, pin machine.Pin) (Servo, error) {
 func (s Servo) SetMicroseconds(microseconds int16) {
 	value := uint64(s.pwm.Top()) * uint64(microseconds) / (pwmPeriod / 1000)
 	s.pwm.Set(s.channel, uint32(value))
+}
+
+// SetAngle sets the angle of the servo in degrees. The angle should be between
+// 0 and 180, where 0 is the minimum angle and 180 is the maximum angle.
+// This function should work for most servos, but if it doesn't work for yours
+// you can use SetMicroseconds directly instead.
+func (s Servo) SetAngle(angle int) error {
+	if angle < 0 || angle > 180 {
+		return ErrInvalidAngle
+	}
+
+	// 0° is 1000µs, 180° is 2000µs. See explanation in SetMicroseconds.
+	microseconds := angle*1000/180 + 1000
+	s.SetMicroseconds(int16(microseconds))
+
+	return nil
+}
+
+// SetAngleWithMicroseconds sets the angle of the servo in degrees. The angle should be between
+// 0 and 180, where 0 is the minimum angle and 180 is the maximum angle.
+// The high duration can be customized
+// 0° is lowMicroseconds(us), 180° is highMicroseconds(us)
+func (s Servo) SetAngleWithMicroseconds(angle int, lowMicroseconds, highMicroseconds int) error {
+	if angle < 0 || angle > 180 {
+		return ErrInvalidAngle
+	}
+	microseconds := lowMicroseconds + (highMicroseconds-lowMicroseconds)*angle/180
+	s.SetMicroseconds(int16(microseconds))
+	return nil
 }

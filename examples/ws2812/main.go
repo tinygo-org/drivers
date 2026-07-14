@@ -12,11 +12,12 @@ import (
 	"tinygo.org/x/drivers/ws2812"
 )
 
-var leds [10]color.RGBA
+var (
+	neo  machine.Pin
+	leds [10]color.RGBA
+)
 
 func main() {
-	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	ws := ws2812.NewWS2812(neo)
@@ -35,7 +36,6 @@ func main() {
 		}
 
 		ws.WriteColors(leds[:])
-		led.Set(rg)
 		time.Sleep(100 * time.Millisecond)
 	}
 }

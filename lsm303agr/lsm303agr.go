@@ -36,7 +36,7 @@ type Configuration struct {
 	MagDataRate    uint8
 }
 
-var errNotConnected = errors.New("lsm303agr: failed to communicate with either acel or magnet sensor")
+var errNotConnected = errors.New("lsm303agr: failed to communicate with either accel or magnet sensor")
 
 // New creates a new LSM303AGR connection. The I2C bus must already be configured.
 //

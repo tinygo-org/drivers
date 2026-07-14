@@ -82,6 +82,13 @@ func (d *Device) StartLowPowerPeriodicMeasurement() error {
 	return d.sendCommand(CmdStartLowPowerPeriodicMeasurement)
 }
 
+// MeasureSingleShot starts a single measurement cycle (SCD41 only). After this
+// command is complete, the caller should wait for 5000ms before trying to read
+// the result.
+func (d *Device) MeasureSingleShot() error {
+	return d.sendCommand(CmdMeasureSingleShot)
+}
+
 // ReadData reads the data from the sensor and caches it.
 func (d *Device) ReadData() error {
 	if err := d.sendCommandWithResult(CmdReadMeasurement, d.rx[0:9]); err != nil {
@@ -93,7 +100,18 @@ func (d *Device) ReadData() error {
 	return nil
 }
 
+// Update reads new data from the sensor (if new data is available) and caches
+// it for reading in the CO2, Temperature, and Humidity methods.
+func (d *Device) Update(measurements drivers.Measurement) error {
+	if measurements&(drivers.Temperature|drivers.Humidity|drivers.Concentration) != 0 {
+		return d.ReadData()
+	}
+	return nil
+}
+
 // ReadCO2 returns the CO2 concentration in PPM (parts per million).
+//
+// Deprecated: use Update() and CO2() instead.
 func (d *Device) ReadCO2() (co2 int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -105,7 +123,14 @@ func (d *Device) ReadCO2() (co2 int32, err error) {
 	return int32(d.co2), err
 }
 
+// CO2 returns last read the CO2 concentration in PPM (parts per million).
+func (d *Device) CO2() int32 {
+	return int32(d.co2)
+}
+
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
+//
+// Deprecated: use Update() and Temperature() instead.
 func (d *Device) ReadTemperature() (temperature int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -114,8 +139,14 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
+	return d.Temperature(), err
+}
+
+// Temperature returns the last read temperature in celsius milli degrees
+// (°C/1000).
+func (d *Device) Temperature() int32 {
 	// temp = -45 + 175 * value / 2¹⁶
-	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192), err
+	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192)
 }
 
 // ReadTempC returns the value in the temperature value in Celsius.
@@ -130,6 +161,11 @@ func (d *Device) ReadTempF() float32 {
 }
 
 // ReadHumidity returns the current relative humidity in %rH.
+//
+// Warning: the value returned here is less precise than the humidity returned
+// from Humidity()!
+//
+// Deprecated: use Update() and Temperature() instead.
 func (d *Device) ReadHumidity() (humidity int32, err error) {
 	ok, err := d.DataReady()
 	if err != nil {
@@ -142,16 +178,18 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	return (25 * int32(d.humidity)) / 16384, err
 }
 
+// Humidity returns the relative humidity in hundredths of a percent (in other
+// words, with a range 0..10_000).
+//
+// Warning: the value returned here is of a different scale (more precise) than
+// ReadHumidity()!
+func (d *Device) Humidity() int32 {
+	return (2500 * int32(d.humidity)) / 16384
+}
+
 func (d *Device) sendCommand(command uint16) error {
 	binary.BigEndian.PutUint16(d.tx[0:], command)
 	return d.bus.Tx(uint16(d.Address), d.tx[0:2], nil)
-}
-
-func (d *Device) sendCommandWithValue(command, value uint16) error {
-	binary.BigEndian.PutUint16(d.tx[0:], command)
-	binary.BigEndian.PutUint16(d.tx[2:], value)
-	d.tx[4] = crc8(d.tx[2:4])
-	return d.bus.Tx(uint16(d.Address), d.tx[0:5], nil)
 }
 
 func (d *Device) sendCommandWithResult(command uint16, result []byte) error {

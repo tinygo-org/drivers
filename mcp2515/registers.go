@@ -417,4 +417,11 @@ const (
 	canFail           = 0xff
 
 	canMaxCharInMessage = 8
+
+	// for extended id
+	extidTop11WriteMask = 0x1FFC0000
+	extidBottom29Mask   = (1 << 29) - 1 // extended id bits
+	extidBottom18Mask   = (1 << 18) - 1 // bottom 18 bits
+	stdidBottom11Mask   = 0x7FF
+	extidFlagMask       = 1 << 19
 )

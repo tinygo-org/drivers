@@ -17,7 +17,8 @@ import (
 // the new assembly implementation - no fiddly timings to calculate and no nops
 // to count!
 //
-// Right now this is specific to Cortex-M chips and assume the following things:
+// Right now this is specific to specific chips:
+// On Cortex-M chips it assume the following things:
 // - Arithmetic operations (shift, add, sub) take up 1 clock cycle.
 // - The nop instruction also takes up 1 clock cycle.
 // - Store instructions (to the GPIO pins) take up 2 clock cycles.
@@ -25,8 +26,15 @@ import (
 //   depends on whether the branch is taken or not. On the M4, the documentation
 //   is less clear but it appears the instruction is still 1 to 3 cycles
 //   (possibly including some branch prediction).
-// It is certainly possible to extend this to other architectures, such as AVR
-// and RISC-V if needed.
+// On RISC-V chips it assumes the following things:
+// - Arithmetic operations (shift, add, sub) take up 1 clock cycle.
+// - The nop instruction also takes up 1 clock cycle.
+// - Store instructions (to the GPIO pins) take up 1 clock cycle.
+// - Branch instructions can take up 1 or 3 clock cycles, depending on branch
+//   prediction. This is based on the SiFive FE310 CPU, but hopefully it
+//   generalizes to other RISC-V chips as well.
+
+// It is certainly possible to extend this to other architectures, such as AVR as needed.
 //
 // Here are two important resources. For the timings:
 // https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
@@ -45,6 +53,7 @@ type architectureImpl struct {
 	maxBaseCyclesT1H int
 	minBaseCyclesTLD int
 	valueTemplate    string // template for how to pass the 'c' byte to assembly
+	funcAttr         string // C function attribute (default: always_inline)
 	template         string // assembly template
 }
 
@@ -83,13 +92,44 @@ var architectures = map[string]architectureImpl{
 		// - branches are 1 or 3 cycles, depending on branch prediction
 		// - ALU operations are 1 cycle (as on most CPUs)
 		// Hopefully this generalizes to other chips.
-		buildTag:         "tinygo.riscv32",
+		buildTag:         "tinygo.riscv32 && !esp32c3",
 		minBaseCyclesT0H: 1 + 1 + 1, // shift + branch (not taken) + store
 		maxBaseCyclesT0H: 1 + 3 + 1, // shift + branch (not taken) + store
 		minBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
 		maxBaseCyclesT1H: 1 + 3 + 1, // shift + branch (taken) + store
 		minBaseCyclesTLD: 1 + 1 + 1, // subtraction + branch + store (in next cycle)
 		valueTemplate:    "(uint32_t)c << 23",
+		template: `
+1: // send_bit
+  sw    %[maskSet], %[portSet]     // [1]   T0H and T0L start here
+  @DELAY1
+  slli  %[value], %[value], 1      // [1]   shift value left by 1
+  bltz  %[value], 2f               // [1/3] skip_store
+  sw    %[maskClear], %[portClear] // [1]   T0H -> T0L transition
+2: // skip_store
+  @DELAY2
+  sw    %[maskClear], %[portClear] // [1]   T1H -> T1L transition
+  @DELAY3
+  addi  %[i], %[i], -1             // [1]
+  bnez  %[i], 1b                   // [1/3] send_bit
+`,
+	},
+	"esp32c3": {
+		// ESP32-C3 RISC-V core:
+		// - stores are 1 cycle
+		// - branches are 1 or 3 cycles
+		// - ALU operations are 1 cycle
+		// Uses the same instruction timing as the SiFive FE310, but the
+		// function is placed in IRAM instead of flash to avoid instruction
+		// cache miss stalls that would destroy WS2812 timing.
+		buildTag:         "esp32c3",
+		minBaseCyclesT0H: 1 + 1 + 1, // shift + branch (not taken) + store
+		maxBaseCyclesT0H: 1 + 3 + 1, // shift + branch (not taken) + store
+		minBaseCyclesT1H: 1 + 1 + 1, // shift + branch (taken) + store
+		maxBaseCyclesT1H: 1 + 3 + 1, // shift + branch (taken) + store
+		minBaseCyclesTLD: 1 + 1 + 1, // subtraction + branch + store (in next cycle)
+		valueTemplate:    "(uint32_t)c << 23",
+		funcAttr:         `__attribute__((section(".iram1"), noinline))`,
 		template: `
 1: // send_bit
   sw    %[maskSet], %[portSet]     // [1]   T0H and T0L start here
@@ -208,7 +248,11 @@ func writeCAssembly(f *os.File, arch string, megahertz int) error {
 	// ignore I/O errors.
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "\n")
-	fmt.Fprintf(buf, "__attribute__((always_inline))\nvoid ws2812_writeByte%d(char c, uint32_t *portSet, uint32_t *portClear, uint32_t maskSet, uint32_t maskClear) {\n", megahertz)
+	funcAttr := archImpl.funcAttr
+	if funcAttr == "" {
+		funcAttr = "__attribute__((always_inline))"
+	}
+	fmt.Fprintf(buf, "%s\nvoid ws2812_writeByte%d(char c, uint32_t *portSet, uint32_t *portClear, uint32_t maskSet, uint32_t maskClear) {\n", funcAttr, megahertz)
 	fmt.Fprintf(buf, "	// Timings:\n")
 	fmt.Fprintf(buf, "	// T0H: %2d - %2d cycles or %.1fns - %.1fns\n", actualMinCyclesT0H, actualMaxCyclesT0H, actualMinNanosecondsT0H, actualMaxNanosecondsT0H)
 	fmt.Fprintf(buf, "	// T1H: %2d - %2d cycles or %.1fns - %.1fns\n", actualMinCyclesT1H, actualMaxCyclesT1H, actualMinNanosecondsT1H, actualMaxNanosecondsT1H)

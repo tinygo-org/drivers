@@ -1,4 +1,4 @@
-//go:build pyportal || arduino_nano33 || nano_rp2040 || metro_m4_airlift || matrixportal_m4
+//go:build ninafw && !arduino_mkrwifi1010
 
 package probe
 

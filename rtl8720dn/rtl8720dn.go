@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/netdev"
 	"tinygo.org/x/drivers/netlink"
 )
@@ -27,13 +28,13 @@ var _debug debug = debugBasic
 //var _debug debug = debugBasic | debugNetdev | debugRpc
 
 var (
-	version    = "0.0.1"
 	driverName = "Realtek rtl8720dn Wifi network device driver (rtl8720dn)"
 )
 
 const (
-	O_NONBLOCK   = 1 // note: different value than syscall.O_NONBLOCK (0x800)
-	RTW_MODE_STA = 0x00000001
+	O_NONBLOCK     = 1 // note: different value than syscall.O_NONBLOCK (0x800)
+	RTW_MODE_STA   = 0x00000001
+	defaultChannel = 6
 )
 
 type sock int32
@@ -135,6 +136,51 @@ func (r *rtl8720dn) connectToAP() error {
 	return r.startDhcpc()
 }
 
+func (r *rtl8720dn) startDhcps() error {
+	if result := r.rpc_tcpip_adapter_dhcps_start(0); result == -1 {
+		return netdev.ErrStartingDHCPServer
+	}
+	return nil
+}
+
+func (r *rtl8720dn) startAP() error {
+	if len(r.params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
+	}
+
+	if len(r.params.Passphrase) != 0 && len(r.params.Passphrase) < 8 {
+		return netlink.ErrShortPassphrase
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("Starting Wifi AP as SSID '%s'...", r.params.Ssid)
+	}
+
+	// Start the connection process
+	securityType := uint32(0) // RTW_SECURITY_OPEN
+	if len(r.params.Passphrase) != 0 {
+		securityType = 0x00400004 // RTW_SECURITY_WPA2_AES_PSK
+	}
+
+	result := r.rpc_wifi_start_ap(r.params.Ssid, r.params.Passphrase, securityType, defaultChannel)
+	if result != 0 {
+		if debugging(debugBasic) {
+			fmt.Printf("FAILED\r\n")
+		}
+		return netlink.ErrConnectFailed
+	}
+
+	if debugging(debugBasic) {
+		fmt.Printf("LISTENING\r\n")
+	}
+
+	if r.notifyCb != nil {
+		r.notifyCb(netlink.EventNetUp)
+	}
+
+	return r.startDhcps()
+}
+
 func (r *rtl8720dn) showDriver() {
 	if r.driverShown {
 		return
@@ -142,7 +188,7 @@ func (r *rtl8720dn) showDriver() {
 	if debugging(debugBasic) {
 		fmt.Printf("\r\n")
 		fmt.Printf("%s\r\n\r\n", driverName)
-		fmt.Printf("Driver version           : %s\r\n", version)
+		fmt.Printf("Driver version           : %s\r\n", drivers.Version)
 	}
 	r.driverShown = true
 }
@@ -246,14 +292,27 @@ func (r *rtl8720dn) netConnect(reset bool) error {
 	}
 	r.showDevice()
 
+retry:
 	for i := 0; r.params.Retries == 0 || i < r.params.Retries; i++ {
-		if err := r.connectToAP(); err != nil {
-			if err == netlink.ErrConnectFailed {
-				continue
+		switch r.params.ConnectMode {
+		case netlink.ConnectModeAP:
+			if err := r.startAP(); err != nil {
+				if err == netlink.ErrConnectFailed {
+					continue
+				}
+				return err
 			}
-			return err
+			break retry
+
+		default:
+			if err := r.connectToAP(); err != nil {
+				if err == netlink.ErrConnectFailed {
+					continue
+				}
+				return err
+			}
+			break retry
 		}
-		break
 	}
 
 	if r.networkDown() {

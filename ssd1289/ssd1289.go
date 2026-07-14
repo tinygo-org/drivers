@@ -5,8 +5,10 @@ package ssd1289
 
 import (
 	"image/color"
-	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/internal/legacy"
+	"tinygo.org/x/drivers/internal/pin"
 )
 
 type Bus interface {
@@ -14,33 +16,34 @@ type Bus interface {
 }
 
 type Device struct {
-	rs  machine.Pin
-	wr  machine.Pin
-	cs  machine.Pin
-	rst machine.Pin
+	rs  pin.OutputFunc
+	wr  pin.OutputFunc
+	cs  pin.OutputFunc
+	rst pin.OutputFunc
 	bus Bus
 }
 
 const width = int16(240)
 const height = int16(320)
 
-func New(rs machine.Pin, wr machine.Pin, cs machine.Pin, rst machine.Pin, bus Bus) Device {
-	d := Device{
-		rs:  rs,
-		wr:  wr,
-		cs:  cs,
-		rst: rst,
+func New(rs, wr, cs, rst pin.Output, bus Bus) *Device {
+	d := &Device{
+		rs:  rs.Set,
+		wr:  wr.Set,
+		cs:  cs.Set,
+		rst: rst.Set,
 		bus: bus,
 	}
 
-	rs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	wr.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// configure GPIO pins (only on baremetal targets, for backwards compatibility)
+	legacy.ConfigurePinOut(rs)
+	legacy.ConfigurePinOut(wr)
+	legacy.ConfigurePinOut(cs)
+	legacy.ConfigurePinOut(rst)
 
-	cs.High()
-	rst.High()
-	wr.High()
+	d.cs.High()
+	d.rst.High()
+	d.wr.High()
 
 	return d
 }
