@@ -2,7 +2,6 @@ package sd
 
 import (
 	"encoding/binary"
-	"strconv"
 )
 
 const (
@@ -20,6 +19,8 @@ const (
 	_DATA_RES_ACCEPTED = 0x05
 )
 
+// response1 is the R1 response token returned by the card in SPI mode
+// after every command; a bitfield of error and idle-state flags.
 type response1 uint8
 
 func (r response1) IsIdle() bool          { return r&_R1_IDLE_STATE != 0 }
@@ -30,17 +31,17 @@ func (r response1) EraseSeqError() bool   { return r&_R1_ERASE_SEQUENCE_ERROR !=
 func (r response1) AddressError() bool    { return r&_R1_ADDRESS_ERROR != 0 }
 func (r response1) ParamError() bool      { return r&_R1_PARAMETER_ERROR != 0 }
 
+// response1Err wraps a non-zero response1 status as an error.
 type response1Err struct {
 	context string
 	status  response1
 }
 
 func (e response1Err) Error() string {
-	return e.status.Response()
 	if e.context != "" {
-		return "sd:" + e.context + " " + strconv.Itoa(int(e.status))
+		return "sd:" + e.context + " " + e.status.Response()
 	}
-	return "sd:status " + strconv.Itoa(int(e.status))
+	return e.status.Response()
 }
 
 func (e response1) Response() string {
@@ -96,6 +97,8 @@ const (
 	tokWRITE_MULT  = 0xfc
 )
 
+// state is the card state machine state as encoded in the
+// CURRENT_STATE bits of the Card Status register (section 4.10.1).
 type state uint8
 
 const (
@@ -153,7 +156,8 @@ const (
 	statusAddrOutOfRange  // address out of range
 )
 
-// r1 is the normal response to a command.
+// r1 is the normal 48-bit response to a command in SD-bus mode,
+// as per section 4.9.1. It carries the 32-bit Card Status register.
 type r1 struct {
 	data [48 / 8]byte // 48 bits of response.
 }
@@ -178,6 +182,8 @@ func (r *r1) IsValid() bool {
 	return r.endbit() && CRC7(r.data[:5]) == r.CRC7()
 }
 
+// r6 is the 48-bit Published RCA response, as per section 4.9.5. It carries
+// the card's new Relative Card Address and a subset of the Card Status bits.
 type r6 struct {
 	data [48 / 8]byte
 }

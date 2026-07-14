@@ -15,6 +15,9 @@ var _ Card = (*SPICard)(nil)
 var _ io.ReaderAt = (*BlockDevice)(nil)
 var _ io.WriterAt = (*BlockDevice)(nil)
 
+// Card is the interface implemented by SD card drivers such as [SPICard].
+// It provides block-aligned I/O over the card's contents. Use [NewBlockDevice]
+// to wrap a Card with byte-addressed [io.ReaderAt] and [io.WriterAt] interfaces.
 type Card interface {
 	// WriteBlocks writes the given data to the card, starting at the given block index.
 	// The data must be a multiple of the block size.
@@ -26,7 +29,9 @@ type Card interface {
 	EraseBlocks(startBlock, numBlocks int64) error
 }
 
-// NewBlockDevice creates a new BlockDevice from a Card.
+// NewBlockDevice creates a new [BlockDevice] from a Card. blockSize must be a
+// power of 2. For an initialized [SPICard], blockSize is typically the CSD's
+// [CSD.ReadBlockLen] and numBlocks is [SPICard.NumberOfBlocks].
 func NewBlockDevice(card Card, blockSize int, numBlocks int64) (*BlockDevice, error) {
 	if card == nil || blockSize <= 0 || numBlocks <= 0 {
 		return nil, errors.New("invalid argument(s)")
@@ -44,7 +49,10 @@ func NewBlockDevice(card Card, blockSize int, numBlocks int64) (*BlockDevice, er
 	return bd, nil
 }
 
-// BlockDevice implements tinyfs.BlockDevice interface for an [sd.Card] type.
+// BlockDevice implements the tinyfs.BlockDevice interface for a [Card],
+// providing byte-addressed reads and writes at arbitrary offsets by buffering
+// non-block-aligned accesses through an internal single-block buffer.
+// BlockDevice is not safe for concurrent use.
 type BlockDevice struct {
 	card      Card
 	blockbuf  []byte
@@ -52,7 +60,8 @@ type BlockDevice struct {
 	numblocks int64
 }
 
-// ReadAt implements [io.ReadAt] interface for an SD card.
+// ReadAt implements the [io.ReaderAt] interface for an SD card.
+// Reads need not be aligned to block boundaries.
 func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, errNegativeOffset
@@ -93,7 +102,9 @@ func (bd *BlockDevice) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, nil
 }
 
-// WriteAt implements [io.WriterAt] interface for an SD card.
+// WriteAt implements the [io.WriterAt] interface for an SD card. Writes need
+// not be aligned to block boundaries: partial blocks are read, modified and
+// written back.
 func (bd *BlockDevice) WriteAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, errNegativeOffset
@@ -174,6 +185,8 @@ type blkIdxer struct {
 	blockmask  int64
 }
 
+// makeBlockIndexer returns a blkIdxer for the given block size,
+// which must be a power of 2.
 func makeBlockIndexer(blockSize int) (blkIdxer, error) {
 	if blockSize <= 0 {
 		return blkIdxer{}, errNoblocks

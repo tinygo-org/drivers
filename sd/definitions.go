@@ -11,8 +11,11 @@ import (
 // For reference of CID/CSD structs see:
 // See https://github.com/arduino-libraries/SD/blob/1c56f58252553c7537f7baf62798cacc625aa543/src/utility/SdInfo.h#L110
 
+// CardKind classifies an SD card by its capacity class and specification
+// version, as discovered during card initialization.
 type CardKind uint8
 
+// isTimeout reports whether err is one of the package's timeout errors.
 func isTimeout(err error) bool {
 	return err == errReadTimeout || err == errWriteTimeout || err == errBusyTimeout
 }
@@ -24,10 +27,16 @@ const (
 	TypeSDHC CardKind = 3 // High Capacity SD card
 )
 
+// CID is the Card Identification register, a 128-bit (16-byte) read-only
+// register holding the card's identification information: manufacturer,
+// product name, serial number and manufacturing date, among other data.
+// It is programmed during card manufacture and cannot be changed.
 type CID struct {
 	data [16]byte
 }
 
+// DecodeCID decodes a CID from the first 16 bytes of b. It returns an error
+// if b is too short or if the CRC7/always-1 fields are invalid.
 func DecodeCID(b []byte) (cid CID, _ error) {
 	if len(b) < 16 {
 		return CID{}, io.ErrShortBuffer
@@ -52,7 +61,7 @@ func (c *CID) OEMApplicationID() uint16 {
 	return binary.BigEndian.Uint16(c.data[1:3])
 }
 
-// The product name is a string, 5-character ASCII string.
+// ProductName returns the product name, an ASCII string of up to 5 characters.
 func (c *CID) ProductName() string {
 	return string(upToNull(c.data[3:8]))
 }
@@ -65,12 +74,13 @@ func (c *CID) ProductRevision() (n, m uint8) {
 	return rev >> 4, rev & 0x0F
 }
 
-// The Serial Number is 32 bits of binary number.
+// ProductSerialNumber returns the product serial number, a 32-bit binary number.
 func (c *CID) ProductSerialNumber() uint32 {
 	return binary.BigEndian.Uint32(c.data[9:13])
 }
 
-// ManufacturingDate returns the manufacturing date of the card.
+// ManufacturingDate returns the manufacturing date of the card,
+// e.g. year=2023, month=4 for April 2023.
 func (c *CID) ManufacturingDate() (year uint16, month uint8) {
 	date := binary.BigEndian.Uint16(c.data[13:15])
 	return (date >> 4) + 2000, uint8(date & 0x0F)
@@ -129,6 +139,7 @@ func (c CSD) MustV1() CSDv1 {
 	return CSDv1{CSD: c}
 }
 
+// MustV2 returns the CSD as a CSDv2. Panics if the CSD is not version 2.0.
 func (c CSD) MustV2() CSDv2 {
 	if c.csdStructure() != 1 {
 		panic("CSD is not version 2.0")
@@ -136,6 +147,7 @@ func (c CSD) MustV2() CSDv2 {
 	return CSDv2{CSD: c}
 }
 
+// RawCopy returns a copy of the raw CSD data.
 func (c *CSD) RawCopy() [16]byte { return c.data }
 
 // TAAC returns the Time Access Attribute Class (data read access-time-1).
@@ -147,17 +159,20 @@ func (c *CSD) NSAC() NSAC { return NSAC(c.data[2]) }
 // TransferSpeed returns the Max Data Transfer Rate. Either 0x32 or 0x5A.
 func (c *CSD) TransferSpeed() TransferSpeed { return TransferSpeed(c.data[3]) }
 
-// CommandClasses returns the supported Card Command Classes.
-// This is a bitfield, each bit position indicates whether the
+// CommandClasses returns the supported Card Command Classes as a bitfield;
+// bit position i set means command class i is supported by the card.
 func (c *CSD) CommandClasses() CommandClasses {
 	return CommandClasses(uint16(c.data[4])<<4 | uint16(c.data[5]&0xf0)>>4)
 }
 
 // ReadBlockLen returns the Max Read Data Block Length in bytes.
-func (c *CSD) ReadBlockLen() int        { return 1 << c.ReadBlockLenShift() }
+func (c *CSD) ReadBlockLen() int { return 1 << c.ReadBlockLenShift() }
+
+// ReadBlockLenShift returns the base-2 logarithm of [CSD.ReadBlockLen] (READ_BL_LEN field).
 func (c *CSD) ReadBlockLenShift() uint8 { return c.data[5] & 0x0F }
 
-// AllowsReadBlockPartial should always return true. Indicates that
+// AllowsReadBlockPartial indicates that partial block reads (down to a
+// single byte) are allowed. Always true for SD cards.
 func (c *CSD) AllowsReadBlockPartial() bool { return c.data[6]&(1<<7) != 0 }
 
 // AllowsWriteBlockMisalignment defines if the data block to be written by one command
@@ -183,15 +198,18 @@ func (c *CSD) IsValid() bool {
 // ImplementsDSR defines if the configurable driver stage is integrated on the card.
 func (c *CSD) ImplementsDSR() bool { return c.data[6]&(1<<4) != 0 }
 
-// EraseSectorSizeInBlocks represents how much memory is erased in an erase
-// command in multiple of block size.
+// EraseSectorSizeInBytes returns how much memory is erased by a single
+// erase command, in bytes (SectorSize multiplied by the write block length).
 func (c *CSDv1) EraseSectorSizeInBytes() int64 {
 	blklen := c.WriteBlockLen()
 	numblocks := c.SectorSize()
 	return int64(numblocks) * blklen
 }
 
-// SectorSize varies in meaning depending on the version.
+// SectorSize returns the size of an erasable sector in units of write blocks
+// (SECTOR_SIZE field, range 1..128). Its meaning varies with the CSD version:
+// for V1 it is the erase unit when [CSD.EraseBlockEnabled] is false; for V2
+// it is fixed to 64KiB and does not reflect the real erase unit.
 func (c *CSD) SectorSize() uint8 {
 	return 1 + ((c.data[10]&0b11_1111)<<1 | (c.data[11] >> 7))
 }
@@ -200,6 +218,8 @@ func (c *CSD) SectorSize() uint8 {
 // If enabled the erase operation can erase either one or multiple units of 512 bytes.
 func (c *CSD) EraseBlockEnabled() bool { return (c.data[10]>>6)&1 != 0 }
 
+// ReadToWriteFactor returns the typical write time as a power-of-2 multiple of
+// the read access time (R2W_FACTOR field), i.e. writeTime = readTime << factor.
 func (c *CSD) ReadToWriteFactor() uint8 { return (c.data[12] >> 2) & 0b111 }
 
 // WriteProtectGroupSizeInSectors indicates the size of a write protected
@@ -231,8 +251,12 @@ func (c *CSD) PermWriteProtected() bool { return c.data[14]&(1<<5) != 0 }
 // IsCopy whether contents are original or have been copied.
 func (c *CSD) IsCopy() bool { return c.data[14]&(1<<6) != 0 }
 
+// FileFormatGroup returns the file format group bit, which selects between
+// the two [FileFormat] tables. Interpret together with [CSD.FileFormat].
 func (c *CSD) FileFormatGroup() bool { return c.data[14]&(1<<7) != 0 }
 
+// DeviceCapacity returns the total device capacity in bytes, dispatching on
+// the CSD version. Returns 0 for unknown CSD versions.
 func (c *CSD) DeviceCapacity() (size int64) {
 	switch c.csdStructure() {
 	case 0:
@@ -256,14 +280,16 @@ func (c *CSD) NumberOfBlocks() (numBlocks int64) {
 
 // After byte 5 CSDv1 and CSDv2  differ in structure at some fields.
 
-// DeviceCapacity returns the device capacity in bytes.
+// DeviceCapacity returns the device capacity in bytes:
+// (C_SIZE+1) * 512KiB, as per section 5.3.3 of the SD Simplified Specification.
 func (c *CSDv2) DeviceCapacity() int64 {
 	csize := c.csize()
-	return int64(csize) * 512_000
+	return (int64(csize) + 1) * (512 * 1024)
 }
 
+// csize returns the 22-bit C_SIZE field (CSD bits 69:48).
 func (c *CSDv2) csize() uint32 {
-	return uint32(c.data[7]>>2)<<16 | uint32(c.data[8])<<8 | uint32(c.data[9])
+	return uint32(c.data[7]&0x3F)<<16 | uint32(c.data[8])<<8 | uint32(c.data[9])
 }
 
 // DeviceCapacity returns the total memory capacity of the SDCard in bytes. Max is 2GB for V1.
@@ -301,6 +327,7 @@ func (c *CSDv1) VddWriteCurrent() (min, max uint8) {
 	return c.data[9] >> 5, (c.data[9] >> 3) & 0b111
 }
 
+// String returns a human-readable multi-line summary of the CSD fields.
 func (c *CSD) String() string {
 	version := c.csdStructure() + 1
 	if version > 2 {
@@ -424,13 +451,23 @@ const (
 	acmdCHANGE_SECURE_AREA       appcommand = 49
 )
 
-// CSD enum types.
+// CSD field types.
 type (
-	TransferSpeed  uint8
-	TAAC           uint8
-	FileFormat     uint8
+	// TransferSpeed is the TRAN_SPEED CSD field: the maximum data transfer
+	// rate encoded as a rate unit (lower 3 bits) and time value multiplier.
+	TransferSpeed uint8
+	// TAAC is the data read access time CSD field, encoded as a time unit
+	// (lower 3 bits) and time value multiplier.
+	TAAC uint8
+	// FileFormat is the format of the data stored on the card. See the
+	// FileFmt* constants for possible values.
+	FileFormat uint8
+	// CommandClasses is the CCC CSD field, a bitfield where bit position i
+	// set means command class i is supported.
 	CommandClasses uint16
-	NSAC           uint8
+	// NSAC is the data read access time 2 CSD field, given in units of
+	// 100 clock cycles.
+	NSAC uint8
 )
 
 const (
@@ -440,6 +477,7 @@ const (
 	FileFmtUnknown
 )
 
+// String returns a human-readable name for the file format.
 func (ff FileFormat) String() (s string) {
 	switch ff {
 	case FileFmtPartition:
@@ -466,11 +504,12 @@ var log10table = [...]int64{
 	1000000,
 }
 
-// RateMegabits returns the transfer rate in kilobits per second.
+// RateKilobits returns the transfer rate in kilobits per second.
 func (t TransferSpeed) RateKilobits() int64 {
 	return 100 * log10table[t&0b111]
 }
 
+// AccessTime returns the asynchronous part of the data access time.
 func (t TAAC) AccessTime() (d time.Duration) {
 	return time.Duration(log10table[t&0b111]) * time.Nanosecond
 }

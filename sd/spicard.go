@@ -10,8 +10,6 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-// See rustref.go for the new implementation.
-
 var (
 	errBadCSDCID            = errors.New("sd:bad CSD/CID in CRC or always1")
 	errNoSDCard             = errors.New("sd:no card")
@@ -26,8 +24,12 @@ var (
 	errNoblocks             = errors.New("sd:no readable blocks")
 )
 
+// digitalPinout sets the logic level of an output pin; true for high, false for low.
 type digitalPinout = func(b bool)
 
+// SPICard is a SPI-mode SD card driver. It implements the [Card] interface
+// and is initialized with [NewSPICard] followed by a call to [SPICard.Init].
+// SPICard is not safe for concurrent use.
 type SPICard struct {
 	bus drivers.SPI
 	cs  digitalPinout
@@ -46,6 +48,9 @@ type SPICard struct {
 	lastCRC uint16
 }
 
+// NewSPICard returns a new [SPICard] that communicates over spi using cs as
+// the chip select pin. The returned card must be initialized with [SPICard.Init]
+// before use.
 func NewSPICard(spi drivers.SPI, cs digitalPinout) *SPICard {
 	const defaultTimeout = 300 * time.Millisecond
 	s := &SPICard{
@@ -74,6 +79,8 @@ func (d *SPICard) Init() error {
 	return d.initRs()
 }
 
+// NumberOfBlocks returns the number of readable and writable blocks on the card,
+// as calculated from the CSD read during [SPICard.Init].
 func (d *SPICard) NumberOfBlocks() int64 {
 	return d.csd.NumberOfBlocks()
 }
@@ -233,7 +240,9 @@ func (d *SPICard) updateCSDCID() (err error) {
 	return nil
 }
 
-// ReadBlock reads to a buffer multiple of 512 bytes from sdcard into dst starting at block `startBlockIdx`.
+// ReadBlocks reads card data into dst beginning at the block index startBlockIdx.
+// len(dst) must be a multiple of the card's block size (see [CSD.ReadBlockLen]).
+// It returns the number of bytes read into dst and any error encountered.
 func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) (int, error) {
 	numblocks, err := d.checkBounds(startBlockIdx, len(dst))
 	if err != nil {
@@ -267,11 +276,15 @@ func (d *SPICard) ReadBlocks(dst []byte, startBlockIdx int64) (int, error) {
 	panic("unreachable numblocks<=0")
 }
 
+// EraseBlocks erases numberOfBlocks blocks beginning at startBlock.
+// It always returns an error since erase is not yet implemented for SPICard.
 func (d *SPICard) EraseBlocks(startBlock, numberOfBlocks int64) error {
 	return errors.New("sd:erase not implemented")
 }
 
-// WriteBlocks writes to sdcard from a buffer multiple of 512 bytes from src starting at block `startBlockIdx`.
+// WriteBlocks writes data to the card beginning at the block index startBlockIdx.
+// len(data) must be a multiple of the card's block size (see [CSD.WriteBlockLen]).
+// It returns the number of bytes written and any error encountered.
 func (d *SPICard) WriteBlocks(data []byte, startBlockIdx int64) (int, error) {
 	numblocks, err := d.checkBounds(startBlockIdx, len(data))
 	if err != nil {
