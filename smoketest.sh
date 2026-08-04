@@ -29,6 +29,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/easyste
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/flash/console/spi
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/flash/console/qspi
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/gc9a01/main.go
+tinygo build -size short -o ./build/test.bin -target=esp32-coreboard-v2 ./examples/gdew0154m09/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/i2c/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/uart/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/hcsr04/main.go
