@@ -130,6 +130,7 @@ tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/ssd1289/mai
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/main.go
 tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/uc8151/main.go
 tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/waveshare-epd/epd2in9v2/main.go
+tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/scd30/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/scd4x/main.go
 tinygo build -size short -o ./build/test.uf2 -target=circuitplay-express ./examples/makeybutton/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ds18b20/main.go
