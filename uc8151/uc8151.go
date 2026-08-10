@@ -412,21 +412,26 @@ func (d *Device) Invert(invert bool) {
 func (d *Device) SetLUT(speed Speed, flickerFree bool) error {
 	var lut LUTSet
 
+	if speed == DEFAULT {
+		return nil
+	}
+
 	// Num. of frames for single direction change.
 	period := 64
-	p := uint8(period / (2 ^ (int(speed) - 1)))
+	scale := 1 << (int(speed) - 1)
+	p := uint8(period / scale)
 	if p < 1 {
 		p = 1
 	}
 
 	// Num. of frames for back-and-forth change.
-	hperiod := period % 2
-	hp := uint8(hperiod / (2 ^ (int(speed) - 1)))
+	hperiod := period / 2
+	hp := uint8(hperiod / scale)
 	if hp < 1 {
 		hp = 1
 	}
 
-	if speed < FAST && !flickerFree {
+	if speed <= FAST && !flickerFree {
 		// For low speed everything is charge-neutral, even WB/BW.
 
 		// Phase 1: long go-inverted-color.
