@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"machine"
 	"time"
 
@@ -36,13 +35,13 @@ func main() {
 			println("Error reading acceleration:", err.Error())
 			continue
 		}
-		fmt.Printf("Acceleration: %.2fg %.2fg %.2fg\n", float32(accelX)/1e6, float32(accelY)/1e6, float32(accelZ)/1e6)
+		println("acc (mg):", accelX/1000, accelY/1000, accelZ/1000)
 
 		gyroX, gyroY, gyroZ, err := sensor.ReadRotation()
 		if err != nil {
 			println("Error reading rotation:", err.Error())
 			continue
 		}
-		fmt.Printf("Rotation: %.2f°/s %.2f°/s %.2f°/s\n", float32(gyroX)/1e6, float32(gyroY)/1e6, float32(gyroZ)/1e6)
+		println("gyr (mdps):", gyroX/1000, gyroY/1000, gyroZ/1000)
 	}
 }

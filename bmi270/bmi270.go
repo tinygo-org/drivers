@@ -11,6 +11,11 @@ import (
 	"tinygo.org/x/drivers"
 )
 
+// BMI270 configuration file (firmware blob) provided by Bosch Sensortec.
+// Source: https://github.com/boschsensortec/BMI270_SensorAPI
+// License: BSD 3-Clause "New" or "Revised" License
+// Copyright (c) Bosch Sensortec GmbH. All rights reserved.
+//
 //go:embed bmi270-config.bin
 var bmi270ConfigData string
 
@@ -74,17 +79,8 @@ func (d *Device) Connected() bool {
 }
 
 func (d *Device) Configure(config Config) error {
-	if config.AccelRange != 0 {
-		d.accelRange = config.AccelRange
-	} else {
-		d.accelRange = Accel2G
-	}
-
-	if config.GyroRange != 0 {
-		d.gyroRange = config.GyroRange
-	} else {
-		d.gyroRange = Gyro2000DPS
-	}
+	d.accelRange = config.AccelRange
+	d.gyroRange = config.GyroRange
 
 	if !d.Connected() {
 		return errNotConnected
@@ -105,12 +101,11 @@ func (d *Device) Configure(config Config) error {
 	}
 	time.Sleep(1 * time.Millisecond)
 
-	configBytes := []byte(bmi270ConfigData)
 	chunkSize := 16
-	for i := 0; i < len(configBytes); i += chunkSize {
+	for i := 0; i < len(bmi270ConfigData); i += chunkSize {
 		end := i + chunkSize
-		if end > len(configBytes) {
-			end = len(configBytes)
+		if end > len(bmi270ConfigData) {
+			end = len(bmi270ConfigData)
 		}
 
 		wordAddr := uint16(i / 2)
@@ -123,10 +118,9 @@ func (d *Device) Configure(config Config) error {
 			return err
 		}
 
-		chunk := configBytes[i:end]
+		n := copy(d.wbuf[1:], bmi270ConfigData[i:end])
 		d.wbuf[0] = reg_INIT_DATA
-		copy(d.wbuf[1:], chunk)
-		if err := d.bus.Tx(uint16(d.address), d.wbuf[:1+len(chunk)], nil); err != nil {
+		if err := d.bus.Tx(uint16(d.address), d.wbuf[:1+n], nil); err != nil {
 			return err
 		}
 	}
@@ -142,7 +136,7 @@ func (d *Device) Configure(config Config) error {
 		if err != nil {
 			return err
 		}
-		if status == 0x01 {
+		if status&0x07 == 0x01 {
 			break
 		}
 		if time.Since(start) >= 500*time.Millisecond {
@@ -155,20 +149,7 @@ func (d *Device) Configure(config Config) error {
 		return err
 	}
 
-	var rangeVal byte
-	switch d.accelRange {
-	case Accel2G:
-		rangeVal = 0x00
-	case Accel4G:
-		rangeVal = 0x01
-	case Accel8G:
-		rangeVal = 0x02
-	case Accel16G:
-		rangeVal = 0x03
-	default:
-		rangeVal = 0x00
-	}
-	if err := d.write1(reg_ACC_RANGE, rangeVal); err != nil {
+	if err := d.write1(reg_ACC_RANGE, byte(d.accelRange)); err != nil {
 		return err
 	}
 
@@ -176,22 +157,7 @@ func (d *Device) Configure(config Config) error {
 		return err
 	}
 
-	var gyroRangeVal byte
-	switch d.gyroRange {
-	case Gyro2000DPS:
-		gyroRangeVal = 0x00
-	case Gyro1000DPS:
-		gyroRangeVal = 0x01
-	case Gyro500DPS:
-		gyroRangeVal = 0x02
-	case Gyro250DPS:
-		gyroRangeVal = 0x03
-	case Gyro125DPS:
-		gyroRangeVal = 0x04
-	default:
-		gyroRangeVal = 0x00
-	}
-	if err := d.write1(reg_GYR_RANGE, gyroRangeVal); err != nil {
+	if err := d.write1(reg_GYR_RANGE, byte(d.gyroRange)); err != nil {
 		return err
 	}
 

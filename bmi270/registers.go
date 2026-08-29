@@ -11,7 +11,7 @@ const (
 	reg_GYR_RANGE       = 0x43
 	reg_INIT_CTRL       = 0x59
 	reg_INIT_ADDR_0     = 0x5B
-	reg_INIT_ADDR_1     = 0x5C
+	reg_INIT_ADDR_1     = 0x5C // automatically updated when writing 2 bytes to INIT_ADDR_0
 	reg_INIT_DATA       = 0x5E
 	reg_PWR_CONF        = 0x7C
 	reg_PWR_CTRL        = 0x7D
