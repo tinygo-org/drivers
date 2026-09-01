@@ -1,3 +1,31 @@
+0.36.0
+---
+- **new devices**
+    - **gdew0154m09**
+        - add e-paper display driver
+    - **scd30**
+        - add CO2 sensor driver
+    - **sd**
+        - redesign of the `sdcard` package (#639)
+    - **sx128x**
+        - add SPI driver for Semtech sx128x chips (#864)
+
+- **enhancements**
+    - **lora**
+        - set the maximum TX power to 16 for eu868 as in RP002-1.0.5 (#866)
+    - **netlink**
+        - add Hostname field and some godoc comments
+    - **ws2812**
+        - add support for the 160MHz cortex-m processors
+        - add support for the ESP32-C3 processor
+
+- **bugfixes**
+    - **uc8151**
+        - fix LUT timing calculations
+    - **ws2812**
+        - fix PIO TX FIFO overflow on rp2040/rp2350 that drops LEDs
+
+
 0.35.0
 ---
 - **new devices**
