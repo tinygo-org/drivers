@@ -1,12 +1,12 @@
 package ads1015
 
 // Address is the default I2C address of the ADS1015. The actual address
-// depends on how the ADDR pin is wired; see the datasheet for the other
-// three options (0x49, 0x4A, 0x4B).
-const Address uint16 = 0x48
-const Address2 uint16 = 0x49
-const Address3 uint16 = 0x4A
-const Address4 uint16 = 0x4B
+// depends on how the ADDR pin is wired
+const AddressToGND uint16 = 0b1001000
+const AddressToVDD uint16 = 0b1001001
+const AddressToSDA uint16 = 0b1001010
+const AddressToSCL uint16 = 0b1001011
+const Address = AddressToGND // default address
 
 // Registers, see the datasheet Table 8-2
 const (
@@ -54,8 +54,8 @@ const (
 	Gain1024mV Gain = 0b011 << 9 // +/-1.024V
 	Gain0512mV Gain = 0b100 << 9 // +/-0.512V
 	Gain0256mV Gain = 0b101 << 9 // +/-0.256V
-	// Gain0256mV Gain = 0b110 << 9 // +/-0.256V
-	// Gain0256mV Gain = 0b111 << 9 // +/-0.256V
+
+	// The 0b110 and 0b111 codes repeat the previous setting.
 )
 
 // FullScaleVoltage returns the largest voltage magnitude, in milliVolts, that a
@@ -98,7 +98,8 @@ const (
 	DataRate1600SPS DataRate = 0b100 << 5 // power-on default
 	DataRate2400SPS DataRate = 0b101 << 5
 	DataRate3300SPS DataRate = 0b110 << 5
-	// DataRate3300SPS DataRate = 0b111 << 5 // repeated value
+
+	// 0b111 repeats the previous data-rate setting.
 )
 
 // ComparatorMode selects between traditional and window comparator modes.
@@ -135,4 +136,11 @@ const (
 	ComparatorQueueAfter2Conv ComparatorQueue = 0b01
 	ComparatorQueueAfter4Conv ComparatorQueue = 0b10
 	ComparatorQueueDisable    ComparatorQueue = 0b11 // power-on default
+)
+
+const (
+	// Conversion Ready mode (bit 15)
+	// Hi_thresh MSB = 1 , Lo_thresh MSB = 0
+	conversionReadyHiThresh uint16 = 0b1 << 15
+	conversionReadyLoThresh uint16 = 0b0 << 15
 )

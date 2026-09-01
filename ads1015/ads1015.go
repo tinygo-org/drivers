@@ -11,13 +11,11 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-// maxCode is the magnitude of a full-scale 12-bit conversion result
+// The datasheet defines the LSB as FS/2048, but we divide by the maximum
+// positive code (2047) so that the maximum ADC output maps to full scale.
 const maxCode = 2047
 
-var (
-	conversionPollInterval = 1 * time.Millisecond
-	conversionTimeout      = 100 * time.Millisecond
-)
+const conversionTimeout = 100 * time.Millisecond
 
 var (
 	ErrInvalidChannel = errors.New("ads1015: invalid channel")
@@ -43,6 +41,8 @@ type Config struct {
 	ComparatorPolarity ComparatorPolarity
 	ComparatorLatch    ComparatorLatch
 	ComparatorQueue    ComparatorQueue
+
+	conversionPollInterval time.Duration
 }
 
 // DefaultConfig selects the widest gain range (+/-6.144V), single-shot
@@ -67,10 +67,13 @@ type Device struct {
 // New returns a new ADS1015 driver using DefaultConfig.
 // Set Address after New if the ADDR pin is different
 func New(bus drivers.I2C) *Device {
+	config := DefaultConfig
+	config.conversionPollInterval = ConversionDuration(config.DataRate)
+
 	return &Device{
 		bus:     bus,
 		Address: Address,
-		config:  DefaultConfig,
+		config:  config,
 	}
 }
 
@@ -82,6 +85,7 @@ func (d *Device) Config() Config {
 // Configure stores config and writes it to the device
 func (d *Device) Configure(config Config) error {
 	d.config = config
+	d.config.conversionPollInterval = ConversionDuration(d.config.DataRate)
 	return d.startConversion(muxSingleEnded[0])
 }
 
@@ -92,8 +96,8 @@ func (d *Device) Connected() bool {
 }
 
 // SetThresholdLow sets the low threshold used by the comparator.
-func (d *Device) SetThresholdLow(v int16) error {
-	return d.writeRegister(regLowThreshold, uint16(v))
+func (d *Device) SetThresholdLow(v uint16) error {
+	return d.writeRegister(regLowThreshold, v)
 }
 
 // ThresholdLow returns the low threshold used by the comparator.
@@ -103,8 +107,8 @@ func (d *Device) ThresholdLow() (int16, error) {
 }
 
 // SetThresholdHigh sets the high threshold used by the comparator.
-func (d *Device) SetThresholdHigh(v int16) error {
-	return d.writeRegister(regHighThreshold, uint16(v))
+func (d *Device) SetThresholdHigh(v uint16) error {
+	return d.writeRegister(regHighThreshold, v)
 }
 
 // ThresholdHigh returns the high threshold used by the comparator.
@@ -127,10 +131,10 @@ func (d *Device) EnableConversionReadyPin() error {
 	if d.config.ComparatorQueue == ComparatorQueueDisable {
 		d.config.ComparatorQueue = ComparatorQueueAfter1Conv
 	}
-	if err := d.SetThresholdHigh(-32768); err != nil { // 0x8000: MSB set
+	if err := d.SetThresholdHigh(conversionReadyHiThresh); err != nil {
 		return err
 	}
-	return d.SetThresholdLow(0) // 0x0000: MSB clear
+	return d.SetThresholdLow(conversionReadyLoThresh)
 }
 
 // Read performs a conversion using the given mux setting and returns the
@@ -142,7 +146,11 @@ func (d *Device) Read(mux Mux) (int16, error) {
 	}
 
 	if d.config.Mode == ModeSingle {
+		// Allow the device to clear the OS bit after starting the conversion.
+		time.Sleep(d.config.conversionPollInterval)
+
 		start := time.Now()
+
 		for {
 			ready, err := d.Ready()
 			if err != nil {
@@ -154,13 +162,13 @@ func (d *Device) Read(mux Mux) (int16, error) {
 			if time.Since(start) > conversionTimeout {
 				return 0, ErrTimeout
 			}
-			time.Sleep(conversionPollInterval)
+			time.Sleep(d.config.conversionPollInterval)
 		}
 	} else {
 		// In continuous mode, give the device time to complete a
 		// conversion at the new mux setting; otherwise a stale value left
 		// over from the previous mux setting would be returned.
-		time.Sleep(conversionPollInterval)
+		time.Sleep(d.config.conversionPollInterval)
 	}
 
 	return d.Value()
@@ -231,8 +239,10 @@ func (d *Device) RequestADC(channel uint8) error {
 	return d.Request(muxSingleEnded[channel])
 }
 
-// Ready reports whether the most recently requested single-shot conversion
-// has finished. In continuous mode it always reports true.
+// Ready reports whether the most recently requested conversion has finished.
+// In single-shot mode, it reports whether the conversion is complete.
+// In continuous mode, it reports whether the current conversion has finished;
+// it may therefore return false while a conversion is in progress.
 func (d *Device) Ready() (bool, error) {
 	config, err := d.readRegister(regConfig)
 	if err != nil {
@@ -277,4 +287,29 @@ func (d *Device) readRegister(reg uint8) (uint16, error) {
 
 func (d *Device) writeRegister(reg uint8, value uint16) error {
 	return d.bus.Tx(d.Address, []byte{reg, byte(value >> 8), byte(value)}, nil)
+}
+
+// ConversionDuration returns the nominal conversion period derived from the
+// data rate specified in the ADS1015 datasheet.
+// The data rates are specified in Table 8-3; the conversion periods below
+// are calculated as 1 / SPS and rounded to the nearest microsecond.
+func ConversionDuration(dataRate DataRate) time.Duration {
+	switch dataRate {
+	case DataRate128SPS:
+		return 7813 * time.Microsecond
+	case DataRate250SPS:
+		return 4000 * time.Microsecond
+	case DataRate490SPS:
+		return 2041 * time.Microsecond
+	case DataRate920SPS:
+		return 1087 * time.Microsecond
+	case DataRate1600SPS:
+		return 625 * time.Microsecond
+	case DataRate2400SPS:
+		return 417 * time.Microsecond
+	case DataRate3300SPS:
+		return 303 * time.Microsecond
+	default:
+		return 8 * time.Millisecond
+	}
 }
