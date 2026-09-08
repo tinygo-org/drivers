@@ -25,6 +25,7 @@ const (
 
 type Buser interface {
 	io.ReadWriter
+	WriteHighNibble(data byte)
 	SetCommandMode(set bool)
 	WriteOnly() bool
 }
@@ -115,19 +116,17 @@ func (d *Device) Configure(cfg Config) error {
 	time.Sleep(15 * time.Millisecond)
 
 	d.bus.SetCommandMode(true)
-	d.bus.Write([]byte{DATA_LENGTH_8BIT})
+	d.bus.WriteHighNibble(DATA_LENGTH_8BIT)
 	time.Sleep(5 * time.Millisecond)
 
 	for i := 0; i < 2; i++ {
-		d.bus.Write([]byte{DATA_LENGTH_8BIT})
+		d.bus.WriteHighNibble(DATA_LENGTH_8BIT)
 		time.Sleep(150 * time.Microsecond)
-
 	}
 
 	if d.datalength == DATA_LENGTH_4BIT {
-		d.bus.Write([]byte{DATA_LENGTH_4BIT})
+		d.bus.WriteHighNibble(DATA_LENGTH_4BIT)
 	}
-
 	// Busy flag is now accessible
 	d.SendCommand(memoryMap | cfg.Font | d.datalength)
 	d.SendCommand(DISPLAY_OFF)
