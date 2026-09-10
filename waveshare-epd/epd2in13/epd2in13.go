@@ -318,9 +318,9 @@ func (d *Device) ClearBuffer() {
 // Size returns the current size of the display.
 func (d *Device) Size() (w, h int16) {
 	if d.rotation == drivers.Rotation90 || d.rotation == drivers.Rotation270 {
-		return d.height, d.logicalWidth
+		return d.height, d.width
 	}
-	return d.logicalWidth, d.height
+	return d.width, d.height
 }
 
 // Rotation returns the current rotation of the device.
