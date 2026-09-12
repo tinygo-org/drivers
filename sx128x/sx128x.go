@@ -428,14 +428,14 @@ func (d *Device) SetTxParams(powerdBm int8, rampTime RadioRampTime) error {
 
 // Set the number of symbols used for channel activity detection which determines the sensitivity of the detection.
 // This is only applicable in LoRa mode.
-func (d *Device) SetCadParams(cadSymbolNum uint8) error {
+func (d *Device) SetCadParams(cadSymbolNum CadSymbolNum) error {
 	err := d.WaitWhileBusy(time.Second)
 	if err != nil {
 		return err
 	}
 	d.nssPin.Set(false)
 	d.spiTxBuf = d.spiTxBuf[:0]
-	d.spiTxBuf = append(d.spiTxBuf, cmdSetCADParams, cadSymbolNum)
+	d.spiTxBuf = append(d.spiTxBuf, cmdSetCADParams, uint8(cadSymbolNum))
 	err = d.spi.Tx(d.spiTxBuf, nil)
 	d.nssPin.Set(true)
 	return err
