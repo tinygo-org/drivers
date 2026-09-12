@@ -26,6 +26,7 @@ tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/ds3231/alarms/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/ds3231/basic/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/easystepper/main.go
+tinygo build -size short -o ./build/test.hex -target=microbit ./examples/easystepper/async/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/flash/console/spi
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/flash/console/qspi
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/gc9a01/main.go
