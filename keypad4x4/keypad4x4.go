@@ -2,10 +2,16 @@ package keypad4x4
 
 import (
 	"machine"
+	"time"
 )
 
 // NoKeyPressed is used, when no key was pressed
 const NoKeyPressed = 255
+
+// settleTime is the wait after a row changes, before the columns are read.
+// The row line does not fall immediately, because the wiring has some
+// capacitance. A read that is too early can still show the previous row.
+const settleTime = 50 * time.Microsecond
 
 // Device is used as 4x4 keypad driver
 type Device interface {
@@ -79,6 +85,7 @@ func (keypad *device) GetKey() uint8 {
 func (keypad *device) GetIndices() (int, int) {
 	for rowIndex, rowPin := range keypad.rows {
 		rowPin.Low()
+		time.Sleep(settleTime)
 
 		for columnIndex := range keypad.columns {
 			columnPin := keypad.columns[columnIndex]
@@ -88,6 +95,11 @@ func (keypad *device) GetIndices() (int, int) {
 
 				keypad.lastColumn = columnIndex
 				keypad.lastRow = rowIndex
+
+				// Stop driving this row before leaving. A row left low makes
+				// two rows low on the next scan, and a low column then does
+				// not say which row it came from.
+				rowPin.High()
 
 				return keypad.lastRow, keypad.lastColumn
 			}
