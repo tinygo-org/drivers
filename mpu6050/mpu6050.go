@@ -22,7 +22,7 @@ type Device struct {
 //
 // This function only creates the Device object, it does not touch the device.
 func New(bus drivers.I2C) Device {
-	return Device{bus, Address}
+	return Device{bus: bus, Address: Address}
 }
 
 // Connected returns whether a MPU6050 has been found.

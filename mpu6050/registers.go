@@ -19,6 +19,7 @@ const (
 	ACCEL_CONFIG = 0x1C // Accelerometer configuration
 	FIFO_EN      = 0x23 // FIFO enable
 
+	RESET_Byte = 1 << 7
 	// I2C pass-through configuration
 	I2C_MST_CTRL   = 0x24
 	I2C_SLV0_ADDR  = 0x25
@@ -129,4 +130,50 @@ const (
 	FIFO_COUNTL     = 0x73 // FIFO count registers (low bits)
 	FIFO_R_W        = 0x74 // FIFO read/write
 	WHO_AM_I        = 0x75 // Who am I
+)
+
+//MPU 6050 MASKS
+const (
+	G_FS_SEL    uint8 = 0x18
+	AFS_SEL     uint8 = 0x18
+	CLK_SEL_Msk uint8 = 0x07
+	SLEEP_Msk   uint8 = 0x40
+)
+
+//MPU 6050 SHIFTS
+const (
+	AFS_Pos   = 3
+	GFS_Pos   = 3
+	SLEEP_Pos = 6
+)
+
+// Gyroscope ranges for Init configuration. Full Scale Ranges.
+const (
+	GYRO_RANGE_250 byte = iota
+	GYRO_RANGE_500
+	GYRO_RANGE_1000
+	GYRO_RANGE_2000
+)
+
+// Accelerometer ranges for Init configuration
+const (
+	ACCEL_RANGE_2 byte = iota
+	ACCEL_RANGE_4
+	ACCEL_RANGE_8
+	ACCEL_RANGE_16
+)
+
+// DLPF Digital Low Pass Filter register values. CONFIG register.
+const (
+	DLPF_None = iota
+	// 2ms measurement delay. 188Hz bandwidth
+	DLPF_BW188
+	DLPF_BW98
+	DLPF_BW44
+	DLPF_BW21
+	DLPF_BW10
+	// 18ms delay. 10Hz bandwidth
+	DLPF_BW5
+	DLPF_Msk = 0b111
+	DLPF_Pos = 0
 )
