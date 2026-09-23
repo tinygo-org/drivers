@@ -6,6 +6,7 @@
 
 
 tinygo build -size short -o ./build/test.hex -target=feather-rp2040 ./examples/adafruit4650
+tinygo build -size short -o ./build/test.hex -target=nicenano ./examples/ads1015/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adt7410/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/adxl345/main.go
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/amg88xx
