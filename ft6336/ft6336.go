@@ -81,19 +81,7 @@ func (d *Device) Read() []byte {
 // ReadTouchPoint reads a single touch.Point from the device. The maximum value
 // for each touch.Point is 0xFFFF.
 func (d *Device) ReadTouchPoint() touch.Point {
-	d.Read()
-	z := 0xFFFFF
-	switch d.buf[0] {
-	case 0, 255:
-		z = 0
-	}
-
-	//Scale X&Y to 16 bit for consistency across touch drivers
-	return touch.Point{
-		X: (int(d.buf[1]&0x0F)<<8 + int(d.buf[2])) * ((1 << 16) / 320),
-		Y: (int(d.buf[3]&0x0F)<<8 + int(d.buf[4])) * ((1 << 16) / 270),
-		Z: z,
-	}
+	return touchPoint(d.Read())
 }
 
 // Touched returns if touched or not.
