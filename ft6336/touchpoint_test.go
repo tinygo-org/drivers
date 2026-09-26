@@ -24,37 +24,49 @@ func TestTouchPoint(t *testing.T) {
 			name:  "maximum",
 			buf:   []byte{1, 319 >> 8, 319 & 0xFF, 269 >> 8, 269 & 0xFF},
 			width: 320, height: 270,
-			want: touch.Point{X: 319 * 204, Y: 269 * 242, Z: 0xFFFFF},
+			want: touch.Point{X: 0xFFFF, Y: 0xFFFF, Z: 0xFFFFF},
 		},
 		{
 			name:  "event flag and touch ID are ignored",
 			buf:   []byte{1, 0x80 | 0x01, 0x00, 0xF0 | 0x01, 0x00},
 			width: 320, height: 270,
-			want: touch.Point{X: 256 * 204, Y: 256 * 242, Z: 0xFFFFF},
+			want: touch.Point{X: 256 * 0xFFFF / 319, Y: 256 * 0xFFFF / 269, Z: 0xFFFFF},
 		},
 		{
 			name:  "two touch points",
 			buf:   []byte{2, 0x00, 100, 0x00, 50},
 			width: 320, height: 270,
-			want: touch.Point{X: 100 * 204, Y: 50 * 242, Z: 0xFFFFF},
+			want: touch.Point{X: 100 * 0xFFFF / 319, Y: 50 * 0xFFFF / 269, Z: 0xFFFFF},
 		},
 		{
 			name:  "no touch",
 			buf:   []byte{0, 0x00, 100, 0x00, 50},
 			width: 320, height: 270,
-			want: touch.Point{X: 100 * 204, Y: 50 * 242, Z: 0},
+			want: touch.Point{X: 100 * 0xFFFF / 319, Y: 50 * 0xFFFF / 269, Z: 0},
 		},
 		{
 			name:  "no touch after reset",
 			buf:   []byte{255, 0xFF, 0xFF, 0xFF, 0xFF},
 			width: 320, height: 270,
-			want: touch.Point{X: 4095 * 204, Y: 4095 * 242, Z: 0},
+			want: touch.Point{X: 0xFFFF, Y: 0xFFFF, Z: 0},
 		},
 		{
 			name:  "maximum 240x320",
 			buf:   []byte{1, 239 >> 8, 239 & 0xFF, 319 >> 8, 319 & 0xFF},
 			width: 240, height: 320,
-			want: touch.Point{X: 239 * 273, Y: 319 * 204, Z: 0xFFFFF},
+			want: touch.Point{X: 0xFFFF, Y: 0xFFFF, Z: 0xFFFFF},
+		},
+		{
+			name:  "center 240x320",
+			buf:   []byte{1, 0x00, 108, 0x00, 167},
+			width: 240, height: 320,
+			want: touch.Point{X: 108 * 0xFFFF / 239, Y: 167 * 0xFFFF / 319, Z: 0xFFFFF},
+		},
+		{
+			name:  "larger than the panel",
+			buf:   []byte{1, 320 >> 8, 320 & 0xFF, 270 >> 8, 270 & 0xFF},
+			width: 320, height: 270,
+			want: touch.Point{X: 0xFFFF, Y: 0xFFFF, Z: 0xFFFFF},
 		},
 	}
 	for _, tt := range tests {
@@ -76,6 +88,8 @@ func TestPanelSize(t *testing.T) {
 		{name: "height only", width: 0, height: 320, wantWidth: 320, wantHeight: 320},
 		{name: "both", width: 240, height: 320, wantWidth: 240, wantHeight: 320},
 		{name: "negative", width: -1, height: -1, wantWidth: 320, wantHeight: 270},
+		{name: "one", width: 1, height: 1, wantWidth: 320, wantHeight: 270},
+		{name: "two", width: 2, height: 2, wantWidth: 2, wantHeight: 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

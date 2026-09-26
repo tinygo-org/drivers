@@ -7,13 +7,12 @@ const (
 	defaultHeight = 270
 )
 
-// panelSize returns the panel size, with the default for each value that is not
-// positive.
+// panelSize returns the panel size, with the default for each value less than 2.
 func panelSize(width, height int) (int, int) {
-	if width <= 0 {
+	if width < 2 {
 		width = defaultWidth
 	}
-	if height <= 0 {
+	if height < 2 {
 		height = defaultHeight
 	}
 	return width, height
@@ -28,10 +27,13 @@ func touchPoint(buf []byte, width, height int) touch.Point {
 		z = 0
 	}
 
+	x := int(buf[1]&0x0F)<<8 + int(buf[2])
+	y := int(buf[3]&0x0F)<<8 + int(buf[4])
+
 	//Scale X&Y to 16 bit for consistency across touch drivers
 	return touch.Point{
-		X: (int(buf[1]&0x0F)<<8 + int(buf[2])) * ((1 << 16) / width),
-		Y: (int(buf[3]&0x0F)<<8 + int(buf[4])) * ((1 << 16) / height),
+		X: min(x*0xFFFF/(width-1), 0xFFFF),
+		Y: min(y*0xFFFF/(height-1), 0xFFFF),
 		Z: z,
 	}
 }
