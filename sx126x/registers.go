@@ -181,16 +181,6 @@ const (
 	SX126X_DIO2_AS_IRQ       = 0x00 //  7     0     DIO2 configuration: IRQ
 	SX126X_DIO2_AS_RF_SWITCH = 0x01 //  7     0                         RF switch control
 
-	//SX126X_CMD_SET_DIO3_AS_TCXO_CTRL
-	SX126X_DIO3_OUTPUT_1_6 = 0x00 //  7     0     DIO3 voltage output for TCXO: 1.6 V
-	SX126X_DIO3_OUTPUT_1_7 = 0x01 //  7     0                                   1.7 V
-	SX126X_DIO3_OUTPUT_1_8 = 0x02 //  7     0                                   1.8 V
-	SX126X_DIO3_OUTPUT_2_2 = 0x03 //  7     0                                   2.2 V
-	SX126X_DIO3_OUTPUT_2_4 = 0x04 //  7     0                                   2.4 V
-	SX126X_DIO3_OUTPUT_2_7 = 0x05 //  7     0                                   2.7 V
-	SX126X_DIO3_OUTPUT_3_0 = 0x06 //  7     0                                   3.0 V
-	SX126X_DIO3_OUTPUT_3_3 = 0x07 //  7     0                                   3.3 V
-
 	//SX126X_CMD_SET_PACKET_TYPE
 	SX126X_PACKET_TYPE_GFSK = 0x00 //  7     0     packet type: GFSK
 	SX126X_PACKET_TYPE_LORA = 0x01 //  7     0                  LoRa
@@ -311,4 +301,18 @@ const (
 
 	SX126X_LORA_MAC_PUBLIC_SYNCWORD  = 0x3444
 	SX126X_LORA_MAC_PRIVATE_SYNCWORD = 0x1424
+)
+
+type Dio3OutputVoltage uint8
+
+const (
+	//SX126X_CMD_SET_DIO3_AS_TCXO_CTRL
+	SX126X_DIO3_OUTPUT_1_6 Dio3OutputVoltage = 0x00 //  7     0     DIO3 voltage output for TCXO: 1.6 V
+	SX126X_DIO3_OUTPUT_1_7 Dio3OutputVoltage = 0x01 //  7     0                                   1.7 V
+	SX126X_DIO3_OUTPUT_1_8 Dio3OutputVoltage = 0x02 //  7     0                                   1.8 V
+	SX126X_DIO3_OUTPUT_2_2 Dio3OutputVoltage = 0x03 //  7     0                                   2.2 V
+	SX126X_DIO3_OUTPUT_2_4 Dio3OutputVoltage = 0x04 //  7     0                                   2.4 V
+	SX126X_DIO3_OUTPUT_2_7 Dio3OutputVoltage = 0x05 //  7     0                                   2.7 V
+	SX126X_DIO3_OUTPUT_3_0 Dio3OutputVoltage = 0x06 //  7     0                                   3.0 V
+	SX126X_DIO3_OUTPUT_3_3 Dio3OutputVoltage = 0x07 //  7     0                                   3.3 V
 )
