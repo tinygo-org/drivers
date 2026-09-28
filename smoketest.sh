@@ -130,6 +130,7 @@ tinygo build -size short -o ./build/test.hex -target=nucleo-wl55jc ./examples/sx
 tinygo build -size short -o ./build/test.hex -target=pybadge ./examples/sx127x/lora_rxtx/
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/ssd1289/main.go
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/irremote/sender/main.go
 tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/uc8151/main.go
 tinygo build -size short -o ./build/test.hex -target=badger2040 ./examples/waveshare-epd/epd2in9v2/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/scd30/main.go
