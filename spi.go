@@ -11,3 +11,12 @@ type SPI interface {
 	// If you want to transfer multiple bytes, it is more efficient to use Tx instead.
 	Transfer(b byte) (byte, error)
 }
+
+// AsyncSPI is a SPI bus that also implements async operations (using DMA,
+// probably).
+type AsyncSPI interface {
+	SPI
+	IsAsync() bool
+	StartTx(tx, rx []byte) error
+	Wait() error
+}
