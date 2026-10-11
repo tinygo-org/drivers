@@ -27,6 +27,27 @@ var (
 // digitalPinout sets the logic level of an output pin; true for high, false for low.
 type digitalPinout = func(b bool)
 
+var ones = func() (b [64]byte) {
+	for i := range b {
+		b[i] = 0xff
+	}
+	return b
+}()
+
+// rxOnes reads into data while sending 0xFF to keep DI high.
+// See http://elm-chan.org/docs/mmc/mmc_e.html
+func rxOnes(bus drivers.SPI, data []byte) error {
+	for len(data) > 0 {
+		n := min(len(data), len(ones))
+		err := bus.Tx(ones[:n], data[:n])
+		if err != nil {
+			return err
+		}
+		data = data[n:]
+	}
+	return nil
+}
+
 // SPICard is a SPI-mode SD card driver. It implements the [Card] interface
 // and is initialized with [NewSPICard] followed by a call to [SPICard.Init].
 // SPICard is not safe for concurrent use.
@@ -483,7 +504,7 @@ func (d *SPICard) read_data(data []byte) (err error) {
 	if status != tokSTART_BLOCK {
 		return errWaitStartBlock
 	}
-	err = d.bus.Tx(nil, data)
+	err = rxOnes(d.bus, data)
 	if err != nil {
 		return err
 	}
