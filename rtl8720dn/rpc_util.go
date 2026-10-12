@@ -1,6 +1,7 @@
 package rtl8720dn
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 )
@@ -11,6 +12,15 @@ var (
 	startWriteMessageBuf [1024]byte
 	payload              [2048]byte
 )
+
+type rpcState struct {
+	uart          io.ReadWriter
+	seq           uint64
+	debug         bool
+	expected      [8]byte
+	rpcErr        error
+	payloadLength int
+}
 
 const (
 	xVersion = 1
@@ -30,27 +40,40 @@ func startWriteMessage(msgType, service, requestNumber, sequence uint32) []byte 
 	return startWriteMessageBuf[:8]
 }
 
+func (r *rtl8720dn) request(msg []byte) error {
+	if err := r.writeRequest(msg); err != nil {
+		return err
+	}
+	return r.readResponse()
+}
+
 func (r *rtl8720dn) performRequest(msg []byte) {
-	crc := computeCRC16(msg)
-	headerBuf[0] = byte(len(msg))
-	headerBuf[1] = byte(len(msg) >> 8)
-	headerBuf[2] = byte(crc)
-	headerBuf[3] = byte(crc >> 8)
+	r.rpcErr = r.writeRequest(msg)
+}
 
-	if r.debug {
-		fmt.Printf("tx : %2d : ", len(headerBuf))
-		dumpHex(headerBuf[:])
-		fmt.Printf("\r\n")
+func (r *rtl8720dn) writeRequest(msg []byte) error {
+	r.payloadLength = 0
+	if len(msg) < 8 || len(msg) > 65535 {
+		return fmt.Errorf("invalid RPC request length %d", len(msg))
 	}
-
-	r.uart.Write(headerBuf[:])
-
-	if r.debug {
-		fmt.Printf("tx : %2d : ", len(msg))
-		dumpHex(msg)
-		fmt.Printf("\r\n")
+	copy(r.expected[:], msg[:8])
+	binary.LittleEndian.PutUint16(headerBuf[:2], uint16(len(msg)))
+	binary.LittleEndian.PutUint16(headerBuf[2:], computeCRC16(msg))
+	for _, data := range [][]byte{headerBuf[:], msg} {
+		if r.debug {
+			fmt.Printf("tx : %2d : ", len(data))
+			dumpHex(data)
+			fmt.Printf("\r\n")
+		}
+		n, err := r.uart.Write(data)
+		if err != nil {
+			return fmt.Errorf("RPC write: %w", err)
+		}
+		if n != len(data) {
+			return fmt.Errorf("RPC write: %w", io.ErrShortWrite)
+		}
 	}
-	r.uart.Write(msg)
+	return nil
 }
 
 func dumpHex(b []byte) {
@@ -64,36 +87,51 @@ func dumpHex(b []byte) {
 }
 
 func (r *rtl8720dn) read() {
+	if r.rpcErr == nil {
+		r.rpcErr = r.readResponse()
+	}
+	if r.rpcErr != nil {
+		clear(payload[:])
+	}
+}
+
+func (r *rtl8720dn) readResponse() error {
+	r.payloadLength = 0
 	for {
-		n, _ := io.ReadFull(r.uart, readBuf[:4])
-		if n == 0 {
-			continue
+		if _, err := io.ReadFull(r.uart, readBuf[:]); err != nil {
+			return fmt.Errorf("RPC response header: %w", err)
 		}
-
-		if r.debug {
-			fmt.Printf("rx : %2d : ", n)
-			dumpHex(readBuf[:n])
-			fmt.Printf("\r\n")
+		length := int(binary.LittleEndian.Uint16(readBuf[:2]))
+		if length < 8 || length > len(payload) {
+			return fmt.Errorf("invalid RPC response length %d", length)
 		}
-
-		length := uint16(readBuf[0]) + uint16(readBuf[1])<<8
-		crc := uint16(readBuf[2]) + uint16(readBuf[3])<<8
-
-		n, _ = io.ReadFull(r.uart, payload[:length])
+		data := payload[:length]
+		if _, err := io.ReadFull(r.uart, data); err != nil {
+			return fmt.Errorf("RPC response body: %w", err)
+		}
 		if r.debug {
 			fmt.Printf("rx : %2d : ", length)
-			dumpHex(payload[0:n])
+			dumpHex(data)
 			fmt.Printf("\r\n")
 		}
-
-		n = int(length)
-
-		crcNew := computeCRC16(payload[:n])
-		if g, e := crcNew, crc; g != e {
-			fmt.Printf("err CRC16: got %04X want %04X\r\n", g, e)
+		if computeCRC16(data) != binary.LittleEndian.Uint16(readBuf[2:]) {
+			return fmt.Errorf("invalid RPC response CRC")
 		}
-		if payload[0] == 0x02 || payload[0] == 0x00 {
-			return
+		if data[3] != xVersion {
+			return fmt.Errorf("invalid RPC response version %d", data[3])
 		}
+		switch data[0] {
+		case 0x01, 0x03:
+			continue
+		case 0x00, 0x02:
+		default:
+			return fmt.Errorf("invalid RPC response type %d", data[0])
+		}
+		if data[1] != r.expected[1] || data[2] != r.expected[2] ||
+			binary.LittleEndian.Uint32(data[4:8]) != binary.LittleEndian.Uint32(r.expected[4:8]) {
+			return fmt.Errorf("invalid RPC response header")
+		}
+		r.payloadLength = length
+		return nil
 	}
 }

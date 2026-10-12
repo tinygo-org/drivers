@@ -6553,7 +6553,7 @@ func (r *rtl8720dn) rpc_wifi_ssl_set_timeout(ssl_client uint32, timeout uint32) 
 	return
 }
 
-func (r *rtl8720dn) rpc_wifi_ssl_get_socket(ssl_client uint32) int32 {
+func (r *rtl8720dn) rpc_wifi_ssl_get_socket(ssl_client uint32) (int32, error) {
 	if r.debug {
 		fmt.Printf("rpc_wifi_ssl_get_socket()\r\n")
 	}
@@ -6565,17 +6565,14 @@ func (r *rtl8720dn) rpc_wifi_ssl_get_socket(ssl_client uint32) int32 {
 	msg = append(msg, byte(ssl_client>>16))
 	msg = append(msg, byte(ssl_client>>24))
 
-	r.performRequest(msg)
-
-	r.read()
-	widx := 8
-
-	var result int32
-	x := binary.LittleEndian.Uint32(payload[widx:])
-	result = int32(x)
-
-	r.seq++
-	return result
+	defer func() { r.seq++ }()
+	if err := r.request(msg); err != nil {
+		return 0, err
+	}
+	if r.payloadLength != 12 {
+		return 0, fmt.Errorf("invalid RPC int32 response length %d", r.payloadLength)
+	}
+	return int32(binary.LittleEndian.Uint32(payload[8:12])), nil
 }
 
 func (r *rtl8720dn) rpc_wifi_ssl_get_timeout(ssl_client uint32) uint32 {
@@ -6900,7 +6897,7 @@ func (r *rtl8720dn) rpc_wifi_ssl_get_psKey(ssl_client uint32, psKey string) uint
 	return result
 }
 
-func (r *rtl8720dn) rpc_wifi_start_ssl_client(ssl_client uint32, host string, port uint32, timeout int32) int32 {
+func (r *rtl8720dn) rpc_wifi_start_ssl_client(ssl_client uint32, host string, port uint32, timeout int32) (int32, error) {
 	if r.debug {
 		fmt.Printf("rpc_wifi_start_ssl_client()\r\n")
 	}
@@ -6930,17 +6927,14 @@ func (r *rtl8720dn) rpc_wifi_start_ssl_client(ssl_client uint32, host string, po
 	msg = append(msg, byte(timeout>>16))
 	msg = append(msg, byte(timeout>>24))
 
-	r.performRequest(msg)
-
-	r.read()
-	widx := 8
-
-	var result int32
-	x := binary.LittleEndian.Uint32(payload[widx:])
-	result = int32(x)
-
-	r.seq++
-	return result
+	defer func() { r.seq++ }()
+	if err := r.request(msg); err != nil {
+		return 0, err
+	}
+	if r.payloadLength != 12 {
+		return 0, fmt.Errorf("invalid RPC int32 response length %d", r.payloadLength)
+	}
+	return int32(binary.LittleEndian.Uint32(payload[8:12])), nil
 }
 
 func (r *rtl8720dn) rpc_wifi_stop_ssl_socket(ssl_client uint32) {

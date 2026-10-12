@@ -1,3 +1,5 @@
+//go:build !rtl8720dn_hosttest
+
 // Package rtl8720dn implements TCP wireless communication over UART
 // talking to a RealTek rtl8720dn module.
 //
@@ -37,13 +39,6 @@ const (
 	defaultChannel = 6
 )
 
-type sock int32
-
-type socket struct {
-	protocol int
-	inuse    bool
-}
-
 type Config struct {
 	// Enable
 	En machine.Pin
@@ -60,10 +55,7 @@ type rtl8720dn struct {
 	notifyCb func(netlink.Event)
 	mu       sync.Mutex
 
-	uart *machine.UART
-	seq  uint64
-
-	debug bool
+	rpcState
 
 	params *netlink.ConnectParams
 
@@ -77,13 +69,9 @@ type rtl8720dn struct {
 	sockets map[sock]*socket
 }
 
-func newSocket(protocol int) *socket {
-	return &socket{protocol: protocol, inuse: true}
-}
-
 func New(cfg *Config) *rtl8720dn {
 	return &rtl8720dn{
-		debug:        (_debug & debugRpc) != 0,
+		rpcState:     rpcState{debug: (_debug & debugRpc) != 0},
 		cfg:          cfg,
 		sockets:      make(map[sock]*socket),
 		killWatchdog: make(chan bool),
@@ -211,7 +199,7 @@ func (r *rtl8720dn) initWifi() error {
 
 func (r *rtl8720dn) setupUART() {
 	r.uart = r.cfg.Uart
-	r.uart.Configure(machine.UARTConfig{TX: r.cfg.Tx,
+	r.cfg.Uart.Configure(machine.UARTConfig{TX: r.cfg.Tx,
 		RX: r.cfg.Rx, BaudRate: r.cfg.Baudrate})
 }
 
@@ -488,22 +476,6 @@ func (r *rtl8720dn) Socket(domain int, stype int, protocol int) (int, error) {
 	return int(newSock), nil
 }
 
-func ipToName(ip netip.AddrPort) []byte {
-	name := make([]byte, 16)
-	name[0] = 0x00
-	name[1] = netdev.AF_INET
-	name[2] = byte(ip.Port() >> 8)
-	name[3] = byte(ip.Port())
-	if ip.Addr().Is4() {
-		addr := ip.Addr().As4()
-		name[4] = byte(addr[0])
-		name[5] = byte(addr[1])
-		name[6] = byte(addr[2])
-		name[7] = byte(addr[3])
-	}
-	return name
-}
-
 func nameToIp(name []byte) netip.AddrPort {
 	port := uint16(name[2])<<8 | uint16(name[3])
 	addr, _ := netip.AddrFromSlice(name[4:8])
@@ -531,43 +503,6 @@ func (r *rtl8720dn) Bind(sockfd int, ip netip.AddrPort) error {
 		}
 	default:
 		return netdev.ErrProtocolNotSupported
-	}
-
-	return nil
-}
-
-func (r *rtl8720dn) Connect(sockfd int, host string, ip netip.AddrPort) error {
-
-	port := ip.Port()
-
-	if debugging(debugNetdev) {
-		if host == "" {
-			fmt.Printf("[Connect] sockfd: %d, addr: %s\r\n", sockfd, ip)
-		} else {
-			fmt.Printf("[Connect] sockfd: %d, host: %s:%d\r\n", sockfd, host, port)
-		}
-	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var sock = sock(sockfd)
-	var socket = r.sockets[sock]
-	var name = ipToName(ip)
-
-	// Start the connection
-	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
-		result := r.rpc_lwip_connect(int32(sock), name, uint32(len(name)))
-		if result == -1 {
-			return fmt.Errorf("Connect to %s failed", ip)
-		}
-	case netdev.IPPROTO_TLS:
-		result := r.rpc_wifi_start_ssl_client(uint32(sock),
-			host, uint32(port), 0)
-		if result == -1 {
-			return fmt.Errorf("Connect to %s:%d failed", host, port)
-		}
 	}
 
 	return nil
@@ -675,6 +610,9 @@ func (r *rtl8720dn) Accept(sockfd int) (int, netip.AddrPort, error) {
 func (r *rtl8720dn) sendChunk(sockfd int, buf []byte, deadline time.Time) (int, error) {
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
+	if socket == nil || !socket.inuse || socket.connectFailed {
+		return -1, netdev.ErrInvalidSocketFd
+	}
 
 	// Check if we've timed out
 	if !deadline.IsZero() {
@@ -742,6 +680,9 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 
 	var sock = sock(sockfd)
 	var socket = r.sockets[sock]
+	if socket == nil || !socket.inuse || socket.connectFailed {
+		return -1, netdev.ErrInvalidSocketFd
+	}
 	var length = len(buf)
 	var n int32
 
@@ -787,40 +728,6 @@ func (r *rtl8720dn) Recv(sockfd int, buf []byte, flags int,
 
 		return int(n), nil
 	}
-}
-
-func (r *rtl8720dn) Close(sockfd int) error {
-
-	if debugging(debugNetdev) {
-		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
-	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var sock = sock(sockfd)
-	var socket = r.sockets[sock]
-	var result int32
-
-	if !socket.inuse {
-		return nil
-	}
-
-	switch socket.protocol {
-	case netdev.IPPROTO_TCP, netdev.IPPROTO_UDP:
-		result = r.rpc_lwip_close(int32(sock))
-	case netdev.IPPROTO_TLS:
-		r.rpc_wifi_stop_ssl_socket(uint32(sock))
-		r.rpc_wifi_ssl_client_destroy(uint32(sock))
-	}
-
-	if result == -1 {
-		return netdev.ErrClosingSocket
-	}
-
-	socket.inuse = false
-
-	return nil
 }
 
 func (r *rtl8720dn) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
