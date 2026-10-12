@@ -24,6 +24,7 @@ TESTS = $(filter-out $(addsuffix /%,$(EXCLUDE_TESTS)),$(HAS_TESTS))
 
 unit-test:
 	@go test -v $(addprefix ./,$(TESTS))
+	@sh rtl8720dn/testdata/test-host.sh -v
 
 test: clean fmt-check unit-test smoke-test
 

@@ -51,9 +51,7 @@ func startWriteMessage(msgType, service, requestNumber, sequence uint32) []byte 
 }
 
 func (r *rtl8720dn) performRequest(msg []byte) {
-	if r.rpcErr != nil {
-		*r.rpcErr = nil
-	}
+	r.rpcErr = nil
 	crc := computeCRC16(msg)
 	headerBuf[0] = byte(len(msg))
 	headerBuf[1] = byte(len(msg) >> 8)
@@ -67,11 +65,11 @@ func (r *rtl8720dn) performRequest(msg []byte) {
 			fmt.Printf("\r\n")
 		}
 		n, err := r.uart.Write(b)
-		if r.rpcErr != nil && (err != nil || n != len(b)) {
+		if r.captureRPCErr && (err != nil || n != len(b)) {
 			if err == nil {
 				err = io.ErrShortWrite
 			}
-			*r.rpcErr = err
+			r.rpcErr = err
 			return
 		}
 	}
@@ -87,37 +85,49 @@ func dumpHex(b []byte) {
 	}
 }
 
+func (r *rtl8720dn) dumpRead(b []byte) {
+	if r.debug {
+		fmt.Printf("rx : %2d : ", len(b))
+		dumpHex(b)
+		fmt.Printf("\r\n")
+	}
+}
+
 func (r *rtl8720dn) read() {
-	if r.rpcErr != nil {
+	if r.captureRPCErr {
 		defer func() {
-			if *r.rpcErr != nil {
+			if r.rpcErr != nil {
 				clear(payload[:12])
 			}
 		}()
-		if *r.rpcErr != nil {
+		if r.rpcErr != nil {
 			return
 		}
 		reader := blockingUARTReader{uart: r.uart}
 		for {
-			if _, err := io.ReadFull(reader, readBuf[:]); err != nil {
-				*r.rpcErr = err
+			n, err := io.ReadFull(reader, readBuf[:])
+			r.dumpRead(readBuf[:n])
+			if err != nil {
+				r.rpcErr = err
 				return
 			}
 			length := binary.LittleEndian.Uint16(readBuf[:2])
 			if length < 8 || int(length) > len(payload) {
-				*r.rpcErr = fmt.Errorf("Invalid TLS RPC frame length %d", length)
+				r.rpcErr = fmt.Errorf("invalid RPC frame length %d", length)
 				return
 			}
-			if _, err := io.ReadFull(reader, payload[:length]); err != nil {
-				*r.rpcErr = err
+			n, err = io.ReadFull(reader, payload[:length])
+			r.dumpRead(payload[:n])
+			if err != nil {
+				r.rpcErr = err
 				return
 			}
 			if computeCRC16(payload[:length]) != binary.LittleEndian.Uint16(readBuf[2:]) {
-				*r.rpcErr = fmt.Errorf("TLS RPC response CRC mismatch")
+				r.rpcErr = fmt.Errorf("invalid RPC response CRC")
 				return
 			}
 			if payload[3] != xVersion {
-				*r.rpcErr = fmt.Errorf("Invalid TLS RPC response header")
+				r.rpcErr = fmt.Errorf("invalid RPC response header")
 				return
 			}
 			switch payload[0] {
@@ -125,20 +135,20 @@ func (r *rtl8720dn) read() {
 			case 0x01, 0x03:
 				continue
 			case 0x00:
-				*r.rpcErr = fmt.Errorf("unsupported incoming RPC invocation")
+				r.rpcErr = fmt.Errorf("unsupported incoming RPC invocation")
 				return
 			default:
-				*r.rpcErr = fmt.Errorf("Invalid TLS RPC message type %d", payload[0])
+				r.rpcErr = fmt.Errorf("invalid RPC message type %d", payload[0])
 				return
 			}
 			if length != 12 {
-				*r.rpcErr = fmt.Errorf("Invalid TLS RPC response length %d", length)
+				r.rpcErr = fmt.Errorf("invalid RPC response length %d", length)
 				return
 			}
 			if payload[1] != startWriteMessageBuf[1] ||
 				payload[2] != startWriteMessageBuf[2] ||
 				binary.LittleEndian.Uint32(payload[4:8]) != uint32(r.seq) {
-				*r.rpcErr = fmt.Errorf("Invalid TLS RPC response header")
+				r.rpcErr = fmt.Errorf("invalid RPC response header")
 			}
 			return
 		}
@@ -149,21 +159,13 @@ func (r *rtl8720dn) read() {
 			continue
 		}
 
-		if r.debug {
-			fmt.Printf("rx : %2d : ", n)
-			dumpHex(readBuf[:n])
-			fmt.Printf("\r\n")
-		}
+		r.dumpRead(readBuf[:n])
 
 		length := uint16(readBuf[0]) + uint16(readBuf[1])<<8
 		crc := uint16(readBuf[2]) + uint16(readBuf[3])<<8
 
 		n, _ = io.ReadFull(r.uart, payload[:length])
-		if r.debug {
-			fmt.Printf("rx : %2d : ", length)
-			dumpHex(payload[0:n])
-			fmt.Printf("\r\n")
-		}
+		r.dumpRead(payload[:n])
 
 		n = int(length)
 

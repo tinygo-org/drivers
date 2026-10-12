@@ -88,7 +88,7 @@ func TestTLSResults(t *testing.T) {
 			if *calls != tc.calls {
 				t.Fatalf("got %d RPC calls, want %d", *calls, tc.calls)
 			}
-			if r.rpcErr != nil {
+			if r.captureRPCErr {
 				t.Fatal("TLS transport checks remain active")
 			}
 		})
@@ -103,7 +103,7 @@ func TestTLSInvalidReplies(t *testing.T) {
 			want    string
 			wantErr error
 		}{
-			{"CRC", func(b []byte) []byte { b[2] ^= 1; return b }, "TLS RPC response CRC mismatch", nil},
+			{"CRC", func(b []byte) []byte { b[2] ^= 1; return b }, "invalid RPC response CRC", nil},
 			{"no header", func(b []byte) []byte { return b[:0] }, "", io.EOF},
 			{"short header", func(b []byte) []byte { return b[:2] }, "", io.ErrUnexpectedEOF},
 			{"short payload", func(b []byte) []byte { return b[:14] }, "", io.ErrUnexpectedEOF},
@@ -112,15 +112,15 @@ func TestTLSInvalidReplies(t *testing.T) {
 				binary.LittleEndian.PutUint16(b, 16)
 				binary.LittleEndian.PutUint16(b[2:], computeCRC16(b[4:]))
 				return b
-			}, "Invalid TLS RPC response length 16", nil},
-			{"zero length", func(b []byte) []byte { binary.LittleEndian.PutUint16(b, 0); return b }, "Invalid TLS RPC frame length 0", nil},
-			{"oversized", func(b []byte) []byte { binary.LittleEndian.PutUint16(b, 65535); return b }, "Invalid TLS RPC frame length 65535", nil},
+			}, "invalid RPC response length 16", nil},
+			{"zero length", func(b []byte) []byte { binary.LittleEndian.PutUint16(b, 0); return b }, "invalid RPC frame length 0", nil},
+			{"oversized", func(b []byte) []byte { binary.LittleEndian.PutUint16(b, 65535); return b }, "invalid RPC frame length 65535", nil},
 			{"type", func(b []byte) []byte { b[4] = 0; return b }, "unsupported incoming RPC invocation", nil},
-			{"unknown type", func(b []byte) []byte { b[4] = 0xff; return b }, "Invalid TLS RPC message type 255", nil},
-			{"method", func(b []byte) []byte { b[5]++; return b }, "Invalid TLS RPC response header", nil},
-			{"service", func(b []byte) []byte { b[6]++; return b }, "Invalid TLS RPC response header", nil},
-			{"version", func(b []byte) []byte { b[7]++; return b }, "Invalid TLS RPC response header", nil},
-			{"sequence", func(b []byte) []byte { b[8]++; return b }, "Invalid TLS RPC response header", nil},
+			{"unknown type", func(b []byte) []byte { b[4] = 0xff; return b }, "invalid RPC message type 255", nil},
+			{"method", func(b []byte) []byte { b[5]++; return b }, "invalid RPC response header", nil},
+			{"service", func(b []byte) []byte { b[6]++; return b }, "invalid RPC response header", nil},
+			{"version", func(b []byte) []byte { b[7]++; return b }, "invalid RPC response header", nil},
+			{"sequence", func(b []byte) []byte { b[8]++; return b }, "invalid RPC response header", nil},
 		} {
 			t.Run(fmt.Sprintf("%s/method%d", tc.name, method), func(t *testing.T) {
 				r, _ := tlsDevice(3, 3, func(b []byte, m byte) []byte {
@@ -136,6 +136,9 @@ func TestTLSInvalidReplies(t *testing.T) {
 				err := connectTLS(r)
 				if err == nil {
 					t.Fatal("invalid reply was accepted")
+				}
+				if r.captureRPCErr {
+					t.Fatal("TLS transport checks remain active after failure")
 				}
 				if tc.wantErr != nil {
 					if !errors.Is(err, tc.wantErr) {
@@ -203,19 +206,18 @@ func TestTLSUARTFailures(t *testing.T) {
 
 func TestTLSConsecutiveRequests(t *testing.T) {
 	r, _ := tlsDevice(0, 0, nil)
-	var rpcErr error
-	r.rpcErr = &rpcErr
+	r.captureRPCErr = true
 	writer := r.uart.Writer
 	r.uart.Writer = uartWriter(func([]byte) (int, error) { return 0, io.ErrClosedPipe })
 	r.rpc_wifi_ssl_get_socket(1)
-	if !errors.Is(rpcErr, io.ErrClosedPipe) {
-		t.Fatal(rpcErr)
+	if !errors.Is(r.rpcErr, io.ErrClosedPipe) {
+		t.Fatal(r.rpcErr)
 	}
 	r.uart.Writer = writer
-	if result := r.rpc_wifi_ssl_get_socket(1); result != 0 || rpcErr != nil {
-		t.Fatalf("result %d, error %v", result, rpcErr)
+	if result := r.rpc_wifi_ssl_get_socket(1); result != 0 || r.rpcErr != nil {
+		t.Fatalf("result %d, error %v", result, r.rpcErr)
 	}
-	r.rpcErr = nil
+	r.captureRPCErr = false
 	if err := connectTLS(r); err != nil {
 		t.Fatal(err)
 	}
@@ -225,8 +227,12 @@ func TestOtherRPCPaths(t *testing.T) {
 	for _, protocol := range []int{netdev.IPPROTO_TCP, netdev.IPPROTO_UDP} {
 		r, calls := tlsDevice(0, 0, nil)
 		r.sockets[1].protocol = protocol
+		r.rpcErr = io.ErrClosedPipe
 		if err := connectTLS(r); err != nil {
 			t.Fatal(err)
+		}
+		if r.captureRPCErr || r.rpcErr != nil {
+			t.Fatalf("legacy RPC left capture %t, error %v", r.captureRPCErr, r.rpcErr)
 		}
 		if *calls != 1 {
 			t.Fatalf("got %d calls", *calls)
@@ -292,11 +298,11 @@ func TestTLSInvalidNotifications(t *testing.T) {
 				want    string
 				wantErr error
 			}{
-				{"CRC", "TLS RPC response CRC mismatch", nil},
-				{"version", "Invalid TLS RPC response header", nil},
-				{"zero length", "Invalid TLS RPC frame length 0", nil},
-				{"oversized", "Invalid TLS RPC frame length 65535", nil},
-				{"unknown type", "Invalid TLS RPC message type 255", nil},
+				{"CRC", "invalid RPC response CRC", nil},
+				{"version", "invalid RPC response header", nil},
+				{"zero length", "invalid RPC frame length 0", nil},
+				{"oversized", "invalid RPC frame length 65535", nil},
+				{"unknown type", "invalid RPC message type 255", nil},
 				{"short payload", "", io.ErrUnexpectedEOF},
 				{"UART", "", io.ErrClosedPipe},
 			} {
