@@ -8,10 +8,9 @@ import (
 // NoKeyPressed is used, when no key was pressed
 const NoKeyPressed = 255
 
-// settleTime is the wait after a row changes, before the columns are read.
-// The row line does not fall immediately, because the wiring has some
-// capacitance. A read that is too early can still show the previous row.
-const settleTime = 50 * time.Microsecond
+// settleTime lets a released column return to its resting level through the
+// pull resistor, which is slower than the driven edge of a row.
+const settleTime = 10 * time.Microsecond
 
 // defaultMapping gives the position of a key, 0 at the upper left end and 15
 // at the lower right end.
@@ -24,39 +23,20 @@ var defaultMapping = [4][4]uint8{
 
 // Config holds the options of a keypad.
 type Config struct {
-	// Mapping is the value that GetKey returns for each key, in reading
-	// order. Use it to give the value printed on the key, such as '7' or 'A',
-	// instead of its position. The zero value asks for the default mapping,
-	// which is the position of the key.
+	// Mapping is the value GetKey returns for each key, in reading order.
+	// The zero value gives the position of the key, 0 to 15.
+	//
+	// A key mapped to 255 cannot be told apart from NoKeyPressed.
 	Mapping [4][4]uint8
 
-	// Inverted swaps the polarity of the scan.
-	//
-	// The default is false. A column rests high with a pull-up, each row is
-	// driven low in turn, and a pressed key pulls its column low.
-	//
-	// Set it to true when a column cannot rest high, because something on the
-	// board pulls that pin down harder than the internal pull-up can hold it
-	// up. A strapping pin such as GPIO12 on the ESP32 often has a pull-down
-	// fitted, and some keypad modules bring their own resistors. A column
-	// then rests low, each row is driven high, and a pressed key pulls its
-	// column high.
+	// Inverted swaps the scan polarity, so the columns rest low and each row
+	// is driven high. Use it when a board or a module pulls a column down
+	// harder than the internal pull-up can hold it up.
 	Inverted bool
 
-	// ColumnConfig overrides how the column pins are configured.
-	//
-	// Leave it nil for the usual case. The driver then uses PinInputPullup,
-	// or PinInput when Inverted is set.
-	//
-	// Inverted wants an internal pull-down, but not every chip has one. AVR
-	// has pull-ups only, so the driver cannot name PinInputPulldown without
-	// breaking those targets. Pass it here on a chip that has it:
-	//
-	//	pulldown := machine.PinConfig{Mode: machine.PinInputPulldown}
-	//	cfg := keypad4x4.Config{Inverted: true, ColumnConfig: &pulldown}
-	//
-	// PinInput on its own is enough when the board already holds the columns
-	// at their resting level.
+	// ColumnConfig sets the pin mode of the columns. Nil gives
+	// PinInputPullup, or PinInput when Inverted is set. Pass
+	// PinInputPulldown here on a chip that has it, since AVR does not.
 	ColumnConfig *machine.PinConfig
 }
 
@@ -92,8 +72,6 @@ func NewDeviceWithConfig(config Config, r4, r3, r2, r1, c4, c3, c2, c1 machine.P
 	result.inverted = config.Inverted
 	result.columnConfig = config.ColumnConfig
 
-	// The mapping belongs to the device, not to Configure. Configure used to
-	// write it, which would throw away a mapping given here.
 	result.mapping = config.Mapping
 	if result.mapping == ([4][4]uint8{}) {
 		result.mapping = defaultMapping
@@ -104,9 +82,7 @@ func NewDeviceWithConfig(config Config, r4, r3, r2, r1, c4, c3, c2, c1 machine.P
 
 // Configure sets the column pins as input and the row pins as output
 func (keypad *device) Configure() {
-	// PinInputPullup exists on every chip. A pull-down does not, so the
-	// inverted default is PinInput and the caller gives a pull-down through
-	// ColumnConfig when the chip has one.
+	// PinInputPullup exists on every chip, a pull-down does not.
 	inputConfig := machine.PinConfig{Mode: machine.PinInputPullup}
 	if keypad.inverted {
 		inputConfig = machine.PinConfig{Mode: machine.PinInput}
@@ -176,9 +152,7 @@ func (keypad *device) GetIndices() (int, int) {
 				keypad.lastColumn = columnIndex
 				keypad.lastRow = rowIndex
 
-				// Stop driving this row before leaving. A row left selected
-				// makes two rows selected on the next scan, and a column then
-				// does not say which row it came from.
+				// Release the row, or the next scan has two rows selected.
 				keypad.releaseRow(rowPin)
 
 				return keypad.lastRow, keypad.lastColumn
