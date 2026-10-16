@@ -132,13 +132,11 @@ func (t *device) read() error {
 
 	// Start communication protocol with sensor
 	initiateCommunication(t.pin)
-	// Wait for sensor's response and abort if sensor does not reply
-	err := waitForDataTransmission(t.pin)
+	// Capture the response and data without a handoff at the first data bit.
+	err := receiveSignals(t.pin, signals)
 	if err != nil {
 		return err
 	}
-	// count low and high cycles for sensor's reply
-	receiveSignals(t.pin, signals)
 
 	// process received signals and store the result in the buffer. Abort if data transmission was interrupted and not
 	// all 40 bits were received
@@ -156,16 +154,27 @@ func (t *device) read() error {
 	return nil
 }
 
-// receiveSignals counts number of low and high cycles. The execution is time critical, so the function disables
-// interrupts
-func receiveSignals(pin machine.Pin, result []counter) {
+// receiveSignals waits for the response and counts data pulses with interrupts disabled.
+func receiveSignals(pin machine.Pin, result []counter) error {
 	i := uint8(0)
 	mask := interrupt.Disable()
 	defer interrupt.Restore(mask)
+	// Capture the response here to preserve the first data bit's low pulse.
+	// See the AM2302 datasheet [2], section 5.3.
+	if expectChange(pin, true) == timeout {
+		return NoSignalError
+	}
+	if expectChange(pin, false) == timeout {
+		return NoSignalError
+	}
+	if expectChange(pin, true) == timeout {
+		return NoSignalError
+	}
 	for ; i < 40; i++ {
 		result[i*2] = expectChange(pin, false)
 		result[i*2+1] = expectChange(pin, true)
 	}
+	return nil
 }
 
 // extractData process signal counters and transforms them into bits.
@@ -182,25 +191,6 @@ func (t *device) extractData(signals []counter, buf []uint8) error {
 		if highCycle > lowCycle {
 			buf[byteN] |= 1
 		}
-	}
-	return nil
-}
-
-// waitForDataTransmission waits for reply from the sensor.
-// If no reply received, returns NoSignalError.
-// For more details, see section 5.2 in [1]
-func waitForDataTransmission(p machine.Pin) error {
-	// wait for thermometer to pull down
-	if expectChange(p, true) == timeout {
-		return NoSignalError
-	}
-	//wait for thermometer to pull up
-	if expectChange(p, false) == timeout {
-		return NoSignalError
-	}
-	// wait for thermometer to pull down and start sending the data
-	if expectChange(p, true) == timeout {
-		return NoSignalError
 	}
 	return nil
 }
