@@ -499,7 +499,7 @@ func (d *Device) FillRectangle(x, y, width, height int16, c color.RGBA) error {
 		return errOutOfRange
 	}
 
-	if x+width == dw && y+height == dh && c.R == 0 && c.G == 0 && c.B == 0 {
+	if x == 0 && y == 0 && width == dw && height == dh && c.R == 0 && c.G == 0 && c.B == 0 {
 		d.ClearDisplay()
 		return nil
 	}
