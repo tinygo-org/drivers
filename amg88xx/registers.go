@@ -25,13 +25,18 @@ const (
 
 	// power modes
 	NORMAL_MODE = 0x00
-	SLEEP_MODE  = 0x01
+	SLEEP_MODE  = 0x10
 	STAND_BY_60 = 0x20
 	STAND_BY_10 = 0x21
 
 	// resets
 	FLAG_RESET    = 0x30
 	INITIAL_RESET = 0x3F
+
+	// status and status clear flags
+	STATUS_INTF    = 0x02
+	STATUS_OVF_IRS = 0x04
+	STATUS_OVF_THS = 0x08
 
 	// frame rates
 	FPS_10 = 0x00
