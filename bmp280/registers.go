@@ -3,8 +3,14 @@
 // Datasheet: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
 package bmp280
 
-// The I2C address which this device listens to.
+// The I2C address which this device listens to when SDO is high.
 const Address = 0x77
+
+// AddressLow is the I2C address when SDO is connected to GND. Datasheet section 5.2.
+const AddressLow = 0x76
+
+// SEALEVEL_PRESSURE is the standard pressure at sea level used by ReadAltitude.
+const SEALEVEL_PRESSURE float32 = 1013.25 // in hPa
 
 // Registers
 const (
@@ -19,6 +25,12 @@ const (
 
 	CHIP_ID   = 0x58
 	CMD_RESET = 0xB6
+)
+
+// Status register bits. Datasheet section 4.3.3.
+const (
+	statusMeasuring = 0x08
+	statusImUpdate  = 0x01
 )
 
 const (

@@ -1,10 +1,10 @@
 package bmp280
 
 import (
+	"math"
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // OversamplingMode is the oversampling ratio of the temperature or pressure measurement.
@@ -23,13 +23,17 @@ type Filter uint
 type Device struct {
 	bus         drivers.I2C
 	Address     uint16
-	buf         [6]byte
+	buf         [24]byte
+	wbuf        [2]byte
 	cali        calibrationCoefficients
 	Temperature Oversampling
 	Pressure    Oversampling
 	Mode        Mode
 	Standby     Standby
 	Filter      Filter
+
+	temperature int32
+	pressure    int32
 }
 
 type calibrationCoefficients struct {
@@ -65,15 +69,16 @@ func New(bus drivers.I2C) Device {
 // Connected returns whether a BMP280 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	data := make([]byte, 1)
-	legacy.ReadRegister(d.bus, uint8(d.Address), REG_ID, data)
-	return data[0] == CHIP_ID
+	if d.readRegister(REG_ID, d.buf[:1]) != nil {
+		return false
+	}
+	return d.buf[0] == CHIP_ID
 }
 
 // Reset preforms complete power-on-reset procedure.
 // It is required to call Configure afterwards.
 func (d *Device) Reset() {
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_RESET, []byte{CMD_RESET})
+	d.writeRegister(REG_RESET, CMD_RESET)
 }
 
 // Configure sets up the device for communication and
@@ -87,16 +92,15 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 
 	//  Write the configuration (standby, filter, spi 3 wire)
 	config := uint(d.Standby<<5) | uint(d.Filter<<2) | 0x00
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CONFIG, []byte{byte(config)})
+	d.writeRegister(REG_CONFIG, byte(config))
 
 	// Write the control (temperature oversampling, pressure oversampling,
 	config = uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
+	d.writeRegister(REG_CTRL_MEAS, byte(config))
 
 	// Read Calibration data
-	data := make([]byte, 24)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALI, data)
-	if err != nil {
+	data := d.buf[:24]
+	if err := d.readRegister(REG_CALI, data); err != nil {
 		return
 	}
 
@@ -116,6 +120,14 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 	d.cali.p9 = readIntLE(data[22], data[23])
 }
 
+// SetMode sets the device to sleep, normal or forced mode without
+// changing the other settings or reading the calibration data again.
+func (d *Device) SetMode(mode Mode) error {
+	d.Mode = mode
+	config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
+	return d.writeRegister(REG_CTRL_MEAS, byte(config))
+}
+
 // PrintCali prints the Calibration information.
 func (d *Device) PrintCali() {
 	println("T1:", d.cali.t1)
@@ -133,22 +145,59 @@ func (d *Device) PrintCali() {
 	println("P9:", d.cali.p9, "\n")
 }
 
-// ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
-func (d *Device) ReadTemperature() (temperature int32, err error) {
-	data := d.buf[:3]
-	if err = d.readData(REG_TEMP, data); err != nil {
-		return
+// Update reads temperature and pressure in one burst, so forced mode needs
+// only a single conversion. Use Measurements to get the values.
+func (d *Device) Update(which drivers.Measurement) error {
+	if which&(drivers.Temperature|drivers.Pressure) == 0 {
+		return nil
 	}
 
-	rawTemp := convert3Bytes(data[0], data[1], data[2])
+	// First 3 bytes are Pressure, last 3 bytes are Temperature
+	data := d.buf[:6]
+	if err := d.readData(REG_PRES, data); err != nil {
+		return err
+	}
 
+	temperature, tFine := d.compensateTemperature(convert3Bytes(data[3], data[4], data[5]))
+	d.temperature = temperature
+	d.pressure = d.compensatePressure(convert3Bytes(data[0], data[1], data[2]), tFine)
+	return nil
+}
+
+// Measurements returns the temperature in celsius milli degrees (°C/1000)
+// and the pressure in milli pascals (mPa) from the last call to Update.
+func (d *Device) Measurements() (temperature, pressure int32) {
+	return d.temperature, d.pressure
+}
+
+// ReadTemperature returns the temperature in celsius milli degrees (°C/1000).
+func (d *Device) ReadTemperature() (int32, error) {
+	data := d.buf[:3]
+	if err := d.readData(REG_TEMP, data); err != nil {
+		return 0, err
+	}
+
+	temperature, _ := d.compensateTemperature(convert3Bytes(data[0], data[1], data[2]))
+	return temperature, nil
+}
+
+// ReadPressure returns the pressure in milli pascals (mPa).
+func (d *Device) ReadPressure() (int32, error) {
+	if err := d.Update(drivers.Pressure); err != nil {
+		return 0, err
+	}
+	return d.pressure, nil
+}
+
+// compensateTemperature returns the temperature in milli degrees and the
+// tFine value used for the pressure compensation.
+func (d *Device) compensateTemperature(rawTemp int32) (temperature, tFine int32) {
 	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Temperature compensation
-	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
+	var1 := ((rawTemp >> 3) - int32(d.cali.t1)<<1) * int32(d.cali.t2) >> 11
 	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
 		int32(d.cali.t3) >> 14
 
-	tFine := var1 + var2
+	tFine = var1 + var2
 
 	// Convert from degrees to milli degrees by multiplying by 10.
 	// Will output 30250 milli degrees celsius for 30.25 degrees celsius
@@ -156,30 +205,11 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 	return
 }
 
-// ReadPressure returns the pressure in milli pascals (mPa).
-func (d *Device) ReadPressure() (pressure int32, err error) {
-	// First 3 bytes are Pressure, last 3 bytes are Temperature
-	data := d.buf[:6]
-	if err = d.readData(REG_PRES, data); err != nil {
-		return
-	}
-
-	rawTemp := convert3Bytes(data[3], data[4], data[5])
-
+// compensatePressure returns the pressure in milli pascals.
+func (d *Device) compensatePressure(rawPres, tFine int32) int32 {
 	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Calculate tFine (temperature), used for the Pressure compensation
-	var1 := ((rawTemp >> 3) - int32(d.cali.t1<<1)) * int32(d.cali.t2) >> 11
-	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
-		int32(d.cali.t3) >> 14
-
-	tFine := var1 + var2
-
-	rawPres := convert3Bytes(data[0], data[1], data[2])
-
-	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
-	// Pressure compensation
-	var1 = (tFine >> 1) - 64000
-	var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * int32(d.cali.p6)
+	var1 := (tFine >> 1) - 64000
+	var2 := (((var1 >> 2) * (var1 >> 2)) >> 11) * int32(d.cali.p6)
 	var2 = var2 + ((var1 * int32(d.cali.p5)) << 1)
 	var2 = (var2 >> 2) + (int32(d.cali.p4) << 16)
 	var1 = (((int32(d.cali.p3) * (((var1 >> 2) * (var1 >> 2)) >> 13)) >> 3) +
@@ -187,7 +217,7 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 	var1 = ((32768 + var1) * int32(d.cali.p1)) >> 15
 
 	if var1 == 0 {
-		return 0, nil
+		return 0
 	}
 
 	p := uint32(((1048576 - rawPres) - (var2 >> 12)) * 3125)
@@ -200,26 +230,85 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 	var1 = (int32(d.cali.p9) * int32(((p>>3)*(p>>3))>>13)) >> 12
 	var2 = (int32(p>>2) * int32(d.cali.p8)) >> 13
 
-	return 1000 * (int32(p) + ((var1 + var2 + int32(d.cali.p7)) >> 4)), nil
+	return 1000 * (int32(p) + ((var1 + var2 + int32(d.cali.p7)) >> 4))
+}
+
+// ReadAltitude returns the current altitude in meters based on the
+// current barometric pressure and estimated pressure at sea level.
+// Calculation is based on code from Adafruit BME280 library
+//
+// https://github.com/adafruit/Adafruit_BME280_Library
+func (d *Device) ReadAltitude() (int32, error) {
+	mPa, err := d.ReadPressure()
+	if err != nil {
+		return 0, err
+	}
+	atmP := float32(mPa) / 100000
+
+	return int32(44330.0 * (1.0 - math.Pow(float64(atmP/SEALEVEL_PRESSURE), 0.1903))), nil
 }
 
 // readData reads n number of bytes of the specified register
-func (d *Device) readData(register int, data []byte) error {
-	// If not in normal mode, set the mode to FORCED mode, to prevent incorrect measurements
-	// After the measurement in FORCED mode, the sensor will return to SLEEP mode
-	if d.Mode != MODE_NORMAL {
-		config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(MODE_FORCED)
-		legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{byte(config)})
+func (d *Device) readData(register uint8, data []byte) error {
+	// In normal mode a burst read always gets one consistent sample, datasheet section 3.10.
+	// Waiting for the status bits here would block for most of each conversion.
+	if d.Mode == MODE_NORMAL {
+		return d.readRegister(register, data)
 	}
 
+	// Forced mode does one conversion and then the sensor goes back to sleep.
+	config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(MODE_FORCED)
+	if err := d.writeRegister(REG_CTRL_MEAS, byte(config)); err != nil {
+		return err
+	}
+	// The status register does not show the conversion right away, so wait first.
+	time.Sleep(d.measurementTime())
+
 	// Check STATUS register, wait if data is not available yet
-	status := make([]byte, 1)
-	for legacy.ReadRegister(d.bus, uint8(d.Address), uint8(REG_STATUS), status[0:]); status[0] != 4 && status[0] != 0; legacy.ReadRegister(d.bus, uint8(d.Address), uint8(REG_STATUS), status[0:]) {
+	status := data[:1]
+	for {
+		if err := d.readRegister(REG_STATUS, status); err != nil {
+			return err
+		}
+		if status[0]&(statusMeasuring|statusImUpdate) == 0 {
+			break
+		}
 		time.Sleep(time.Millisecond)
 	}
 
 	// Read the requested register
-	return legacy.ReadRegister(d.bus, uint8(d.Address), uint8(register), data[:])
+	return d.readRegister(register, data)
+}
+
+// measurementTime returns the maximum forced mode conversion time.
+// Datasheet section 3.8.1, table 13.
+func (d *Device) measurementTime() time.Duration {
+	us := 1250 + 2300*samples(d.Temperature) + 2300*samples(d.Pressure)
+	if d.Pressure != SAMPLING_SKIPPED {
+		us += 575
+	}
+	return time.Duration(us) * time.Microsecond
+}
+
+func samples(o Oversampling) int {
+	if o == SAMPLING_SKIPPED {
+		return 0
+	}
+	if o > SAMPLING_16X {
+		return 16
+	}
+	return 1 << (o - 1)
+}
+
+func (d *Device) readRegister(reg uint8, data []byte) error {
+	d.wbuf[0] = reg
+	return d.bus.Tx(d.Address, d.wbuf[:1], data)
+}
+
+func (d *Device) writeRegister(reg, value uint8) error {
+	d.wbuf[0] = reg
+	d.wbuf[1] = value
+	return d.bus.Tx(d.Address, d.wbuf[:2], nil)
 }
 
 // convert3Bytes converts three bytes to int32
