@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var errBus = errors.New("I2C failure")
@@ -42,6 +43,7 @@ func newTestDevice(t *testing.T) (*Device, *testBus) {
 
 func TestConfigure(t *testing.T) {
 	dev, bus := newTestDevice(t)
+	bus.registers[PIXEL_OFFSET+127] = 0x01
 	if err := dev.Configure(Config{}); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +54,17 @@ func TestConfigure(t *testing.T) {
 	}
 	if !reflect.DeepEqual(bus.writes, want) {
 		t.Fatalf("writes = %#v, want %#v", bus.writes, want)
+	}
+}
+
+func TestConfigureNoFrame(t *testing.T) {
+	dev, _ := newTestDevice(t)
+	start := time.Now()
+	if err := dev.Configure(Config{}); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed < time.Second {
+		t.Fatalf("returned after %v, want at least 1s", elapsed)
 	}
 }
 

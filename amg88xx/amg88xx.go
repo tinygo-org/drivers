@@ -48,8 +48,7 @@ func (d *Device) Configure(cfg Config) error {
 		return err
 	}
 
-	time.Sleep(100 * time.Millisecond)
-	return nil
+	return d.waitFrame()
 }
 
 // ReadPixels reads the 64 values (8x8 grid) of the sensor converted to millicelsius
@@ -163,6 +162,23 @@ func (d *Device) ReadThermistor() (int32, error) {
 		raw = -raw
 	}
 	return raw * THERMISTOR_CONVERSION / 10, nil
+}
+
+// waitFrame waits for the first frame after a reset, since the pixel
+// registers read as zero until then. See datasheet section (2) Reset Register.
+func (d *Device) waitFrame() error {
+	for i := 0; i < 100; i++ {
+		time.Sleep(10 * time.Millisecond)
+		if err := d.readRegisters(PIXEL_OFFSET, d.data[:]); err != nil {
+			return err
+		}
+		for _, b := range d.data {
+			if b != 0 {
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func (d *Device) writeInterruptControl() error {
