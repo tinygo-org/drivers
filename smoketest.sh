@@ -77,6 +77,7 @@ tinygo build -size short -o ./build/test.hex -target=thumby ./examples/ssd1306/
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ssd1331/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/st7735/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/st7789/main.go
+tinygo build -size short -o ./build/test.hex -target=waveshare-rp2040-pizero ./examples/st7789/waveshare-1in3-lcd-hat/
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/thermistor/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-bluefruit ./examples/tone
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/tm1637/main.go
