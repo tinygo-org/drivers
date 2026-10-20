@@ -36,6 +36,7 @@ tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/u
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/hcsr04/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hd44780/customchar/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hd44780/text/main.go
+tinygo build -size short -o ./build/test.hex -target=arduino ./examples/hd44780/keypadshield/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/hd44780i2c/main.go
 tinygo build -size short -o ./build/test.hex -target=nano-33-ble ./examples/hts221/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hub75/main.go
