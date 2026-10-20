@@ -12,6 +12,7 @@ import (
 	"errors"
 	"image/color"
 	"machine"
+	"runtime/interrupt"
 )
 
 var errUnknownClockSpeed = errors.New("ws2812: unknown CPU clock speed")
@@ -55,9 +56,13 @@ func (d *Device) SetBrightness(b uint8) {
 
 // Write the raw bitstring out using the WS2812 protocol.
 func (d Device) Write(buf []byte) (n int, err error) {
+	// An interrupt between bytes can latch the strip mid-frame, see
+	// https://github.com/tinygo-org/drivers/issues/923
+	mask := interrupt.Disable()
 	for _, c := range buf {
 		d.WriteByte(c)
 	}
+	interrupt.Restore(mask)
 	return len(buf), nil
 }
 
@@ -68,16 +73,19 @@ func (d Device) WriteColors(buf []color.RGBA) (err error) {
 }
 
 func writeColorsRGB(d Device, buf []color.RGBA, brightness uint8) (err error) {
+	mask := interrupt.Disable()
 	for _, color := range buf {
 		r, g, b := applyBrightness(color, brightness)
 		d.WriteByte(g)       // green
 		d.WriteByte(r)       // red
 		err = d.WriteByte(b) // blue
 	}
+	interrupt.Restore(mask)
 	return
 }
 
 func writeColorsRGBA(d Device, buf []color.RGBA, brightness uint8) (err error) {
+	mask := interrupt.Disable()
 	for _, color := range buf {
 		r, g, b := applyBrightness(color, brightness)
 
@@ -86,6 +94,7 @@ func writeColorsRGBA(d Device, buf []color.RGBA, brightness uint8) (err error) {
 		d.WriteByte(b)             // blue
 		err = d.WriteByte(color.A) // alpha
 	}
+	interrupt.Restore(mask)
 	return
 }
 
