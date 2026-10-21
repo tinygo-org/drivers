@@ -8,10 +8,14 @@ package mcp23017
 
 import (
 	"errors"
-
-	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
+	"machine"
 )
+
+type i2c interface {
+	Tx(addr uint16, w, r []byte) error
+}
+
+type Bank bool
 
 const (
 	// hwAddressFixed holds the bits of the hardware address
@@ -20,6 +24,9 @@ const (
 	hwAddress = uint8(0b010_0000)
 	// hwAddressMask holds the bits that are significant in hwAddress.
 	hwAddressMask = uint8(0b111_1000)
+
+	BankA = false
+	BankB = true
 )
 
 type register uint8
@@ -42,6 +49,8 @@ const (
 	registerCount = 0x16
 
 	portB = register(0x1)
+
+	flagIOCON_Mirror = byte(0x1 << 6)
 )
 
 // PinCount is the number of GPIO pins available on the chip.
@@ -83,7 +92,7 @@ var ErrInvalidHWAddress = errors.New("invalid hardware address")
 // It returns ErrInvalidHWAddress if the address isn't possible for the device.
 //
 // By default all pins are configured as inputs.
-func NewI2C(bus drivers.I2C, address uint8) (*Device, error) {
+func NewI2C(bus i2c, address uint8) (*Device, error) {
 	if address&hwAddressMask != hwAddress {
 		return nil, ErrInvalidHWAddress
 	}
@@ -111,12 +120,19 @@ type Device struct {
 
 	// bus holds the reference the I2C bus that the device lives on.
 	// It's an interface so that we can write tests for it.
-	bus  drivers.I2C
+	bus  i2c
 	addr uint8
 	// pins caches the most recent pin values that have been set.
 	// This enables us to change individual pin values without
 	// doing a read followed by a write.
 	pins Pins
+
+	intrptEn   Pins // interrupt pin enabled
+	intrptConf Pins // interrupt pin cofig, cleared is toggle
+	intrptDefv Pins // interrupt pin default value
+	intrptFns  [PinCount]func(Pin)
+	intrptF    Pins // interrupt fired flag
+	intrptCap  Pins // interrupt captured value flag
 }
 
 // GetPins reads all 16 pins from ports A and B.
@@ -250,22 +266,164 @@ func (d *Device) GetModes(modes []PinMode) error {
 	return nil
 }
 
+// SetInterruptMirror enables interrupt mirroring between
+// the two banks, allowing you to use a single pin to
+// handle interrupt for both ports.
+func (d *Device) SetInterruptMirror(status bool) error {
+	var buf [2]byte
+	err := d.bus.Tx(uint16(d.addr), []byte{uint8(rIOCON)}, buf[:])
+	if err != nil {
+		return err
+	}
+
+	if status {
+		buf[0], buf[1] = (buf[0] | flagIOCON_Mirror), (buf[1] | flagIOCON_Mirror)
+	} else {
+		buf[0], buf[1] = (buf[0] &^ flagIOCON_Mirror), (buf[1] &^ flagIOCON_Mirror)
+	}
+
+	return d.bus.Tx(uint16(d.addr), []byte{uint8(rIOCON)}, buf[:])
+}
+
+func (d *Device) GetInterruptsEnabled() (Pins, error) {
+	return d.readRegisterAB(rGPINTEN)
+}
+
+func (d *Device) SetInterruptsEnabled(intEn Pins, mask Pins) error {
+	if mask == 0 {
+		return nil
+	}
+
+	newIntEns := (d.intrptEn &^ mask) | (intEn & mask)
+	if newIntEns == d.intrptEn {
+		return nil
+	}
+	err := d.writeRegisterAB(rGPINTEN, newIntEns)
+	if err != nil {
+		return err
+	}
+	d.intrptEn = newIntEns
+
+	return nil
+}
+
+// SetInterrupts sets all the interrupts covered by mask to call
+// the callback function on the given pin change condition. The callback
+// function is not actually called during the interrupt handler, but
+// from a Go routine.
+func (d *Device) SetInterrupts(change machine.PinChange, callback func(Pin), mask Pins) error {
+	if mask == 0 {
+		return nil
+	}
+
+	intCon, err := d.readRegisterAB(rINTCON)
+	if err != nil {
+		return err
+	}
+
+	defVal, err := d.readRegisterAB(rDEFVAL)
+	if err != nil {
+		return err
+	}
+
+	switch change {
+	case machine.PinRising:
+		defVal &= ^mask // rDEFVAL = 0
+		intCon |= mask  // rINTCON = 1
+	case machine.PinFalling:
+		defVal |= mask // rDEFVAL = 1
+		intCon |= mask // rINTCON = 1
+	case machine.PinToggle:
+		intCon &= ^mask // rINTCON = 0
+	default:
+		return nil
+	}
+
+	if change != machine.PinToggle {
+		err = d.writeRegisterAB(rDEFVAL, defVal)
+		if err != nil {
+			return err
+		}
+		d.intrptDefv = defVal
+	}
+
+	err = d.writeRegisterAB(rINTCON, intCon)
+	if err != nil {
+		return err
+	}
+	d.intrptConf = intCon
+	for i := range PinCount {
+		if ((1 << i) & mask) == 0 {
+			continue
+		}
+		d.intrptFns[i] = callback
+	}
+
+	return nil
+}
+
+// GetInterruptFn returns an interrupt handler for registering
+// on the machine.Pin connected to IntA or IntB. This function
+// starts a Go Routine.
+func (d *Device) GetInterruptFn(bank Bank) func(machine.Pin) {
+	ch := make(chan Bank, 4) // what to do about length here?
+
+	go func() {
+		// dispatch
+		println("go routine here ", bank)
+		for _ = range ch {
+			var buf [4]byte
+			// We'll read INTF and INTCAP in one go
+			if err := d.bus.Tx(uint16(d.addr), []byte{uint8(rINTF)}, buf[:]); err != nil {
+				// we got an error, not sure what to do there
+				continue
+			}
+
+			// We should probably store these in one 32 bit value and
+			// read/write as a volatile
+			intf := Pins(buf[0]) | (Pins(buf[1]) << 8)
+			intcap := Pins(buf[1]) | (Pins(buf[2]) << 8)
+
+			newIntCap := (d.intrptCap &^ intf) | (intcap & intf)
+			d.intrptCap = newIntCap
+
+			for i, fn := range d.intrptFns {
+				if fn == nil {
+					continue
+				}
+				mask := uint16(1) << i
+				if (mask & uint16(intf)) == 0 {
+					continue
+				}
+				fn(Pin{
+					mask: Pins(mask),
+					pin:  uint8(i),
+					dev:  d,
+				})
+			}
+		}
+	}()
+
+	return func(p machine.Pin) {
+		select {
+		case ch <- bank:
+		default:
+			println("blocked")
+		}
+	}
+}
+
 func (d *Device) writeRegisterAB(r register, val Pins) error {
-	// We rely on the auto-incrementing sequential write
-	// and the fact that registers alternate between A and B
-	// to write both ports in a single operation.
-	buf := [2]byte{uint8(val), uint8(val >> 8)}
-	return legacy.WriteRegister(d.bus, d.addr, uint8(r&^portB), buf[:])
+	w := []byte{uint8(r &^ portB), uint8(val), uint8(val >> 8)}
+	return d.bus.Tx(uint16(d.addr), w, nil)
 }
 
 func (d *Device) readRegisterAB(r register) (Pins, error) {
-	// We rely on the auto-incrementing sequential write
-	// and the fact that registers alternate between A and B
-	// to read both ports in a single operation.
 	var buf [2]byte
-	if err := legacy.ReadRegister(d.bus, d.addr, uint8(r), buf[:]); err != nil {
+	if err := d.bus.Tx(uint16(d.addr), []byte{uint8(r)}, buf[:]); err != nil {
 		return Pins(0), err
 	}
+
 	return Pins(buf[0]) | (Pins(buf[1]) << 8), nil
 }
 
@@ -306,13 +464,21 @@ func (p Pin) Toggle() error {
 }
 
 // Get returns the current value of the given pin.
-func (p Pin) Get() (bool, error) {
+func (p Pin) Get() bool {
+	if (p.mask&p.dev.intrptEn) != 0 && (p.mask&p.dev.intrptF) != 0 {
+		// clear the captured flag, not needed for toggle pins
+		if (p.mask & p.dev.intrptConf) != 0 {
+			p.dev.intrptF = (^p.mask & p.dev.intrptF)
+		}
+		return (p.mask & p.dev.intrptCap) > 0
+	}
+
 	// TODO this reads 2 registers when we could read just one.
 	pins, err := p.dev.GetPins()
 	if err != nil {
-		return false, err
+		panic(err.Error())
 	}
-	return pins&p.mask != 0, nil
+	return pins&p.mask != 0
 }
 
 // SetMode configures the pin to the given mode.
@@ -326,7 +492,22 @@ func (p Pin) SetMode(mode PinMode) error {
 		return err
 	}
 	modes[p.pin] = mode
-	return p.dev.SetModes(modes)
+	err := p.dev.SetModes(modes)
+	if err != nil {
+		return err
+	}
+	err = p.dev.GetModes(modes)
+	return nil
+}
+
+// SetInterrupt configures the pin to the given mode.
+func (p Pin) SetInterrupt(change machine.PinChange, callback func(Pin)) error {
+	return p.dev.SetInterrupts(change, callback, p.mask)
+}
+
+// SetInterruptEnabled enable interrupts on this pin
+func (p Pin) SetInterruptEnabled() error {
+	return p.dev.SetInterruptsEnabled(p.mask, p.mask)
 }
 
 // GetMode returns the mode of the pin.
@@ -336,6 +517,13 @@ func (p Pin) GetMode() (PinMode, error) {
 		return 0, err
 	}
 	return modes[p.pin], nil
+}
+
+// Configure is a stub NoOp function to match the interface
+// for pins expected by some other drivers. The user
+// must configure pins manually as required by drivers that
+// use the pins.
+func (p Pin) Configure(mCfg machine.PinConfig) {
 }
 
 // Pins represents a bitmask of pin values.
