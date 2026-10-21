@@ -96,7 +96,7 @@ func (d *Device) startFrame() {
 // long strands of LEDs receive the necessary termination for updates.
 // See https://cpldcpu.wordpress.com/2014/11/30/understanding-the-apa102-superled/
 func (d *Device) endFrame(count int) {
-	for i := 0; i < count/16; i++ {
+	for i := 0; i < (count+15)/16; i++ {
 		d.bus.Transfer(0xff)
 	}
 }
