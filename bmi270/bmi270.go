@@ -6,6 +6,7 @@ package bmi270 // import "tinygo.org/x/drivers/bmi270"
 
 import (
 	_ "embed"
+	"encoding/binary"
 	"errors"
 	"time"
 
@@ -39,6 +40,7 @@ type Device struct {
 
 	accelRange uint8
 	gyroRange  uint8
+	gyroCAS    int32
 	data       [12]byte
 	temp       int16
 	buf        [burstLen + 1]byte
@@ -102,6 +104,9 @@ func (d *Device) Configure(cfg Config) error {
 	if err := d.waitInit(); err != nil {
 		return err
 	}
+	if err := d.readGyroCAS(); err != nil {
+		return err
+	}
 
 	// Normal mode settings, see datasheet section 4.5.
 	if err := d.writeRegister(RegPwrCtrl, pwrCtrlAccel|pwrCtrlGyro|pwrCtrlTemp); err != nil {
@@ -159,7 +164,7 @@ func (d *Device) Update(which drivers.Measurement) error {
 		if err != nil {
 			return err
 		}
-		d.temp = int16(uint16(data[0]) | uint16(data[1])<<8)
+		d.temp = int16(binary.LittleEndian.Uint16(data))
 		if d.temp == temperatureInvalid {
 			return ErrInvalidTemperature
 		}
@@ -174,7 +179,7 @@ func (d *Device) Acceleration() (x, y, z int32) {
 
 // AngularVelocity returns the last read angular velocity in µ°/s.
 func (d *Device) AngularVelocity() (x, y, z int32) {
-	return d.gyro(6), d.gyro(8), d.gyro(10)
+	return d.gyro(d.gyroX()), d.gyro(d.raw(8)), d.gyro(d.raw(10))
 }
 
 // Temperature returns the last read temperature in milli °C.
@@ -224,13 +229,20 @@ func (d *Device) accel(i int) int32 {
 	return int32(d.raw(i)) * 15625 / (256 >> d.accelRange)
 }
 
-func (d *Device) gyro(i int) int32 {
+func (d *Device) gyro(raw int16) int32 {
 	// Full scale is 2000 dps >> gyroRange over 32768 LSB.
-	return int32(int64(d.raw(i)) * int64(2000>>d.gyroRange) * 15625 / 512)
+	return int32(int64(raw) * int64(2000>>d.gyroRange) * 15625 / 512)
+}
+
+// gyroX returns gyro X with the Z cross axis sensitivity removed, as done by
+// comp_gyro_cross_axis_sensitivity in the Bosch BMI270 Sensor API bmi2.c.
+func (d *Device) gyroX() int16 {
+	x := int32(d.raw(6)) - d.gyroCAS*int32(d.raw(10))/512
+	return int16(max(min(x, 32767), -32768))
 }
 
 func (d *Device) raw(i int) int16 {
-	return int16(uint16(d.data[i]) | uint16(d.data[i+1])<<8)
+	return int16(binary.LittleEndian.Uint16(d.data[i:]))
 }
 
 // selectSPI switches the interface to SPI after power up or soft reset,
@@ -258,6 +270,20 @@ func (d *Device) uploadConfig() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// readGyroCAS reads the 7 bit signed gyro cross axis factor from feature
+// page 0 offset 0x0C, as done by get_gyro_cross_sense in the Bosch API bmi2.c.
+func (d *Device) readGyroCAS() error {
+	if err := d.writeRegister(RegFeatPage, 0); err != nil {
+		return err
+	}
+	data, err := d.readRegisters(RegFeatures+featGyroCAS, 1)
+	if err != nil {
+		return err
+	}
+	d.gyroCAS = int32(int8(data[0]<<1) >> 1)
 	return nil
 }
 

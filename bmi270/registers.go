@@ -10,6 +10,8 @@ const (
 	RegSensorTime     = 0x18
 	RegInternalStatus = 0x21
 	RegTemperature    = 0x22
+	RegFeatPage       = 0x2F
+	RegFeatures       = 0x30
 	RegAccelConf      = 0x40
 	RegAccelRange     = 0x41
 	RegGyroConf       = 0x42
@@ -57,4 +59,6 @@ const (
 	gyroConfPerf = 0xE0
 
 	temperatureInvalid = -0x8000
+
+	featGyroCAS = 0x0C
 )

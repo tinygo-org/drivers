@@ -16,6 +16,7 @@ type fake struct {
 	written  int
 	resets   int
 	initDone bool
+	gyroCAS  byte
 	csLow    bool
 	spiMode  bool
 	writes   []byte // registers written outside of the config upload
@@ -44,6 +45,7 @@ func newFake(c *qt.C) *fake {
 func (f *fake) reset() {
 	f.regs = [128]byte{}
 	f.regs[RegChipID] = ChipID
+	f.regs[RegFeatures+featGyroCAS] = f.gyroCAS
 	f.regs[RegTemperature+1] = 0x80
 	f.regs[RegPwrConf] = 0x03
 	f.regs[RegAccelConf] = 0xA8
@@ -224,7 +226,7 @@ func TestConfigure(t *testing.T) {
 		c.Assert(f.regs[RegGyroRange], qt.Equals, uint8(0x00))
 		c.Assert(f.regs[RegPwrConf], qt.Equals, uint8(0x02))
 		c.Assert(f.writes, qt.DeepEquals, []byte{
-			RegCmd, RegPwrConf, RegInitCtrl, RegInitCtrl,
+			RegCmd, RegPwrConf, RegInitCtrl, RegInitCtrl, RegFeatPage,
 			RegPwrCtrl, RegAccelConf, RegAccelRange, RegGyroConf, RegGyroRange, RegPwrConf,
 		})
 
@@ -380,6 +382,30 @@ func TestRotation(t *testing.T) {
 			c.Assert(x, qt.Equals, int32(0))
 			c.Assert(y, qt.Equals, tc.udps)
 			c.Assert(z, qt.Equals, tc.udps)
+		})
+	}
+}
+
+func TestRotationCrossAxis(t *testing.T) {
+	for _, tc := range []struct {
+		cas  byte
+		x, z int16
+		udps int32
+	}{
+		{0x00, 1000, 16384, 61035156},
+		{0x20, 1000, 1024, 57128906},
+		{0x7F, 1000, 1024, 61157226},
+		{0x40, 0, 16384, 125000000},
+		{0x3F, -32768, 32767, -2000000000},
+	} {
+		forEachBus(t, func(c *qt.C, dev *Device, f *fake) {
+			f.gyroCAS = tc.cas
+			c.Assert(dev.Configure(Config{}), qt.IsNil)
+			putInt16(f.regs[RegGyroData:], tc.x)
+			putInt16(f.regs[RegGyroData+4:], tc.z)
+			x, _, _, err := dev.ReadRotation()
+			c.Assert(err, qt.IsNil)
+			c.Assert(x, qt.Equals, tc.udps)
 		})
 	}
 }
