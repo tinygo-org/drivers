@@ -81,6 +81,7 @@ var (
 	errNotConnected  = errors.New("vl53l3cx: not connected")
 	errTimeout       = errors.New("vl53l3cx: timeout")
 	errInvalidParams = errors.New("vl53l3cx: invalid parameter")
+	errNotConfigured = errors.New("vl53l3cx: not configured")
 )
 
 const (
@@ -184,7 +185,8 @@ func (d *Device) Connected() bool {
 }
 
 // Configure resets the sensor, reads its calibration data and applies the
-// given settings. It is VL53LX_DataInit from ST's API.
+// given settings. It is VL53LX_DataInit from ST's API. Call it before
+// SetAddress or any other setter, since the reset clears their values.
 func (d *Device) Configure(cfg Config) error {
 	if !d.Connected() {
 		return errNotConnected
@@ -227,9 +229,13 @@ func (d *Device) SetAddress(address uint8) error {
 }
 
 // SetDistanceMode changes the histogram preset. The timing budget is kept.
+// It must be called after Configure.
 func (d *Device) SetDistanceMode(mode DistanceMode) error {
 	if mode != Short && mode != Medium && mode != Long {
 		return errInvalidParams
+	}
+	if d.fastOscFrequency() == 0 {
+		return errNotConfigured
 	}
 	phasecal, mm, rng := d.timeouts()
 	d.setPresetMode(mode, presetPhasecalTimeout(mode), presetMMTimeoutUs, presetRangeTimeoutUs, d.interMeasurementMs)
@@ -238,9 +244,13 @@ func (d *Device) SetDistanceMode(mode DistanceMode) error {
 }
 
 // SetTimingBudget sets the measurement time in microseconds.
+// It must be called after Configure.
 func (d *Device) SetTimingBudget(us uint32) error {
 	if us <= timingGuardUs || us-timingGuardUs > maxTimingBudgetUs {
 		return errInvalidParams
+	}
+	if d.fastOscFrequency() == 0 {
+		return errNotConfigured
 	}
 	phasecal, mm, _ := d.timeouts()
 	d.setTimeouts(phasecal, mm, (us-timingGuardUs)/6)

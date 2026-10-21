@@ -546,6 +546,9 @@ func (d *Device) processHistogram() {
 		a.padPulse(p, &a.pulseBinsZero, 0)
 		a.filterPulse(p, &d.filtered)
 		a.detectPeak(p, &d.filtered)
+		if pulse.peak == 0xFF {
+			continue
+		}
 		pulse.sigma = estimateSigma(pulse.peak, sigmaEstimatorRefMM, a.periodBins, pulse.filterWOI,
 			&a.pulseBins, &a.pulseBinsZero)
 		a.pulsePhaseRange(p)

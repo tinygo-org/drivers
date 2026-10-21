@@ -182,6 +182,16 @@ func TestSetTimingBudget(t *testing.T) {
 	}
 }
 
+func TestSetBeforeConfigure(t *testing.T) {
+	dev, _, _ := newTestDevice(t)
+	if err := dev.SetTimingBudget(50000); err != errNotConfigured {
+		t.Errorf("SetTimingBudget err = %v, want %v", err, errNotConfigured)
+	}
+	if err := dev.SetDistanceMode(Short); err != errNotConfigured {
+		t.Errorf("SetDistanceMode err = %v, want %v", err, errNotConfigured)
+	}
+}
+
 func TestSetDistanceMode(t *testing.T) {
 	dev, _ := configure(t, Config{TimingBudget: 50000})
 	for _, mode := range []DistanceMode{0, Long + 1} {
@@ -357,6 +367,23 @@ func TestReadNoTarget(t *testing.T) {
 	if m.NumTargets != 0 || m.Targets[0].Status != NoTarget || m.Targets[0].Distance != 8191 {
 		t.Errorf("targets = %d status = %d distance = %d, want no target",
 			m.NumTargets, m.Targets[0].Status, m.Targets[0].Distance)
+	}
+}
+
+func TestReadNoisyFrame(t *testing.T) {
+	dev, chip := configure(t, Config{})
+	if err := dev.StartRanging(); err != nil {
+		t.Fatal(err)
+	}
+	// This frame has a pulse with no valid peak.
+	setHistogram(chip, 0, [histogramBufferSize]int32{
+		2047, 3947, 3287, 2888, 3790, 1015, 1541, 1408, 3387, 3831, 1429, 1356,
+		2737, 1631, 2485, 2026, 3413, 2090, 3194, 2563, 1433, 1147, 2078, 2324,
+	})
+
+	var m Measurement
+	if err := dev.Read(&m); err != nil {
+		t.Fatal(err)
 	}
 }
 
