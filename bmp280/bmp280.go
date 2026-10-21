@@ -1,6 +1,7 @@
 package bmp280
 
 import (
+	"encoding/binary"
 	"math"
 	"time"
 
@@ -69,10 +70,11 @@ func New(bus drivers.I2C) Device {
 // Connected returns whether a BMP280 has been found.
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
-	if d.readRegister(REG_ID, d.buf[:1]) != nil {
+	var data [1]byte
+	if d.readRegister(REG_ID, data[:]) != nil {
 		return false
 	}
-	return d.buf[0] == CHIP_ID
+	return data[0] == CHIP_ID
 }
 
 // Reset preforms complete power-on-reset procedure.
@@ -83,6 +85,8 @@ func (d *Device) Reset() {
 
 // Configure sets up the device for communication and
 // read the calibration coefficients.
+// In normal mode the first result is ready after one conversion, up to about 43 ms.
+// Reads before that return reset values. Datasheet section 3.8.1, table 13.
 func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pres Oversampling, mode Mode) {
 	d.Standby = standby
 	d.Filter = filter
@@ -90,13 +94,8 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 	d.Pressure = pres
 	d.Mode = mode
 
-	//  Write the configuration (standby, filter, spi 3 wire)
-	config := uint(d.Standby<<5) | uint(d.Filter<<2) | 0x00
-	d.writeRegister(REG_CONFIG, byte(config))
-
-	// Write the control (temperature oversampling, pressure oversampling,
-	config = uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
-	d.writeRegister(REG_CTRL_MEAS, byte(config))
+	d.writeRegister(REG_CONFIG, configReg(d.Standby, d.Filter))
+	d.writeRegister(REG_CTRL_MEAS, ctrlMeasReg(d.Temperature, d.Pressure, d.Mode))
 
 	// Read Calibration data
 	data := d.buf[:24]
@@ -105,27 +104,26 @@ func (d *Device) Configure(standby Standby, filter Filter, temp Oversampling, pr
 	}
 
 	// Datasheet: 3.11.2 Trimming parameter readout
-	d.cali.t1 = readUintLE(data[0], data[1])
-	d.cali.t2 = readIntLE(data[2], data[3])
-	d.cali.t3 = readIntLE(data[4], data[5])
+	d.cali.t1 = binary.LittleEndian.Uint16(data[0:])
+	d.cali.t2 = int16(binary.LittleEndian.Uint16(data[2:]))
+	d.cali.t3 = int16(binary.LittleEndian.Uint16(data[4:]))
 
-	d.cali.p1 = readUintLE(data[6], data[7])
-	d.cali.p2 = readIntLE(data[8], data[9])
-	d.cali.p3 = readIntLE(data[10], data[11])
-	d.cali.p4 = readIntLE(data[12], data[13])
-	d.cali.p5 = readIntLE(data[14], data[15])
-	d.cali.p6 = readIntLE(data[16], data[17])
-	d.cali.p7 = readIntLE(data[18], data[19])
-	d.cali.p8 = readIntLE(data[20], data[21])
-	d.cali.p9 = readIntLE(data[22], data[23])
+	d.cali.p1 = binary.LittleEndian.Uint16(data[6:])
+	d.cali.p2 = int16(binary.LittleEndian.Uint16(data[8:]))
+	d.cali.p3 = int16(binary.LittleEndian.Uint16(data[10:]))
+	d.cali.p4 = int16(binary.LittleEndian.Uint16(data[12:]))
+	d.cali.p5 = int16(binary.LittleEndian.Uint16(data[14:]))
+	d.cali.p6 = int16(binary.LittleEndian.Uint16(data[16:]))
+	d.cali.p7 = int16(binary.LittleEndian.Uint16(data[18:]))
+	d.cali.p8 = int16(binary.LittleEndian.Uint16(data[20:]))
+	d.cali.p9 = int16(binary.LittleEndian.Uint16(data[22:]))
 }
 
 // SetMode sets the device to sleep, normal or forced mode without
 // changing the other settings or reading the calibration data again.
 func (d *Device) SetMode(mode Mode) error {
 	d.Mode = mode
-	config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(d.Mode)
-	return d.writeRegister(REG_CTRL_MEAS, byte(config))
+	return d.writeRegister(REG_CTRL_MEAS, ctrlMeasReg(d.Temperature, d.Pressure, d.Mode))
 }
 
 // PrintCali prints the Calibration information.
@@ -191,18 +189,18 @@ func (d *Device) ReadPressure() (int32, error) {
 
 // compensateTemperature returns the temperature in milli degrees and the
 // tFine value used for the pressure compensation.
-func (d *Device) compensateTemperature(rawTemp int32) (temperature, tFine int32) {
+func (d *Device) compensateTemperature(rawTemp int32) (int32, int32) {
 	// Datasheet: 8.2 Compensation formula in 32 bit fixed point
 	var1 := ((rawTemp >> 3) - int32(d.cali.t1)<<1) * int32(d.cali.t2) >> 11
 	var2 := (((rawTemp >> 4) - int32(d.cali.t1)) * ((rawTemp >> 4) - int32(d.cali.t1)) >> 12) *
 		int32(d.cali.t3) >> 14
 
-	tFine = var1 + var2
+	tFine := var1 + var2
 
 	// Convert from degrees to milli degrees by multiplying by 10.
 	// Will output 30250 milli degrees celsius for 30.25 degrees celsius
-	temperature = 10 * ((tFine*5 + 128) >> 8)
-	return
+	temperature := 10 * ((tFine*5 + 128) >> 8)
+	return temperature, tFine
 }
 
 // compensatePressure returns the pressure in milli pascals.
@@ -257,8 +255,7 @@ func (d *Device) readData(register uint8, data []byte) error {
 	}
 
 	// Forced mode does one conversion and then the sensor goes back to sleep.
-	config := uint(d.Temperature<<5) | uint(d.Pressure<<2) | uint(MODE_FORCED)
-	if err := d.writeRegister(REG_CTRL_MEAS, byte(config)); err != nil {
+	if err := d.writeRegister(REG_CTRL_MEAS, ctrlMeasReg(d.Temperature, d.Pressure, MODE_FORCED)); err != nil {
 		return err
 	}
 	// The status register does not show the conversion right away, so wait first.
@@ -300,6 +297,16 @@ func samples(o Oversampling) int {
 	return 1 << (o - 1)
 }
 
+// configReg returns the config register value. Datasheet section 4.3.5.
+func configReg(standby Standby, filter Filter) uint8 {
+	return uint8(standby&0x07)<<5 | uint8(filter&0x07)<<2
+}
+
+// ctrlMeasReg returns the ctrl_meas register value. Datasheet section 4.3.4.
+func ctrlMeasReg(temp, pres Oversampling, mode Mode) uint8 {
+	return uint8(temp&0x07)<<5 | uint8(pres&0x07)<<2 | uint8(mode&0x03)
+}
+
 func (d *Device) readRegister(reg uint8, data []byte) error {
 	d.wbuf[0] = reg
 	return d.bus.Tx(d.Address, d.wbuf[:1], data)
@@ -314,20 +321,4 @@ func (d *Device) writeRegister(reg, value uint8) error {
 // convert3Bytes converts three bytes to int32
 func convert3Bytes(msb byte, b1 byte, lsb byte) int32 {
 	return int32(((((uint32(msb) << 8) | uint32(b1)) << 8) | uint32(lsb)) >> 4)
-}
-
-// readUint converts two bytes to uint16
-func readUint(msb byte, lsb byte) uint16 {
-	return (uint16(msb) << 8) | uint16(lsb)
-}
-
-// readUintLE converts two little endian bytes to uint16
-func readUintLE(msb byte, lsb byte) uint16 {
-	temp := readUint(msb, lsb)
-	return (temp >> 8) | (temp << 8)
-}
-
-// readIntLE converts two little endian bytes to int16
-func readIntLE(msb byte, lsb byte) int16 {
-	return int16(readUintLE(msb, lsb))
 }

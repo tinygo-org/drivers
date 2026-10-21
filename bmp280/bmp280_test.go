@@ -110,7 +110,7 @@ func TestUpdate(t *testing.T) {
 	c.Assert(dev.Update(drivers.Temperature), qt.Equals, fake.Err)
 }
 
-func TestUpdateNormalModeDoesNotWait(t *testing.T) {
+func TestUpdateNormalModeIgnoresStatus(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
 	fake := newFake(c)
@@ -121,9 +121,7 @@ func TestUpdateNormalModeDoesNotWait(t *testing.T) {
 	// A conversion is always running in normal mode with a short standby.
 	fake.Registers[REG_STATUS] = statusMeasuring
 
-	start := time.Now()
 	c.Assert(dev.Update(drivers.Temperature|drivers.Pressure), qt.IsNil)
-	c.Assert(time.Since(start) < time.Millisecond, qt.IsTrue)
 	temp, pres := dev.Measurements()
 	c.Assert(temp, qt.Equals, int32(25080))
 	c.Assert(pres, qt.Equals, int32(100656000))

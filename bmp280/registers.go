@@ -29,8 +29,8 @@ const (
 
 // Status register bits. Datasheet section 4.3.3.
 const (
-	statusMeasuring = 0x08
 	statusImUpdate  = 0x01
+	statusMeasuring = 0x08
 )
 
 const (
