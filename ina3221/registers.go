@@ -6,26 +6,26 @@ const Address = 0x40
 
 // Registers from the datasheet, section 8.6.
 const (
-	RegConfig         uint8 = 0x00
-	RegShuntVoltage1  uint8 = 0x01
-	RegBusVoltage1    uint8 = 0x02
-	RegShuntVoltage2  uint8 = 0x03
-	RegBusVoltage2    uint8 = 0x04
-	RegShuntVoltage3  uint8 = 0x05
-	RegBusVoltage3    uint8 = 0x06
-	RegCriticalLimit1 uint8 = 0x07
-	RegWarningLimit1  uint8 = 0x08
-	RegCriticalLimit2 uint8 = 0x09
-	RegWarningLimit2  uint8 = 0x0A
-	RegCriticalLimit3 uint8 = 0x0B
-	RegWarningLimit3  uint8 = 0x0C
-	RegShuntSum       uint8 = 0x0D
-	RegShuntSumLimit  uint8 = 0x0E
-	RegMaskEnable     uint8 = 0x0F
-	RegPowerValidHigh uint8 = 0x10
-	RegPowerValidLow  uint8 = 0x11
-	RegManufacturerID uint8 = 0xFE
-	RegDieID          uint8 = 0xFF
+	RegConfig         = 0x00
+	RegShuntVoltage1  = 0x01
+	RegBusVoltage1    = 0x02
+	RegShuntVoltage2  = 0x03
+	RegBusVoltage2    = 0x04
+	RegShuntVoltage3  = 0x05
+	RegBusVoltage3    = 0x06
+	RegCriticalLimit1 = 0x07
+	RegWarningLimit1  = 0x08
+	RegCriticalLimit2 = 0x09
+	RegWarningLimit2  = 0x0A
+	RegCriticalLimit3 = 0x0B
+	RegWarningLimit3  = 0x0C
+	RegShuntSum       = 0x0D
+	RegShuntSumLimit  = 0x0E
+	RegMaskEnable     = 0x0F
+	RegPowerValidHigh = 0x10
+	RegPowerValidLow  = 0x11
+	RegManufacturerID = 0xFE
+	RegDieID          = 0xFF
 )
 
 const (

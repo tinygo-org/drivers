@@ -2,6 +2,7 @@ package ina3221
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -246,6 +247,23 @@ func TestPower(t *testing.T) {
 	p, err := dev.Power(Channel3)
 	c.Assert(err, qt.IsNil)
 	c.Assert(p, qt.Equals, int32(1200000))
+}
+
+func TestPowerClamp(t *testing.T) {
+	c := qt.New(t)
+	dev, fake := newDevice(c)
+	c.Assert(dev.SetShuntResistance(Channel1, 1), qt.IsNil)
+	fake.Registers[RegBusVoltage1] = 0x7FF8
+
+	fake.Registers[RegShuntVoltage1] = 0x7FF8
+	p, err := dev.Power(Channel1)
+	c.Assert(err, qt.IsNil)
+	c.Assert(p, qt.Equals, int32(math.MaxInt32))
+
+	fake.Registers[RegShuntVoltage1] = 0x8000
+	p, err = dev.Power(Channel1)
+	c.Assert(err, qt.IsNil)
+	c.Assert(p, qt.Equals, int32(math.MinInt32))
 }
 
 func TestMeasurements(t *testing.T) {

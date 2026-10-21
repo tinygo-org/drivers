@@ -6,6 +6,7 @@ package ina3221 // import "tinygo.org/x/drivers/ina3221"
 
 import (
 	"errors"
+	"math"
 
 	"tinygo.org/x/drivers"
 )
@@ -176,7 +177,15 @@ func (d *Device) Measurements(channel int) (bus, shunt, current, power int32, er
 		return
 	}
 	current = shunt * 1000 / d.shunt[channel-1]
-	power = int32(int64(bus) * int64(current) / 1000000)
+	p := int64(bus) * int64(current) / 1000000
+	switch {
+	case p > math.MaxInt32:
+		power = math.MaxInt32
+	case p < math.MinInt32:
+		power = math.MinInt32
+	default:
+		power = int32(p)
+	}
 	return
 }
 
