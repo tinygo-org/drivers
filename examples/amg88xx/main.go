@@ -26,13 +26,18 @@ func main() {
 	display.FillScreen(color.RGBA{0, 0, 0, 255})
 
 	camera := amg88xx.New(machine.I2C0)
-	camera.Configure(amg88xx.Config{})
+	if err := camera.Configure(amg88xx.Config{}); err != nil {
+		println("failed to configure camera:", err.Error())
+	}
 
-	var data [64]int16
-	var value int16
+	var data [64]int32
+	var value int32
 	for {
 		// get the values of the sensor in millicelsius
-		camera.ReadPixels(&data)
+		if err := camera.ReadPixels(&data); err != nil {
+			println("failed to read pixels:", err.Error())
+			continue
+		}
 
 		for j := int16(0); j < 8; j++ {
 			for i := int16(0); i < 8; i++ {
