@@ -54,6 +54,15 @@ func TestConfigure(t *testing.T) {
 	c.Assert(fake.Registers[regOpMode], qt.Equals, uint8(0x28))
 }
 
+func TestConfigureInvalidPreset(t *testing.T) {
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	bus.AddDevice(newFakeDevice(c))
+
+	dev := New(bus)
+	c.Assert(dev.Configure(Config{Preset: HighAccuracy + 1}), qt.Equals, errPreset)
+}
+
 func TestConfigureNotConnected(t *testing.T) {
 	c := qt.New(t)
 	bus := tester.NewI2CBus(c)
@@ -107,6 +116,20 @@ func TestOverflow(t *testing.T) {
 
 	setData(fake, 0, 0, overflowZ, 6500)
 	c.Assert(dev.Update(drivers.MagneticField), qt.Equals, errOverflow)
+}
+
+func TestNotReady(t *testing.T) {
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	fake := newFakeDevice(c)
+	bus.AddDevice(fake)
+
+	dev := New(bus)
+	c.Assert(dev.Configure(Config{}), qt.IsNil)
+
+	setData(fake, 0, 0, 0, 6500)
+	fake.Registers[regDataX+6] &^= 0x01
+	c.Assert(dev.Update(drivers.MagneticField), qt.Equals, errNotReady)
 }
 
 func newFakeDevice(c *qt.C) *tester.I2CDevice8 {

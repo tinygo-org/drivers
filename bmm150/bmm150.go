@@ -7,6 +7,7 @@
 package bmm150
 
 import (
+	"encoding/binary"
 	"errors"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 var (
 	errNotConnected = errors.New("bmm150: not connected")
 	errOverflow     = errors.New("bmm150: measurement overflow")
+	errNotReady     = errors.New("bmm150: data not ready")
+	errPreset       = errors.New("bmm150: invalid preset")
 )
 
 // Config holds the measurement settings. Zero values select the regular
@@ -85,6 +88,8 @@ func (d *Device) Configure(cfg Config) error {
 	// Register values for nXY = 1+2*REP_XY and nZ = 1+REP_Z. Datasheet table 6.
 	var repXY, repZ uint8
 	switch cfg.Preset {
+	case Regular:
+		repXY, repZ = 0x04, 0x0E
 	case LowPower:
 		repXY, repZ = 0x01, 0x02
 	case Enhanced:
@@ -92,7 +97,7 @@ func (d *Device) Configure(cfg Config) error {
 	case HighAccuracy:
 		repXY, repZ = 0x17, 0x52
 	default:
-		repXY, repZ = 0x04, 0x0E
+		return errPreset
 	}
 	if err := d.write(regRepXY, repXY); err != nil {
 		return err
@@ -111,15 +116,26 @@ func (d *Device) Update(which drivers.Measurement) error {
 	}
 
 	data := d.buf[:8]
-	if err := d.readn(regDataX, data); err != nil {
-		return err
+	start := time.Now()
+	for {
+		if err := d.readn(regDataX, data); err != nil {
+			return err
+		}
+		// DRDY is bit 0 of the RHALL LSB. Datasheet section 5.2.
+		if data[6]&0x01 != 0 {
+			break
+		}
+		if time.Since(start) > dataReadyTimeout {
+			return errNotReady
+		}
+		time.Sleep(time.Millisecond)
 	}
 
 	// X and Y are 13 bit, Z is 15 bit, RHALL is 14 bit. Datasheet section 5.2.
-	rawX := int16(uint16(data[1])<<8|uint16(data[0])) >> 3
-	rawY := int16(uint16(data[3])<<8|uint16(data[2])) >> 3
-	rawZ := int16(uint16(data[5])<<8|uint16(data[4])) >> 1
-	rhall := (uint16(data[7])<<8 | uint16(data[6])) >> 2
+	rawX := int16(binary.LittleEndian.Uint16(data[0:])) >> 3
+	rawY := int16(binary.LittleEndian.Uint16(data[2:])) >> 3
+	rawZ := int16(binary.LittleEndian.Uint16(data[4:])) >> 1
+	rhall := binary.LittleEndian.Uint16(data[6:]) >> 2
 
 	x, okX := d.compensateXY(rawX, rhall, d.trim.x1, d.trim.x2)
 	y, okY := d.compensateXY(rawY, rhall, d.trim.y1, d.trim.y2)
@@ -151,13 +167,13 @@ func (d *Device) readTrim() error {
 	d.trim = trimData{
 		x1:   int8(t[0]),
 		y1:   int8(t[1]),
-		z4:   int16(uint16(t[6])<<8 | uint16(t[5])),
+		z4:   int16(binary.LittleEndian.Uint16(t[5:])),
 		x2:   int8(t[7]),
 		y2:   int8(t[8]),
-		z2:   int16(uint16(t[12])<<8 | uint16(t[11])),
-		z1:   uint16(t[14])<<8 | uint16(t[13]),
-		xyz1: uint16(t[16]&0x7F)<<8 | uint16(t[15]),
-		z3:   int16(uint16(t[18])<<8 | uint16(t[17])),
+		z2:   int16(binary.LittleEndian.Uint16(t[11:])),
+		z1:   binary.LittleEndian.Uint16(t[13:]),
+		xyz1: binary.LittleEndian.Uint16(t[15:]) & 0x7FFF,
+		z3:   int16(binary.LittleEndian.Uint16(t[17:])),
 		xy2:  int8(t[19]),
 		xy1:  t[20],
 	}

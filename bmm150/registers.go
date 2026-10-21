@@ -1,5 +1,7 @@
 package bmm150
 
+import "time"
+
 // DefaultAddress is the I2C address with SDO and CSB2 pulled low.
 const DefaultAddress = 0x10
 
@@ -25,6 +27,9 @@ const (
 
 	opModeNormal = 0x00
 )
+
+// Longer than one sample period at the slowest data rate of 2Hz.
+const dataReadyTimeout = 600 * time.Millisecond
 
 // Output values that indicate an ADC overflow. Bosch BMM150 Sensor API.
 const (
