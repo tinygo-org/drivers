@@ -92,6 +92,7 @@ tinygo build -size short -o ./build/test.hex -target=pico ./examples/touch/capac
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/fourwire/main.go
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/touch/resistive/pyportal_touchpaint/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl53l1x/main.go
+tinygo build -size short -o ./build/test.elf -target=m5stamp-s3a ./examples/vl53l3cx/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl6180x/main.go
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840-sense ./examples/waveshare-epd/epd1in54/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13/main.go
