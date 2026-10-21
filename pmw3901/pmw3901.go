@@ -4,6 +4,7 @@
 package pmw3901 // import "tinygo.org/x/drivers/pmw3901"
 
 import (
+	"encoding/binary"
 	"errors"
 	"time"
 
@@ -117,7 +118,7 @@ func (d *Device) ReadMotion() (dx, dy int16, err error) {
 			return
 		}
 	}
-	return int16(uint16(b[0]) | uint16(b[1])<<8), int16(uint16(b[2]) | uint16(b[3])<<8), nil
+	return int16(binary.LittleEndian.Uint16(b[0:])), int16(binary.LittleEndian.Uint16(b[2:])), nil
 }
 
 // ReadMotionBurst reads all motion registers in a single transfer.
@@ -128,31 +129,33 @@ func (d *Device) ReadMotionBurst() (Motion, error) {
 	}
 	d.buf[0] = RegMotionBurst
 	d.cs.Set(false)
+	wait(tCSSetup)
 	err := d.bus.Tx(d.buf[:1], nil)
 	if err == nil {
 		d.buf[0] = 0
 		wait(tSRAD)
 		err = d.bus.Tx(b, b)
 	}
+	wait(tReadHold)
 	d.cs.Set(true)
-	wait(tSRR)
 	if err != nil {
 		return Motion{}, err
 	}
 	return Motion{
 		Motion:      b[0],
 		Observation: b[1],
-		DeltaX:      int16(uint16(b[2]) | uint16(b[3])<<8),
-		DeltaY:      int16(uint16(b[4]) | uint16(b[5])<<8),
+		DeltaX:      int16(binary.LittleEndian.Uint16(b[2:])),
+		DeltaY:      int16(binary.LittleEndian.Uint16(b[4:])),
 		Squal:       b[6],
 		RawDataSum:  b[7],
 		MaxRawData:  b[8],
 		MinRawData:  b[9],
-		Shutter:     uint16(b[10])<<8 | uint16(b[11]),
+		Shutter:     binary.BigEndian.Uint16(b[10:]),
 	}, nil
 }
 
 // SetLED turns the LED_N output on or off.
+// Wait about 200ms after Configure before calling it, as the reference drivers do.
 func (d *Device) SetLED(on bool) error {
 	val := uint8(0x00)
 	if on {
@@ -219,26 +222,29 @@ func (d *Device) ReadFrame(frame *[FrameSize]byte) error {
 	return nil
 }
 
-// SPI timings, see datasheet section 2.4 table 5.
+// SPI timings from the Bitcraze PMW3901 driver, which are more relaxed than
+// datasheet section 2.4 table 5.
 const (
-	tSRAD         = 35 * time.Microsecond
-	tSRR          = 20 * time.Microsecond
-	tSWW          = 45 * time.Microsecond
-	tSCLKNCSWrite = 35 * time.Microsecond
+	tCSSetup      = 50 * time.Microsecond
+	tSRAD         = 50 * time.Microsecond
+	tReadHold     = 100 * time.Microsecond
+	tWriteHold    = 50 * time.Microsecond
+	tWriteRecover = 200 * time.Microsecond
 )
 
 // ReadRegister reads an 8-bit register.
 func (d *Device) ReadRegister(reg uint8) (uint8, error) {
 	d.buf[0] = reg &^ spiWrite
 	d.cs.Set(false)
+	wait(tCSSetup)
 	err := d.bus.Tx(d.buf[:1], nil)
 	if err == nil {
 		wait(tSRAD)
 		d.buf[0] = 0
 		err = d.bus.Tx(d.buf[:1], d.buf[:1])
 	}
+	wait(tReadHold)
 	d.cs.Set(true)
-	wait(tSRR)
 	return d.buf[0], err
 }
 
@@ -247,10 +253,11 @@ func (d *Device) WriteRegister(reg, val uint8) error {
 	d.buf[0] = reg | spiWrite
 	d.buf[1] = val
 	d.cs.Set(false)
+	wait(tCSSetup)
 	err := d.bus.Tx(d.buf[:2], nil)
-	wait(tSCLKNCSWrite)
+	wait(tWriteHold)
 	d.cs.Set(true)
-	wait(tSWW)
+	wait(tWriteRecover)
 	return err
 }
 
