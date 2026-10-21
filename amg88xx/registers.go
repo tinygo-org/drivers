@@ -39,8 +39,8 @@ const (
 	STATUS_OVF_THS = 0x08
 
 	// frame rates
-	FPS_10 = 0x00
-	FPS_1  = 0x01
+	FPS_10 FrameRate = 0x00
+	FPS_1  FrameRate = 0x01
 
 	// interrupt modes
 	DIFFERENCE     InterruptMode = 0x00

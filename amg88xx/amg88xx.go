@@ -5,6 +5,8 @@
 package amg88xx // import "tinygo.org/x/drivers/amg88xx"
 
 import (
+	"encoding/binary"
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
@@ -21,6 +23,10 @@ type Device struct {
 }
 
 type InterruptMode uint8
+
+type FrameRate uint8
+
+var ErrNoFrame = errors.New("amg88xx: timeout waiting for first frame")
 
 type Config struct {
 }
@@ -57,7 +63,7 @@ func (d *Device) ReadPixels(buffer *[64]int32) error {
 		return err
 	}
 	for i := 0; i < 64; i++ {
-		raw := uint16(d.data[2*i+1])<<8 | uint16(d.data[2*i])
+		raw := binary.LittleEndian.Uint16(d.data[2*i:])
 		// 12 bit two's complement, see datasheet temperature register.
 		buffer[i] = int32(int16(raw<<4)>>4) * PIXEL_TEMP_CONVERSION
 	}
@@ -75,8 +81,8 @@ func (d *Device) SetReset(rst uint8) error {
 }
 
 // SetFrameRate configures the frame rate
-func (d *Device) SetFrameRate(framerate uint8) error {
-	return d.writeRegister(FPSC, framerate&0x01)
+func (d *Device) SetFrameRate(framerate FrameRate) error {
+	return d.writeRegister(FPSC, uint8(framerate)&0x01)
 }
 
 // SetMovingAverageMode sets the moving average mode
@@ -157,7 +163,7 @@ func (d *Device) ReadThermistor() (int32, error) {
 		return 0, err
 	}
 	// Sign and absolute value format, see datasheet thermistor register.
-	raw := int32(uint16(d.buf[2])<<8|uint16(d.buf[1])) & 0x07FF
+	raw := int32(binary.LittleEndian.Uint16(d.buf[1:3]) & 0x07FF)
 	if d.buf[2]&0x08 != 0 {
 		raw = -raw
 	}
@@ -178,9 +184,10 @@ func (d *Device) waitFrame() error {
 			}
 		}
 	}
-	return nil
+	return ErrNoFrame
 }
 
+// writeInterruptControl writes the cached interrupt mode and enable bits to INTC.
 func (d *Device) writeInterruptControl() error {
 	return d.writeRegister(INTC, ((uint8(d.interruptMode)<<1)|d.interruptEnable)&0x03)
 }

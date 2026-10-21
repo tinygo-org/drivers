@@ -50,7 +50,7 @@ func TestConfigure(t *testing.T) {
 	want := [][]uint8{
 		{PCTL, NORMAL_MODE},
 		{RST, INITIAL_RESET},
-		{FPSC, FPS_10},
+		{FPSC, uint8(FPS_10)},
 	}
 	if !reflect.DeepEqual(bus.writes, want) {
 		t.Fatalf("writes = %#v, want %#v", bus.writes, want)
@@ -60,8 +60,8 @@ func TestConfigure(t *testing.T) {
 func TestConfigureNoFrame(t *testing.T) {
 	dev, _ := newTestDevice(t)
 	start := time.Now()
-	if err := dev.Configure(Config{}); err != nil {
-		t.Fatal(err)
+	if err := dev.Configure(Config{}); err != ErrNoFrame {
+		t.Fatalf("error = %v, want %v", err, ErrNoFrame)
 	}
 	if elapsed := time.Since(start); elapsed < time.Second {
 		t.Fatalf("returned after %v, want at least 1s", elapsed)
