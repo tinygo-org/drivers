@@ -2,32 +2,88 @@ package scd4x
 
 import (
 	"testing"
+
+	qt "github.com/frankban/quicktest"
+	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/tester"
 )
 
-type testI2CBus struct{}
-
-func (testI2CBus) Tx(uint16, []byte, []byte) error { return nil }
-
 func TestDefaultI2CAddress(t *testing.T) {
-	dev := New(testI2CBus{})
-	if dev.Address != uint8(Address) {
-		t.Fatalf("Address = %#x, want %#x", dev.Address, Address)
-	}
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	dev := New(bus)
+	c.Assert(dev.Address, qt.Equals, uint8(Address))
 }
 
 func TestCRC8(t *testing.T) {
-	if got := crc8([]byte{0xbe, 0xef}); got != 0x92 {
-		t.Fatalf("crc8(0xbeef) = %#x, want 0x92", got)
-	}
+	c := qt.New(t)
+	c.Assert(crc8([]byte{0xbe, 0xef}), qt.Equals, uint8(0x92))
 }
 
-func TestConversionsUseFullScale(t *testing.T) {
-	dev := &Device{temperature: 0xffff, humidity: 0xffff}
+func TestConversions(t *testing.T) {
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	dev := New(bus)
+	dev.temperature = 0xffff
+	dev.humidity = 0xffff
 
-	if got := dev.Temperature(); got != 130000 {
-		t.Errorf("Temperature() = %d, want 130000", got)
+	c.Assert(dev.Temperature(), qt.Equals, int32(129997))
+	c.Assert(dev.Humidity(), qt.Equals, int32(9999))
+}
+
+func TestUpdateKeepsCachedDataWhenNotReady(t *testing.T) {
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	fake := tester.NewI2CDeviceCmd(c, Address)
+	ready := &tester.Cmd{
+		Command:  []byte{0xe4, 0xb8},
+		Mask:     []byte{0xff, 0xff},
+		Response: []byte{0x00, 0x00, 0x81},
 	}
-	if got := dev.Humidity(); got != 10000 {
-		t.Errorf("Humidity() = %d, want 10000", got)
+	fake.Commands = map[uint8]*tester.Cmd{0: ready}
+	bus.AddDevice(fake)
+	dev := New(bus)
+	dev.co2 = 420
+	dev.temperature = 1000
+	dev.humidity = 2000
+
+	c.Assert(dev.Update(drivers.Concentration), qt.IsNil)
+	c.Assert(ready.Invocations, qt.Equals, 1)
+	c.Assert(dev.co2, qt.Equals, uint16(420))
+	c.Assert(dev.temperature, qt.Equals, uint16(1000))
+	c.Assert(dev.humidity, qt.Equals, uint16(2000))
+}
+
+func TestUpdateReadsDataAndChecksCRC(t *testing.T) {
+	c := qt.New(t)
+	bus := tester.NewI2CBus(c)
+	fake := tester.NewI2CDeviceCmd(c, Address)
+	ready := &tester.Cmd{
+		Command:  []byte{0xe4, 0xb8},
+		Mask:     []byte{0xff, 0xff},
+		Response: []byte{0x00, 0x01, 0xb0},
 	}
+	measurement := &tester.Cmd{
+		Command:  []byte{0xec, 0x05},
+		Mask:     []byte{0xff, 0xff},
+		Response: []byte{0x01, 0xa4, 0x00, 0x66, 0x66, 0x00, 0x80, 0x00, 0x00},
+	}
+	for i := 0; i < len(measurement.Response); i += 3 {
+		measurement.Response[i+2] = crc8(measurement.Response[i : i+2])
+	}
+	fake.Commands = map[uint8]*tester.Cmd{0: ready, 1: measurement}
+	bus.AddDevice(fake)
+	dev := New(bus)
+
+	c.Assert(dev.Update(drivers.Temperature), qt.IsNil)
+	c.Assert(measurement.Invocations, qt.Equals, 1)
+	c.Assert(dev.co2, qt.Equals, uint16(420))
+	c.Assert(dev.temperature, qt.Equals, uint16(0x6666))
+	c.Assert(dev.humidity, qt.Equals, uint16(0x8000))
+
+	measurement.Response[8] ^= 0xff
+	c.Assert(dev.Update(drivers.Humidity), qt.Equals, ErrCRC)
+	c.Assert(dev.co2, qt.Equals, uint16(420))
+	c.Assert(dev.temperature, qt.Equals, uint16(0x6666))
+	c.Assert(dev.humidity, qt.Equals, uint16(0x8000))
 }

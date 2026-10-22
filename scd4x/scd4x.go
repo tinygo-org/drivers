@@ -5,7 +5,7 @@
 // This driver is heavily influenced by the scd4x code from Adafruit for CircuitPython:
 // https://github.com/adafruit/Adafruit_CircuitPython_SCD4X
 // Thank you!
-package scd4x //import "tinygo.org/x/drivers/scd4x"
+package scd4x // import "tinygo.org/x/drivers/scd4x"
 
 import (
 	"encoding/binary"
@@ -15,13 +15,8 @@ import (
 	"tinygo.org/x/drivers"
 )
 
-var (
-	// ErrDataNotReady indicates that the sensor has not produced a new sample
-	// since the previous read.
-	ErrDataNotReady = errors.New("scd4x: data not ready")
-	// ErrCRC indicates that data received from the sensor failed its checksum.
-	ErrCRC = errors.New("scd4x: invalid CRC")
-)
+// ErrCRC indicates that data received from the sensor failed its checksum.
+var ErrCRC = errors.New("scd4x: invalid CRC")
 
 type Device struct {
 	bus     drivers.I2C
@@ -109,8 +104,8 @@ func (d *Device) ReadData() error {
 	return nil
 }
 
-// Update reads new data from the sensor (if new data is available) and caches
-// it for reading in the CO2, Temperature, and Humidity methods.
+// Update caches a new sample when it is available.
+// It keeps the cached sample and returns nil when no new data is ready.
 func (d *Device) Update(measurements drivers.Measurement) error {
 	if measurements&(drivers.Temperature|drivers.Humidity|drivers.Concentration) != 0 {
 		ready, err := d.DataReady()
@@ -118,7 +113,7 @@ func (d *Device) Update(measurements drivers.Measurement) error {
 			return err
 		}
 		if !ready {
-			return ErrDataNotReady
+			return nil
 		}
 		return d.ReadData()
 	}
@@ -161,8 +156,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 // Temperature returns the last read temperature in celsius milli degrees
 // (°C/1000).
 func (d *Device) Temperature() int32 {
-	// temp = -45 + 175 * value / (2¹⁶ - 1)
-	return -45000 + int32(175000*int64(d.temperature)/65535)
+	return -45000 + 21875*int32(d.temperature)/8192
 }
 
 // ReadTempC returns the value in the temperature value in Celsius.
@@ -190,8 +184,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
-	// humidity = 100 * value / (2¹⁶ - 1)
-	return int32(100 * int64(d.humidity) / 65535), err
+	return 25 * int32(d.humidity) / 16384, err
 }
 
 // Humidity returns the relative humidity in hundredths of a percent (in other
@@ -200,7 +193,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 // Warning: the value returned here is of a different scale (more precise) than
 // ReadHumidity()!
 func (d *Device) Humidity() int32 {
-	return int32(10000 * int64(d.humidity) / 65535)
+	return 2500 * int32(d.humidity) / 16384
 }
 
 func (d *Device) sendCommand(command uint16) error {
