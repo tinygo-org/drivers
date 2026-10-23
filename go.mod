@@ -1,14 +1,13 @@
 module tinygo.org/x/drivers
 
-go 1.22.1
-
-toolchain go1.23.1
+go 1.24
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/frankban/quicktest v1.10.2
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/orsinium-labs/tinymath v1.1.0
+	github.com/soypat/lneto v0.4.0
 	github.com/soypat/natiu-mqtt v0.5.1
 	github.com/tinygo-org/pio v0.3.0
 	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d

@@ -176,11 +176,14 @@ tinygo build -size short -o ./build/test.hex -target=arduino-nano33 -stack-size 
 tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/websocket/dial/
 tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift -stack-size 8kb ./examples/net/socket/
 tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic/
+tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic-httphi/
+tinygo build -size short -o ./build/test.hex -target=arduino-nano33 -stack-size 4kb ./examples/net/webserver-httphi/
 tinygo build -size short -o ./build/test.hex -target=arduino-mkrwifi1010 -stack-size 8kb ./examples/net/tlsclient/
 tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/mqttclient/natiu/
 # network examples (rtl8720dn)
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webclient/
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webserver/
+tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webserver-httphi/
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/mqttclient/paho/
 # network examples (comboat)
 tinygo build -size short -o ./build/test.hex -target=elecrow-rp2040 -stack-size 8kb ./examples/net/tlsclient/
