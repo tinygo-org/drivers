@@ -19,11 +19,12 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 # Recursively find all *_test.go files from cwd & reduce to unique dir names
 HAS_TESTS = $(sort $(dir $(call rwildcard,,*_test.go)))
 # Exclude anything we explicitly don't want to test for whatever reason
-EXCLUDE_TESTS = image waveshare-epd/epd2in66b
+EXCLUDE_TESTS = image waveshare-epd/epd2in66b rtl8720dn
 TESTS = $(filter-out $(addsuffix /%,$(EXCLUDE_TESTS)),$(HAS_TESTS))
 
 unit-test:
 	@go test -v $(addprefix ./,$(TESTS))
+	@sh rtl8720dn/testdata/test-host.sh -v
 
 test: clean fmt-check unit-test smoke-test
 
