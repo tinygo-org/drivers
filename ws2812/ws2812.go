@@ -1,12 +1,6 @@
-// Package ws2812 implements a driver for WS2812 and SK6812 RGB LED strips.
-//
-// On most platforms NewWS2812 uses bit-banging.
-// On RP2040/RP2350 it uses PIO for hardware-timed control.
-package ws2812 // import "tinygo.org/x/drivers/ws2812"
+//go:build tinygo
 
-//go:generate go run gen-ws2812.go -arch=cortexm 16 48 64 120 125 150 160 168 200
-//go:generate go run gen-ws2812.go -arch=tinygoriscv 320
-//go:generate go run gen-ws2812.go -arch=esp32c3 160
+package ws2812
 
 import (
 	"errors"
@@ -95,13 +89,5 @@ func writeColorsRGBA(d Device, buf []color.RGBA, brightness uint8) (err error) {
 		err = d.WriteByte(color.A) // alpha
 	}
 	interrupt.Restore(mask)
-	return
-}
-
-// applyBrightness scales a color by the brightness value.
-func applyBrightness(c color.RGBA, brightness uint8) (r, g, b uint8) {
-	r = uint8((uint16(c.R) * uint16(brightness)) >> 8)
-	g = uint8((uint16(c.G) * uint16(brightness)) >> 8)
-	b = uint8((uint16(c.B) * uint16(brightness)) >> 8)
 	return
 }

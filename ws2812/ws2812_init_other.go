@@ -1,4 +1,4 @@
-//go:build !rp2040 && !rp2350
+//go:build tinygo && !rp2040 && !rp2350
 
 package ws2812
 

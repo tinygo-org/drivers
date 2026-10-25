@@ -1,4 +1,4 @@
-//go:build !baremetal
+//go:build tinygo && !baremetal
 
 package ws2812
 
