@@ -99,19 +99,19 @@ func (d *Device) ConfigureWithSettings(config Config) {
 	}
 
 	var data [24]byte
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION, data[:])
+	err := d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_CALIBRATION}, data[:])
 	if err != nil {
 		return
 	}
 
 	var h1 [1]byte
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION_H1, h1[:])
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_CALIBRATION_H1}, h1[:])
 	if err != nil {
 		return
 	}
 
 	var h2lsb [7]byte
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_CALIBRATION_H2LSB, h2lsb[:])
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_CALIBRATION_H2LSB}, h2lsb[:])
 	if err != nil {
 		return
 	}
@@ -154,7 +154,7 @@ func (d *Device) ConfigureWithSettings(config Config) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == CHIP_ID
 }
 
@@ -261,7 +261,7 @@ func (d *Device) readData() (data [8]byte, err error) {
 		time.Sleep(d.measurementDelay())
 	}
 
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), REG_PRESSURE, data[:])
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_PRESSURE}, data[:])
 	if err != nil {
 		println(err)
 		return
