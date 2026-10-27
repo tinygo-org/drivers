@@ -25,12 +25,14 @@ func (b *PinBus) write(v byte) {
 	b.wr.High()
 }
 
+// WriteBytes writes each byte in turn, pulsing WR after each one.
 func (b *PinBus) WriteBytes(buf []byte) {
 	for _, v := range buf {
 		b.write(v)
 	}
 }
 
+// WriteRepeat writes v high byte first, n times.
 func (b *PinBus) WriteRepeat(v uint16, n int) {
 	for ; n > 0; n-- {
 		b.write(byte(v >> 8))

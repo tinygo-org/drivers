@@ -31,10 +31,17 @@ const (
 	height = 320
 )
 
+var (
+	errOutOfBounds = errors.New("ili9325: rectangle coordinates outside display area")
+	errShortData   = errors.New("ili9325: pixel data shorter than rectangle")
+)
+
+// Config is the configuration for the display.
 type Config struct {
 	Rotation drivers.Rotation
 }
 
+// Device is an ILI9325 display on an 8-bit parallel bus.
 type Device struct {
 	bus      Bus
 	rs       pin.OutputFunc
@@ -131,6 +138,9 @@ func (d *Device) SetRotation(rotation drivers.Rotation) error {
 		return errors.New("ili9325: unsupported rotation")
 	}
 	d.rotation = rotation
+	d.cs.Low()
+	d.writeReg(ENTRY_MODE, entryModeBGR|d.entryMode())
+	d.cs.High()
 	return nil
 }
 
@@ -154,7 +164,7 @@ func (d *Device) Display() error {
 // FillRectangle fills a rectangle at the given coordinates with a colour.
 func (d *Device) FillRectangle(x, y, w, h int16, c color.RGBA) error {
 	if !d.inBounds(x, y, w, h) {
-		return errors.New("rectangle coordinates outside display area")
+		return errOutOfBounds
 	}
 	d.cs.Low()
 	d.setWindow(x, y, w, h)
@@ -171,8 +181,11 @@ func (d *Device) FillScreen(c color.RGBA) {
 
 // DrawRGBBitmap8 draws big endian RGB565 pixel data at the given coordinates.
 func (d *Device) DrawRGBBitmap8(x, y int16, data []uint8, w, h int16) error {
-	if !d.inBounds(x, y, w, h) || len(data) < int(w)*int(h)*2 {
-		return errors.New("rectangle coordinates outside display area")
+	if !d.inBounds(x, y, w, h) {
+		return errOutOfBounds
+	}
+	if len(data) < int(w)*int(h)*2 {
+		return errShortData
 	}
 	d.cs.Low()
 	d.setWindow(x, y, w, h)
@@ -192,17 +205,29 @@ func (d *Device) inBounds(x, y, w, h int16) bool {
 	return x >= 0 && y >= 0 && w > 0 && h > 0 && x+w <= dw && y+h <= dh
 }
 
-// setWindow maps a window in rotated coordinates to the panel and sets the
-// address counter direction so pixels can be written in row order.
+// entryMode returns the address counter direction that writes pixels in row
+// order for the current rotation.
+func (d *Device) entryMode() uint16 {
+	switch d.rotation {
+	case drivers.Rotation90:
+		return entryModeIDY | entryModeAM
+	case drivers.Rotation180:
+		return 0
+	case drivers.Rotation270:
+		return entryModeIDX | entryModeAM
+	default:
+		return entryModeIDX | entryModeIDY
+	}
+}
+
+// setWindow maps a window in rotated coordinates to the panel.
 func (d *Device) setWindow(x, y, w, h int16) {
 	var x0, x1, y0, y1, cx, cy int16
-	var mode uint16
 	switch d.rotation {
 	case drivers.Rotation90:
 		x0, x1 = width-y-h, width-1-y
 		y0, y1 = x, x+w-1
 		cx, cy = x1, y0
-		mode = entryModeIDY | entryModeAM
 	case drivers.Rotation180:
 		x0, x1 = width-x-w, width-1-x
 		y0, y1 = height-y-h, height-1-y
@@ -211,14 +236,11 @@ func (d *Device) setWindow(x, y, w, h int16) {
 		x0, x1 = y, y+h-1
 		y0, y1 = height-x-w, height-1-x
 		cx, cy = x0, y1
-		mode = entryModeIDX | entryModeAM
 	default:
 		x0, x1 = x, x+w-1
 		y0, y1 = y, y+h-1
 		cx, cy = x0, y0
-		mode = entryModeIDX | entryModeIDY
 	}
-	d.writeReg(ENTRY_MODE, entryModeBGR|mode)
 	d.writeReg(HORIZONTAL_START, uint16(x0))
 	d.writeReg(HORIZONTAL_END, uint16(x1))
 	d.writeReg(VERTICAL_START, uint16(y0))

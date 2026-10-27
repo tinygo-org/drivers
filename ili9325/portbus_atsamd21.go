@@ -3,6 +3,7 @@
 package ili9325
 
 import (
+	"device/arm"
 	"device/sam"
 	"errors"
 	"machine"
@@ -11,7 +12,8 @@ import (
 
 // PortBus is a Bus for the SAMD21 that writes each byte with single cycle
 // IOBUS stores. The data pins and WR must be on the same port and already be
-// configured as outputs.
+// configured as outputs. WR is held low and high for at least 3 cycles, 62 ns
+// at 48 MHz, to meet the ILI9325 datasheet V0.43 13.4.1 PWLW and PWHW of 50 ns.
 type PortBus struct {
 	outset   *volatile.Register32
 	outclr   *volatile.Register32
@@ -47,26 +49,34 @@ func NewPortBus(data [8]machine.Pin, wr machine.Pin) (*PortBus, error) {
 	return b, nil
 }
 
+// WriteBytes writes each byte in turn, pulsing WR after each one.
 func (b *PortBus) WriteBytes(buf []byte) {
-	outset, outclr := b.outset, b.outclr
+	outset, outclr, wr := b.outset, b.outclr, b.wrMask
 	for _, v := range buf {
 		set := b.setMask[v]
-		outclr.Set(b.dataMask&^set | b.wrMask)
+		outclr.Set(b.dataMask&^set | wr)
 		outset.Set(set)
-		outset.Set(b.wrMask)
+		arm.Asm("nop")
+		outset.Set(wr)
+		arm.Asm("nop\nnop")
 	}
 }
 
+// WriteRepeat writes v high byte first, n times.
 func (b *PortBus) WriteRepeat(v uint16, n int) {
-	outset, outclr := b.outset, b.outclr
+	outset, outclr, wr := b.outset, b.outclr, b.wrMask
 	hiSet, loSet := b.setMask[v>>8], b.setMask[v&0xff]
-	hiClr, loClr := b.dataMask&^hiSet|b.wrMask, b.dataMask&^loSet|b.wrMask
+	hiClr, loClr := b.dataMask&^hiSet|wr, b.dataMask&^loSet|wr
 	for ; n > 0; n-- {
 		outclr.Set(hiClr)
 		outset.Set(hiSet)
-		outset.Set(b.wrMask)
+		arm.Asm("nop")
+		outset.Set(wr)
+		arm.Asm("nop\nnop")
 		outclr.Set(loClr)
 		outset.Set(loSet)
-		outset.Set(b.wrMask)
+		arm.Asm("nop")
+		outset.Set(wr)
+		arm.Asm("nop\nnop")
 	}
 }
