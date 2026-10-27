@@ -56,17 +56,41 @@ func (d *Device) Configure() error {
 
 // Enable turns the output stage on.
 func (d *Device) Enable() error {
-	return legacy.WriteRegister(d.bus, d.Address, regEnableOutput, []byte{0x01})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{0x01}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = regEnableOutput
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // Disable turns the output stage off.
 func (d *Device) Disable() error {
-	return legacy.WriteRegister(d.bus, d.Address, regEnableOutput, []byte{0x00})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{0x00}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = regEnableOutput
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // Reset restores all internal registers to their power on state.
 func (d *Device) Reset() error {
-	return legacy.WriteRegister(d.bus, d.Address, regReset, []byte{0xFF})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{0xFF}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = regReset
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // EnableChannels enables or disables each of the 18 channels. Bit n of mask
@@ -96,5 +120,13 @@ func (d *Device) SetChannels(values [NumChannels]uint8) error {
 // latch tells the chip to move the values written by SetChannels or
 // EnableChannels from its shadow registers into the active PWM registers.
 func (d *Device) latch() error {
-	return legacy.WriteRegister(d.bus, d.Address, regUpdate, []byte{0xFF})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{0xFF}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = regUpdate
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }

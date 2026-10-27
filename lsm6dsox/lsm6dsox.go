@@ -97,7 +97,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := d.buf[:1]
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == 0x6C
 }
 
@@ -107,7 +107,7 @@ func (d *Device) Connected() bool {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_A, data)
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{OUTX_L_A}, data)
 	if err != nil {
 		return
 	}
@@ -123,7 +123,7 @@ func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 // you would get a value close to 360000000.
 func (d *Device) ReadRotation() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_G, data)
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{OUTX_L_G}, data)
 	if err != nil {
 		return
 	}
@@ -136,7 +136,7 @@ func (d *Device) ReadRotation() (x, y, z int32, err error) {
 // ReadTemperature returns the temperature in celsius milli degrees (°C/1000)
 func (d *Device) ReadTemperature() (t int32, err error) {
 	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_TEMP_L, data)
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{OUT_TEMP_L}, data)
 	if err != nil {
 		return
 	}

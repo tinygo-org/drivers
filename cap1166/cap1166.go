@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // DefaultAddress is the I2C address on the Display-o-Tron HAT.
@@ -197,11 +196,19 @@ func (d *Device) GraphOff() error {
 }
 
 func (d *Device) writeByte(reg, value uint8) error {
-	return legacy.WriteRegister(d.bus, d.Address, reg, []byte{value})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{value}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = reg
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 func (d *Device) readByte(reg uint8) (uint8, error) {
 	buf := make([]byte, 1)
-	err := legacy.ReadRegister(d.bus, d.Address, reg, buf)
+	err := d.bus.Tx(uint16(d.Address), []byte{reg}, buf)
 	return buf[0], err
 }

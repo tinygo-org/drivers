@@ -95,7 +95,7 @@ func (r *i2cRegister) readShiftAndMask(bus drivers.I2C, deviceAddress uint8, shi
 			buf = buffer[:]
 		}
 		// Read the host register over I2C
-		err := legacy.ReadRegister(bus, deviceAddress, r.host.address, buf)
+		err := bus.Tx(uint16(deviceAddress), []byte{r.host.address}, buf)
 		if nil != err {
 			return 0, err
 		}

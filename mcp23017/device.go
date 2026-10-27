@@ -10,7 +10,6 @@ import (
 	"errors"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 const (
@@ -255,7 +254,17 @@ func (d *Device) writeRegisterAB(r register, val Pins) error {
 	// and the fact that registers alternate between A and B
 	// to write both ports in a single operation.
 	buf := [2]byte{uint8(val), uint8(val >> 8)}
-	return legacy.WriteRegister(d.bus, d.addr, uint8(r&^portB), buf[:])
+	{
+		var (
+			bus  drivers.I2C = d.bus
+			addr uint8       = d.addr
+			data []byte      = buf[:]
+		)
+		buf := make([]uint8, len(data)+1)
+		buf[0] = uint8(r &^ portB)
+		copy(buf[1:], data)
+		return bus.Tx(uint16(addr), buf, nil)
+	}
 }
 
 func (d *Device) readRegisterAB(r register) (Pins, error) {
@@ -263,7 +272,7 @@ func (d *Device) readRegisterAB(r register) (Pins, error) {
 	// and the fact that registers alternate between A and B
 	// to read both ports in a single operation.
 	var buf [2]byte
-	if err := legacy.ReadRegister(d.bus, d.addr, uint8(r), buf[:]); err != nil {
+	if err := d.bus.Tx(uint16(d.addr), []byte{uint8(r)}, buf[:]); err != nil {
 		return Pins(0), err
 	}
 	return Pins(buf[0]) | (Pins(buf[1]) << 8), nil

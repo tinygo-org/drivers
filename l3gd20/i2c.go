@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 const (
@@ -88,15 +87,15 @@ func (d *DevI2C) Configure(cfg Config) error {
 }
 
 func (d *DevI2C) Update() error {
-	err := legacy.ReadRegister(d.bus, d.addr, OUT_X_L, d.databuf[:2])
+	err := d.bus.Tx(uint16(d.addr), []byte{OUT_X_L}, d.databuf[:2])
 	if err != nil {
 		return err
 	}
-	err = legacy.ReadRegister(d.bus, d.addr, OUT_Y_L, d.databuf[2:4])
+	err = d.bus.Tx(uint16(d.addr), []byte{OUT_Y_L}, d.databuf[2:4])
 	if err != nil {
 		return err
 	}
-	err = legacy.ReadRegister(d.bus, d.addr, OUT_Z_L, d.databuf[4:6])
+	err = d.bus.Tx(uint16(d.addr), []byte{OUT_Z_L}, d.databuf[4:6])
 	if err != nil {
 		return err
 	}
@@ -132,11 +131,19 @@ func (d *DevI2C) AngularVelocity() (x, y, z int32) {
 // func (d DevI2C) Update(measurement)
 
 func (d DevI2C) read8(reg uint8) (byte, error) {
-	err := legacy.ReadRegister(d.bus, d.addr, reg, d.buf[:1])
+	err := d.bus.Tx(uint16(d.addr), []byte{reg}, d.buf[:1])
 	return d.buf[0], err
 }
 
 func (d DevI2C) write8(reg uint8, val byte) error {
 	d.buf[0] = val
-	return legacy.WriteRegister(d.bus, d.addr, reg, d.buf[:1])
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.addr
+		data []byte      = d.buf[:1]
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = reg
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }

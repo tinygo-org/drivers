@@ -253,6 +253,6 @@ func (d *Device) write1Byte(reg, data uint8) {
 }
 
 func (d *Device) read8bit(reg uint8) uint8 {
-	legacy.ReadRegister(d.bus, d.Address, reg, d.buf[:1])
+	d.bus.Tx(uint16(d.Address), []byte{reg}, d.buf[:1])
 	return d.buf[0]
 }
