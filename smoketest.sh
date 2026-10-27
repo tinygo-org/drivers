@@ -69,6 +69,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit-v2 ./examples/micr
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mma8653/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/mpu6050/main.go
 tinygo build -size short -o ./build/test.hex -target=p1am-100 ./examples/p1am/main.go
+tinygo build -size short -o ./build/test.uf2 -target=waveshare-rp2040-pizero ./examples/dothat-pizero/
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/pca9685/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setbuffer/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/pcd8544/setpixel/main.go
