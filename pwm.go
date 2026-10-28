@@ -1,8 +1,8 @@
 package drivers
 
-// PWMSetter is a typical PWM controller implementation which allows shared
+// PWM is a typical PWM controller implementation which allows shared
 // setting of frequency and individual setting of duty cycle for several PWM channels.
-type PWMSetter interface {
+type PWM interface {
 	// Top usually represents maximum value the running PWM counter can take, either by hardware or set at configuration.
 	Top() uint32
 	// SetChannels sets the PWM counter limit for channels specified. channels are PWM peripheral based, not MCU host based.
