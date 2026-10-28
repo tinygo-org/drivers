@@ -12,6 +12,7 @@ var (
 	spi                        = machine.SPI1
 	nssPin, busyPin, dio1Pin   = machine.GP13, machine.GP6, machine.GP7
 	rxPin, txLowPin, txHighPin = machine.GP9, machine.GP8, machine.GP8
+	rstPin                     = machine.GP10
 )
 
 func newRadioControl() sx126x.RadioController {
