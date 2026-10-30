@@ -5,7 +5,7 @@
 //
 // nc -lk 8080
 
-//go:build ninafw || wioterminal || challenger_rp2040 || comboat_fw
+//go:build ninafw || wioterminal || challenger_rp2040 || comboat_fw || arduino_uno_r4_wifi
 
 package main
 
