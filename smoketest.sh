@@ -194,3 +194,6 @@ tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb
 # network examples (comboat)
 tinygo build -size short -o ./build/test.hex -target=elecrow-rp2040 -stack-size 8kb ./examples/net/tlsclient/
 tinygo build -size short -o ./build/test.hex -target=elecrow-rp2350 -stack-size 8kb ./examples/net/ntpclient/
+# network examples (unor4wifi)
+tinygo build -size short -o ./build/test.hex -target=arduino-uno-r4-wifi -stack-size 2kb ./examples/net/tcpclient/
+tinygo build -size short -o ./build/test.hex -target=arduino-uno-r4-wifi -stack-size 2kb ./examples/net/ntpclient/
