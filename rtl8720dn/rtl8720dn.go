@@ -60,8 +60,10 @@ type rtl8720dn struct {
 	notifyCb func(netlink.Event)
 	mu       sync.Mutex
 
-	uart *machine.UART
-	seq  uint64
+	uart          *machine.UART
+	seq           uint64
+	captureRPCErr bool
+	rpcErr        error
 
 	debug bool
 
@@ -563,10 +565,22 @@ func (r *rtl8720dn) Connect(sockfd int, host string, ip netip.AddrPort) error {
 			return fmt.Errorf("Connect to %s failed", ip)
 		}
 	case netdev.IPPROTO_TLS:
+		r.captureRPCErr = true
+		defer func() { r.captureRPCErr = false }()
 		result := r.rpc_wifi_start_ssl_client(uint32(sock),
 			host, uint32(port), 0)
-		if result == -1 {
-			return fmt.Errorf("Connect to %s:%d failed", host, port)
+		if r.rpcErr != nil {
+			return fmt.Errorf("connect to %s:%d failed: %w", host, port, r.rpcErr)
+		}
+		if result < 0 {
+			return fmt.Errorf("connect to %s:%d failed: code %d", host, port, result)
+		}
+		result = r.rpc_wifi_ssl_get_socket(uint32(sock))
+		if r.rpcErr != nil {
+			return fmt.Errorf("connect to %s:%d failed: %w", host, port, r.rpcErr)
+		}
+		if result < 0 {
+			return fmt.Errorf("connect to %s:%d failed: socket %d", host, port, result)
 		}
 	}
 
