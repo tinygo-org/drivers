@@ -28,7 +28,9 @@ type SenderConfig struct {
 	DutyCycle uint8
 }
 
-// SenderDevice is the device for sending IR commands.
+// SenderDevice is the device for sending IR commands. Timing busy waits on
+// time.Now, so accuracy follows the clock resolution.
+// https://github.com/tinygo-org/drivers/issues/668
 type SenderDevice struct {
 	pwm     PWM
 	pin     machine.Pin
