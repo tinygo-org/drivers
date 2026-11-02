@@ -36,7 +36,7 @@ type SenderDevice struct {
 	channel uint8
 	duty    uint32
 	mu      sync.Mutex
-	stop    chan struct{}
+	gen     uint64
 }
 
 // NewSender returns a new IR sender device.
@@ -72,25 +72,21 @@ func (ir *SenderDevice) Configure() error {
 
 // SendNEC sends one NEC frame. With autoRepeat set, repeat frames go out
 // until StopNECRepeats is called.
-func (ir *SenderDevice) SendNEC(address uint16, command byte, autoRepeat bool) {
+func (ir *SenderDevice) SendNEC(address uint16, command uint16, autoRepeat bool) {
 	ir.mu.Lock()
 	defer ir.mu.Unlock()
-	if ir.stop != nil {
-		close(ir.stop)
-		ir.stop = nil
-	}
+	ir.gen++
 	start := time.Now()
-	ir.sendNECRawCode(irprotocol.MakeRawNECData(address, command))
+	ir.sendNECRawCode(irprotocol.MakeRawNECData(address, byte(command)))
 	if !autoRepeat {
 		return
 	}
-	stop := make(chan struct{})
-	ir.stop = stop
+	gen := ir.gen
 	go func(next time.Time) {
 		for {
 			time.Sleep(time.Until(next))
 			ir.mu.Lock()
-			if ir.stop != stop {
+			if ir.gen != gen {
 				ir.mu.Unlock()
 				return
 			}
@@ -105,33 +101,19 @@ func (ir *SenderDevice) SendNEC(address uint16, command byte, autoRepeat bool) {
 func (ir *SenderDevice) StopNECRepeats() {
 	ir.mu.Lock()
 	defer ir.mu.Unlock()
-	if ir.stop != nil {
-		close(ir.stop)
-		ir.stop = nil
-	}
+	ir.gen++
 }
 
 // SendNECRawCode sends one NEC frame from a 32 bit code, least significant bit
-// first, and returns the time it took.
-func (ir *SenderDevice) SendNECRawCode(code uint32) time.Duration {
+// first.
+func (ir *SenderDevice) SendNECRawCode(code uint32) {
 	ir.mu.Lock()
 	defer ir.mu.Unlock()
-	if ir.stop != nil {
-		close(ir.stop)
-		ir.stop = nil
-	}
-	return ir.sendNECRawCode(code)
+	ir.gen++
+	ir.sendNECRawCode(code)
 }
 
-// SendNECRepeat sends one repeat frame and returns the time it took.
-func (ir *SenderDevice) SendNECRepeat() time.Duration {
-	ir.mu.Lock()
-	defer ir.mu.Unlock()
-	return ir.sendNECRepeat()
-}
-
-func (ir *SenderDevice) sendNECRawCode(code uint32) time.Duration {
-	start := time.Now()
+func (ir *SenderDevice) sendNECRawCode(code uint32) {
 	ir.mark(irprotocol.NECLeadMark)
 	ir.space(irprotocol.NECLeadSpace)
 	for i := 0; i < 32; i++ {
@@ -143,18 +125,12 @@ func (ir *SenderDevice) sendNECRawCode(code uint32) time.Duration {
 		}
 	}
 	ir.mark(irprotocol.NECTrailMark)
-	// End on a space, so the next lead mark starts from a rising edge.
-	ir.space(irprotocol.NECZeroSpace)
-	return time.Since(start)
 }
 
-func (ir *SenderDevice) sendNECRepeat() time.Duration {
-	start := time.Now()
+func (ir *SenderDevice) sendNECRepeat() {
 	ir.mark(irprotocol.NECLeadMark)
 	ir.space(irprotocol.NECRepeatSpace)
 	ir.mark(irprotocol.NECTrailMark)
-	ir.space(irprotocol.NECZeroSpace)
-	return time.Since(start)
 }
 
 func (ir *SenderDevice) mark(d time.Duration) {
