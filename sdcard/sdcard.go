@@ -89,7 +89,7 @@ func (d *Device) initCard() error {
 	d.cs.Low()
 	d.bus.Tx(dummy[:], nil)
 
-	// CMD0: init card; sould return _R1_IDLE_STATE (allow 5 attempts)
+	// CMD0: init card; should return _R1_IDLE_STATE (allow 5 attempts)
 	ok := false
 	tm := setTimeout(0, 2*time.Second)
 	for !tm.expired() {

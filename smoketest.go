@@ -97,6 +97,7 @@ func runSmokeTest(filename string) error {
 		_ = flagSet.String("size", "", "")
 		_ = flagSet.String("o", "", "")
 		_ = flagSet.String("stack-size", "", "")
+		_ = flagSet.String("tags", "", "")
 		targetFlag := flagSet.String("target", "", "")
 		err = flagSet.Parse(fields[2:])
 		if err != nil {

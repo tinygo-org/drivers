@@ -40,6 +40,9 @@ func (d Device) WriteByte(c byte) error {
 	case 168_000_000: // 168MHz, e.g. stm32f405
 		d.writeByte168(c)
 		return nil
+	case 180_000_000: // 180MHz, e.g. teensy36
+		d.writeByte180(c)
+		return nil
 	case 200_000_000: // 200MHz, e.g. rp2040 starting with TinyGo v0.37
 		d.writeByte200(c)
 		return nil

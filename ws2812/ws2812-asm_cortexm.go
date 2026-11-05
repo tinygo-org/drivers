@@ -2043,6 +2043,421 @@ void ws2812_writeByte168(char c, uint32_t *portSet, uint32_t *portClear, uint32_
 }
 
 __attribute__((always_inline))
+void ws2812_writeByte180(char c, uint32_t *portSet, uint32_t *portClear, uint32_t maskSet, uint32_t maskClear) {
+	// Timings:
+	// T0H: 63 - 65 cycles or 350.0ns - 361.1ns
+	// T1H: 189 - 191 cycles or 1050.0ns - 1061.1ns
+	// TLD: 207 -    cycles or 1150.0ns -
+	uint32_t value = (uint32_t)c << 24;
+	char i = 8;
+	__asm__ __volatile__(
+		"1: @ send_bit\n"
+		"\t  str   %[maskSet], %[portSet]     @ [2]   T0H and T0L start here\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  lsls  %[value], #1               @ [1]\n"
+		"\t  bcs.n 2f                         @ [1/3] skip_store\n"
+		"\t  str   %[maskClear], %[portClear] @ [2]   T0H -> T0L transition\n"
+		"\t2: @ skip_store\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  str   %[maskClear], %[portClear] @ [2]   T1H -> T1L transition\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  nop\n"
+		"\t  subs  %[i], #1                   @ [1]\n"
+		"\t  beq.n 3f                         @ [1/3] end\n"
+		"\t  b     1b                         @ [1/3] send_bit\n"
+		"\t3: @ end\n"
+	: [value]"+r"(value),
+	  [i]"+r"(i)
+	: [maskSet]"r"(maskSet),
+	  [portSet]"m"(*portSet),
+	  [maskClear]"r"(maskClear),
+	  [portClear]"m"(*portClear));
+}
+
+__attribute__((always_inline))
 void ws2812_writeByte200(char c, uint32_t *portSet, uint32_t *portClear, uint32_t maskSet, uint32_t maskClear) {
 	// Timings:
 	// T0H: 70 - 72 cycles or 350.0ns - 360.0ns
@@ -2504,8 +2919,7 @@ void ws2812_writeByte200(char c, uint32_t *portSet, uint32_t *portClear, uint32_
 import "C"
 
 func (d Device) writeByte16(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte16(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2514,8 +2928,7 @@ func (d Device) writeByte16(c byte) {
 }
 
 func (d Device) writeByte48(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte48(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2524,8 +2937,7 @@ func (d Device) writeByte48(c byte) {
 }
 
 func (d Device) writeByte64(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte64(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2534,8 +2946,7 @@ func (d Device) writeByte64(c byte) {
 }
 
 func (d Device) writeByte120(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte120(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2544,8 +2955,7 @@ func (d Device) writeByte120(c byte) {
 }
 
 func (d Device) writeByte125(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte125(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2554,8 +2964,7 @@ func (d Device) writeByte125(c byte) {
 }
 
 func (d Device) writeByte150(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte150(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2564,8 +2973,7 @@ func (d Device) writeByte150(c byte) {
 }
 
 func (d Device) writeByte160(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte160(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2574,8 +2982,7 @@ func (d Device) writeByte160(c byte) {
 }
 
 func (d Device) writeByte168(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte168(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
@@ -2583,9 +2990,17 @@ func (d Device) writeByte168(c byte) {
 	interrupt.Restore(mask)
 }
 
+func (d Device) writeByte180(c byte) {
+	portSet, maskSet, portClear, maskClear := d.portMasks()
+
+	mask := interrupt.Disable()
+	C.ws2812_writeByte180(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))
+
+	interrupt.Restore(mask)
+}
+
 func (d Device) writeByte200(c byte) {
-	portSet, maskSet := d.Pin.PortMaskSet()
-	portClear, maskClear := d.Pin.PortMaskClear()
+	portSet, maskSet, portClear, maskClear := d.portMasks()
 
 	mask := interrupt.Disable()
 	C.ws2812_writeByte200(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))

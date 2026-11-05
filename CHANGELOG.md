@@ -1,3 +1,67 @@
+0.37.0
+---
+- **new devices**
+    - **bmi270**
+        - add driver for the Bosch BMI270 IMU (#917)
+    - **bmm150**
+        - add driver for BMM150 magnetometer (#913)
+    - **cap1166**
+        - add touch and LED driver
+    - **ili9325**
+        - add ILI9325 driver for 8-bit parallel displays (#926)
+    - **ina3221**
+        - add driver for the TI INA3221 three channel power monitor (#916)
+    - **pmw3901**
+        - add driver for the PixArt PMW3901 optical flow sensor (#918)
+    - **sn3218**
+        - add LED driver
+    - **st7036**
+        - add character LCD driver
+    - **vl53l3cx**
+        - add driver for VL53L3CX time-of-flight sensor (#912)
+    - **waveshare-epd (epd2in7)**
+        - add epd2in7 driver
+
+- **enhancements**
+    - **bmp280**
+        - add Update, SetMode, ReadAltitude, and unit tests (#915)
+    - **easystepper**
+        - add non blocking movement and dynamic speed
+    - **encoders**
+        - support ESP32, ESP32-S3, and ESP32-C6
+    - **irremote**
+        - widen the 562.5us mark windows to 750us
+    - **tester**
+        - add mock I2C device with 16-bit register addresses
+    - **ws2812**
+        - keep interrupts disabled for the whole frame
+        - support the Teensy 3.6
+
+- **bugfixes**
+    - **amg88xx**
+        - fix conversions, remove heap allocations, and add tests (#919)
+    - **apa102**
+        - fix end frame for strips of less than 16 LEDs
+    - **hd44780**
+        - fix 4 bit initialization
+    - **sd**
+        - send 0xFF while reading data blocks
+    - **ssd1306, uc8151**
+        - clear the display only when FillRectangle covers it
+    - **ws2812**
+        - send full brightness as 0xff
+
+- **examples**
+    - add 2.13in e-Paper V1 demo for RP2040-PiZero
+    - add Waveshare 1.3inch LCD HAT demo for RP2040-PiZero
+    - add epd2in7 RP2040-PiZero slideshow demo and 2bpp greyscale demo
+    - add Adafruit TFT example for Pico boards
+    - add hd44780 keypad shield demo
+    - add Adafruit NeoPixel Shield example for ws2812
+    - add Pimoroni Blinkt! examples for apa102
+    - add httphi versions of webserver and webstatic
+
+
 0.36.0
 ---
 - **new devices**

@@ -39,6 +39,7 @@ tinygo build -size short -o ./build/test.hex -target=feather-m0 ./examples/gps/u
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/hcsr04/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hd44780/customchar/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hd44780/text/main.go
+tinygo build -size short -o ./build/test.hex -target=arduino ./examples/hd44780/keypadshield/main.go
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/hd44780i2c/main.go
 tinygo build -size short -o ./build/test.hex -target=nano-33-ble ./examples/hts221/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/hub75/main.go
@@ -50,6 +51,9 @@ tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/scroll
 tinygo build -size short -o ./build/test.hex -target=xiao ./examples/ili9341/scroll
 tinygo build -size short -o ./build/test.hex -target=pyportal ./examples/ili9341/slideshow
+tinygo build -size short -o ./build/test.hex -target=arduino-zero ./examples/ili9325/itdb02
+tinygo build -size short -o ./build/test.hex -target=arduino ./examples/ili9325/itdb02
+tinygo build -size short -o ./build/test.hex -target=arduino-zero ./examples/ili9325/lorenz
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/lis3dh/main.go
 tinygo build -size short -o ./build/test.hex -target=nano-33-ble ./examples/lps22hb/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/lsm303agr/main.go
@@ -97,6 +101,8 @@ tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/vl6
 tinygo build -size short -o ./build/test.hex -target=feather-nrf52840-sense ./examples/waveshare-epd/epd1in54/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13/main.go
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd2in13x/main.go
+tinygo build -size short -o ./build/test.hex -target=waveshare-rp2040-pizero ./examples/waveshare-epd/epd2in7gray/main.go
+tinygo build -size short -o ./build/test.hex -target=waveshare-rp2040-pizero ./examples/waveshare-epd/epd2in7gray-slideshow
 tinygo build -size short -o ./build/test.hex -target=microbit ./examples/waveshare-epd/epd4in2/main.go
 tinygo build -size short -o ./build/test.hex -target=pico ./examples/waveshare-epd/epd2in66b/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/ws2812
@@ -105,6 +111,9 @@ tinygo build -size short -o ./build/test.hex -target=feather-nrf52840 ./examples
 tinygo build -size short -o ./build/test.hex -target=arduino   ./examples/ws2812
 tinygo build -size short -o ./build/test.hex -target=digispark ./examples/ws2812
 tinygo build -size short -o ./build/test.bin -target=xiao-esp32c3 ./examples/ws2812
+tinygo build -size short -o ./build/test.hex -target=teensy36 ./examples/ws2812
+tinygo build -size short -o ./build/test.hex -target=arduino      ./examples/ws2812/neopixel-shield
+tinygo build -size short -o ./build/test.hex -target=arduino-zero ./examples/ws2812/neopixel-shield
 tinygo build -size short -o ./build/test.hex -target=trinket-m0 ./examples/bme280/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/microphone/main.go
 tinygo build -size short -o ./build/test.hex -target=circuitplay-express ./examples/buzzer/main.go
@@ -173,11 +182,14 @@ tinygo build -size short -o ./build/test.hex -target=arduino-nano33 -stack-size 
 tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/websocket/dial/
 tinygo build -size short -o ./build/test.hex -target=metro-m4-airlift -stack-size 8kb ./examples/net/socket/
 tinygo build -size short -o ./build/test.hex -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic/
+tinygo build -size short -o ./build/test.hex -tags=noslog -target=matrixportal-m4 -stack-size 8kb ./examples/net/webstatic-httphi/
+tinygo build -size short -o ./build/test.hex -tags=noslog -target=arduino-nano33 -stack-size 4kb ./examples/net/webserver-httphi/
 tinygo build -size short -o ./build/test.hex -target=arduino-mkrwifi1010 -stack-size 8kb ./examples/net/tlsclient/
 tinygo build -size short -o ./build/test.hex -target=nano-rp2040 -stack-size 8kb ./examples/net/mqttclient/natiu/
 # network examples (rtl8720dn)
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webclient/
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/webserver/
+tinygo build -size short -o ./build/test.hex -tags=noslog -target=wioterminal -stack-size 8kb ./examples/net/webserver-httphi/
 tinygo build -size short -o ./build/test.hex -target=wioterminal -stack-size 8kb ./examples/net/mqttclient/paho/
 # network examples (comboat)
 tinygo build -size short -o ./build/test.hex -target=elecrow-rp2040 -stack-size 8kb ./examples/net/tlsclient/

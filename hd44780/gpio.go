@@ -81,10 +81,11 @@ func (g *GPIO) write8BitMode(data byte) {
 }
 
 func (g *GPIO) write4BitMode(data byte) {
-	g.en.High()
-	g.setPins(data >> 4)
-	g.en.Low()
+	g.writeNibble(data >> 4)
+	g.writeNibble(data)
+}
 
+func (g *GPIO) writeNibble(data byte) {
 	g.en.High()
 	g.setPins(data)
 	g.en.Low()

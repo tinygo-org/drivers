@@ -291,8 +291,12 @@ func writeGoWrapper(f *os.File, arch string, megahertz int) error {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "\n")
 	fmt.Fprintf(buf, "func (d Device) writeByte%d(c byte) {\n", megahertz)
-	fmt.Fprintf(buf, "	portSet, maskSet := d.Pin.PortMaskSet()\n")
-	fmt.Fprintf(buf, "	portClear, maskClear := d.Pin.PortMaskClear()\n")
+	if arch == "cortexm" {
+		fmt.Fprintf(buf, "	portSet, maskSet, portClear, maskClear := d.portMasks()\n")
+	} else {
+		fmt.Fprintf(buf, "	portSet, maskSet := d.Pin.PortMaskSet()\n")
+		fmt.Fprintf(buf, "	portClear, maskClear := d.Pin.PortMaskClear()\n")
+	}
 	fmt.Fprintf(buf, "\n")
 	fmt.Fprintf(buf, "	mask := interrupt.Disable()\n")
 	fmt.Fprintf(buf, "	C.ws2812_writeByte%d(C.char(c), (*C.uint32_t)(unsafe.Pointer(portSet)), (*C.uint32_t)(unsafe.Pointer(portClear)), C.uint32_t(maskSet), C.uint32_t(maskClear))\n", megahertz)

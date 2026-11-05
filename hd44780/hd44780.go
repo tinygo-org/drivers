@@ -115,17 +115,18 @@ func (d *Device) Configure(cfg Config) error {
 	time.Sleep(15 * time.Millisecond)
 
 	d.bus.SetCommandMode(true)
-	d.bus.Write([]byte{DATA_LENGTH_8BIT})
+	d.writeInit(DATA_LENGTH_8BIT)
 	time.Sleep(5 * time.Millisecond)
 
 	for i := 0; i < 2; i++ {
-		d.bus.Write([]byte{DATA_LENGTH_8BIT})
+		d.writeInit(DATA_LENGTH_8BIT)
 		time.Sleep(150 * time.Microsecond)
 
 	}
 
 	if d.datalength == DATA_LENGTH_4BIT {
-		d.bus.Write([]byte{DATA_LENGTH_4BIT})
+		d.writeInit(DATA_LENGTH_4BIT)
+		time.Sleep(150 * time.Microsecond)
 	}
 
 	// Busy flag is now accessible
@@ -203,6 +204,16 @@ func (d *Device) setRowOffsets() {
 		d.rowOffset = []uint8{0x0, 0x40, d.width, 0x40 + d.width}
 
 	}
+}
+
+// writeInit sends a reset instruction. The LCD reads one nibble per enable pulse until it is in 4 bit mode.
+// See HD44780U datasheet, figure 24, page 46.
+func (d *Device) writeInit(command byte) {
+	if g, ok := d.bus.(*GPIO); ok && d.datalength == DATA_LENGTH_4BIT {
+		g.writeNibble(command >> 4)
+		return
+	}
+	d.bus.Write([]byte{command})
 }
 
 // SendCommand sends commands to driver
