@@ -1,7 +1,5 @@
 package sdcard
 
-import "fmt"
-
 type CID struct {
 	//// byte 0
 	ManufacturerID byte
@@ -39,7 +37,7 @@ func NewCID(buf []byte) *CID {
 		ManufacturerID:      buf[0],
 		OEMApplicationID:    (uint16(buf[0]) << 8) | uint16(buf[1]),
 		ProductName:         string(buf[3:8]),
-		ProductVersion:      fmt.Sprintf("%d.%d", (buf[8]&0xF0)>>4, buf[8]&0x0F),
+		ProductVersion:      string([]byte{'0' + (buf[8]&0xF0)>>4, '.', '0' + buf[8]&0x0F}),
 		ProductSerialNumber: (uint32(buf[9]) << 24) | (uint32(buf[10]) << 16) | (uint32(buf[11]) << 8) | uint32(buf[12]),
 		ManufacturingYear:   (buf[13] & 0xF0) | (buf[14] & 0x0F),
 		ManufacturingMonth:  (buf[14] & 0xF0) >> 4,
