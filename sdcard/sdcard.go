@@ -7,7 +7,6 @@
 package sdcard
 
 import (
-	"fmt"
 	"machine"
 	"time"
 )
@@ -100,14 +99,14 @@ func (d *Device) initCard() error {
 		}
 	}
 	if !ok {
-		return fmt.Errorf("no SD card")
+		return errNoCard
 	}
 
 	// CMD8: determine card version
 	r := d.cmd(CMD8_SEND_IF_COND, 0x01AA, 0x87)
 	if (r & _R1_ILLEGAL_COMMAND) == _R1_ILLEGAL_COMMAND {
 		d.sdCardType = SD_CARD_TYPE_SD1
-		return fmt.Errorf("init_card_v1 not impl\r\n")
+		return errCardV1Unsupported
 	} else {
 		// r7 response
 		status := byte(0)
@@ -119,7 +118,7 @@ func (d *Device) initCard() error {
 			}
 		}
 		if (status & 0x0F) != 0x01 {
-			return fmt.Errorf("SD_CARD_ERROR_CMD8 %02X", status)
+			return errCMD8Voltage
 		}
 
 		for i := 3; i < 4; i++ {
@@ -130,7 +129,7 @@ func (d *Device) initCard() error {
 			}
 		}
 		if status != 0xAA {
-			return fmt.Errorf("SD_CARD_ERROR_CMD8 %02X", status)
+			return errCMD8Pattern
 		}
 		d.sdCardType = SD_CARD_TYPE_SD2
 	}
@@ -152,13 +151,13 @@ func (d *Device) initCard() error {
 	}
 
 	if !ok {
-		return fmt.Errorf("SD_CARD_ERROR_ACMD41")
+		return errACMD41
 	}
 
 	// if SD2 read OCR register to check for SDHC card
 	if d.sdCardType == SD_CARD_TYPE_SD2 {
 		if d.cmd(CMD58_READ_OCR, 0, 0xFF) != 0 {
-			return fmt.Errorf("SD_CARD_ERROR_CMD58")
+			return errCMD58
 		}
 
 		status, err := d.bus.Transfer(byte(0xFF))
@@ -175,7 +174,7 @@ func (d *Device) initCard() error {
 	}
 
 	if d.cmd(CMD16_SET_BLOCKLEN, 0x0200, 0xFF) != 0 {
-		return fmt.Errorf("SD_CARD_ERROR_CMD16")
+		return errCMD16
 	}
 
 	var buf [16]byte
@@ -283,7 +282,7 @@ func (d Device) waitStartBlock() error {
 
 	if status != 254 {
 		d.cs.High()
-		return fmt.Errorf("SD_CARD_START_BLOCK")
+		return errStartBlock
 	}
 
 	return nil
@@ -301,7 +300,7 @@ func (d Device) ReadCID(csd []byte) error {
 
 func (d Device) readRegister(cmd uint8, dst []byte) error {
 	if d.cmd(cmd, 0, 0xFF) != 0 {
-		return fmt.Errorf("SD_CARD_ERROR_READ_REG")
+		return errReadReg
 	}
 	if err := d.waitStartBlock(); err != nil {
 		return err
@@ -324,7 +323,7 @@ func (d Device) readRegister(cmd uint8, dst []byte) error {
 // ReadData reads 512 bytes from sdcard into dst.
 func (d Device) ReadData(block uint32, dst []byte) error {
 	if len(dst) < 512 {
-		return fmt.Errorf("len(dst) must be greater than or equal to 512")
+		return errBufferTooSmall
 	}
 
 	// use address if not SDHC card
@@ -332,10 +331,10 @@ func (d Device) ReadData(block uint32, dst []byte) error {
 		block <<= 9
 	}
 	if d.cmd(CMD17_READ_SINGLE_BLOCK, block, 0xFF) != 0 {
-		return fmt.Errorf("CMD17 error")
+		return errCMD17
 	}
 	if err := d.waitStartBlock(); err != nil {
-		return fmt.Errorf("waitStartBlock()")
+		return err
 	}
 
 	err := d.bus.Tx(dummy[:512], dst)
@@ -360,7 +359,7 @@ func (d Device) WriteMultiStart(block uint32) error {
 		block <<= 9
 	}
 	if d.cmd(CMD25_WRITE_MULTIPLE_BLOCK, block, 0xFF) != 0 {
-		return fmt.Errorf("CMD25 error")
+		return errCMD25
 	}
 
 	// skip 1 byte
@@ -392,13 +391,13 @@ func (d Device) WriteMulti(buf []byte) error {
 		return err
 	}
 	if (r & 0x1F) != 0x05 {
-		return fmt.Errorf("SD_CARD_ERROR_WRITE")
+		return errWrite
 	}
 
 	// wait no busy
 	err = d.waitNotBusy(600 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("SD_CARD_ERROR_WRITE_TIMEOUT")
+		return errWriteTimeout
 	}
 
 	return nil
@@ -425,7 +424,7 @@ func (d Device) WriteMultiStop() error {
 // WriteData writes 512 bytes from dst to sdcard.
 func (d Device) WriteData(block uint32, src []byte) error {
 	if len(src) < 512 {
-		return fmt.Errorf("len(src) must be greater than or equal to 512")
+		return errBufferTooSmall
 	}
 
 	// use address if not SDHC card
@@ -433,7 +432,7 @@ func (d Device) WriteData(block uint32, src []byte) error {
 		block <<= 9
 	}
 	if d.cmd(CMD24_WRITE_BLOCK, block, 0xFF) != 0 {
-		return fmt.Errorf("CMD24 error")
+		return errCMD24
 	}
 
 	// wait 1 byte?
@@ -455,13 +454,13 @@ func (d Device) WriteData(block uint32, src []byte) error {
 		return err
 	}
 	if (r & 0x1F) != 0x05 {
-		return fmt.Errorf("SD_CARD_ERROR_WRITE")
+		return errWrite
 	}
 
 	// wait no busy
 	err = d.waitNotBusy(600 * time.Millisecond)
 	if err != nil {
-		return fmt.Errorf("SD_CARD_ERROR_WRITE_TIMEOUT")
+		return errWriteTimeout
 	}
 
 	// TODO: probably not necessary

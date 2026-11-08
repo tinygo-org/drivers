@@ -1,9 +1,5 @@
 package sdcard
 
-import (
-	"fmt"
-)
-
 type CSD struct {
 	CSD_STRUCTURE      byte   //  2 R  [127:126]   0x01 : CSD Structure
 	TAAC               byte   //  8 R  [119:112]   0x0E : Data Read Access-Time-1
@@ -61,30 +57,30 @@ func NewCSD(buf []byte) *CSD {
 }
 
 func (c *CSD) Dump() {
-	fmt.Printf("CSD_STRUCTURE:      %X\r\n", c.CSD_STRUCTURE)
-	fmt.Printf("TAAC:               %X\r\n", c.TAAC)
-	fmt.Printf("NSAC:               %X\r\n", c.NSAC)
-	fmt.Printf("TRAN_SPEED:         %X\r\n", c.TRAN_SPEED)
-	fmt.Printf("CCC:                %X\r\n", c.CCC)
-	fmt.Printf("READ_BL_LEN:        %X\r\n", c.READ_BL_LEN)
-	fmt.Printf("READ_BL_PARTIAL:    %X\r\n", c.READ_BL_PARTIAL)
-	fmt.Printf("WRITE_BLK_MISALIGN: %X\r\n", c.WRITE_BLK_MISALIGN)
-	fmt.Printf("READ_BLK_MISALIGN:  %X\r\n", c.READ_BLK_MISALIGN)
-	fmt.Printf("DSR_IMP:            %X\r\n", c.DSR_IMP)
-	fmt.Printf("C_SIZE:             %X\r\n", c.C_SIZE)
-	fmt.Printf("ERASE_BLK_EN:       %X\r\n", c.ERASE_BLK_EN)
-	fmt.Printf("SECTOR_SIZE:        %X\r\n", c.SECTOR_SIZE)
-	fmt.Printf("WP_GRP_SIZE:        %X\r\n", c.WP_GRP_SIZE)
-	fmt.Printf("WP_GRP_ENABLE:      %X\r\n", c.WP_GRP_ENABLE)
-	fmt.Printf("R2W_FACTOR:         %X\r\n", c.R2W_FACTOR)
-	fmt.Printf("WRITE_BL_LEN:       %X\r\n", c.WRITE_BL_LEN)
-	fmt.Printf("WRITE_BL_PARTIAL:   %X\r\n", c.WRITE_BL_PARTIAL)
-	fmt.Printf("FILE_FORMAT_GRP:    %X\r\n", c.FILE_FORMAT_GRP)
-	fmt.Printf("COPY:               %X\r\n", c.COPY)
-	fmt.Printf("PERM_WRITE_PROTECT: %X\r\n", c.PERM_WRITE_PROTECT)
-	fmt.Printf("TMP_WRITE_PROTECT:  %X\r\n", c.TMP_WRITE_PROTECT)
-	fmt.Printf("FILE_FORMAT:        %X\r\n", c.FILE_FORMAT)
-	fmt.Printf("CRC:                %X\r\n", c.CRC)
+	dumpField("CSD_STRUCTURE:      ", uint32(c.CSD_STRUCTURE))
+	dumpField("TAAC:               ", uint32(c.TAAC))
+	dumpField("NSAC:               ", uint32(c.NSAC))
+	dumpField("TRAN_SPEED:         ", uint32(c.TRAN_SPEED))
+	dumpField("CCC:                ", uint32(c.CCC))
+	dumpField("READ_BL_LEN:        ", uint32(c.READ_BL_LEN))
+	dumpField("READ_BL_PARTIAL:    ", uint32(c.READ_BL_PARTIAL))
+	dumpField("WRITE_BLK_MISALIGN: ", uint32(c.WRITE_BLK_MISALIGN))
+	dumpField("READ_BLK_MISALIGN:  ", uint32(c.READ_BLK_MISALIGN))
+	dumpField("DSR_IMP:            ", uint32(c.DSR_IMP))
+	dumpField("C_SIZE:             ", uint32(c.C_SIZE))
+	dumpField("ERASE_BLK_EN:       ", uint32(c.ERASE_BLK_EN))
+	dumpField("SECTOR_SIZE:        ", uint32(c.SECTOR_SIZE))
+	dumpField("WP_GRP_SIZE:        ", uint32(c.WP_GRP_SIZE))
+	dumpField("WP_GRP_ENABLE:      ", uint32(c.WP_GRP_ENABLE))
+	dumpField("R2W_FACTOR:         ", uint32(c.R2W_FACTOR))
+	dumpField("WRITE_BL_LEN:       ", uint32(c.WRITE_BL_LEN))
+	dumpField("WRITE_BL_PARTIAL:   ", uint32(c.WRITE_BL_PARTIAL))
+	dumpField("FILE_FORMAT_GRP:    ", uint32(c.FILE_FORMAT_GRP))
+	dumpField("COPY:               ", uint32(c.COPY))
+	dumpField("PERM_WRITE_PROTECT: ", uint32(c.PERM_WRITE_PROTECT))
+	dumpField("TMP_WRITE_PROTECT:  ", uint32(c.TMP_WRITE_PROTECT))
+	dumpField("FILE_FORMAT:        ", uint32(c.FILE_FORMAT))
+	dumpField("CRC:                ", uint32(c.CRC))
 }
 
 func (c *CSD) Sectors() (int64, error) {
@@ -94,13 +90,28 @@ func (c *CSD) Sectors() (int64, error) {
 		sectors = (int64(c.C_SIZE) + 1) * 1024
 	} else if c.CSD_STRUCTURE == 0x00 {
 		// CSD version 1.0 (old, <=2GB)
-		return 0, fmt.Errorf("CSD format version 1.0 is not supported")
+		return 0, errCSDv1Unsupported
 	} else {
-		return 0, fmt.Errorf("unknown CSD format")
+		return 0, errUnknownCSD
 	}
 	return sectors, nil
 }
 
 func (c *CSD) Size() uint64 {
 	return uint64(c.C_SIZE) * 512 * 1024
+}
+
+func dumpField(name string, v uint32) {
+	const digits = "0123456789ABCDEF"
+	var buf [8]byte
+	i := len(buf)
+	for {
+		i--
+		buf[i] = digits[v&0xF]
+		v >>= 4
+		if v == 0 {
+			break
+		}
+	}
+	print(name, string(buf[i:]), "\r\n")
 }
