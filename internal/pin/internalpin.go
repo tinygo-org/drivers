@@ -37,6 +37,17 @@ func (setPin OutputFunc) Low() {
 // This is an alternative to [Input] which is an interface type.
 type InputFunc func() (level bool)
 
+// InterruptFunc is hardware abstraction for a pin which calls the callback
+// on every level change (rising and falling edge).
+//
+//	// Code conversion demo: from machine.Pin to pin.InterruptFunc
+//	input := machine.D2
+//	input.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+//	var pin pin.InterruptFunc = func(callback func()) error {
+//		return input.SetInterrupt(machine.PinToggle, func(machine.Pin) { callback() })
+//	}
+type InterruptFunc func(callback func()) error
+
 // // Below is an example on how to define a input/output pin HAL for a
 // // pin that must switch between input and output mode:
 //
