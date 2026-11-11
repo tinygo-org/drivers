@@ -4,7 +4,6 @@ package ws2812
 
 import (
 	"device"
-	"machine"
 	"runtime/interrupt"
 	"unsafe"
 )
@@ -14,7 +13,7 @@ func (d Device) WriteByte(c byte) error {
 	portClear, maskClear := d.Pin.PortMaskClear()
 	mask := interrupt.Disable()
 
-	switch machine.CPUFrequency() {
+	switch cpuFrequency() {
 	case 160e6: // 160MHz
 		// See:
 		// https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
