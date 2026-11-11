@@ -28,8 +28,9 @@ type Device struct {
 	rst  machine.Pin
 	busy machine.Pin
 
-	buffer   []uint8
-	rotation Rotation
+	buffer     []uint8
+	rotation   Rotation
+	yDecrement bool
 }
 
 type Rotation uint8
@@ -91,6 +92,7 @@ func New(bus *machine.SPI, csPin, dcPin, rstPin, busyPin machine.Pin) Device {
 }
 
 func (d *Device) LDirInit(cfg Config) {
+	d.yDecrement = false
 	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -142,7 +144,7 @@ func (d *Device) LDirInit(cfg Config) {
 	d.SendData(0x00)
 
 	d.SendCommand(0x4F)
-	d.SendData(0xC7)
+	d.SendData(0x00)
 	d.SendData(0x00)
 
 	d.WaitUntilIdle()
@@ -150,6 +152,7 @@ func (d *Device) LDirInit(cfg Config) {
 }
 
 func (d *Device) HDirInit(cfg Config) {
+	d.yDecrement = true
 	d.cs.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.rst.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	d.dc.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -287,6 +290,7 @@ func (d *Device) DisplayImage(image []uint8) {
 	}
 	h = int(Height)
 
+	d.setCursor()
 	d.SendCommand(0x24)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
@@ -294,6 +298,7 @@ func (d *Device) DisplayImage(image []uint8) {
 		}
 	}
 
+	d.setCursor()
 	d.SendCommand(0x26)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
@@ -313,6 +318,7 @@ func (d *Device) Display() error {
 	}
 	h = int(Height)
 
+	d.setCursor()
 	d.SendCommand(0x24)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
@@ -321,6 +327,7 @@ func (d *Device) Display() error {
 		}
 	}
 
+	d.setCursor()
 	d.SendCommand(0x26)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
@@ -332,6 +339,19 @@ func (d *Device) Display() error {
 	d.displayFrame()
 
 	return nil
+}
+
+// setCursor moves the RAM address counter to the first byte of the frame.
+func (d *Device) setCursor() {
+	d.SendCommand(0x4E)
+	d.SendData(0x00)
+	d.SendCommand(0x4F)
+	if d.yDecrement {
+		d.SendData(0xC7)
+	} else {
+		d.SendData(0x00)
+	}
+	d.SendData(0x00)
 }
 
 func (d *Device) displayFrame() {
@@ -350,6 +370,7 @@ func (d *Device) Clear() {
 	}
 	h = int(Height)
 
+	d.setCursor()
 	d.SendCommand(0x24)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
@@ -357,6 +378,7 @@ func (d *Device) Clear() {
 		}
 	}
 
+	d.setCursor()
 	d.SendCommand(0x26)
 	for j := 0; j < h; j++ {
 		for i := 0; i < w; i++ {
