@@ -164,6 +164,7 @@ tinygo build -size short -o ./build/test.hex -target=microbit ./examples/ndir/ma
 tinygo build -size short -o ./build/test.hex -target=arduino-nano33 ./examples/ndir/main_ndir.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mpu9150/main.go
 tinygo build -size short -o ./build/test.hex -target=macropad-rp2040 ./examples/sh1106/macropad_spi
+tinygo build -size short -o ./build/test.bin -target=esp32s3-generic ./examples/st7567/
 tinygo build -size short -o ./build/test.hex -target=macropad-rp2040 ./examples/encoders/quadrature-interrupt
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/mcp9808/main.go
 tinygo build -size short -o ./build/test.uf2 -target=pico ./examples/tmc2209/main.go
