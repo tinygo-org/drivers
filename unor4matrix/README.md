@@ -18,17 +18,9 @@ for {
 }
 ```
 
-`NewOnboard` is available with `arduino_uno_r4_wifi`. `New` accepts eleven
-`CharlieplexPin` values in this order:
-
-```text
-P0_03 P0_04 P0_11 P0_12 P0_13 P0_15 P2_04 P2_05 P2_06 P2_12 P2_13
-```
-
-Set must drive the requested level. Float must initialize a high-impedance input
-without pull-ups. Configure returns `ErrMissingPinFunc` if either function is
-missing, otherwise it floats every line. Configure may be repeated and keeps
-the image. Give the device exclusive access to its pins.
+`NewOnboard` is available with `arduino_uno_r4_wifi` and uses the fixed wiring
+of the built-in matrix. Configure floats every line. It may be repeated and
+keeps the image. Give the device exclusive access to its pins.
 
 ## Refresh model
 

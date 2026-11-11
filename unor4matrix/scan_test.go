@@ -14,10 +14,10 @@ type event struct {
 }
 
 func traceDevice() (Device, *[]event) {
-	var pins [numPins]CharlieplexPin
+	var pins [numPins]charlieplexPin
 	events := new([]event)
 	for i := range pins {
-		pins[i] = CharlieplexPin{
+		pins[i] = charlieplexPin{
 			Set: func(level bool) {
 				action := "low"
 				if level {
@@ -28,7 +28,7 @@ func traceDevice() (Device, *[]event) {
 			Float: func() { *events = append(*events, event{i, "float"}) },
 		}
 	}
-	return New(pins), events
+	return Device{pins: pins}, events
 }
 
 func TestDisplayBeforeConfigure(t *testing.T) {
@@ -98,17 +98,17 @@ func TestDarkFrameKeepsAllSlotDelays(t *testing.T) {
 
 func TestIncompletePinsDoNotTouchHardware(t *testing.T) {
 	for _, missingSet := range []bool{true, false} {
-		var pins [numPins]CharlieplexPin
+		var pins [numPins]charlieplexPin
 		touched := false
 		for i := range pins {
-			pins[i] = CharlieplexPin{Set: func(bool) { touched = true }, Float: func() { touched = true }}
+			pins[i] = charlieplexPin{Set: func(bool) { touched = true }, Float: func() { touched = true }}
 		}
 		if missingSet {
 			pins[10].Set = nil
 		} else {
 			pins[10].Float = nil
 		}
-		d := New(pins)
+		d := Device{pins: pins}
 		if err := d.Configure(); !errors.Is(err, ErrMissingPinFunc) {
 			t.Fatalf("configure = %v", err)
 		}

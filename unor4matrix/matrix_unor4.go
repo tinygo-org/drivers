@@ -14,9 +14,9 @@ func NewOnboard() Device {
 		machine.P2_04, machine.P2_05, machine.P2_06,
 		machine.P2_12, machine.P2_13,
 	}
-	var pins [numPins]CharlieplexPin
+	var pins [numPins]charlieplexPin
 	for i, p := range lines {
-		pins[i] = CharlieplexPin{
+		pins[i] = charlieplexPin{
 			Set: func(level bool) {
 				// Preload PODR before enabling PDR to avoid driving the previous level.
 				// RA4M1 R01UH0887EJ0110, sections 19.2.1, 19.2.3, 19.2.5, pp. 357, 359, 361-362.
@@ -26,5 +26,5 @@ func NewOnboard() Device {
 			Float: func() { p.Configure(machine.PinConfig{Mode: machine.PinInput}) },
 		}
 	}
-	return New(pins)
+	return Device{pins: pins}
 }

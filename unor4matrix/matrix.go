@@ -10,7 +10,7 @@ import (
 
 // Device stores one drawing buffer. Use it from one application goroutine.
 type Device struct {
-	pins       [numPins]CharlieplexPin
+	pins       [numPins]charlieplexPin
 	frame      framebuffer
 	rotation   uint8
 	configured bool
