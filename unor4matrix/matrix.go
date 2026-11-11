@@ -49,6 +49,14 @@ func (d *Device) SetPixel(x, y int16, c color.RGBA) {
 	d.frame.set(int(y)*Width+int(x), c.R != 0 || c.G != 0 || c.B != 0)
 }
 
+// GetPixel reports whether a buffered pixel is on. Out-of-bounds reads return false.
+func (d *Device) GetPixel(x, y int16) bool {
+	if x < 0 || x >= Width || y < 0 || y >= Height {
+		return false
+	}
+	return d.frame.get(int(y)*Width + int(x))
+}
+
 // Size returns the fixed 12 by 8 drawing area.
 func (d *Device) Size() (width, height int16) { return Width, Height }
 

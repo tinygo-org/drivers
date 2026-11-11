@@ -9,6 +9,36 @@ import (
 
 var _ drivers.Displayer = (*Device)(nil)
 
+func TestGetPixel(t *testing.T) {
+	var d Device
+	d.LoadFrame([3]uint32{0x80000000, 0, 0x00000001})
+	for y := int16(0); y < Height; y++ {
+		for x := int16(0); x < Width; x++ {
+			want := (x == 0 && y == 0) || (x == Width-1 && y == Height-1)
+			if got := d.GetPixel(x, y); got != want {
+				t.Fatalf("GetPixel(%d, %d) = %v, want %v", x, y, got, want)
+			}
+		}
+	}
+	d.SetPixel(5, 3, color.RGBA{R: 255})
+	if !d.GetPixel(5, 3) {
+		t.Fatal("pixel should be on after SetPixel")
+	}
+	d.SetPixel(5, 3, color.RGBA{})
+	if d.GetPixel(5, 3) {
+		t.Fatal("pixel should be off after SetPixel with black")
+	}
+	for _, xy := range [][2]int16{{-1, 0}, {0, -1}, {Width, 0}, {0, Height}} {
+		if d.GetPixel(xy[0], xy[1]) {
+			t.Fatalf("GetPixel(%d, %d) should be false", xy[0], xy[1])
+		}
+	}
+	d.ClearDisplay()
+	if d.GetPixel(0, 0) || d.GetPixel(Width-1, Height-1) {
+		t.Fatal("pixels should be off after ClearDisplay")
+	}
+}
+
 func TestClearDisplay(t *testing.T) {
 	var d Device
 	d.LoadFrame([3]uint32{0xffffffff, 0xffffffff, 0xffffffff})
