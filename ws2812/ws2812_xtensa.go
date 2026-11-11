@@ -6,6 +6,7 @@ import (
 	"device"
 	"machine"
 	"runtime/interrupt"
+	"runtime/volatile"
 	"unsafe"
 )
 
@@ -224,6 +225,33 @@ func (d Device) WriteByte(c byte) error {
 		})
 		interrupt.Restore(mask)
 		return nil
+	case 240e6: // 240MHz
+		// Bit times use the CCOUNT cycle counter, so slow GPIO stores and
+		// flash cache misses do not shorten them.
+		// T0H: 96  cycles or  400ns
+		// T1H: 192 cycles or  800ns
+		//   +: 300 cycles or 1250ns
+		set := (*volatile.Register32)(unsafe.Pointer(portSet))
+		clear := (*volatile.Register32)(unsafe.Pointer(portClear))
+		start := ccount()
+		for i := 0; i < 8; i++ {
+			high := uint32(96)
+			if c&0x80 != 0 {
+				high = 192
+			}
+			c <<= 1
+			for ccount()-start < 300 {
+			}
+			start = ccount()
+			set.Set(maskSet)
+			for ccount()-start < high {
+			}
+			clear.Set(maskClear)
+		}
+		for ccount()-start < 300 {
+		}
+		interrupt.Restore(mask)
+		return nil
 	case 80e6: // 80MHz
 		// See docs for 160MHz.
 		// T0H: 21 cycles or  262.5ns
@@ -345,4 +373,8 @@ func (d Device) WriteByte(c byte) error {
 		interrupt.Restore(mask)
 		return errUnknownClockSpeed
 	}
+}
+
+func ccount() uint32 {
+	return uint32(device.AsmFull("rsr.ccount {}", nil))
 }
