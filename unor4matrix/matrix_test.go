@@ -9,6 +9,137 @@ import (
 
 var _ drivers.Displayer = (*Device)(nil)
 
+func TestRotation(t *testing.T) {
+	tests := []struct {
+		name          string
+		rotation      uint8
+		width, height int16
+		wantX, wantY  int16
+	}{
+		{"normal", RotationNormal, 12, 8, 1, 2},
+		{"90", Rotation90, 8, 12, 9, 1},
+		{"180", Rotation180, 12, 8, 10, 5},
+		{"270", Rotation270, 8, 12, 2, 6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var d Device
+			d.SetRotation(tt.rotation)
+			if w, h := d.Size(); w != tt.width || h != tt.height {
+				t.Fatalf("Size() = %dx%d, want %dx%d", w, h, tt.width, tt.height)
+			}
+			d.SetPixel(1, 2, color.RGBA{R: 255})
+			index := int(tt.wantY)*Width + int(tt.wantX)
+			for i := 0; i < Width*Height; i++ {
+				if d.frame.get(i) != (i == index) {
+					t.Fatalf("pixel %d = %v, want only %d on", i, d.frame.get(i), index)
+				}
+			}
+			if !d.GetPixel(1, 2) {
+				t.Fatal("GetPixel(1, 2) = false, want true")
+			}
+			d.SetPixel(1, 2, color.RGBA{})
+			if d.frame.pixels != ([framebufferSize]byte{}) {
+				t.Fatal("pixel was not cleared")
+			}
+		})
+	}
+}
+
+func TestRotationLightsEveryLED(t *testing.T) {
+	var d Device
+	for rotation := uint8(0); rotation < 4; rotation++ {
+		d.SetRotation(rotation)
+		d.ClearDisplay()
+		w, h := d.Size()
+		for y := int16(0); y < h; y++ {
+			for x := int16(0); x < w; x++ {
+				d.SetPixel(x, y, color.RGBA{R: 255})
+			}
+		}
+		for i := 0; i < Width*Height; i++ {
+			if !d.frame.get(i) {
+				t.Fatalf("rotation %d left buffer index %d off", rotation, i)
+			}
+		}
+	}
+}
+
+func TestRotatedPixelBounds(t *testing.T) {
+	var d Device
+	for rotation := uint8(0); rotation < 4; rotation++ {
+		d.SetRotation(rotation)
+		w, h := d.Size()
+		d.LoadFrame([3]uint32{0xffffffff, 0xffffffff, 0xffffffff})
+		before := d.frame
+		for _, xy := range [][2]int16{{-1, 0}, {0, -1}, {w, 0}, {0, h}} {
+			if d.GetPixel(xy[0], xy[1]) {
+				t.Fatalf("rotation %d GetPixel(%d, %d) = true, want false", rotation, xy[0], xy[1])
+			}
+			d.SetPixel(xy[0], xy[1], color.RGBA{})
+		}
+		if d.frame != before {
+			t.Fatalf("rotation %d out-of-bounds write changed buffer", rotation)
+		}
+	}
+}
+
+func TestSetRotationWraps(t *testing.T) {
+	for _, rotation := range []uint8{0, 1, 2, 3, 4, 7, 255} {
+		var got, want Device
+		got.SetRotation(rotation)
+		want.SetRotation(rotation % 4)
+		gw, gh := got.Size()
+		ww, wh := want.Size()
+		if gw != ww || gh != wh {
+			t.Fatalf("SetRotation(%d) Size() = %dx%d, want %dx%d", rotation, gw, gh, ww, wh)
+		}
+		got.SetPixel(1, 2, color.RGBA{R: 255})
+		want.SetPixel(1, 2, color.RGBA{R: 255})
+		if got.frame != want.frame {
+			t.Fatalf("SetRotation(%d) placed pixel differently than rotation %d", rotation, rotation%4)
+		}
+	}
+}
+
+func TestSetRotationRetainsFrame(t *testing.T) {
+	var d Device
+	d.LoadFrame([3]uint32{0x80000000, 0, 1})
+	before := d.frame
+	for rotation := uint8(0); rotation < 4; rotation++ {
+		d.SetRotation(rotation)
+		if d.frame != before {
+			t.Fatalf("rotation %d changed buffer", rotation)
+		}
+	}
+}
+
+func TestConfigureRetainsRotationAndFrame(t *testing.T) {
+	d, _ := traceDevice()
+	d.SetRotation(Rotation90)
+	d.SetPixel(1, 2, color.RGBA{R: 255})
+	before := d.frame
+	if err := d.Configure(); err != nil {
+		t.Fatal(err)
+	}
+	if d.rotation != Rotation90 || d.frame != before {
+		t.Fatal("Configure changed rotation or buffer")
+	}
+}
+
+func TestLoadFrameIgnoresRotation(t *testing.T) {
+	var d Device
+	want := [framebufferSize]byte{0: 0x01, 11: 0x80}
+	for rotation := uint8(0); rotation < 4; rotation++ {
+		d.SetRotation(rotation)
+		d.ClearDisplay()
+		d.LoadFrame([3]uint32{0x80000000, 0, 1})
+		if d.frame.pixels != want {
+			t.Fatalf("rotation %d buffer = %v, want %v", rotation, d.frame.pixels, want)
+		}
+	}
+}
+
 func TestGetPixel(t *testing.T) {
 	var d Device
 	d.LoadFrame([3]uint32{0x80000000, 0, 0x00000001})

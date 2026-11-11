@@ -1,9 +1,9 @@
 package unor4matrix
 
 const (
-	// Width is the number of columns in the matrix.
+	// Width is the number of physical LED columns. Size reports the rotated area.
 	Width = 12
-	// Height is the number of rows in the matrix.
+	// Height is the number of physical LED rows. Size reports the rotated area.
 	Height = 8
 
 	framebufferSize = (Width*Height + 7) / 8

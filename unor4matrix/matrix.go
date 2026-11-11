@@ -12,8 +12,17 @@ import (
 type Device struct {
 	pins       [numPins]CharlieplexPin
 	frame      framebuffer
+	rotation   uint8
 	configured bool
 }
+
+// Rotation values are clockwise quarter turns.
+const (
+	RotationNormal = 0
+	Rotation90     = 1
+	Rotation180    = 2
+	Rotation270    = 3
+)
 
 // refreshPeriod matches the Arduino matrix driver's 10 kHz scan timer.
 // https://github.com/arduino/ArduinoCore-renesas/blob/424e86eff92d37f72123c2b641dd8bbf06a38b47/libraries/Arduino_LED_Matrix/src/Arduino_LED_Matrix.h#L172
@@ -43,22 +52,48 @@ func (d *Device) Configure() error {
 // SetPixel edits one logical pixel. Nonzero RGB is on. Alpha is ignored.
 // Out-of-bounds writes are ignored. Call Display to show changes.
 func (d *Device) SetPixel(x, y int16, c color.RGBA) {
-	if x < 0 || x >= Width || y < 0 || y >= Height {
+	index, ok := d.pixelIndex(x, y)
+	if !ok {
 		return
 	}
-	d.frame.set(int(y)*Width+int(x), c.R != 0 || c.G != 0 || c.B != 0)
+	d.frame.set(index, c.R != 0 || c.G != 0 || c.B != 0)
 }
 
 // GetPixel reports whether a buffered pixel is on. Out-of-bounds reads return false.
 func (d *Device) GetPixel(x, y int16) bool {
-	if x < 0 || x >= Width || y < 0 || y >= Height {
+	index, ok := d.pixelIndex(x, y)
+	if !ok {
 		return false
 	}
-	return d.frame.get(int(y)*Width + int(x))
+	return d.frame.get(index)
 }
 
-// Size returns the fixed 12 by 8 drawing area.
-func (d *Device) Size() (width, height int16) { return Width, Height }
+// SetRotation sets clockwise quarter turns modulo four and retains the buffer.
+func (d *Device) SetRotation(rotation uint8) { d.rotation = rotation % 4 }
+
+// Size returns the drawing area for the current rotation.
+func (d *Device) Size() (width, height int16) {
+	if d.rotation == Rotation90 || d.rotation == Rotation270 {
+		return Height, Width
+	}
+	return Width, Height
+}
+
+func (d *Device) pixelIndex(x, y int16) (int, bool) {
+	w, h := d.Size()
+	if x < 0 || x >= w || y < 0 || y >= h {
+		return 0, false
+	}
+	switch d.rotation {
+	case Rotation90:
+		x, y = Width-1-y, x
+	case Rotation180:
+		x, y = Width-1-x, Height-1-y
+	case Rotation270:
+		x, y = y, Height-1-x
+	}
+	return int(y)*Width + int(x), true
+}
 
 // Display scans one frame and blanks the lines. Call repeatedly to refresh.
 // On RA4M1, use tasks. With -scheduler=none, refresh may fall to about 10 Hz.
@@ -87,7 +122,7 @@ func (d *Device) Display() error {
 func (d *Device) ClearDisplay() { d.frame.clear() }
 
 // LoadFrame edits the drawing buffer using Arduino row-major, MSB-first words.
-// Call Display to show the image.
+// Rotation does not affect the word layout. Call Display to show the image.
 func (d *Device) LoadFrame(words [3]uint32) {
 	d.frame.clear()
 	for index := 0; index < Width*Height; index++ {

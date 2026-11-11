@@ -37,6 +37,13 @@ LoadFrame replaces it with Arduino-format words. Words are row-major, MSB first:
 word 0 bit 31 is (0,0), word 2 bit 0 is (11,7). Any nonzero RGB is on, alpha is
 ignored, and writes outside the drawing area are ignored.
 
+SetRotation accepts RotationNormal, Rotation90, Rotation180, and Rotation270
+for clockwise quarter turns. Values wrap modulo four. Size returns 8x12 at
+90 and 270 degrees and 12x8 otherwise. SetPixel and GetPixel use rotated
+coordinates. GetPixel reports whether a buffered pixel is on and returns false
+outside the drawing area. Changing rotation retains the buffer. LoadFrame
+always uses the fixed 12x8 Arduino layout regardless of rotation.
+
 Display scans all 96 slots directly from the image and floats each active pair
 after its slot. Call it repeatedly to keep an image visible. Every slot sleeps
 for 100 us, including dark pixels. A frame takes at least 9.6 ms plus GPIO and
@@ -57,8 +64,8 @@ the lines floating before Life computes the next generation.
 Use the default `tasks` scheduler. With TinyGo 0.44 and `-scheduler=none`, short
 sleeps can wait for a 1 ms SysTick, reducing refresh to about 10 Hz. Display
 blocks and foreground work pauses refresh. Call the driver from one application
-goroutine, never from an interrupt handler. Rotation and brightness control are
-unsupported. UNO R4 Minima has no built-in matrix. UNO Q uses `unoqmatrix`.
+goroutine, never from an interrupt handler. Brightness control is unsupported.
+UNO R4 Minima has no built-in matrix. UNO Q uses `unoqmatrix`.
 
 ## Sources
 
