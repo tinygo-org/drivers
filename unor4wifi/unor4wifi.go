@@ -53,7 +53,6 @@ const (
 	wlConnectFailed  = 4
 	wlConnectionLost = 5
 	wlDisconnected   = 6
-	wlAPListening    = 7
 
 	// ip_type values, see commands.h.
 	ipAddr      = 0
@@ -98,7 +97,6 @@ type device struct {
 	dns          netip.Addr
 
 	sockets [maxSockets]*socket
-	rxbuf   [maxChunk]byte
 }
 
 // New returns a new driver instance. The UART is configured in NetConnect.
@@ -129,6 +127,17 @@ func escapeArg(s string) string {
 	return sb.String()
 }
 
+// checkArg rejects control characters. The bridge parser ends a command at
+// LF before escape handling, see parser.cpp, ATParser::parse.
+func checkArg(s string) error {
+	for i := 0; i < len(s); i++ {
+		if s[i] < ' ' || s[i] == 0x7f {
+			return errInvalidArg
+		}
+	}
+	return nil
+}
+
 func (d *device) setupUART() {
 	baud := d.cfg.BaudRate
 	if baud == 0 {
@@ -145,6 +154,7 @@ func (d *device) setupUART() {
 // reset clears all firmware sockets and WiFi state. Retries until the
 // firmware answers.
 func (d *device) reset() error {
+	d.sockets = [maxSockets]*socket{}
 	var err error
 	for i := 0; i < 10; i++ {
 		_, err = d.modem.execTimeout("AT+SOFTRESETWIFI", 500*time.Millisecond)
@@ -242,12 +252,36 @@ func (d *device) connectAP() error {
 	// Channel 1 is the WiFiS3 default.
 	cmd := "AT+BEGINSOFTAP=" + escapeArg(p.Ssid) + "," + escapeArg(p.Passphrase) + ",1"
 	n, err := d.modem.execInt(cmd)
-	if err != nil || n != wlAPListening {
+	if err != nil || n != 1 {
 		return netlink.ErrConnectFailed
 	}
 	d.ip = d.readAddr("AT+IPSOFTAP")
 	d.gateway = d.ip
 	d.readMAC("AT+MACSOFTAP?")
+	return nil
+}
+
+func checkParams(params *netlink.ConnectParams) error {
+	if params.ConnectMode != netlink.ConnectModeSTA &&
+		params.ConnectMode != netlink.ConnectModeAP {
+		return netlink.ErrConnectModeNoGood
+	}
+	if len(params.Ssid) == 0 {
+		return netlink.ErrMissingSSID
+	}
+	if err := checkArg(params.Ssid); err != nil {
+		return err
+	}
+	if err := checkArg(params.Passphrase); err != nil {
+		return err
+	}
+	if err := checkArg(params.Hostname); err != nil {
+		return err
+	}
+	if params.ConnectMode == netlink.ConnectModeSTA &&
+		params.AuthType != netlink.AuthTypeOpen && len(params.Passphrase) < 8 {
+		return netlink.ErrShortPassphrase
+	}
 	return nil
 }
 
@@ -258,12 +292,8 @@ func (d *device) NetConnect(params *netlink.ConnectParams) error {
 	if d.netConnected {
 		return netlink.ErrConnected
 	}
-	if len(params.Ssid) == 0 {
-		return netlink.ErrMissingSSID
-	}
-	if params.ConnectMode == netlink.ConnectModeSTA &&
-		params.AuthType != netlink.AuthTypeOpen && len(params.Passphrase) < 8 {
-		return netlink.ErrShortPassphrase
+	if err := checkParams(params); err != nil {
+		return err
 	}
 	d.params = params
 
@@ -294,8 +324,6 @@ func (d *device) NetConnect(params *netlink.ConnectParams) error {
 			fmt.Printf("Starting Wifi AP as SSID '%s'...", params.Ssid)
 		}
 		err = d.connectAP()
-	default:
-		return netlink.ErrConnectModeNoGood
 	}
 	if err != nil {
 		if debugging(debugBasic) {
@@ -365,11 +393,14 @@ func (d *device) GetHostByName(name string) (netip.Addr, error) {
 	if ip, err := netip.ParseAddr(name); err == nil {
 		return ip, nil
 	}
+	if err := checkArg(name); err != nil {
+		return netip.Addr{}, err
+	}
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	res, err := d.modem.exec("AT+HOSTBYNAME=" + name)
+	res, err := d.modem.exec("AT+HOSTBYNAME=" + escapeArg(name))
 	if err != nil {
 		return netip.Addr{}, netdev.ErrHostUnknown
 	}
@@ -479,6 +510,13 @@ func (d *device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 		return d.udpBegin(s)
 	}
 
+	if host == "" {
+		host = ip.Addr().String()
+	}
+	if err := checkArg(host); err != nil {
+		return err
+	}
+
 	if s.modemSock < 0 {
 		n, err := d.modem.execInt("AT+BEGINCLIENT")
 		if err != nil {
@@ -487,12 +525,9 @@ func (d *device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 		s.modemSock = n
 	}
 
-	// The firmware resolves names and dotted addresses through the same
-	// path, so always use +CLIENTCONNECT like the Arduino WiFiS3 library.
-	if host == "" {
-		host = ip.Addr().String()
-	}
-	cmd := "AT+CLIENTCONNECT=" + strconv.Itoa(s.modemSock) + "," + host + "," +
+	// WiFiS3 uses +CLIENTCONNECT only with a timeout, else +CLIENTCONNECTNAME.
+	// This driver always passes a timeout, which the firmware accepts for names too.
+	cmd := "AT+CLIENTCONNECT=" + strconv.Itoa(s.modemSock) + "," + escapeArg(host) + "," +
 		strconv.Itoa(int(ip.Port())) + "," + strconv.Itoa(int(connectTimeout/time.Millisecond))
 	if _, err := d.modem.execTimeout(cmd, connectTimeout+d.modem.timeout); err != nil {
 		return netlink.ErrConnectFailed
@@ -554,9 +589,14 @@ func (d *device) Accept(sockfd int) (int, netip.AddrPort, error) {
 			return -1, netip.AddrPort{}, netdev.ErrNotSupported
 		}
 		n, err := d.modem.execInt("AT+SERVERACCEPT=" + strconv.Itoa(s.modemSock))
-		if err == nil && n >= 0 {
+		if err != nil {
+			d.mu.Unlock()
+			return -1, netip.AddrPort{}, err
+		}
+		if n >= 0 {
 			fd, cs, err := d.newSocket(netdev.IPPROTO_TCP, n)
 			if err != nil {
+				d.modem.exec("AT+CLIENTCLOSE=" + strconv.Itoa(n))
 				d.mu.Unlock()
 				return -1, netip.AddrPort{}, err
 			}

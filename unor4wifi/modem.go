@@ -14,11 +14,13 @@ var (
 	errModemError   = errors.New("unor4wifi: modem returned ERROR")
 	errModemTimeout = errors.New("unor4wifi: modem response timeout")
 	errModemParse   = errors.New("unor4wifi: modem response parse error")
+	errInvalidArg   = errors.New("unor4wifi: control character in argument")
 )
 
 const (
 	tokenOK    = "OK"
 	tokenError = "ERROR"
+	maxLine    = 256
 )
 
 // modem is the AT transport to the ESP32-S3 bridge firmware.
@@ -28,7 +30,7 @@ const (
 type modem struct {
 	uart    *machine.UART
 	timeout time.Duration
-	line    []byte
+	line    [maxLine]byte
 }
 
 func (m *modem) readByte(deadline time.Time) (byte, error) {
@@ -41,22 +43,31 @@ func (m *modem) readByte(deadline time.Time) (byte, error) {
 	return m.uart.ReadByte()
 }
 
-// readLine reads a line and strips the trailing CR LF.
+// readLine reads a line and strips the trailing CR LF. Lines longer than
+// maxLine are discarded up to the LF and return errModemParse.
 func (m *modem) readLine(deadline time.Time) (string, error) {
-	m.line = m.line[:0]
+	n := 0
+	overflow := false
 	for {
 		c, err := m.readByte(deadline)
 		if err != nil {
 			return "", err
 		}
 		if c == '\n' {
-			n := len(m.line)
+			if overflow {
+				return "", errModemParse
+			}
 			if n > 0 && m.line[n-1] == '\r' {
 				n--
 			}
 			return string(m.line[:n]), nil
 		}
-		m.line = append(m.line, c)
+		if n < len(m.line) {
+			m.line[n] = c
+			n++
+		} else {
+			overflow = true
+		}
 	}
 }
 
