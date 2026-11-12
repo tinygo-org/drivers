@@ -47,9 +47,10 @@ The RA4M1 has 256 KB of flash. The `net/http` package does not fit.
 Use the `net` package directly, or a small client such as the `ntpclient`
 or `tcpclient` examples.
 
-Build with `-target=arduino-uno-r4-wifi -stack-size 2kb`. The RA4M1 has
-32 KB of RAM and each goroutine gets a stack of the given size, so a larger
-stack size leaves too little heap. The network examples that fit in flash
+Build with `-target=arduino-uno-r4-wifi -stack-size 4kb`. The RA4M1 has
+32 KB of RAM and each goroutine gets a stack of the given size, so a much
+larger stack size leaves too little heap. With 2 KB the `ntpclient` example
+overflows the stack while connecting. The network examples that fit in flash
 (`socket`, `tcpclient`, `tcpecho`, `ntpclient`, `tlsclient`, `webclient`)
 carry the `arduino_uno_r4_wifi` build tag.
 
