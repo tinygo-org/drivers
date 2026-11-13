@@ -7,9 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"machine"
-
 	"tinygo.org/x/drivers"
+	"tinygo.org/x/drivers/internal/pin"
 	"tinygo.org/x/drivers/lora"
 )
 
@@ -42,7 +41,7 @@ const (
 // Device wraps an SPI connection to a SX126x device.
 type Device struct {
 	spi            drivers.SPI          // SPI bus for module communication
-	rstPin         machine.Pin          // GPIO for reset pin
+	rstPin         pin.Output           // GPIO for reset pin
 	radioEventChan chan lora.RadioEvent // Channel for Receiving events
 	loraConf       lora.Config          // Current Lora configuration
 	controller     RadioController      // to manage interactions with the radio
@@ -54,9 +53,10 @@ type Device struct {
 }
 
 // New creates a new SX126x connection.
-func New(spi drivers.SPI) *Device {
+func New(spi drivers.SPI, rstPin pin.Output) *Device {
 	return &Device{
 		spi:            spi,
+		rstPin:         rstPin,
 		radioEventChan: make(chan lora.RadioEvent, RADIOEVENTCHAN_SIZE),
 		spiTxBuf:       make([]byte, SPI_BUFFER_SIZE),
 		spiRxBuf:       make([]byte, SPI_BUFFER_SIZE),
@@ -108,9 +108,9 @@ func (d *Device) SetRadioController(rc RadioController) error {
 // --------------------------------------------------
 
 func (d *Device) Reset() {
-	d.rstPin.Low()
+	d.rstPin.Set(false)
 	time.Sleep(100 * time.Millisecond)
-	d.rstPin.High()
+	d.rstPin.Set(true)
 	time.Sleep(100 * time.Millisecond)
 }
 
@@ -307,6 +307,33 @@ func (d *Device) SetDioIrqParams(irqMask, dio1Mask, dio2Mask, dio3Mask uint16) {
 	p[6] = uint8((dio3Mask >> 8) & 0xFF)
 	p[7] = uint8(dio3Mask & 0xFF)
 	d.ExecSetCommand(SX126X_CMD_SET_DIO_IRQ_PARAMS, p[:])
+}
+
+// SetDio2AsRfSwitchCtrl configures if DIO2 is used to control an external RF switch.
+// When controlling the external RX switch, the pin DIO2 will toggle according to
+// the internal state machine (DIO2 = 0 in SLEEP, STDBY_RX, STDBY_XOSC, FS and RX modes,
+// DIO2 = 1 in TX mode). Otherwise DIO2 is free to be used as an IRQ.
+func (d *Device) SetDio2AsRfSwitchCtrl(enable bool) {
+	p := [1]uint8{SX126X_DIO2_AS_IRQ}
+	if enable {
+		p[0] = SX126X_DIO2_AS_RF_SWITCH
+	}
+	d.ExecSetCommand(SX126X_CMD_SET_DIO2_AS_RF_SWITCH_CTRL, p[:])
+}
+
+// SetDio3AsTcxoCtrl configures the DIO3 as an external TCXO voltage reference.
+// After TCXO control is set, it is recommended to perform full calibration (CALIBRATE_ALL command).
+// voltage: output voltage on DIO3 pin
+// delay: time for the TCXO to stabilize
+func (d *Device) SetDio3AsTcxoCtrl(voltage Dio3OutputVoltage, delay time.Duration) {
+	timeout := delay / (15625 * time.Nanosecond)
+	var p [5]uint8
+	p[0] = uint8(voltage)
+	p[1] = uint8((timeout >> 24) & 0xFF)
+	p[2] = uint8((timeout >> 16) & 0xFF)
+	p[3] = uint8((timeout >> 8) & 0xFF)
+	p[4] = uint8((timeout >> 0) & 0xFF)
+	d.ExecSetCommand(SX126X_CMD_SET_DIO3_AS_TCXO_CTRL, p[:])
 }
 
 // GetIrqStatus returns IRQ status
