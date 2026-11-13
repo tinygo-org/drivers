@@ -17,7 +17,7 @@
 // }
 // ---------------------------------------------------------------------------
 
-//go:build ninafw || wioterminal || comboat_fw
+//go:build ninafw || wioterminal || comboat_fw || arduino_uno_r4_wifi
 
 package main
 

@@ -7,7 +7,7 @@
 //
 // $ nc 10.0.0.2 8080 <file >copy ; cmp file copy
 
-//go:build ninafw || wioterminal
+//go:build ninafw || wioterminal || arduino_uno_r4_wifi
 
 package main
 
