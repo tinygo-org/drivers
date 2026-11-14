@@ -12,7 +12,6 @@
 package unor4wifi // import "tinygo.org/x/drivers/unor4wifi"
 
 import (
-	"fmt"
 	"io"
 	"machine"
 	"net"
@@ -40,15 +39,21 @@ const (
 	defaultBaudRate = 115200
 	defaultTimeout  = 10 * time.Second
 	maxSockets      = 8
+	// Firmware UDP and server pools, see at_handler.h.
+	maxUDP     = 4
+	maxServers = 4
 	// The bridge RX path is a UART, so keep transfers small.
 	maxChunk = 1024
 	// Poll interval while a Recv or Accept waits for data.
 	pollInterval = 5 * time.Millisecond
 	// TCP connect timeout passed to the firmware.
 	connectTimeout = 10 * time.Second
+	// Interval between +BEGINSTA status probes while a connect is pending.
+	probeInterval = 4 * time.Second
 
 	// WiFi status values, see WiFiS3/src/WiFiTypes.h.
 	wlIdleStatus     = 0
+	wlNoSSIDAvail    = 1
 	wlConnected      = 3
 	wlConnectFailed  = 4
 	wlConnectionLost = 5
@@ -97,6 +102,9 @@ type device struct {
 	dns          netip.Addr
 
 	sockets [maxSockets]*socket
+	// +SERVEREND keeps the slot until reset, see cmds_wifi_netif.h.
+	serversBegun int
+	watchdogDone chan struct{}
 }
 
 // New returns a new driver instance. The UART is configured in NetConnect.
@@ -155,6 +163,7 @@ func (d *device) setupUART() {
 // firmware answers.
 func (d *device) reset() error {
 	d.sockets = [maxSockets]*socket{}
+	d.serversBegun = 0
 	var err error
 	for i := 0; i < 10; i++ {
 		_, err = d.modem.execTimeout("AT+SOFTRESETWIFI", 500*time.Millisecond)
@@ -218,11 +227,14 @@ func (d *device) connectSTA() error {
 	if p.Passphrase != "" {
 		cmd += "," + escapeArg(p.Passphrase)
 	}
-	if _, err := d.modem.exec(cmd); err != nil {
+
+	before, err := d.modem.execInt(cmd)
+	if err != nil {
 		return netlink.ErrConnectFailed
 	}
 
 	deadline := time.Now().Add(timeout)
+	probe := time.Now().Add(probeInterval)
 	for time.Now().Before(deadline) {
 		switch d.status() {
 		case wlConnected:
@@ -236,8 +248,15 @@ func (d *device) connectSTA() error {
 			d.dns = d.readAddr("AT+IPSTA=" + strconv.Itoa(dns1Addr))
 			d.readMAC("AT+MACSTA?")
 			return nil
-		case wlConnectFailed:
-			return netlink.ErrConnectFailed
+		case wlIdleStatus:
+			if time.Now().Before(probe) {
+				break
+			}
+			probe = time.Now().Add(probeInterval)
+			n, err := d.modem.execInt(cmd)
+			if err == nil && n != before && (n == wlNoSSIDAvail || n == wlConnectFailed) {
+				return netlink.ErrConnectFailed
+			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -278,11 +297,60 @@ func checkParams(params *netlink.ConnectParams) error {
 	if err := checkArg(params.Hostname); err != nil {
 		return err
 	}
-	if params.ConnectMode == netlink.ConnectModeSTA &&
-		params.AuthType != netlink.AuthTypeOpen && len(params.Passphrase) < 8 {
+	if params.ConnectMode == netlink.ConnectModeAP {
+		// An empty passphrase starts an open AP, see WiFiAP.cpp, WiFiAPClass::softAP.
+		if len(params.Passphrase) != 0 && len(params.Passphrase) < 8 {
+			return netlink.ErrShortPassphrase
+		}
+	} else if params.AuthType != netlink.AuthTypeOpen && len(params.Passphrase) < 8 {
 		return netlink.ErrShortPassphrase
 	}
 	return nil
+}
+
+// The bridge reports idle after link loss, see UNOR4USBBridge.ino, onWiFiEvent.
+func (d *device) networkDown() bool {
+	n, err := d.modem.execInt("AT+GETSTATUS?")
+	return err == nil && n != wlConnected
+}
+
+func (d *device) watchdog(done chan struct{}, timeout time.Duration) {
+	ticker := time.NewTicker(timeout)
+	defer ticker.Stop()
+	up := true
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			d.mu.Lock()
+			select {
+			case <-done:
+				d.mu.Unlock()
+				return
+			default:
+			}
+			if up && d.networkDown() {
+				up = false
+				if debugging(debugBasic) {
+					print("Watchdog: Wifi NOT CONNECTED, trying again...\r\n")
+				}
+				if d.notifyCb != nil {
+					d.notifyCb(netlink.EventNetDown)
+				}
+			}
+			if !up && d.connectSTA() == nil {
+				up = true
+				if debugging(debugBasic) {
+					print("Watchdog: Wifi CONNECTED\r\n")
+				}
+				if d.notifyCb != nil {
+					d.notifyCb(netlink.EventNetUp)
+				}
+			}
+			d.mu.Unlock()
+		}
+	}
 }
 
 func (d *device) NetConnect(params *netlink.ConnectParams) error {
@@ -300,53 +368,59 @@ func (d *device) NetConnect(params *netlink.ConnectParams) error {
 	d.setupUART()
 
 	if debugging(debugBasic) {
-		fmt.Printf("\r\n")
-		fmt.Printf("%s\r\n\r\n", driverName)
-		fmt.Printf("Driver version           : %s\r\n", drivers.Version)
+		print("\r\n")
+		print(driverName, "\r\n\r\n")
+		print("Driver version           : ", drivers.Version, "\r\n")
 	}
 
 	if err := d.reset(); err != nil {
 		return err
 	}
 	if debugging(debugBasic) {
-		fmt.Printf("Bridge firmware version  : %s\r\n", d.firmwareVersion())
+		print("Bridge firmware version  : ", d.firmwareVersion(), "\r\n")
 	}
 
 	var err error
 	switch params.ConnectMode {
 	case netlink.ConnectModeSTA:
 		if debugging(debugBasic) {
-			fmt.Printf("Connecting to Wifi SSID '%s'...", params.Ssid)
+			print("Connecting to Wifi SSID '", params.Ssid, "'...")
 		}
 		err = d.connectSTA()
 	case netlink.ConnectModeAP:
 		if debugging(debugBasic) {
-			fmt.Printf("Starting Wifi AP as SSID '%s'...", params.Ssid)
+			print("Starting Wifi AP as SSID '", params.Ssid, "'...")
 		}
 		err = d.connectAP()
 	}
 	if err != nil {
 		if debugging(debugBasic) {
-			fmt.Printf("FAILED (%s)\r\n", err.Error())
+			print("FAILED (", err.Error(), ")\r\n")
 		}
 		return err
 	}
 	if debugging(debugBasic) {
-		fmt.Printf("CONNECTED\r\n")
-		fmt.Printf("\r\n")
-		fmt.Printf("MAC address              : %s\r\n", d.mac.String())
-		fmt.Printf("IP address               : %s\r\n", d.ip)
-		fmt.Printf("Gateway                  : %s\r\n", d.gateway)
+		print("CONNECTED\r\n")
+		print("\r\n")
+		print("MAC address              : ", d.mac.String(), "\r\n")
+		print("IP address               : ", d.ip.String(), "\r\n")
+		print("Gateway                  : ", d.gateway.String(), "\r\n")
 		if d.dns.IsValid() {
-			fmt.Printf("DNS server               : %s\r\n", d.dns)
+			print("DNS server               : ", d.dns.String(), "\r\n")
 		}
-		fmt.Printf("\r\n")
+		print("\r\n")
 	}
 
 	d.netConnected = true
 	if d.notifyCb != nil {
 		d.notifyCb(netlink.EventNetUp)
 	}
+
+	if params.ConnectMode == netlink.ConnectModeSTA && params.WatchdogTimeout != 0 {
+		d.watchdogDone = make(chan struct{})
+		go d.watchdog(d.watchdogDone, params.WatchdogTimeout)
+	}
+
 	return nil
 }
 
@@ -357,15 +431,21 @@ func (d *device) NetDisconnect() {
 	if !d.netConnected {
 		return
 	}
+
+	if d.watchdogDone != nil {
+		close(d.watchdogDone)
+		d.watchdogDone = nil
+	}
 	if d.params.ConnectMode == netlink.ConnectModeAP {
 		d.modem.exec("AT+DISCONNECTSOFTAP")
 	} else {
 		d.modem.exec("AT+DISCONNECT")
 	}
 	d.netConnected = false
+	d.sockets = [maxSockets]*socket{}
 
 	if debugging(debugBasic) {
-		fmt.Printf("\r\nDisconnected from Wifi SSID '%s'\r\n\r\n", d.params.Ssid)
+		print("\r\nDisconnected from Wifi SSID '", d.params.Ssid, "'\r\n\r\n")
 	}
 
 	if d.notifyCb != nil {
@@ -379,7 +459,7 @@ func (d *device) NetNotify(cb func(netlink.Event)) {
 
 func (d *device) GetHardwareAddr() (net.HardwareAddr, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[GetHardwareAddr]\r\n")
+		print("[GetHardwareAddr]\r\n")
 	}
 
 	return d.mac, nil
@@ -387,7 +467,7 @@ func (d *device) GetHardwareAddr() (net.HardwareAddr, error) {
 
 func (d *device) GetHostByName(name string) (netip.Addr, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[GetHostByName] name: %s\r\n", name)
+		print("[GetHostByName] name: ", name, "\r\n")
 	}
 
 	if ip, err := netip.ParseAddr(name); err == nil {
@@ -413,7 +493,7 @@ func (d *device) GetHostByName(name string) (netip.Addr, error) {
 
 func (d *device) Addr() (netip.Addr, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[GetIPAddr]\r\n")
+		print("[GetIPAddr]\r\n")
 	}
 
 	return d.ip, nil
@@ -439,8 +519,7 @@ func (d *device) newSocket(protocol int, modemSock int) (int, *socket, error) {
 
 func (d *device) Socket(domain int, stype int, protocol int) (int, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Socket] domain: %d, type: %d, protocol: %d\r\n",
-			domain, stype, protocol)
+		print("[Socket] domain: ", domain, ", type: ", stype, ", protocol: ", protocol, "\r\n")
 	}
 
 	if domain != netdev.AF_INET {
@@ -465,6 +544,15 @@ func (d *device) udpBegin(s *socket) error {
 	if s.modemSock >= 0 {
 		return nil
 	}
+	udp := 0
+	for _, o := range d.sockets {
+		if o != nil && o.protocol == netdev.IPPROTO_UDP && o.modemSock >= 0 {
+			udp++
+		}
+	}
+	if udp >= maxUDP {
+		return netdev.ErrNoMoreSockets
+	}
 	n, err := d.modem.execInt("AT+UDPBEGIN=" + strconv.Itoa(int(s.laddr.Port())))
 	if err != nil {
 		return err
@@ -475,7 +563,7 @@ func (d *device) udpBegin(s *socket) error {
 
 func (d *device) Bind(sockfd int, ip netip.AddrPort) error {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Bind] sockfd: %d, addr: %s:%d\r\n", sockfd, ip.Addr(), ip.Port())
+		print("[Bind] sockfd: ", sockfd, ", addr: ", ip.Addr().String(), ":", ip.Port(), "\r\n")
 	}
 
 	d.mu.Lock()
@@ -494,7 +582,7 @@ func (d *device) Bind(sockfd int, ip netip.AddrPort) error {
 
 func (d *device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Connect] sockfd: %d, host: %s, addr: %s\r\n", sockfd, host, ip)
+		print("[Connect] sockfd: ", sockfd, ", host: ", host, ", addr: ", ip.String(), "\r\n")
 	}
 
 	d.mu.Lock()
@@ -537,7 +625,7 @@ func (d *device) Connect(sockfd int, host string, ip netip.AddrPort) error {
 
 func (d *device) Listen(sockfd int, backlog int) error {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Listen] sockfd: %d\r\n", sockfd)
+		print("[Listen] sockfd: ", sockfd, "\r\n")
 	}
 
 	d.mu.Lock()
@@ -550,10 +638,14 @@ func (d *device) Listen(sockfd int, backlog int) error {
 	if s.protocol != netdev.IPPROTO_TCP {
 		return netdev.ErrProtocolNotSupported
 	}
+	if d.serversBegun >= maxServers {
+		return netdev.ErrNoMoreSockets
+	}
 	n, err := d.modem.execInt("AT+BEGINSERVER=" + strconv.Itoa(int(s.laddr.Port())))
 	if err != nil {
 		return err
 	}
+	d.serversBegun++
 	s.modemSock = n
 	s.server = true
 	return nil
@@ -574,7 +666,7 @@ func (d *device) remoteAddr(sock string) netip.AddrPort {
 
 func (d *device) Accept(sockfd int) (int, netip.AddrPort, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Accept] sockfd: %d\r\n", sockfd)
+		print("[Accept] sockfd: ", sockfd, "\r\n")
 	}
 
 	for {
@@ -647,8 +739,7 @@ func (d *device) sendUDP(s *socket, buf []byte) (int, error) {
 
 func (d *device) Send(sockfd int, buf []byte, flags int, deadline time.Time) (int, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Send] sockfd: %d, len(buf): %d, flags: %d\r\n",
-			sockfd, len(buf), flags)
+		print("[Send] sockfd: ", sockfd, ", len(buf): ", len(buf), ", flags: ", flags, "\r\n")
 	}
 
 	d.mu.Lock()
@@ -706,8 +797,7 @@ func (d *device) recvOnce(s *socket, buf []byte) (int, error) {
 
 func (d *device) Recv(sockfd int, buf []byte, flags int, deadline time.Time) (int, error) {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Recv] sockfd: %d, len(buf): %d, flags: %d\r\n",
-			sockfd, len(buf), flags)
+		print("[Recv] sockfd: ", sockfd, ", len(buf): ", len(buf), ", flags: ", flags, "\r\n")
 	}
 
 	for {
@@ -735,7 +825,7 @@ func (d *device) Recv(sockfd int, buf []byte, flags int, deadline time.Time) (in
 
 func (d *device) Close(sockfd int) error {
 	if debugging(debugNetdev) {
-		fmt.Printf("[Close] sockfd: %d\r\n", sockfd)
+		print("[Close] sockfd: ", sockfd, "\r\n")
 	}
 
 	d.mu.Lock()
@@ -765,7 +855,7 @@ func (d *device) Close(sockfd int) error {
 
 func (d *device) SetSockOpt(sockfd int, level int, opt int, value interface{}) error {
 	if debugging(debugNetdev) {
-		fmt.Printf("[SetSockOpt] sockfd: %d\r\n", sockfd)
+		print("[SetSockOpt] sockfd: ", sockfd, "\r\n")
 	}
 
 	return netdev.ErrNotSupported

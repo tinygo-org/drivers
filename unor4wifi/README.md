@@ -43,6 +43,16 @@ err := link.NetConnect(&netlink.ConnectParams{
 
 Then use `net.Dial`, `net.Listen` and so on.
 
+Set `WatchdogTimeout` in `ConnectParams` to detect link loss in station
+mode. The driver then polls the link status at that interval, reports
+`EventNetDown` and `EventNetUp` through `NetNotify`, and reconnects. The
+watchdog runs in its own goroutine. With the default of zero, link loss is
+not detected.
+
+An unknown SSID fails with `ErrConnectFailed` after about 4 s. The bridge
+reports a wrong password only after roughly 10 s, so with the default
+`ConnectTimeout` it still returns `ErrConnectTimeout`.
+
 The RA4M1 has 256 KB of flash. The `net/http` package does not fit.
 Use the `net` package directly, or a small client such as the `ntpclient`
 or `tcpclient` examples.

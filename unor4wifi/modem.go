@@ -2,7 +2,6 @@ package unor4wifi
 
 import (
 	"errors"
-	"fmt"
 	"machine"
 	"runtime"
 	"strconv"
@@ -93,7 +92,7 @@ func (m *modem) waitResult(deadline time.Time) (string, error) {
 			return sb.String(), err
 		}
 		if debugging(debugCmd) {
-			fmt.Printf("    [<--] %s\r\n", line)
+			print("    [<--] ", line, "\r\n")
 		}
 		switch {
 		case line == tokenOK:
@@ -128,7 +127,7 @@ func (m *modem) exec(cmd string) (string, error) {
 func (m *modem) execTimeout(cmd string, timeout time.Duration) (string, error) {
 	m.flushInput()
 	if debugging(debugCmd) {
-		fmt.Printf("    [-->] %s\r\n", cmd)
+		print("    [-->] ", cmd, "\r\n")
 	}
 	m.writeString(cmd)
 	m.writeString("\r\n")
@@ -152,7 +151,7 @@ func (m *modem) execInt(cmd string) (int, error) {
 func (m *modem) execSend(cmd string, payload []byte) error {
 	m.flushInput()
 	if debugging(debugCmd) {
-		fmt.Printf("    [-->] %s, len(payload): %d\r\n", cmd, len(payload))
+		print("    [-->] ", cmd, ", len(payload): ", len(payload), "\r\n")
 	}
 	m.writeString(cmd)
 	m.writeString("\r\n")
@@ -166,7 +165,7 @@ func (m *modem) execSend(cmd string, payload []byte) error {
 func (m *modem) execSized(cmd string, dst []byte) (int, error) {
 	m.flushInput()
 	if debugging(debugCmd) {
-		fmt.Printf("    [-->] %s\r\n", cmd)
+		print("    [-->] ", cmd, "\r\n")
 	}
 	m.writeString(cmd)
 	m.writeString("\r\n")
