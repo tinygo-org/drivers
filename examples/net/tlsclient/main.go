@@ -4,8 +4,11 @@
 // this confirms communication is indeed over HTTPS
 //
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+//
+// Note: The Arduino UNO R4 WiFi hangs without output on the default stack size.
+// Use the -stack-size=4KB command line option, see unor4wifi/README.md.
 
-//go:build ninafw || wioterminal || comboat_fw
+//go:build ninafw || wioterminal || comboat_fw || arduino_uno_r4_wifi
 
 package main
 

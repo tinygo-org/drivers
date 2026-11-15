@@ -2,8 +2,11 @@
 //
 // It creates a UDP connection to request the current time and parse the
 // response from a NTP server.  The system time is set to NTP time.
+//
+// Note: The Arduino UNO R4 WiFi hangs without output on the default stack size.
+// Use the -stack-size=4KB command line option, see unor4wifi/README.md.
 
-//go:build ninafw || wioterminal || challenger_rp2040 || comboat_fw
+//go:build ninafw || wioterminal || challenger_rp2040 || comboat_fw || arduino_uno_r4_wifi
 
 package main
 
