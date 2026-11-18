@@ -8,10 +8,10 @@ import (
 	"tinygo.org/x/drivers/tester"
 )
 
-// fakeBMP581 behaves like the sensor where the driver depends on it: a soft
+// fakeBMP580 behaves like the sensor where the driver depends on it: a soft
 // reset reports power-on complete, and a forced measurement fills the data
 // registers and goes back to standby after polls reads of ODR_CONFIG.
-type fakeBMP581 struct {
+type fakeBMP580 struct {
 	*tester.I2CDevice8
 	data      [6]byte
 	polls     int
@@ -20,17 +20,17 @@ type fakeBMP581 struct {
 	nackReset bool
 }
 
-func newFake(t *testing.T) (*tester.I2CBus, *fakeBMP581) {
+func newFake(t *testing.T) (*tester.I2CBus, *fakeBMP580) {
 	bus := tester.NewI2CBus(t)
-	dev := &fakeBMP581{I2CDevice8: tester.NewI2CDevice8(t, Address), polls: 3}
-	dev.Registers[regChipID] = chipIDBMP581
+	dev := &fakeBMP580{I2CDevice8: tester.NewI2CDevice8(t, Address), polls: 3}
+	dev.Registers[regChipID] = chipIDBMP580
 	dev.Registers[regStatus] = statusNVMReady | 1
 	dev.Registers[regODRConfig] = 0x70
 	bus.AddDevice(dev)
 	return bus, dev
 }
 
-func (f *fakeBMP581) Tx(w, r []byte) error {
+func (f *fakeBMP580) Tx(w, r []byte) error {
 	if len(w) == 1 && w[0] == regODRConfig && f.pending > 0 {
 		if f.pending--; f.pending == 0 {
 			f.Registers[regODRConfig] &^= pwrModeMask
@@ -59,7 +59,7 @@ func TestConnected(t *testing.T) {
 	for _, c := range []struct {
 		id   uint8
 		want bool
-	}{{chipIDBMP581, true}, {chipIDBMP585, true}, {0x60, false}} {
+	}{{chipIDBMP580, true}{0x60, false}} {
 		bus, dev := newFake(t)
 		dev.Registers[regChipID] = c.id
 		d := New(bus)

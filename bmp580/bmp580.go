@@ -39,7 +39,6 @@ type Config struct {
 	Temperature Oversampling
 }
 
-
 // New creates a new BMP580 connection. The I2C bus must already be configured.
 //
 // This function only creates the Device object, it does not touch the device.
