@@ -20,6 +20,21 @@ var (
 	dio1Pin  = machine.GPIO9
 )
 
+type LoRaConfig struct {
+	Frequency       uint32
+	Power           int8
+	RadioRamp       sx128x.RadioRampTime
+	RegulatorMode   sx128x.RegulatorMode
+	SpreadingFactor sx128x.LoRaSpreadingFactor
+	Bandwidth       sx128x.LoRaBandwidth
+	CodingRate      sx128x.LoRaCodingRate
+	PreambleLength  uint32
+	HeaderType      sx128x.LoRaHeaderType
+	CrcType         sx128x.LoRaCrcType
+	IqType          sx128x.LoRaIqType
+	SyncWord        uint16
+}
+
 func setupPins() {
 	nssPin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	nssPin.Set(true)
@@ -50,11 +65,27 @@ func main() {
 		busyPin,
 	)
 
+	loraConfig := LoRaConfig{
+		Frequency:     2400000000,              // 2.4Ghz
+		Power:         13,                      // dBm
+		RadioRamp:     sx128x.RADIO_RAMP_02_US, // 2 microsecond ramp time
+		RegulatorMode: sx128x.REGULATOR_DC_DC,
+
+		SpreadingFactor: sx128x.LORA_SF_9,
+		Bandwidth:       sx128x.LORA_BW_1600,
+		CodingRate:      sx128x.LORA_CR_4_7,
+		PreambleLength:  12,
+		HeaderType:      sx128x.LORA_HEADER_EXPLICIT,
+		CrcType:         sx128x.LORA_CRC_DISABLE,
+		IqType:          sx128x.LORA_IQ_STD,
+		SyncWord:        0x1424, // the default private sync word
+	}
+
 	radio.WaitWhileBusy(time.Second)
-	SetupLora(radio)
+	SetupLoRa(radio, loraConfig)
 
 	for {
-		data, err := Rx(radio)
+		data, err := Rx(radio, 1000) // 1 second timeout
 		if err != nil {
 			println("failed to receive:", err)
 		} else {
@@ -63,30 +94,35 @@ func main() {
 	}
 }
 
-func SetupLora(radio *sx128x.Device) {
+func SetupLoRa(radio *sx128x.Device, config LoRaConfig) {
 	radio.SetStandby(sx128x.STANDBY_RC)
 	radio.SetPacketType(sx128x.PACKET_TYPE_LORA)
-	radio.SetRegulatorMode(sx128x.REGULATOR_DC_DC)
+	radio.SetRegulatorMode(config.RegulatorMode)
 
-	radio.SetRfFrequency(2400000000) // 2.4Ghz
-	radio.SetModulationParamsLoRa(sx128x.LORA_SF_9, sx128x.LORA_BW_1600, sx128x.LORA_CR_4_7)
+	radio.SetRfFrequency(config.Frequency)
+	radio.SetModulationParamsLoRa(config.SpreadingFactor, config.Bandwidth, config.CodingRate)
 
-	// section 14.4.1 shows required register setting for setting up LoRa operations. These depend on the chosen spreading factor.
-	radio.WriteRegister(0x925, []byte{0x32})
+	// section 14.4.1 shows required register settings for setting up LoRa operations.
+	if config.SpreadingFactor == sx128x.LORA_SF_5 || config.SpreadingFactor == sx128x.LORA_SF_6 {
+		radio.WriteRegister(0x925, []byte{0x1E})
+	} else if config.SpreadingFactor == sx128x.LORA_SF_7 || config.SpreadingFactor == sx128x.LORA_SF_8 {
+		radio.WriteRegister(0x925, []byte{0x37})
+	} else {
+		radio.WriteRegister(0x925, []byte{0x32})
+	}
 	radio.WriteRegister(0x93C, []byte{0x01})
 
-	radio.SetTxParams(13, sx128x.RADIO_RAMP_02_US)
-	radio.SetPacketParamsLoRa(12, sx128x.LORA_HEADER_EXPLICIT, 0xFF, sx128x.LORA_CRC_DISABLE, sx128x.LORA_IQ_STD)
-	radio.WriteRegister(sx128x.REG_LORA_SYNC_WORD_MSB, []byte{0x14, 0x24}) // full sync word is 0x1424
-
+	radio.SetTxParams(config.Power, config.RadioRamp)
+	radio.SetPacketParamsLoRa(config.PreambleLength, config.HeaderType, 0xFF, config.CrcType, config.IqType)
+	radio.WriteRegister(sx128x.REG_LORA_SYNC_WORD_MSB, []byte{byte(config.SyncWord >> 8), byte(config.SyncWord & 0xFF)})
 }
 
-func Rx(radio *sx128x.Device) ([]byte, error) {
+func Rx(radio *sx128x.Device, timeout uint16) ([]byte, error) {
 	radio.SetStandby(sx128x.STANDBY_RC)
-	radio.SetDioIrqParams(sx128x.IRQ_RX_DONE_MASK|sx128x.IRQ_RX_TX_TIMEOUT_MASK, sx128x.IRQ_RX_DONE_MASK|sx128x.IRQ_RX_TX_TIMEOUT_MASK, 0x00, 0x00)
 	radio.SetBufferBaseAddress(0, 0)
+	radio.SetDioIrqParams(sx128x.IRQ_RX_DONE_MASK|sx128x.IRQ_RX_TX_TIMEOUT_MASK, sx128x.IRQ_RX_DONE_MASK|sx128x.IRQ_RX_TX_TIMEOUT_MASK, 0x00, 0x00)
 	radio.ClearIrqStatus(sx128x.IRQ_ALL_MASK)
-	radio.SetRx(sx128x.PERIOD_BASE_4_MS, 250) // 4ms * 250 = 1s
+	radio.SetRx(sx128x.PERIOD_BASE_1_MS, timeout)
 	// busy wait for IRQ indication
 	for dio1Pin.Get() == false {
 		runtime.Gosched()
