@@ -9,10 +9,14 @@ package scd4x // import "tinygo.org/x/drivers/scd4x"
 
 import (
 	"encoding/binary"
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
 )
+
+// ErrCRC indicates that data received from the sensor failed its checksum.
+var ErrCRC = errors.New("scd4x: invalid CRC")
 
 type Device struct {
 	bus     drivers.I2C
@@ -43,12 +47,12 @@ func (d *Device) Configure() (err error) {
 	}
 	time.Sleep(500 * time.Millisecond)
 
-	// reset the chip
+	// Reload the persisted settings while the sensor is idle.
 	if err := d.sendCommand(CmdReinit); err != nil {
 		return err
 	}
 
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
 	return
 }
 
@@ -100,10 +104,17 @@ func (d *Device) ReadData() error {
 	return nil
 }
 
-// Update reads new data from the sensor (if new data is available) and caches
-// it for reading in the CO2, Temperature, and Humidity methods.
+// Update caches a new sample when it is available.
+// It keeps the cached sample and returns nil when no new data is ready.
 func (d *Device) Update(measurements drivers.Measurement) error {
 	if measurements&(drivers.Temperature|drivers.Humidity|drivers.Concentration) != 0 {
+		ready, err := d.DataReady()
+		if err != nil {
+			return err
+		}
+		if !ready {
+			return nil
+		}
 		return d.ReadData()
 	}
 	return nil
@@ -145,8 +156,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 // Temperature returns the last read temperature in celsius milli degrees
 // (°C/1000).
 func (d *Device) Temperature() int32 {
-	// temp = -45 + 175 * value / 2¹⁶
-	return (-1 * 45000) + (21875 * (int32(d.temperature)) / 8192)
+	return -45000 + 21875*int32(d.temperature)/8192
 }
 
 // ReadTempC returns the value in the temperature value in Celsius.
@@ -174,8 +184,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 	if ok {
 		err = d.ReadData()
 	}
-	// humidity = 100 * value / 2¹⁶
-	return (25 * int32(d.humidity)) / 16384, err
+	return 25 * int32(d.humidity) / 16384, err
 }
 
 // Humidity returns the relative humidity in hundredths of a percent (in other
@@ -184,7 +193,7 @@ func (d *Device) ReadHumidity() (humidity int32, err error) {
 // Warning: the value returned here is of a different scale (more precise) than
 // ReadHumidity()!
 func (d *Device) Humidity() int32 {
-	return (2500 * int32(d.humidity)) / 16384
+	return 2500 * int32(d.humidity) / 16384
 }
 
 func (d *Device) sendCommand(command uint16) error {
@@ -198,7 +207,15 @@ func (d *Device) sendCommandWithResult(command uint16, result []byte) error {
 		return err
 	}
 	time.Sleep(time.Millisecond)
-	return d.bus.Tx(uint16(d.Address), nil, result)
+	if err := d.bus.Tx(uint16(d.Address), nil, result); err != nil {
+		return err
+	}
+	for i := 0; i+2 < len(result); i += 3 {
+		if crc8(result[i:i+2]) != result[i+2] {
+			return ErrCRC
+		}
+	}
+	return nil
 }
 
 func crc8(buf []byte) uint8 {
