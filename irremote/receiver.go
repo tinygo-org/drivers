@@ -3,6 +3,8 @@ package irremote // import "tinygo.org/x/drivers/irremote"
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/drivers/irremote/irprotocol"
 )
 
 // NEC protocol references
@@ -200,25 +202,12 @@ const (
 )
 
 func (ir *ReceiverDevice) decode() irDecodeError {
-	// Decode cmd and inverse cmd and perform validation check
-	cmd := uint8((ir.data.Code & 0x00ff0000) >> 16)
-	invCmd := uint8((ir.data.Code & 0xff000000) >> 24)
-	if cmd != ^invCmd {
-		// Validation failure. cmd and inverse cmd do not match
+	valid, addr, cmd := irprotocol.SplitRawNECData(ir.data.Code)
+	if !valid {
 		return irDecodeErrorInverseCheckFail
 	}
-	// cmd validation pass, decode address
+	ir.data.Address = addr
 	ir.data.Command = uint16(cmd)
-	addrLow := uint8(ir.data.Code & 0xff)
-	addrHigh := uint8((ir.data.Code & 0xff00) >> 8)
-	if addrHigh == ^addrLow {
-		// addrHigh is inverse of addrLow. This is not a valid 16-bit address in extended NEC coding
-		// since it is indistinguishable from 8-bit address with inverse validation. Use the 8-bit address
-		ir.data.Address = uint16(addrLow)
-	} else {
-		// 16-bit extended NEC address
-		ir.data.Address = (uint16(addrHigh) << 8) | uint16(addrLow)
-	}
 	// Clear repeat flag
 	ir.data.Flags &^= DataFlagIsRepeat
 	return irDecodeErrorNone
