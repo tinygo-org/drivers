@@ -1,12 +1,16 @@
 package ads1015
 
+// I2C addresses for each ADDR pin connection, see datasheet SBAS473F Table 7-2.
+const (
+	AddressToGND uint16 = 0b1001000
+	AddressToVDD uint16 = 0b1001001
+	AddressToSDA uint16 = 0b1001010
+	AddressToSCL uint16 = 0b1001011
+)
+
 // Address is the default I2C address of the ADS1015. The actual address
-// depends on how the ADDR pin is wired
-const AddressToGND uint16 = 0b1001000
-const AddressToVDD uint16 = 0b1001001
-const AddressToSDA uint16 = 0b1001010
-const AddressToSCL uint16 = 0b1001011
-const Address = AddressToGND // default address
+// depends on how the ADDR pin is wired.
+const Address = AddressToGND
 
 // Registers, see the datasheet Table 8-2
 const (
@@ -16,7 +20,7 @@ const (
 	regHighThreshold uint8 = 0b11
 )
 
-// Config register bit masks, see the datasheet section 8.6.3.
+// Config register bit masks, see the datasheet table 8-4
 const (
 	// configOSStart, written to bit 15, starts a single conversion.
 	configOSStart uint16 = 0x8000

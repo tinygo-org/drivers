@@ -198,7 +198,7 @@ func TestThresholds(t *testing.T) {
 	c := qt.New(t)
 	dev, fake := newFakeDevice(c)
 
-	c.Assert(dev.SetThresholdLow(0xFF00), qt.IsNil)
+	c.Assert(dev.SetThresholdLow(-256), qt.IsNil)
 	low, err := dev.ThresholdLow()
 	c.Assert(err, qt.IsNil)
 	c.Assert(low, qt.Equals, int16(-256))
@@ -383,14 +383,14 @@ func TestConversionDuration(t *testing.T) {
 		rate DataRate
 		want time.Duration
 	}{
-		{DataRate128SPS, 7813 * time.Microsecond},
-		{DataRate250SPS, 4000 * time.Microsecond},
-		{DataRate490SPS, 2041 * time.Microsecond},
-		{DataRate920SPS, 1087 * time.Microsecond},
-		{DataRate1600SPS, 625 * time.Microsecond},
-		{DataRate2400SPS, 417 * time.Microsecond},
-		{DataRate3300SPS, 303 * time.Microsecond},
-		{DataRate(0xFFFF), 8 * time.Millisecond},
+		{DataRate128SPS, 8680555},
+		{DataRate250SPS, 4444444},
+		{DataRate490SPS, 2267573},
+		{DataRate920SPS, 1207729},
+		{DataRate1600SPS, 694444},
+		{DataRate2400SPS, 462962},
+		{DataRate3300SPS, 336700},
+		{DataRate(0xFFFF), 8680555},
 	}
 	for _, tc := range cases {
 		c := qt.New(t)

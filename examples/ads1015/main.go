@@ -13,7 +13,7 @@ func main() {
 	if err := machine.I2C1.Configure(machine.I2CConfig{
 		SDA:       machine.P0_17,
 		SCL:       machine.P0_20,
-		Frequency: 2.0 * machine.MHz,
+		Frequency: 400 * machine.KHz,
 	}); err != nil {
 		println("could not configure I2C:", err.Error())
 		return

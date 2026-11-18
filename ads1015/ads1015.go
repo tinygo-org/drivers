@@ -62,6 +62,7 @@ type Device struct {
 	bus     drivers.I2C
 	Address uint16
 	config  Config
+	buf     [3]byte
 }
 
 // New returns a new ADS1015 driver using DefaultConfig.
@@ -96,8 +97,8 @@ func (d *Device) Connected() bool {
 }
 
 // SetThresholdLow sets the low threshold used by the comparator.
-func (d *Device) SetThresholdLow(v uint16) error {
-	return d.writeRegister(regLowThreshold, v)
+func (d *Device) SetThresholdLow(v int16) error {
+	return d.writeRegister(regLowThreshold, uint16(v))
 }
 
 // ThresholdLow returns the low threshold used by the comparator.
@@ -107,8 +108,8 @@ func (d *Device) ThresholdLow() (int16, error) {
 }
 
 // SetThresholdHigh sets the high threshold used by the comparator.
-func (d *Device) SetThresholdHigh(v uint16) error {
-	return d.writeRegister(regHighThreshold, v)
+func (d *Device) SetThresholdHigh(v int16) error {
+	return d.writeRegister(regHighThreshold, uint16(v))
 }
 
 // ThresholdHigh returns the high threshold used by the comparator.
@@ -131,10 +132,10 @@ func (d *Device) EnableConversionReadyPin() error {
 	if d.config.ComparatorQueue == ComparatorQueueDisable {
 		d.config.ComparatorQueue = ComparatorQueueAfter1Conv
 	}
-	if err := d.SetThresholdHigh(conversionReadyHiThresh); err != nil {
+	if err := d.writeRegister(regHighThreshold, conversionReadyHiThresh); err != nil {
 		return err
 	}
-	return d.SetThresholdLow(conversionReadyLoThresh)
+	return d.writeRegister(regLowThreshold, conversionReadyLoThresh)
 }
 
 // Read performs a conversion using the given mux setting and returns the
@@ -278,38 +279,39 @@ func (d *Device) startConversion(mux Mux) error {
 }
 
 func (d *Device) readRegister(reg uint8) (uint16, error) {
-	buf := make([]byte, 2)
-	if err := d.bus.Tx(d.Address, []byte{reg}, buf); err != nil {
+	d.buf[0] = reg
+	if err := d.bus.Tx(d.Address, d.buf[:1], d.buf[1:3]); err != nil {
 		return 0, err
 	}
-	return uint16(buf[0])<<8 | uint16(buf[1]), nil
+	return uint16(d.buf[1])<<8 | uint16(d.buf[2]), nil
 }
 
 func (d *Device) writeRegister(reg uint8, value uint16) error {
-	return d.bus.Tx(d.Address, []byte{reg, byte(value >> 8), byte(value)}, nil)
+	d.buf[0] = reg
+	d.buf[1] = byte(value >> 8)
+	d.buf[2] = byte(value)
+	return d.bus.Tx(d.Address, d.buf[:3], nil)
 }
 
-// ConversionDuration returns the nominal conversion period derived from the
-// data rate specified in the ADS1015 datasheet.
-// The data rates are specified in Table 8-3; the conversion periods below
-// are calculated as 1 / SPS and rounded to the nearest microsecond.
+// ConversionDuration returns the longest conversion period for dataRate.
+// The data rate can be up to 10% slow, see datasheet SBAS473F section 6.5.
 func ConversionDuration(dataRate DataRate) time.Duration {
+	var sps time.Duration
 	switch dataRate {
-	case DataRate128SPS:
-		return 7813 * time.Microsecond
 	case DataRate250SPS:
-		return 4000 * time.Microsecond
+		sps = 250
 	case DataRate490SPS:
-		return 2041 * time.Microsecond
+		sps = 490
 	case DataRate920SPS:
-		return 1087 * time.Microsecond
+		sps = 920
 	case DataRate1600SPS:
-		return 625 * time.Microsecond
+		sps = 1600
 	case DataRate2400SPS:
-		return 417 * time.Microsecond
+		sps = 2400
 	case DataRate3300SPS:
-		return 303 * time.Microsecond
+		sps = 3300
 	default:
-		return 8 * time.Millisecond
+		sps = 128
 	}
+	return 10 * time.Second / (9 * sps)
 }
