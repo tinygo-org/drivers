@@ -1,6 +1,3 @@
-// Package bh1745 provides a driver for the BH1745NUC RGBC colour sensor by ROHM.
-//
-// Datasheet: https://fscdn.rohm.com/en/products/databook/datasheet/ic/sensor/light/bh1745nuc-e.pdf
 package bh1745
 
 // I2C addresses (set by ADDR pin: low → 0x38, high → 0x39).
@@ -22,8 +19,10 @@ const (
 	REG_DINT_DATA_LSB  = 0x58
 	REG_INTERRUPT      = 0x60 // int_status (bit 7 RO), int_latch (bit 4), int_source (bits 3:2), int_en (bit 0)
 	REG_PERSISTENCE    = 0x61 // persistence mode (bits 1:0)
-	REG_THRESHOLD_LSB  = 0x62 // interrupt low threshold, little-endian uint16
-	REG_THRESHOLD_MSB  = 0x64 // interrupt high threshold, little-endian uint16
+	REG_TH_LSB         = 0x62 // interrupt high threshold, LSB
+	REG_TH_MSB         = 0x63 // interrupt high threshold, MSB
+	REG_TL_LSB         = 0x64 // interrupt low threshold, LSB
+	REG_TL_MSB         = 0x65 // interrupt low threshold, MSB
 	REG_MANUFACTURER   = 0x92 // manufacturer ID
 )
 
