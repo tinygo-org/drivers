@@ -19,6 +19,7 @@ func main() {
 	connected := sensor.Connected()
 	if !connected {
 		println("BME688 not detected. Exiting...")
+		return
 	}
 
 	println("BME688 detected")

@@ -10,11 +10,14 @@
 package bme688
 
 import (
+	"errors"
 	"time"
 
 	"tinygo.org/x/drivers"
 	"tinygo.org/x/drivers/internal/legacy"
 )
+
+var errNoNewData = errors.New("bme688: no new data from sensor")
 
 // calibrationCoefficients holds the device calibration data read at startup.
 type calibrationCoefficients struct {
@@ -48,8 +51,6 @@ type calibrationCoefficients struct {
 	resHeatRange uint8
 	resHeatVal   int8
 	rangeSWErr   int8
-	// Running fine temperature value shared by T/P/H calculations
-	tFine int32
 }
 
 // Config holds sensor configuration settings.
@@ -107,7 +108,9 @@ func (d *Device) Configure() {
 }
 
 // ConfigureWithSettings sets up the sensor with the provided configuration.
-// Zero-value fields revert to the defaults described in Configure.
+// A zero Config applies the defaults described in Configure. Any other Config
+// is used as given, so unset fields keep their zero value: oversampling is off
+// and the gas heater is disabled.
 func (d *Device) ConfigureWithSettings(config Config) {
 	d.Config = config
 	if d.Config == (Config{}) {
@@ -122,10 +125,6 @@ func (d *Device) ConfigureWithSettings(config Config) {
 			AmbientTemp:    25,
 		}
 	}
-	if d.Config.AmbientTemp == 0 {
-		d.Config.AmbientTemp = 25
-	}
-
 	// Read variant ID to handle BME680 vs BME688 run_gas bit difference.
 	var vbuf [1]byte
 	legacy.ReadRegister(d.bus, uint8(d.Address), REG_VARIANT_ID, vbuf[:])
@@ -160,7 +159,7 @@ func (d *Device) ConfigureWithSettings(config Config) {
 			runGasBit = RUN_GAS_680
 		}
 		legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_GAS_1,
-			[]byte{runGasBit | 0x00}) // nb_conv = 0
+			[]byte{runGasBit}) // nb_conv = 0
 	} else {
 		// Disable heater.
 		legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_GAS_0,
@@ -183,11 +182,13 @@ func (d *Device) Reset() {
 // Read triggers a forced-mode measurement and returns all sensor values.
 func (d *Device) Read() (Measurement, error) {
 	// Set ctrl_meas: oversampling settings + forced mode trigger.
-	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{
+	if err := legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL_MEAS, []byte{
 		byte(d.Config.Temperature)<<5 |
 			byte(d.Config.Pressure)<<2 |
 			byte(ModeForced),
-	})
+	}); err != nil {
+		return Measurement{}, err
+	}
 
 	// Wait for the measurement to complete.
 	time.Sleep(d.measurementDelay())
@@ -195,14 +196,16 @@ func (d *Device) Read() (Measurement, error) {
 	// Poll for new data (up to ~50 extra ms in case of slight timing variance).
 	var field [LEN_FIELD]byte
 	for i := 0; i < 10; i++ {
-		legacy.ReadRegister(d.bus, uint8(d.Address), REG_FIELD_0, field[:])
+		if err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_FIELD_0, field[:]); err != nil {
+			return Measurement{}, err
+		}
 		if field[0]&NEW_DATA_MSK != 0 {
-			break
+			return d.parseField(field), nil
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	return d.parseField(field), nil
+	return Measurement{}, errNoNewData
 }
 
 // ReadTemperature returns temperature in milli-degrees Celsius.
@@ -331,7 +334,7 @@ func (d *Device) readCalibration() {
 	// Gas calibration extras (coeff3 block, from 0x00)
 	d.calib.resHeatVal = int8(c3[0])
 	d.calib.resHeatRange = (c3[2] & 0x30) >> 4
-	d.calib.rangeSWErr = int8((c3[4] & 0xF0) >> 4)
+	d.calib.rangeSWErr = int8(c3[4]&0xF0) >> 4
 }
 
 // parseField converts a raw 17-byte field into a Measurement.
@@ -339,19 +342,26 @@ func (d *Device) parseField(f [LEN_FIELD]byte) Measurement {
 	adcP := uint32(f[2])<<12 | uint32(f[3])<<4 | uint32(f[4])>>4
 	adcT := uint32(f[5])<<12 | uint32(f[6])<<4 | uint32(f[7])>>4
 	adcH := uint16(f[8])<<8 | uint16(f[9])
+
+	// BME688 reports the high-range gas result in bytes 15 and 16, while
+	// bytes 13 and 14 hold the low-range result used by the BME680.
+	gasByte := 14
 	adcG := uint16(f[13])<<2 | uint16(f[14]>>6)
-	gasRange := f[14] & GAS_RANGE_MSK
+	if d.variantID == VARIANT_BME688 {
+		gasByte = 16
+		adcG = uint16(f[15])<<2 | uint16(f[16]>>6)
+	}
+	gasRange := f[gasByte] & GAS_RANGE_MSK
 
 	temp, tFine := d.calcTemperature(adcT)
-	d.calib.tFine = tFine
 
 	return Measurement{
 		Temperature:   temp,
-		Pressure:      d.calcPressure(adcP),
-		Humidity:      d.calcHumidity(adcH),
+		Pressure:      d.calcPressure(adcP, tFine),
+		Humidity:      d.calcHumidity(adcH, tFine),
 		GasResistance: d.calcGasResistance(adcG, gasRange),
-		GasValid:      f[14]&GAS_VALID_MSK != 0,
-		HeaterStable:  f[14]&HEAT_STAB_MSK != 0,
+		GasValid:      f[gasByte]&GAS_VALID_MSK != 0,
+		HeaterStable:  f[gasByte]&HEAT_STAB_MSK != 0,
 	}
 }
 
@@ -369,9 +379,9 @@ func (d *Device) calcTemperature(adcT uint32) (int32, int32) {
 
 // calcPressure returns pressure in Pascals.
 // Formula from Bosch BME68x API (integer variant).
-func (d *Device) calcPressure(adcP uint32) uint32 {
-	var1 := d.calib.tFine/2 - 64000
-	var2 := ((var1/4)*(var1/4))>>11*int32(d.calib.p6)/2 +
+func (d *Device) calcPressure(adcP uint32, tFine int32) uint32 {
+	var1 := tFine/2 - 64000
+	var2 := ((var1/4)*(var1/4))>>11*int32(d.calib.p6)/4 +
 		var1*int32(d.calib.p5)*2
 	var2 = var2/4 + int32(d.calib.p4)*65536
 	var1 = (((var1/4)*(var1/4))>>13*(int32(d.calib.p3)<<5)>>3 +
@@ -396,8 +406,8 @@ func (d *Device) calcPressure(adcP uint32) uint32 {
 
 // calcHumidity returns relative humidity × 1000.
 // Formula from Bosch BME68x API (integer variant).
-func (d *Device) calcHumidity(adcH uint16) uint32 {
-	tempScaled := (d.calib.tFine*5 + 128) >> 8
+func (d *Device) calcHumidity(adcH uint16, tFine int32) uint32 {
+	tempScaled := (tFine*5 + 128) >> 8
 	var1 := int32(adcH) -
 		int32(d.calib.h1)*16 -
 		(tempScaled*int32(d.calib.h3)/100)>>1
@@ -421,8 +431,17 @@ func (d *Device) calcHumidity(adcH uint16) uint32 {
 }
 
 // calcGasResistance returns gas resistance in Ohms.
-// Formula from Bosch BME68x API using integer lookup tables.
+// Formulas from the Bosch BME68x API.
 func (d *Device) calcGasResistance(adcG uint16, gasRange byte) uint32 {
+	if d.variantID == VARIANT_BME688 {
+		// High-range formula (calc_gas_resistance_high). Multiplying by
+		// 10000 first and then by 100 avoids overflowing int32.
+		var1 := uint32(262144) >> gasRange
+		var2 := (int32(adcG)-512)*3 + 4096
+		return (uint32(10000) * var1 / uint32(var2)) * 100
+	}
+
+	// Low-range formula (calc_gas_resistance_low) for the BME680.
 	var1 := int64(1340+5*int64(d.calib.rangeSWErr)) *
 		int64(gasLookupTable1[gasRange]) >> 16
 	var2 := int64(int64(adcG)<<15-16777216) + var1
@@ -478,12 +497,12 @@ func (d *Device) measurementDelay() time.Duration {
 		return 16
 	}
 
-	µs := overhead +
+	us := overhead +
 		clamp(d.Config.Temperature)*perSample +
 		clamp(d.Config.Pressure)*perSample +
 		clamp(d.Config.Humidity)*perSample
 
-	dur := time.Duration(µs) * time.Microsecond
+	dur := time.Duration(us) * time.Microsecond
 	if d.Config.GasEnabled {
 		dur += time.Duration(d.Config.HeaterDuration)*time.Millisecond + 3*time.Millisecond
 	}

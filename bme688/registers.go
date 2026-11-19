@@ -15,21 +15,20 @@ const (
 
 // Registers
 const (
-	REG_COEFF_3       = 0x00 // res_heat_val, res_heat_range, range_sw_err
-	REG_CTRL_GAS_0    = 0x70 // heat_off
-	REG_CTRL_GAS_1    = 0x71 // run_gas, nb_conv
-	REG_CTRL_HUM      = 0x72 // osrs_h
-	REG_CTRL_MEAS     = 0x74 // osrs_t, osrs_p, mode
-	REG_CONFIG        = 0x75 // filter
-	REG_FIELD_0       = 0x1D // start of 17-byte measurement field
-	REG_MEAS_STATUS_0 = 0x1D // measurement status
-	REG_RES_HEAT_0    = 0x5A // target heater resistance (profile 0..9 at 0x5A..0x63)
-	REG_GAS_WAIT_0    = 0x64 // heater on duration (profile 0..9 at 0x64..0x6D)
-	REG_COEFF_1       = 0x8A // T2, T3, P1..P10 calibration coefficients
-	REG_COEFF_2       = 0xE1 // H2, H1, H3..H7, T1, GH2, GH1, GH3
-	REG_CHIP_ID       = 0xD0
-	REG_VARIANT_ID    = 0xF0
-	REG_RESET         = 0xE0
+	REG_COEFF_3    = 0x00 // res_heat_val, res_heat_range, range_sw_err
+	REG_CTRL_GAS_0 = 0x70 // heat_off
+	REG_CTRL_GAS_1 = 0x71 // run_gas, nb_conv
+	REG_CTRL_HUM   = 0x72 // osrs_h
+	REG_CTRL_MEAS  = 0x74 // osrs_t, osrs_p, mode
+	REG_CONFIG     = 0x75 // filter
+	REG_FIELD_0    = 0x1D // start of 17-byte measurement field
+	REG_RES_HEAT_0 = 0x5A // target heater resistance (profile 0..9 at 0x5A..0x63)
+	REG_GAS_WAIT_0 = 0x64 // heater on duration (profile 0..9 at 0x64..0x6D)
+	REG_COEFF_1    = 0x8A // T2, T3, P1..P10 calibration coefficients
+	REG_COEFF_2    = 0xE1 // H2, H1, H3..H7, T1, GH2, GH1, GH3
+	REG_CHIP_ID    = 0xD0
+	REG_VARIANT_ID = 0xF0
+	REG_RESET      = 0xE0
 )
 
 const (
@@ -42,15 +41,10 @@ const (
 // Reset command
 const RESET_CMD = 0xB6
 
-// Measurement status bits (REG_MEAS_STATUS_0 / field byte 0)
-const (
-	NEW_DATA_MSK  = 0x80 // new data available
-	GAS_MEAS_MSK  = 0x40 // gas measurement ongoing
-	MEASURING_MSK = 0x20 // TPH measurement ongoing
-	GAS_IDX_MSK   = 0x0F // gas heater profile index used
-)
+// Measurement status bits (field byte 0)
+const NEW_DATA_MSK = 0x80 // new data available
 
-// Gas result bits (field byte 14, i.e. field[0x1D + 14])
+// Gas result bits (field byte 14 for the BME680, byte 16 for the BME688)
 const (
 	GAS_VALID_MSK = 0x20 // gas measurement result valid
 	HEAT_STAB_MSK = 0x10 // heater temperature stable
@@ -63,7 +57,7 @@ const HEAT_OFF_MSK = 0x08 // set to disable heater
 // ctrl_gas_1 run_gas bit per variant
 const (
 	RUN_GAS_680 = 0x10 // bit 4 for BME680
-	RUN_GAS_688 = 0x20 // bit 5 for BME688 (low-range gas measurement)
+	RUN_GAS_688 = 0x20 // bit 5 for BME688 (high-range gas measurement)
 )
 
 // Oversampling settings for temperature, pressure, and humidity
