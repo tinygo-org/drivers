@@ -23,6 +23,7 @@ tinygo build -size short -o ./build/test.elf -target=m5stamp-s3a ./examples/bmm1
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp180/main.go
 tinygo build -size short -o ./build/test.hex -target=itsybitsy-m0 ./examples/bmp280/main.go
 tinygo build -size short -o ./build/test.hex -target=trinket-m0 ./examples/bmp388/main.go
+tinygo build -size short -o ./build/test.hex -target=pico ./examples/bmp580/main.go
 tinygo build -size short -o ./build/test.hex -target=metro-rp2350 ./examples/bno08x/i2c/main.go
 tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/sram/main.go
 tinygo build -size short -o ./build/test.hex -target=bluepill ./examples/ds1307/time/main.go
