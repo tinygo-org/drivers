@@ -59,7 +59,7 @@ func TestConnected(t *testing.T) {
 	for _, c := range []struct {
 		id   uint8
 		want bool
-	}{{chipIDBMP580, true}{0x60, false}} {
+	}{{chipIDBMP580, true}, {0x60, false}} {
 		bus, dev := newFake(t)
 		dev.Registers[regChipID] = c.id
 		d := New(bus)
