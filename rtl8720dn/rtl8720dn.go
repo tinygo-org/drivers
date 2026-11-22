@@ -35,6 +35,7 @@ const (
 	O_NONBLOCK     = 1 // note: different value than syscall.O_NONBLOCK (0x800)
 	RTW_MODE_STA   = 0x00000001
 	defaultChannel = 6
+	maxRootCABytes = 4080
 )
 
 type sock int32
@@ -77,6 +78,7 @@ type rtl8720dn struct {
 
 	// keyed by sock as returned by rpc_lwip_socket()
 	sockets map[sock]*socket
+	rootCA  string
 }
 
 func newSocket(protocol int) *socket {
@@ -437,10 +439,28 @@ func (r *rtl8720dn) Addr() (netip.Addr, error) {
 	return ip, err
 }
 
+// SetRootCA stores PEM data for new TLS clients. An empty string clears it.
+// It does not register or validate the certificate in the firmware.
+func (r *rtl8720dn) SetRootCA(pem string) error {
+	if len(pem) > maxRootCABytes {
+		return fmt.Errorf("CA certificate data exceeds %d bytes", maxRootCABytes)
+	}
+	if strings.IndexByte(pem, 0) >= 0 {
+		return errors.New("CA certificate data contains a NUL byte")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.rootCA = pem
+	return nil
+}
+
 func (r *rtl8720dn) clientTLS() uint32 {
 	client := r.rpc_wifi_ssl_client_create()
 	r.rpc_wifi_ssl_init(client)
 	r.rpc_wifi_ssl_set_timeout(client, 120*1000 /* usec? */)
+	if r.rootCA != "" {
+		r.rpc_wifi_ssl_set_rootCA(client, r.rootCA)
+	}
 	return client
 }
 
