@@ -17,18 +17,24 @@ var (
 	states = []int8{0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0}
 )
 
+type InterruptablePin[P any, CFT func(P)] interface {
+	SetInterrupt(change machine.PinChange, callback CFT) error
+	Configure(machine.PinConfig)
+	Get() bool
+}
+
 // NewQuadratureViaInterrupt returns a rotary encoder device that uses GPIO
 // interrupts and a lookup table to keep track of quadrature state changes.
 //
 // This constructur is only available for TinyGo targets for which machine.PinToggle
 // is defined as a valid interrupt type.
-func NewQuadratureViaInterrupt(pinA, pinB machine.Pin) *QuadratureDevice {
-	return &QuadratureDevice{impl: &quadInterruptImpl{pinA: pinA, pinB: pinB, oldAB: 0b00000011}}
+func NewQuadratureViaInterrupt[P InterruptablePin[P, func(P)]](pinA, pinB P) *QuadratureDevice {
+	return &QuadratureDevice{impl: &quadInterruptImpl[P]{pinA: pinA, pinB: pinB, oldAB: 0b00000011}}
 }
 
-type quadInterruptImpl struct {
-	pinA machine.Pin
-	pinB machine.Pin
+type quadInterruptImpl[P InterruptablePin[P, func(P)]] struct {
+	pinA P
+	pinB P
 
 	// precision int
 
@@ -36,7 +42,7 @@ type quadInterruptImpl struct {
 	value volatile.Register32
 }
 
-func (enc *quadInterruptImpl) configure(cfg QuadratureConfig) error {
+func (enc *quadInterruptImpl[P]) configure(cfg QuadratureConfig) error {
 	enc.pinA.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	enc.pinA.SetInterrupt(machine.PinToggle, enc.interrupt)
 
@@ -46,7 +52,7 @@ func (enc *quadInterruptImpl) configure(cfg QuadratureConfig) error {
 	return nil
 }
 
-func (enc *quadInterruptImpl) interrupt(pin machine.Pin) {
+func (enc *quadInterruptImpl[P]) interrupt(pin P) {
 	aHigh, bHigh := enc.pinA.Get(), enc.pinB.Get()
 	enc.oldAB <<= 2
 	if aHigh {
@@ -59,11 +65,11 @@ func (enc *quadInterruptImpl) interrupt(pin machine.Pin) {
 }
 
 // readValue gets the value using volatile operations and returns it as an int
-func (enc *quadInterruptImpl) readValue() int {
+func (enc *quadInterruptImpl[P]) readValue() int {
 	return int(enc.value.Get())
 }
 
 // writeValue set the value to the specified int using volatile operations
-func (enc *quadInterruptImpl) writeValue(v int) {
+func (enc *quadInterruptImpl[P]) writeValue(v int) {
 	enc.value.Set(uint32(v))
 }
