@@ -29,7 +29,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == 0x5A
 }
 
@@ -62,7 +62,7 @@ func (d *Device) Configure(speed DataRate, sensitivity Sensitivity) error {
 // -1000000.
 func (d Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 	data := make([]byte, 6)
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), OUT_X_MSB, data)
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{OUT_X_MSB}, data)
 	shift := uint32(8)
 	switch d.sensitivity {
 	case Sensitivity4G:

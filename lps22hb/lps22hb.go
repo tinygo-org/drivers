@@ -28,9 +28,9 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 
 	// read data
 	data := []byte{0, 0, 0}
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_PRESS_OUT_REG, data[:1])
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_PRESS_OUT_REG+1, data[1:2])
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_PRESS_OUT_REG+2, data[2:])
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_PRESS_OUT_REG}, data[:1])
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_PRESS_OUT_REG + 1}, data[1:2])
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_PRESS_OUT_REG + 2}, data[2:])
 	pValue := float32(uint32(data[2])<<16|uint32(data[1])<<8|uint32(data[0])) / 4096.0
 
 	return int32(pValue * 1000), nil
@@ -40,7 +40,7 @@ func (d *Device) ReadPressure() (pressure int32, err error) {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_WHO_AM_I_REG, data)
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_WHO_AM_I_REG}, data)
 	return data[0] == 0xB1
 }
 
@@ -50,8 +50,8 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 
 	// read data
 	data := []byte{0, 0}
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_TEMP_OUT_REG, data[:1])
-	legacy.ReadRegister(d.bus, d.Address, LPS22HB_TEMP_OUT_REG+1, data[1:])
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_TEMP_OUT_REG}, data[:1])
+	d.bus.Tx(uint16(d.Address), []byte{LPS22HB_TEMP_OUT_REG + 1}, data[1:])
 	tValue := float32(int16(uint16(data[1])<<8|uint16(data[0]))) / 100.0
 
 	return int32(tValue * 1000), nil
@@ -67,7 +67,7 @@ func (d *Device) waitForOneShot() {
 	// wait until one shot is cleared
 	data := []byte{1}
 	for {
-		legacy.ReadRegister(d.bus, d.Address, LPS22HB_CTRL2_REG, data)
+		d.bus.Tx(uint16(d.Address), []byte{LPS22HB_CTRL2_REG}, data)
 		if data[0]&0x01 == 0 {
 			break
 		}

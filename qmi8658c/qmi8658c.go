@@ -182,7 +182,7 @@ func (d *Device) ReadTemperature() (int32, error) {
 
 // Convenience method to read the register and avoid repetition.
 func (d *Device) ReadRegister(reg uint8, buf []byte) error {
-	return legacy.ReadRegister(d.bus, uint8(d.Address), reg, buf)
+	return d.bus.Tx(uint16(uint8(d.Address)), []byte{reg}, buf)
 }
 
 // Convenience method to write the register and avoid repetition.

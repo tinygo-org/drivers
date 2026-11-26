@@ -61,7 +61,7 @@ func (d *Device) Configure(config Config) error {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.address), WHO_AM_I, data)
+	err := d.bus.Tx(uint16(uint8(d.address)), []byte{WHO_AM_I}, data)
 	if err != nil {
 		return false
 	}
@@ -71,20 +71,27 @@ func (d *Device) Connected() bool {
 // SetDataRate sets the speed of data collected by the LIS3DH.
 func (d *Device) SetDataRate(rate DataRate) error {
 	ctl1 := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL1, ctl1)
+	err := d.bus.Tx(uint16(uint8(d.address)), []byte{REG_CTRL1}, ctl1)
 	if err != nil {
 		return err
 	}
 	// mask off bits
 	ctl1[0] &^= 0xf0
 	ctl1[0] |= (byte(rate) << 4)
-	return legacy.WriteRegister(d.bus, uint8(d.address), REG_CTRL1, ctl1)
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = uint8(d.address)
+	)
+	buf := make([]uint8, len(ctl1)+1)
+	buf[0] = REG_CTRL1
+	copy(buf[1:], ctl1)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // SetRange sets the G range for LIS3DH.
 func (d *Device) SetRange(r Range) error {
 	ctl := []byte{0}
-	err := legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL4, ctl)
+	err := d.bus.Tx(uint16(uint8(d.address)), []byte{REG_CTRL4}, ctl)
 	if err != nil {
 		return err
 	}
@@ -105,7 +112,7 @@ func (d *Device) SetRange(r Range) error {
 // ReadRange returns the current G range for LIS3DH.
 func (d *Device) ReadRange() (r Range, err error) {
 	ctl := []byte{0}
-	err = legacy.ReadRegister(d.bus, uint8(d.address), REG_CTRL4, ctl)
+	err = d.bus.Tx(uint16(uint8(d.address)), []byte{REG_CTRL4}, ctl)
 	if err != nil {
 		return 0, err
 	}

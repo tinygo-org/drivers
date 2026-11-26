@@ -69,7 +69,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_ID_REG, data)
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_ID_REG}, data)
 	return data[0] == 0xAB
 }
 
@@ -169,7 +169,7 @@ func (d *Device) ReadProximity() (proximity int32) {
 		return 0
 	}
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_PDATA_REG, data)
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_PDATA_REG}, data)
 	return 255 - int32(data[0])
 }
 
@@ -196,14 +196,14 @@ func (d *Device) ReadColor() (r int32, g int32, b int32, clear int32) {
 		return
 	}
 	data := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_CDATAL_REG, data[:1])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_CDATAH_REG, data[1:2])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_RDATAL_REG, data[2:3])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_RDATAH_REG, data[3:4])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_GDATAL_REG, data[4:5])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_GDATAH_REG, data[5:6])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_BDATAL_REG, data[6:7])
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_BDATAH_REG, data[7:])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_CDATAL_REG}, data[:1])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_CDATAH_REG}, data[1:2])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_RDATAL_REG}, data[2:3])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_RDATAH_REG}, data[3:4])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_GDATAL_REG}, data[4:5])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_GDATAH_REG}, data[5:6])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_BDATAL_REG}, data[6:7])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_BDATAH_REG}, data[7:])
 	clear = int32(uint16(data[1])<<8 | uint16(data[0]))
 	r = int32(uint16(data[3])<<8 | uint16(data[2]))
 	g = int32(uint16(data[5])<<8 | uint16(data[4]))
@@ -235,13 +235,13 @@ func (d *Device) GestureAvailable() bool {
 	data := []byte{0, 0, 0, 0}
 
 	// check GVALID
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_GSTATUS_REG, data[:1])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_GSTATUS_REG}, data[:1])
 	if data[0]&0x01 == 0 {
 		return false
 	}
 
 	// get number of data sets available in FIFO
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_GFLVL_REG, data[:1])
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_GFLVL_REG}, data[:1])
 	availableDataSets := data[0]
 	if availableDataSets == 0 {
 		return false
@@ -250,10 +250,10 @@ func (d *Device) GestureAvailable() bool {
 	// read up, down, left and right proximity data from FIFO
 	var dataSets [32][4]uint8
 	for i := uint8(0); i < availableDataSets; i++ {
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_U_REG, data[:1])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_D_REG, data[1:2])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_L_REG, data[2:3])
-		legacy.ReadRegister(d.bus, d.Address, APDS9960_GFIFO_R_REG, data[3:4])
+		d.bus.Tx(uint16(d.Address), []byte{APDS9960_GFIFO_U_REG}, data[:1])
+		d.bus.Tx(uint16(d.Address), []byte{APDS9960_GFIFO_D_REG}, data[1:2])
+		d.bus.Tx(uint16(d.Address), []byte{APDS9960_GFIFO_L_REG}, data[2:3])
+		d.bus.Tx(uint16(d.Address), []byte{APDS9960_GFIFO_R_REG}, data[3:4])
 		for j := uint8(0); j < 4; j++ {
 			dataSets[i][j] = data[j]
 		}
@@ -395,7 +395,7 @@ func (d *Device) enable(cfg enableConfig) {
 
 func (d *Device) readStatus(param string) bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, d.Address, APDS9960_STATUS_REG, data)
+	d.bus.Tx(uint16(d.Address), []byte{APDS9960_STATUS_REG}, data)
 
 	switch param {
 	case "CPSAT":

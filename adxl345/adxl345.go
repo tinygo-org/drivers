@@ -106,7 +106,7 @@ func (d *Device) ReadAcceleration() (x int32, y int32, z int32, err error) {
 // from the adxl345.
 func (d *Device) ReadRawAcceleration() (x int16, y int16, z int16) {
 	data := []byte{0, 0, 0, 0, 0, 0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), REG_DATAX0, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_DATAX0}, data)
 
 	x = readIntLE(data[0], data[1])
 	y = readIntLE(data[2], data[3])

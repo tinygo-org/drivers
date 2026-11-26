@@ -8,7 +8,6 @@ package mpu6050 // import "tinygo.org/x/drivers/mpu6050"
 
 import (
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device wraps an I2C connection to a MPU6050 device.
@@ -29,7 +28,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == 0x68
 }
 
@@ -44,7 +43,7 @@ func (d Device) Configure() error {
 // -1000000.
 func (d Device) ReadAcceleration() (x int32, y int32, z int32) {
 	data := make([]byte, 6)
-	legacy.ReadRegister(d.bus, uint8(d.Address), ACCEL_XOUT_H, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{ACCEL_XOUT_H}, data)
 	// Now do two things:
 	// 1. merge the two values to a 16-bit number (and cast to a 32-bit integer)
 	// 2. scale the value to bring it in the -1000000..1000000 range.
@@ -65,7 +64,7 @@ func (d Device) ReadAcceleration() (x int32, y int32, z int32) {
 // you would get a value close to 360000000.
 func (d Device) ReadRotation() (x int32, y int32, z int32) {
 	data := make([]byte, 6)
-	legacy.ReadRegister(d.bus, uint8(d.Address), GYRO_XOUT_H, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{GYRO_XOUT_H}, data)
 	// First the value is converted from a pair of bytes to a signed 16-bit
 	// value and then to a signed 32-bit value to avoid integer overflow.
 	// Then the value is scaled to µ°/s (micro-degrees per second).
@@ -84,15 +83,27 @@ func (d Device) ReadRotation() (x int32, y int32, z int32) {
 
 // SetClockSource allows the user to configure the clock source.
 func (d Device) SetClockSource(source uint8) error {
-	return legacy.WriteRegister(d.bus, uint8(d.Address), PWR_MGMT_1, []uint8{source})
+	var data []byte = []uint8{source}
+	buf := make([]uint8, len(data)+1)
+	buf[0] = PWR_MGMT_1
+	copy(buf[1:], data)
+	return d.bus.Tx(uint16(uint8(d.Address)), buf, nil)
 }
 
 // SetFullScaleGyroRange allows the user to configure the scale range for the gyroscope.
 func (d Device) SetFullScaleGyroRange(rng uint8) error {
-	return legacy.WriteRegister(d.bus, uint8(d.Address), GYRO_CONFIG, []uint8{rng})
+	var data []byte = []uint8{rng}
+	buf := make([]uint8, len(data)+1)
+	buf[0] = GYRO_CONFIG
+	copy(buf[1:], data)
+	return d.bus.Tx(uint16(uint8(d.Address)), buf, nil)
 }
 
 // SetFullScaleAccelRange allows the user to configure the scale range for the accelerometer.
 func (d Device) SetFullScaleAccelRange(rng uint8) error {
-	return legacy.WriteRegister(d.bus, uint8(d.Address), ACCEL_CONFIG, []uint8{rng})
+	var data []byte = []uint8{rng}
+	buf := make([]uint8, len(data)+1)
+	buf[0] = ACCEL_CONFIG
+	copy(buf[1:], data)
+	return d.bus.Tx(uint16(uint8(d.Address)), buf, nil)
 }

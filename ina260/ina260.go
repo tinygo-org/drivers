@@ -100,7 +100,7 @@ func (d *Device) Power() int32 {
 // Read a register
 func (d *Device) ReadRegister(reg uint8) uint16 {
 	data := []byte{0, 0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), reg, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{reg}, data)
 	return (uint16(data[0]) << 8) | uint16(data[1])
 }
 

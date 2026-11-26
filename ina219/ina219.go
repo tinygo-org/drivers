@@ -2,7 +2,6 @@ package ina219
 
 import (
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // An INA219 device.
@@ -186,7 +185,7 @@ func (d *Device) ReadConfig() (config Config, err error) {
 func (d *Device) ReadRegister(reg uint8) (val int16, err error) {
 	buf := make([]byte, 2)
 
-	err = legacy.ReadRegister(d.bus, uint8(d.Address), reg, buf)
+	err = d.bus.Tx(uint16(uint8(d.Address)), []byte{reg}, buf)
 	if err != nil {
 		return
 	}
@@ -198,5 +197,15 @@ func (d *Device) ReadRegister(reg uint8) (val int16, err error) {
 // Write to a register on the device.
 func (d *Device) WriteRegister(reg uint8, val uint16) error {
 	buf := []byte{byte(val >> 8), byte(val & 0xff)}
-	return legacy.WriteRegister(d.bus, uint8(d.Address), reg, buf)
+	{
+		var (
+			bus  drivers.I2C = d.bus
+			addr uint8       = uint8(d.Address)
+			data []byte      = buf
+		)
+		buf := make([]uint8, len(data)+1)
+		buf[0] = reg
+		copy(buf[1:], data)
+		return bus.Tx(uint16(addr), buf, nil)
+	}
 }

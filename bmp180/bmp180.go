@@ -56,7 +56,7 @@ func New(bus drivers.I2C) Device {
 // It does a "who am I" request and checks the response.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == CHIP_ID
 }
 
@@ -64,7 +64,7 @@ func (d *Device) Connected() bool {
 // read the calibration coefficients.
 func (d *Device) Configure() {
 	data := make([]byte, 22)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), AC1_MSB, data)
+	err := d.bus.Tx(uint16(uint8(d.Address)), []byte{AC1_MSB}, data)
 	if err != nil {
 		return
 	}
@@ -145,7 +145,7 @@ func (d *Device) rawTemp() (int32, error) {
 	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL, []byte{CMD_TEMP})
 	time.Sleep(5 * time.Millisecond)
 	data := make([]byte, 2)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_TEMP_MSB, data)
+	err := d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_TEMP_MSB}, data)
 	if err != nil {
 		return 0, err
 	}
@@ -164,7 +164,7 @@ func (d *Device) rawPressure(mode OversamplingMode) (int32, error) {
 	legacy.WriteRegister(d.bus, uint8(d.Address), REG_CTRL, []byte{CMD_PRESSURE + byte(mode<<6)})
 	time.Sleep(pauseForReading(mode))
 	data := make([]byte, 3)
-	err := legacy.ReadRegister(d.bus, uint8(d.Address), REG_PRESSURE_MSB, data)
+	err := d.bus.Tx(uint16(uint8(d.Address)), []byte{REG_PRESSURE_MSB}, data)
 	if err != nil {
 		return 0, err
 	}

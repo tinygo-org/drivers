@@ -53,8 +53,8 @@ func New(bus drivers.I2C) *Device {
 // It does two "who am I" requests and checks the responses.
 func (d *Device) Connected() bool {
 	data1, data2 := []byte{0}, []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_WHO_AM_I, data1)
-	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_WHO_AM_I, data2)
+	d.bus.Tx(uint16(uint8(d.AccelAddress)), []byte{ACCEL_WHO_AM_I}, data1)
+	d.bus.Tx(uint16(uint8(d.MagAddress)), []byte{MAG_WHO_AM_I}, data2)
 	return data1[0] == 0x33 && data2[0] == 0x40
 }
 
@@ -138,7 +138,7 @@ func (d *Device) Configure(cfg Configuration) (err error) {
 // -1000000.
 func (d *Device) ReadAcceleration() (x, y, z int32, err error) {
 	data := d.buf[:6]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), ACCEL_OUT_AUTO_INC, data)
+	err = d.bus.Tx(uint16(uint8(d.AccelAddress)), []byte{ACCEL_OUT_AUTO_INC}, data)
 	if err != nil {
 		return
 	}
@@ -191,7 +191,7 @@ func (d *Device) ReadMagneticField() (x, y, z int32, err error) {
 	}
 
 	data := d.buf[0:6]
-	legacy.ReadRegister(d.bus, uint8(d.MagAddress), MAG_OUT_AUTO_INC, data)
+	d.bus.Tx(uint16(uint8(d.MagAddress)), []byte{MAG_OUT_AUTO_INC}, data)
 
 	x = int32(int16((uint16(data[1])<<8 | uint16(data[0]))))
 	y = int32(int16((uint16(data[3])<<8 | uint16(data[2]))))
@@ -220,7 +220,7 @@ func (d *Device) ReadCompass() (h int32, err error) {
 func (d *Device) ReadTemperature() (t int32, err error) {
 
 	data := d.buf[:2]
-	err = legacy.ReadRegister(d.bus, uint8(d.AccelAddress), OUT_TEMP_AUTO_INC, data)
+	err = d.bus.Tx(uint16(uint8(d.AccelAddress)), []byte{OUT_TEMP_AUTO_INC}, data)
 	if err != nil {
 		return
 	}

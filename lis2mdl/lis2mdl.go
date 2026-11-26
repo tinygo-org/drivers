@@ -39,7 +39,7 @@ func New(bus drivers.I2C) Device {
 // Connected returns whether LIS2MDL sensor has been found.
 func (d *Device) Connected() bool {
 	data := []byte{0}
-	legacy.ReadRegister(d.bus, uint8(d.Address), WHO_AM_I, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{WHO_AM_I}, data)
 	return data[0] == 0x40
 }
 
@@ -98,7 +98,7 @@ func (d *Device) ReadMagneticField() (x int32, y int32, z int32) {
 	time.Sleep(10 * time.Millisecond)
 
 	data := make([]byte, 6)
-	legacy.ReadRegister(d.bus, uint8(d.Address), OUTX_L_REG, data)
+	d.bus.Tx(uint16(uint8(d.Address)), []byte{OUTX_L_REG}, data)
 
 	x = int32(int16((uint16(data[0]) << 8) | uint16(data[1])))
 	y = int32(int16((uint16(data[2]) << 8) | uint16(data[3])))

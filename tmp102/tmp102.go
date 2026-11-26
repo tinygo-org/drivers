@@ -6,7 +6,6 @@ package tmp102 // import "tinygo.org/x/drivers/tmp102"
 
 import (
 	"tinygo.org/x/drivers"
-	"tinygo.org/x/drivers/internal/legacy"
 )
 
 // Device holds the already configured I2C bus and the address of the sensor.
@@ -39,7 +38,7 @@ func (d *Device) Configure(cfg Config) {
 // Connected checks if the config register can be read and that the configuration is correct.
 func (d *Device) Connected() bool {
 	configData := make([]byte, 2)
-	err := legacy.ReadRegister(d.bus, d.address, RegConfiguration, configData)
+	err := d.bus.Tx(uint16(d.address), []byte{RegConfiguration}, configData)
 	// Check the reset configuration values.
 	if err != nil || configData[0] != 0x60 || configData[1] != 0xA0 {
 		return false
@@ -53,7 +52,7 @@ func (d *Device) ReadTemperature() (temperature int32, err error) {
 
 	tmpData := make([]byte, 2)
 
-	err = legacy.ReadRegister(d.bus, d.address, RegTemperature, tmpData)
+	err = d.bus.Tx(uint16(d.address), []byte{RegTemperature}, tmpData)
 
 	if err != nil {
 		return

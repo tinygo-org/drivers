@@ -93,7 +93,15 @@ func (d *Device) Configure() (err error) {
 func (d *Device) selectCommand(command uint8) (err error) {
 	if command != d.selectedCommand {
 		d.selectedCommand = command
-		return legacy.WriteRegister(d.bus, d.Address, COMMAND, []byte{command})
+		var (
+			bus  drivers.I2C = d.bus
+			addr uint8       = d.Address
+			data []byte      = []byte{command}
+		)
+		buf := make([]uint8, len(data)+1)
+		buf[0] = COMMAND
+		copy(buf[1:], data)
+		return bus.Tx(uint16(addr), buf, nil)
 	}
 
 	return nil
@@ -106,7 +114,14 @@ func (d *Device) writeFunctionRegister(operation uint8, data []byte) (err error)
 		return err
 	}
 
-	return legacy.WriteRegister(d.bus, d.Address, operation, data)
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = operation
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // enableLEDs enables only LEDs that are soldered on the set board. Enabled
@@ -137,7 +152,15 @@ func (d *Device) setPixelPWD(frame, n, value uint8) (err error) {
 		return err
 	}
 
-	return legacy.WriteRegister(d.bus, d.Address, LED_PWM_OFFSET+n, []byte{value})
+	var (
+		bus  drivers.I2C = d.bus
+		addr uint8       = d.Address
+		data []byte      = []byte{value}
+	)
+	buf := make([]uint8, len(data)+1)
+	buf[0] = LED_PWM_OFFSET + n
+	copy(buf[1:], data)
+	return bus.Tx(uint16(addr), buf, nil)
 }
 
 // SetActiveFrame sets frame to display with LEDs
