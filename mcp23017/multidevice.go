@@ -1,7 +1,5 @@
 package mcp23017
 
-import "tinygo.org/x/drivers"
-
 // All is a convenience value that represents all pins high (or all mask bits one).
 var All = PinSlice{0xffff}
 
@@ -14,7 +12,7 @@ type Devices []*Device
 // NewI2CDevices returns a Devices slice holding the Device values
 // for all the given addresses on the given bus.
 // When more than one bus is in use, create the slice yourself.
-func NewI2CDevices(bus drivers.I2C, addrs ...uint8) (Devices, error) {
+func NewI2CDevices(bus i2c, addrs ...uint8) (Devices, error) {
 	devs := make(Devices, len(addrs))
 	for i, addr := range addrs {
 		dev, err := NewI2C(bus, addr)
